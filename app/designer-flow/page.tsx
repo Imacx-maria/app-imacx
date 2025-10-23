@@ -30,6 +30,8 @@ import {
 import {
   ArrowUp,
   ArrowDown,
+  ArrowLeft,
+  ArrowRight,
   X,
   Loader2,
   RotateCw,
