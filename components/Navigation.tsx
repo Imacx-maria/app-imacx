@@ -61,8 +61,11 @@ const menuItems: MenuItem[] = [
   },
   {
     title: 'Produção',
-    href: '/producao',
     icon: <Factory className="h-5 w-5" />,
+    submenu: [
+      { title: 'Gestão', href: '/producao', icon: <Factory className="h-4 w-4" /> },
+      { title: 'Operações', href: '/producao/operacoes', icon: <Settings className="h-4 w-4" /> },
+    ],
   },
   {
     title: 'Stocks',
@@ -74,6 +77,7 @@ const menuItems: MenuItem[] = [
     icon: <FileText className="h-5 w-5" />,
     submenu: [
       { title: 'Faturação', href: '/gestao/faturacao', icon: <DollarSign className="h-4 w-4" /> },
+      { title: 'Análises', href: '/gestao/analytics', icon: <LayoutDashboard className="h-4 w-4" /> },
     ],
   },
 ]
