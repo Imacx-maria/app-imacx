@@ -1,6 +1,9 @@
 export interface DesignerItem {
   id: string // designer_items.id
   item_id: string // items_base.id
+  descricao?: string
+  codigo?: string | null
+  quantidade?: number | null
   em_curso: boolean | null
   duvidas: boolean | null
   maquete_enviada1: boolean | null
@@ -46,6 +49,8 @@ export interface DesignerItem {
   data_paginacao: string | null
   data_saida: string | null
   path_trabalho: string | null
+  complexidade?: string | null
+  notas?: string | null
   updated_at: string | null
   items_base: ItemBase | ItemBase[]
 }

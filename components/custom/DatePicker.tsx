@@ -39,19 +39,6 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   const contentRef = React.useRef<HTMLDivElement>(null)
   const [open, setOpen] = React.useState(false)
 
-  // Set up observer to replace aria-hidden with inert when popover content appears
-  React.useEffect(() => {
-    const contentElement = contentRef.current
-    if (!contentElement) return
-
-    // Create an observer for the content
-    const observer = setupAriaHiddenObserver(contentElement)
-
-    return () => {
-      observer?.disconnect()
-    }
-  }, [])
-
   // Handle date selection and close popover
   const handleDateSelect = (date: Date | undefined) => {
     onSelect(date)
@@ -105,7 +92,6 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             mode="single"
             selected={selected}
             onSelect={handleDateSelect}
-            holidays={holidays}
             initialFocus
             {...calendarProps}
           />

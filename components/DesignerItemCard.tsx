@@ -44,6 +44,8 @@ type ComplexidadeComponentProps = {
   options: ComplexidadeOption[]
   disabled?: boolean
   loading?: boolean
+  placeholder?: string
+  className?: string
 }
 
 interface DesignerItemCardProps {
@@ -55,7 +57,7 @@ interface DesignerItemCardProps {
   onDescricaoChange: (itemId: string, value: string) => void
   onCodigoChange: (itemId: string, value: string) => void
   onOpenPathDialog: (jobId: string, item: Item, index: number) => void
-  ComplexidadeCombobox: (props: ComplexidadeComponentProps) => JSX.Element
+  ComplexidadeCombobox: (props: ComplexidadeComponentProps) => React.ReactElement
   complexidades: ComplexidadeOption[]
   isLoadingComplexidades: boolean
   onComplexidadeChange: (itemId: string, grau: string | null) => Promise<void>
@@ -266,12 +268,12 @@ export default function DesignerItemCard({
 
     const supabaseField = columnMap[fieldStr] ?? fieldStr
 
-    updates[field] = value
+    ;(updates as any)[field] = value
     supabaseUpdates[supabaseField] = value
 
     if (timestampField) {
       const tsKey = timestampField as string
-      updates[timestampField] = value ? now : null
+      ;(updates as any)[timestampField] = value ? now : null
       supabaseUpdates[tsKey] = value ? now : null
     }
 
@@ -279,25 +281,25 @@ export default function DesignerItemCard({
     if (related) {
       if (isAprov && value === true) {
         // When A* turns true, force R* false and clear R*_date
-        updates[related.recusaField] = false
-        updates[related.dataRecusaField] = null
+        ;(updates as any)[related.recusaField] = false
+        ;(updates as any)[related.dataRecusaField] = null
         const recusaSupabaseField = columnMap[related.recusaField as string] ?? (related.recusaField as string)
         supabaseUpdates[recusaSupabaseField] = false
         supabaseUpdates[related.dataRecusaField as string] = null
       } else if (isRecusa && value === true) {
         // When R* turns true, force A* false and clear A* date
-        updates[related.aprovField] = false
-        updates[related.dataAprovField] = null
+        ;(updates as any)[related.aprovField] = false
+        ;(updates as any)[related.dataAprovField] = null
         supabaseUpdates[related.aprovField as string] = false
         supabaseUpdates[related.dataAprovField as string] = null
       }
 
       // If M* is unchecked, clear A* and R* and their dates
       if (isMaquete && value === false) {
-        updates[related.aprovField] = false
-        updates[related.recusaField] = false
-        updates[related.dataAprovField] = null
-        updates[related.dataRecusaField] = null
+        ;(updates as any)[related.aprovField] = false
+        ;(updates as any)[related.recusaField] = false
+        ;(updates as any)[related.dataAprovField] = null
+        ;(updates as any)[related.dataRecusaField] = null
 
         supabaseUpdates[related.aprovField as string] = false
         const recusaSupabaseField = columnMap[related.recusaField as string] ?? (related.recusaField as string)
@@ -316,12 +318,12 @@ export default function DesignerItemCard({
           const daKey = (`data_aprovacao_recebida${v}`) as keyof Item
           const drKey = (`R${v}_date`) as keyof Item
 
-          updates[mKey] = false
-          updates[aKey] = false
-          updates[rKey] = false
-          updates[dmKey] = null
-          updates[daKey] = null
-          updates[drKey] = null
+          ;(updates as any)[mKey] = false
+          ;(updates as any)[aKey] = false
+          ;(updates as any)[rKey] = false
+          ;(updates as any)[dmKey] = null
+          ;(updates as any)[daKey] = null
+          ;(updates as any)[drKey] = null
 
           supabaseUpdates[mKey as string] = false
           supabaseUpdates[aKey as string] = false

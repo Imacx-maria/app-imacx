@@ -967,7 +967,7 @@ export default function DesignerFlow() {
                     key={item.designer_item_id || `item-${index}`}
                     item={item}
                     jobId={selectedJob!.id}
-                    jobDataIn={selectedJob!.data_in}
+                    jobDataIn={selectedJob!.data_in ?? null}
                     index={index}
                     onUpdate={handleItemUpdate}
                     onDescricaoChange={handleDescricaoChange}
