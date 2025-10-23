@@ -118,6 +118,7 @@ export interface Job {
   numero_orc: string | number | null
   nome_campanha: string
   data_saida: string | null
+  data_in?: string | null
   prioridade: boolean | null
   profile_id?: string | null
   notas?: string
