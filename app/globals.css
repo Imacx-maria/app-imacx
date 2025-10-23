@@ -1,0 +1,389 @@
+@import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   UNIVERSAL RULES - CSS VARIABLES ONLY
+   ============================================ */
+
+@layer base {
+  /* Font family - universal */
+  * {
+    @apply border-border;
+    font-family: 'Atkinson Hyperlegible', sans-serif !important;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+  }
+  
+  /* ALL TEXT UPPERCASE - UNIVERSAL RULE */
+  * {
+    text-transform: uppercase !important;
+  }
+  
+  /* EXCEPTION: Login page uses normal case */
+  [data-page="login"] *,
+  [data-page="login"] input,
+  [data-page="login"] button {
+    text-transform: none !important;
+  }
+  
+  /* NO BOLD TEXT - UNIVERSAL RULE */
+  * {
+    font-weight: 400 !important;
+  }
+  
+  /* No rounded corners anywhere */
+  * {
+    border-radius: 0 !important;
+  }
+  
+  /* ============================================
+     INPUT FIELDS - USE VARIABLES
+     ============================================ */
+  
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  input[type="url"],
+  input[type="tel"],
+  input[type="date"],
+  input:not([type]),
+  textarea {
+    background-color: var(--input) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--foreground) !important;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  
+  /* Hover: slightly lighter/darker background */
+  input[type="text"]:hover,
+  input[type="number"]:hover,
+  input[type="email"]:hover,
+  input[type="password"]:hover,
+  input[type="search"]:hover,
+  input[type="url"]:hover,
+  input[type="tel"]:hover,
+  input[type="date"]:hover,
+  input:not([type]):hover,
+  textarea:hover {
+    background-color: var(--background) !important;
+    color: var(--foreground) !important;
+  }
+  
+  /* ============================================
+     CHECKBOXES
+     ============================================ */
+  
+  /* Light mode: Black outline for visibility */
+  button[role="checkbox"] {
+    border-color: var(--foreground) !important;
+  }
+  
+  /* When checked: Keep yellow background with black outline */
+  button[role="checkbox"][data-state="checked"] {
+    background-color: var(--primary) !important;
+    border-color: var(--foreground) !important;
+    color: var(--primary-foreground) !important;
+  }
+  
+  input[type="checkbox"] {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  
+  input[type="checkbox"]:focus,
+  input[type="checkbox"]:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  
+  /* ============================================
+     TABLE HEADERS
+     ============================================ */
+  
+  th {
+    background-color: var(--primary) !important;
+    color: var(--primary-foreground) !important;
+  }
+  
+  /* ============================================
+     YELLOW/BEIGE BACKGROUNDS = BLACK TEXT
+     ============================================ */
+  
+  .bg-primary,
+  .bg-primary *,
+  .hover\:bg-accent:hover,
+  .hover\:bg-accent:hover * {
+    color: var(--primary-foreground) !important;
+  }
+  
+  /* Exception: Buttons keep their own variant colors */
+  button.bg-primary,
+  button.bg-primary *,
+  .hover\:bg-accent:hover button.bg-primary,
+  .hover\:bg-accent:hover button.bg-primary * {
+    color: var(--primary-foreground) !important;
+  }
+  
+  button.bg-destructive,
+  button.bg-destructive *,
+  .hover\:bg-accent:hover button.bg-destructive,
+  .hover\:bg-accent:hover button.bg-destructive * {
+    color: var(--destructive-foreground) !important;
+  }
+  
+  button.bg-secondary,
+  button.bg-secondary *,
+  .hover\:bg-accent:hover button.bg-secondary,
+  .hover\:bg-accent:hover button.bg-secondary * {
+    color: var(--secondary-foreground) !important;
+  }
+  
+  /* ============================================
+     BUTTON ICONS - BLACK ON COLORED BACKGROUNDS
+     ============================================ */
+  
+  /* Button icons are black when button has a background color */
+  button.bg-yellow-400 svg,
+  button.bg-yellow-400 svg *,
+  button.bg-yellow-400 path,
+  button.bg-yellow-400 circle,
+  button.bg-yellow-400 rect,
+  button.bg-yellow-400 line,
+  button.bg-yellow-400 polyline,
+  button.bg-yellow-400 polygon,
+  button.bg-primary svg,
+  button.bg-primary svg *,
+  button.bg-primary path,
+  button.bg-primary circle,
+  button.bg-primary rect,
+  button.bg-primary line,
+  button.bg-primary polyline,
+  button.bg-primary polygon {
+    color: oklch(0% 0 0) !important;
+    stroke: oklch(0% 0 0) !important;
+  }
+  
+  /* ============================================
+     DARK MODE OVERRIDES
+     ============================================ */
+  
+  /* Dark mode: accent hover (dark gray) needs light text */
+  .dark .hover\:bg-accent:hover,
+  .dark .hover\:bg-accent:hover * {
+    color: var(--accent-foreground) !important;
+  }
+  
+  /* Dark mode: yellow/primary still gets black text */
+  .dark .bg-primary,
+  .dark .bg-primary *,
+  .dark .hover\:bg-primary:hover,
+  .dark .hover\:bg-primary:hover * {
+    color: var(--primary-foreground) !important;
+  }
+  
+  /* Exception: Buttons keep their own variant colors in dark mode */
+  .dark button.bg-primary,
+  .dark button.bg-primary *,
+  .dark .hover\:bg-accent:hover button.bg-primary,
+  .dark .hover\:bg-accent:hover button.bg-primary * {
+    color: var(--primary-foreground) !important;
+  }
+  
+  .dark button.bg-destructive,
+  .dark button.bg-destructive *,
+  .dark .hover\:bg-accent:hover button.bg-destructive,
+  .dark .hover\:bg-accent:hover button.bg-destructive * {
+    color: var(--destructive-foreground) !important;
+  }
+  
+  /* Dark mode: Checkboxes use yellow outline */
+  .dark button[role="checkbox"] {
+    border-color: var(--primary) !important;
+  }
+  
+  .dark button[role="checkbox"][data-state="checked"] {
+    background-color: var(--primary) !important;
+    border-color: var(--primary) !important;
+    color: var(--primary-foreground) !important;
+  }
+  
+  /* Sidebar navigation */
+  .dark nav button:not(.bg-primary):not(:hover),
+  .dark nav button:not(.bg-primary):not(:hover) *,
+  .dark nav a:not(.bg-primary):not(:hover),
+  .dark nav a:not(.bg-primary):not(:hover) * {
+    color: var(--muted-foreground) !important;
+  }
+  
+  .dark nav button:hover,
+  .dark nav button:hover *,
+  .dark nav a:hover,
+  .dark nav a:hover * {
+    color: var(--accent-foreground) !important;
+  }
+  
+  .dark nav .bg-primary,
+  .dark nav .bg-primary * {
+    color: var(--primary-foreground) !important;
+  }
+  
+  .dark .border-t button.text-destructive,
+  .dark .border-t button.text-destructive * {
+    color: var(--destructive) !important;
+  }
+  
+  /* Dark mode: icons on colored backgrounds stay black */
+  .dark button.bg-yellow-400 svg,
+  .dark button.bg-yellow-400 svg *,
+  .dark button.bg-yellow-400 path,
+  .dark button.bg-yellow-400 circle,
+  .dark button.bg-yellow-400 rect,
+  .dark button.bg-yellow-400 line,
+  .dark button.bg-yellow-400 polyline,
+  .dark button.bg-yellow-400 polygon,
+  .dark button.bg-primary svg,
+  .dark button.bg-primary svg *,
+  .dark button.bg-primary path,
+  .dark button.bg-primary circle,
+  .dark button.bg-primary rect,
+  .dark button.bg-primary line,
+  .dark button.bg-primary polyline,
+  .dark button.bg-primary polygon {
+    color: oklch(0% 0 0) !important;
+    stroke: oklch(0% 0 0) !important;
+  }
+  
+  /* Dark mode: icons on transparent/outline buttons are light */
+  .dark button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(.bg-secondary) svg,
+  .dark button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(.bg-secondary) svg *,
+  .dark button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(.bg-secondary) path,
+  .dark button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(.bg-secondary) circle,
+  .dark button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(.bg-secondary) rect,
+  .dark button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(.bg-secondary) line,
+  .dark button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(.bg-secondary) polyline,
+  .dark button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(.bg-secondary) polygon {
+    color: var(--foreground) !important;
+    stroke: var(--foreground) !important;
+  }
+}
+
+/* ============================================
+   CSS VARIABLES - THEME COLORS
+   ============================================ */
+
+:root {
+  --background: oklch(0.94 0.01 95.04);
+  --foreground: oklch(0% 0 0);
+  --main: oklch(84.08% 0.1725 84.2);
+  --border: oklch(0% 0 0);
+  
+  /* Shadcn compatibility */
+  --primary: oklch(84.08% 0.1725 84.2);
+  --primary-foreground: oklch(0% 0 0);
+  --card: oklch(0.94 0.01 95.04);
+  --card-foreground: oklch(0% 0 0);
+  --popover: oklch(0.94 0.01 95.04);
+  --popover-foreground: oklch(0% 0 0);
+  --secondary: oklch(0.8947 0.0111 95.18);
+  --secondary-foreground: oklch(0% 0 0);
+  --muted: oklch(0.8947 0.0111 95.18);
+  --muted-foreground: oklch(0.5 0 0);
+  --accent: oklch(0.8947 0.0111 95.18);
+  --accent-foreground: oklch(0% 0 0);
+  --destructive: oklch(0.63 0.23 25);
+  --destructive-foreground: oklch(0% 0 0);
+  --input: oklch(0.8947 0.0111 95.18);
+  --ring: oklch(0% 0 0);
+  --success: 0.72 0.12 145;
+  --success-foreground: 0.28 0.03 145;
+  --warning: 0.82 0.18 75;
+  --warning-foreground: 0.28 0.04 75;
+  --info: 0.68 0.09 235;
+  --info-foreground: 0.28 0.02 235;
+  --overlay: 0.18 0 0 / 0.72;
+  --radius: 0px;
+  
+  color-scheme: light;
+}
+
+.dark {
+  --background: oklch(0.31 0 0);
+  --foreground: oklch(0.85 0 0);
+  --main: oklch(84.08% 0.1725 84.2);
+  --border: oklch(0.50 0 0);
+  
+  /* Shadcn compatibility */
+  --primary: oklch(84.08% 0.1725 84.2);
+  --primary-foreground: oklch(0% 0 0);
+  --card: oklch(0.31 0 0);
+  --card-foreground: oklch(0.85 0 0);
+  --popover: oklch(0.31 0 0);
+  --popover-foreground: oklch(0.85 0 0);
+  --secondary: oklch(0.26 0 0 / 87.46%);
+  --secondary-foreground: oklch(0.85 0 0);
+  --muted: oklch(0.26 0 0 / 87.46%);
+  --muted-foreground: oklch(0.65 0 0);
+  --accent: oklch(0.40 0 0);
+  --accent-foreground: oklch(0.85 0 0);
+  --destructive: oklch(0.63 0.23 25);
+  --destructive-foreground: oklch(0% 0 0);
+  --input: oklch(0.45 0 0);
+  --ring: oklch(0.85 0 0);
+  --success: 0.7 0.12 145;
+  --success-foreground: 0.28 0.03 145;
+  --warning: 0.78 0.18 75;
+  --warning-foreground: 0.18 0.03 75;
+  --info: 0.66 0.09 235;
+  --info-foreground: 0.28 0.02 235;
+  --overlay: 0.2 0 0 / 0.7;
+  
+  color-scheme: dark;
+}
+
+/* ============================================
+   SCROLLBAR
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 12px;
+  background: var(--border);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--main);
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+.dark ::-webkit-scrollbar {
+  background: var(--main);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--border);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--secondary);
+}
+
+/* ============================================
+   AUTOFILL
+   ============================================ */
+
+input:-webkit-autofill,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--input) inset !important;
+  -webkit-text-fill-color: var(--foreground) !important;
+}
