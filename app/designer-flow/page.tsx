@@ -108,7 +108,7 @@ const fetchJobs = async (
       }
 
       if (itemData && itemData.length > 0) {
-        jobIds = Array.from(new Set(itemData.map((item) => item.folha_obra_id)))
+        jobIds = Array.from(new Set(itemData.map((item: any) => item.folha_obra_id)))
       } else {
         return []
       }
