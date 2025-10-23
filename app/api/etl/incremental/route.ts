@@ -60,7 +60,12 @@ export async function POST(req: NextRequest) {
       const scriptName = scriptMap[syncType] || scriptMap.default
       console.log(`🚀 Starting ${syncType} ETL sync...`)
       
-      const scriptPath = path.join(etlScriptsPath, scriptName)
+      // Support both absolute and relative paths
+      const resolvedPath = path.isAbsolute(etlScriptsPath)
+        ? etlScriptsPath
+        : path.join(process.cwd(), etlScriptsPath)
+      
+      const scriptPath = path.join(resolvedPath, scriptName)
       const command = `"${pythonPath}" "${scriptPath}"`
 
       console.log(`📝 Executing: ${command}`)

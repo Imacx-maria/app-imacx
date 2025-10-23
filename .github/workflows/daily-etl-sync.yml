@@ -1,0 +1,65 @@
+# .github/workflows/daily-etl-sync.yml
+name: Daily PHC to Supabase Sync
+
+on:
+  schedule:
+    # Runs every day at 00:00 UTC (midnight in Lisbon during winter)
+    - cron: '0 0 * * *'
+  
+  # Allow manual trigger from GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  sync-phc-tables:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install ODBC Driver 17 for SQL Server
+        run: |
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+          curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql17 unixodbc-dev
+      
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run Daily ETL Sync (Last 3 Days - All Tables)
+        env:
+          MSSQL_DSN: ${{ secrets.MSSQL_DSN }}
+          MSSQL_DIRECT_CONNECTION: ${{ secrets.MSSQL_DIRECT_CONNECTION }}
+          MSSQL_DIRECT_USERNAME: ${{ secrets.MSSQL_DIRECT_USERNAME }}
+          MSSQL_DIRECT_PASSWORD: ${{ secrets.MSSQL_DIRECT_PASSWORD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PG_HOST: ${{ secrets.PG_HOST }}
+          PG_DB: ${{ secrets.PG_DB }}
+          PG_USER: ${{ secrets.PG_USER }}
+          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
+          PG_PORT: ${{ secrets.PG_PORT }}
+          PG_SSLMODE: ${{ secrets.PG_SSLMODE }}
+        run: |
+          python scripts/etl/run_fast_all_tables_sync.py
+      
+      - name: Check ETL Results
+        if: always()
+        run: |
+          echo "✅ Daily ETL sync completed. Check logs above for details."
+      
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          echo "⚠️ ETL sync failed! Check the workflow logs for details."

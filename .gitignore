@@ -27,6 +27,9 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+.env.development.local
+.env.test.local
+.env.production.local
 
 # vercel
 .vercel
@@ -35,11 +38,31 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# pnpm
-C/
-.pnpm-store/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg
+*.egg-info/
+dist/
+build/
+.pytest_cache/
 
-# temporary files and IDE
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
 TEMP/
-.cursor/
+*.log
 
+# OS
+Thumbs.db

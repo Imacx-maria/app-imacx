@@ -44,7 +44,12 @@ export async function POST(req: NextRequest) {
     if (etlScriptsPath) {
       console.log('🚀 Starting Full ETL sync (this may take 20+ minutes)...')
       
-      const scriptPath = path.join(etlScriptsPath, 'run_full.py')
+      // Support both absolute and relative paths
+      const resolvedPath = path.isAbsolute(etlScriptsPath)
+        ? etlScriptsPath
+        : path.join(process.cwd(), etlScriptsPath)
+      
+      const scriptPath = path.join(resolvedPath, 'run_full.py')
       const command = `"${pythonPath}" "${scriptPath}"`
 
       console.log(`📝 Executing: ${command}`)

@@ -1,0 +1,18 @@
+# ETL Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# Core database connections
+pyodbc>=4.0.35
+psycopg2-binary>=2.9.5
+python-dotenv>=1.0.0
+
+# Data processing (optional, for future use)
+pandas>=1.5.0
+openpyxl>=3.1.0
+
+# API server (optional, for standalone ETL service)
+flask>=2.3.0
+
+# Scheduler (optional, for automated sync)
+schedule>=1.1.0
+
