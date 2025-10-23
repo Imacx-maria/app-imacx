@@ -1,50 +1,42 @@
-# .github/workflows/daily-etl-sync.yml
-name: Daily PHC to Supabase Sync
+name: Daily ETL Sync (Fast - Last 3 Days)
 
 on:
   schedule:
-    # Runs every day at 00:00 UTC (midnight in Lisbon during winter)
+    # Runs every day at midnight UTC (00:00)
+    # Adjust to your timezone if needed:
+    # - 0 23 * * * = 11 PM UTC (midnight in Lisbon winter)
+    # - 0 1 * * * = 1 AM UTC (2 AM in Lisbon summer)
     - cron: '0 0 * * *'
   
-  # Allow manual trigger from GitHub Actions tab
+  # Allow manual trigger from Actions tab
   workflow_dispatch:
 
 jobs:
-  sync-phc-tables:
+  sync-phc-data:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Set up Python 3.11
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
       
-      - name: Install ODBC Driver 17 for SQL Server
-        run: |
-          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-          curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
-          sudo apt-get update
-          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql17 unixodbc-dev
-      
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r scripts/requirements.txt
       
-      - name: Run Daily ETL Sync (Last 3 Days - All Tables)
+      - name: Run Fast ETL Sync (Last 3 Days)
         env:
-          MSSQL_DSN: ${{ secrets.MSSQL_DSN }}
+          # PHC Database Connection
           MSSQL_DIRECT_CONNECTION: ${{ secrets.MSSQL_DIRECT_CONNECTION }}
-          MSSQL_DIRECT_USERNAME: ${{ secrets.MSSQL_DIRECT_USERNAME }}
-          MSSQL_DIRECT_PASSWORD: ${{ secrets.MSSQL_DIRECT_PASSWORD }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          
+          # Supabase Connection
           PG_HOST: ${{ secrets.PG_HOST }}
           PG_DB: ${{ secrets.PG_DB }}
           PG_USER: ${{ secrets.PG_USER }}
@@ -52,14 +44,18 @@ jobs:
           PG_PORT: ${{ secrets.PG_PORT }}
           PG_SSLMODE: ${{ secrets.PG_SSLMODE }}
         run: |
+          echo "🚀 Starting Fast ETL Sync (last 3 days with watermarks)..."
           python scripts/etl/run_fast_all_tables_sync.py
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ ETL Sync completed successfully!"
+          else
+            echo "❌ ETL Sync failed!"
+            exit 1
+          fi
       
-      - name: Check ETL Results
-        if: always()
-        run: |
-          echo "✅ Daily ETL sync completed. Check logs above for details."
-      
-      - name: Notify on Failure
+      - name: Notify on failure
         if: failure()
         run: |
-          echo "⚠️ ETL sync failed! Check the workflow logs for details."
+          echo "⚠️ ETL sync failed! Check logs for details."
+          echo "Failed at: $(date)"
