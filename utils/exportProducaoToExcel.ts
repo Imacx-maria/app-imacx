@@ -10,6 +10,7 @@ interface ExportProducaoRow {
   nome_campanha?: string
   descricao?: string
   data_in?: string | null
+  data_saida?: string | null
   data_concluido?: string | null
   transportadora?: string
   local_entrega?: string
@@ -17,6 +18,9 @@ interface ExportProducaoRow {
   id_local_entrega?: string // UUID for delivery location lookup
   id_local_recolha?: string // UUID for pickup location lookup
   cliente_nome?: string // For display purposes
+  notas?: string | null
+  guia?: string | null
+  contacto_entrega?: string | null
 }
 
 interface ExportProducaoOptions {
@@ -45,19 +49,20 @@ export const exportProducaoToExcel = ({
   const workbook = new ExcelJS.Workbook()
   const worksheet = workbook.addWorksheet('Producao')
 
-  // Column definitions
+  // Column definitions (as requested by user)
   const columns = [
     { header: 'ORC', key: 'numero_orc' },
     { header: 'FO', key: 'numero_fo' },
     { header: 'CLIENTE', key: 'cliente_nome' },
-    { header: 'QUANT.', key: 'quantidade' },
-    { header: 'CAMPANHA', key: 'nome_campanha' },
-    { header: 'ITEM', key: 'descricao' },
     { header: 'DATA ENTRADA', key: 'data_in' },
-    { header: 'DATA CONCLUÍDO', key: 'data_concluido' },
+    { header: 'QTD', key: 'quantidade' },
+    { header: 'ITEM', key: 'descricao' },
+    { header: 'DATA SAÍDA', key: 'data_saida' },
+    { header: 'NOTAS', key: 'notas' },
+    { header: 'GT', key: 'guia' },
     { header: 'TRANSPORTADORA', key: 'transportadora' },
-    { header: 'LOCAL RECOLHA', key: 'local_recolha' },
-    { header: 'LOCAL ENTREGA', key: 'local_entrega' },
+    { header: 'ENTREGA', key: 'local_entrega' },
+    { header: 'CONTACTO ENTREGA', key: 'contacto_entrega' },
   ]
 
   // 1. Title row
@@ -80,6 +85,7 @@ export const exportProducaoToExcel = ({
 
   // 4. Header row (row 4)
   const headerRow = worksheet.addRow(columns.map((col) => col.header))
+  headerRow.height = 70 // Set header row height to 70 pixels
   headerRow.eachCell((cell, colNumber) => {
     cell.fill = {
       type: 'pattern',
@@ -87,7 +93,11 @@ export const exportProducaoToExcel = ({
       fgColor: { argb: 'FF4F4F4F' }, // Dark gray background
     }
     cell.font = { color: { argb: 'FFFFFFFF' }, bold: true }
-    cell.alignment = { vertical: 'middle', horizontal: 'center' }
+    cell.alignment = { 
+      vertical: 'middle', 
+      horizontal: 'center',
+      wrapText: true // Enable text wrapping
+    }
     cell.border = {
       top: { style: 'thin' },
       left: { style: 'thin' },
@@ -125,9 +135,41 @@ export const exportProducaoToExcel = ({
     return foA.localeCompare(foB)
   })
 
+  // Generate a light random color for FO grouping
+  function generateLightColor(index: number): string {
+    const colors = [
+      'FFFCE7F3', // light pink
+      'FFE0E7FF', // light blue
+      'FFDBEAFE', // light purple
+      'FFFCE8D5', // light orange
+      'FFFEF9C3', // light yellow
+      'FFD1FAE5', // light green
+      'FFE0F2FE', // light sky
+      'FFFECDD3', // light rose
+      'FFE9D5FF', // light lavender
+      'FFFECACA', // light red
+      'FFDDD6FE', // light violet
+      'FFE0F2F1', // light teal
+      'FFFEF3C7', // light amber
+      'FFCCFBF1', // light cyan
+      'FFF5D0FE', // light magenta
+    ]
+    return colors[index % colors.length]
+  }
+
+  // Group records by FO to assign colors
+  const foGroups = new Map<string, number>()
+  let colorIndex = 0
+  sortedRecords.forEach((record) => {
+    const fo = record.numero_fo || 'N/A'
+    if (!foGroups.has(fo)) {
+      foGroups.set(fo, colorIndex++)
+    }
+  })
+
   // 5. Data rows (start at row 5)
-  sortedRecords.forEach((row, idx) => {
-    const clienteNome = getClienteName(row.id_cliente)
+  sortedRecords.forEach((row) => {
+    const clienteNome = row.cliente_nome || getClienteName(row.id_cliente)
 
     const values = columns.map((col) => {
       let value: any
@@ -141,39 +183,39 @@ export const exportProducaoToExcel = ({
         case 'cliente_nome':
           value = clienteNome
           break
-        case 'quantidade':
-          value = row.quantidade || ''
-          break
-        case 'nome_campanha':
-          value = row.nome_campanha || ''
-          break
-        case 'descricao':
-          value = row.descricao || ''
-          break
         case 'data_in':
           value = row.data_in
             ? new Date(row.data_in).toLocaleDateString('pt-PT')
             : ''
           break
-        case 'data_concluido':
-          value = row.data_concluido
-            ? new Date(row.data_concluido).toLocaleDateString('pt-PT')
+        case 'quantidade':
+          value = row.quantidade || ''
+          break
+        case 'descricao':
+          value = row.descricao || ''
+          break
+        case 'data_saida':
+          value = row.data_saida
+            ? new Date(row.data_saida).toLocaleDateString('pt-PT')
             : ''
+          break
+        case 'notas':
+          value = row.notas || ''
+          break
+        case 'guia':
+          value = row.guia || ''
           break
         case 'transportadora':
           value = row.transportadora || ''
-          break
-        case 'local_recolha':
-          // Try UUID lookup first, fallback to text field
-          value = row.id_local_recolha
-            ? getLocationName(row.id_local_recolha)
-            : row.local_recolha || ''
           break
         case 'local_entrega':
           // Try UUID lookup first, fallback to text field
           value = row.id_local_entrega
             ? getLocationName(row.id_local_entrega)
             : row.local_entrega || ''
+          break
+        case 'contacto_entrega':
+          value = row.contacto_entrega || ''
           break
         default:
           value = ''
@@ -184,7 +226,11 @@ export const exportProducaoToExcel = ({
     })
 
     const excelRow = worksheet.addRow(values)
-    const fillColor = idx % 2 === 0 ? 'FFFFFFFF' : 'FFF3F4F6' // Alternating row colors
+    
+    // Get color for this FO group
+    const fo = row.numero_fo || 'N/A'
+    const foColorIndex = foGroups.get(fo) || 0
+    const fillColor = generateLightColor(foColorIndex)
 
     excelRow.eachCell((cell, colNumber) => {
       cell.fill = {

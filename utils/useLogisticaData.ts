@@ -453,7 +453,10 @@ export function useLogisticaData() {
         }
 
         // For numero_fo - now a TEXT field (per docs)
+        // Map to correct database column name
+        let dbField = field
         if (field === 'numero_fo') {
+          dbField = 'Numero_do_' // Map to actual column name
           // Convert empty values to null
           if (value === '' || value === null || value === undefined) {
             processedValue = null
@@ -464,7 +467,7 @@ export function useLogisticaData() {
             const { data: existingData, error: checkError } = await supabase
               .from('folhas_obras')
               .select('id')
-              .eq('numero_fo', processedValue)
+              .eq('Numero_do_', processedValue)
               .neq('id', folhaObraId) // Exclude current record
 
             if (checkError) throw checkError
@@ -475,9 +478,14 @@ export function useLogisticaData() {
           }
         }
 
+        // Map nome_campanha to Trabalho column
+        if (field === 'nome_campanha') {
+          dbField = 'Trabalho'
+        }
+
         const { error } = await supabase
           .from('folhas_obras')
-          .update({ [field]: processedValue })
+          .update({ [dbField]: processedValue })
           .eq('id', folhaObraId)
 
         if (error) throw error

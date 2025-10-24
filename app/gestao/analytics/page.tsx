@@ -213,7 +213,7 @@ export default function AnalyticsPage() {
       // Fetch current year invoices - using view as per data flow
       const { data: currentYearInvoices, error: ftCurrentError } = await supabase
         .schema('phc')
-        .from('v_ft_current_year_monthly_salesperson')
+        .from('v_ft_current_year_monthly_salesperson_norm')
         .select('year, month, document_type, total_value, document_count')
         .order('month', { ascending: true })
 
@@ -230,7 +230,7 @@ export default function AnalyticsPage() {
       // Fetch current year quotes - using view as per data flow
       const { data: currentYearQuotes, error: boCurrentError } = await supabase
         .schema('phc')
-        .from('v_bo_current_year_monthly_salesperson')
+        .from('v_bo_current_year_monthly_salesperson_norm')
         .select('year, month, document_type, total_value, document_count')
         .order('month', { ascending: true })
 
@@ -522,16 +522,16 @@ export default function AnalyticsPage() {
           .eq('year', previousYear)
           .lte('month', currentMonth),
         
-        // v_ft_current_year_monthly_salesperson: current year all months
+        // v_ft_current_year_monthly_salesperson_norm: current year all months
         supabase
           .schema('phc')
-          .from('v_ft_current_year_monthly_salesperson')
+          .from('v_ft_current_year_monthly_salesperson_norm')
           .select('*'),
         
-        // v_bo_current_year_monthly_salesperson: current year all months
+        // v_bo_current_year_monthly_salesperson_norm: current year all months
         supabase
           .schema('phc')
-          .from('v_bo_current_year_monthly_salesperson')
+          .from('v_bo_current_year_monthly_salesperson_norm')
           .select('*'),
       ])
 
@@ -561,10 +561,10 @@ export default function AnalyticsPage() {
         console.error('bo_historical_monthly_salesperson select error:', (boHistResult as any).error)
       }
       if ((ftCurrentResult as any).error) {
-        console.error('v_ft_current_year_monthly_salesperson select error:', (ftCurrentResult as any).error)
+        console.error('v_ft_current_year_monthly_salesperson_norm select error:', (ftCurrentResult as any).error)
       }
       if ((boCurrentResult as any).error) {
-        console.error('v_bo_current_year_monthly_salesperson select error:', (boCurrentResult as any).error)
+        console.error('v_bo_current_year_monthly_salesperson_norm select error:', (boCurrentResult as any).error)
       }
 
       const uniq = (a: any[]) => Array.from(new Set(a.filter(Boolean)))
@@ -778,7 +778,7 @@ export default function AnalyticsPage() {
         }
       })
 
-      // Process v_ft_current_year_monthly_salesperson (Current Year: Factura + Nota de Crédito)
+      // Process v_ft_current_year_monthly_salesperson_norm (Current Year: Factura + Nota de Crédito)
       ftCurrent.forEach((row: any) => {
         const extracted = extractDepartment(row, false)
         if (pickDept(row)) assignCounts.currDept++
@@ -797,7 +797,7 @@ export default function AnalyticsPage() {
         }
       })
 
-      // Process v_bo_current_year_monthly_salesperson (Current Year: Orçamento)
+      // Process v_bo_current_year_monthly_salesperson_norm (Current Year: Orçamento)
       boCurrent.forEach((row: any) => {
         const extracted = extractDepartment(row, false)
         if (pickDept(row)) assignCounts.currDept++

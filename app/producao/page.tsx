@@ -522,6 +522,7 @@ export default function ProducaoPage() {
     folha_obra_number?: string | null
     orcamento_number?: string | null
     nome_trabalho?: string | null
+    observacoes?: string | null
     customer_id?: number | null
     folha_obra_date?: string | null
   }
@@ -533,12 +534,24 @@ export default function ProducaoPage() {
           .schema('phc')
           .from('folha_obra_with_orcamento')
           .select(
-            'folha_obra_id, folha_obra_number, orcamento_number, nome_trabalho, customer_id, folha_obra_date',
+            'folha_obra_id, folha_obra_number, orcamento_number, nome_trabalho, observacoes, customer_id, folha_obra_date',
           )
           .eq('folha_obra_number', foNumber.trim())
+          .order('folha_obra_date', { ascending: false })
           .limit(1)
+        console.log('📊 PHC Query Result:', { 
+          foNumber: foNumber.trim(), 
+          data, 
+          error,
+          dataLength: data?.length,
+          firstRow: data?.[0]
+        })
         if (error) throw error
-        if (!data || data.length === 0) return null
+        if (!data || data.length === 0) {
+          console.warn('⚠️ No PHC data found for FO:', foNumber.trim())
+          return null
+        }
+        console.log('✅ PHC Header found:', data[0])
         return data[0] as PhcFoHeader
       } catch (e) {
         console.error('Error fetching PHC header by FO:', e)
@@ -555,12 +568,24 @@ export default function ProducaoPage() {
           .schema('phc')
           .from('folha_obra_with_orcamento')
           .select(
-            'folha_obra_id, folha_obra_number, orcamento_number, nome_trabalho, customer_id, folha_obra_date',
+            'folha_obra_id, folha_obra_number, orcamento_number, nome_trabalho, observacoes, customer_id, folha_obra_date',
           )
           .eq('orcamento_number', orcNumber)
+          .order('folha_obra_date', { ascending: false })
           .limit(1)
+        console.log('📊 PHC Query Result (ORC):', { 
+          orcNumber, 
+          data, 
+          error,
+          dataLength: data?.length,
+          firstRow: data?.[0]
+        })
         if (error) throw error
-        if (!data || data.length === 0) return null
+        if (!data || data.length === 0) {
+          console.warn('⚠️ No PHC data found for ORC:', orcNumber)
+          return null
+        }
+        console.log('✅ PHC Header found (ORC):', data[0])
         return data[0] as PhcFoHeader
       } catch (e) {
         console.error('Error fetching PHC header by ORC:', e)
@@ -574,12 +599,17 @@ export default function ProducaoPage() {
     async (
       customerId: number | null | undefined,
     ): Promise<{ id_cliente: string | null; cliente: string }> => {
+      console.log('👤 Resolving client:', { customerId, clientes_loaded: clientes.length })
       if (customerId === null || customerId === undefined) {
         return { id_cliente: null, cliente: '' }
       }
       const idStr = customerId.toString()
       const found = clientes.find((c) => c.value === idStr)
-      if (found) return { id_cliente: idStr, cliente: found.label }
+      if (found) {
+        const result = { id_cliente: idStr, cliente: found.label }
+        console.log('✅ Client resolved from cache:', result)
+        return result
+      }
       try {
         const { data, error } = await supabase
           .schema('phc')
@@ -588,11 +618,14 @@ export default function ProducaoPage() {
           .eq('customer_id', customerId)
           .limit(1)
         if (!error && data && data.length > 0) {
-          return { id_cliente: idStr, cliente: data[0].customer_name }
+          const result = { id_cliente: idStr, cliente: data[0].customer_name }
+          console.log('✅ Client resolved from PHC:', result)
+          return result
         }
       } catch (e) {
         console.warn('Could not resolve customer name from PHC:', e)
       }
+      console.log('⚠️ Client not found, returning empty:', { customerId })
       return { id_cliente: idStr, cliente: '' }
     },
     [clientes, supabase],
@@ -791,6 +824,14 @@ export default function ProducaoPage() {
   const prefillAndInsertFromFo = useCallback(
     async (foNumber: string, tempJobId: string) => {
       const header = await fetchPhcHeaderByFo(foNumber)
+      console.log('🔍 PHC Header Response:', {
+        foNumber,
+        header,
+        nome_trabalho: header?.nome_trabalho,
+        observacoes: header?.observacoes,
+        orcamento_number: header?.orcamento_number,
+        customer_id: header?.customer_id,
+      })
       let phcFolhaObraId: string | null = null
       let insertData: any = {
         Numero_do_: foNumber,
@@ -800,14 +841,22 @@ export default function ProducaoPage() {
       }
       if (header) {
         phcFolhaObraId = header.folha_obra_id
-        if (header.nome_trabalho) insertData.Trabalho = header.nome_trabalho
-        if (header.orcamento_number)
-          insertData.numero_orc = Number(header.orcamento_number)
+        // Use nome_trabalho if available, otherwise fall back to observacoes
+        const campaignName = header.nome_trabalho || header.observacoes
+        if (campaignName) insertData.Trabalho = campaignName
+        if (header.orcamento_number) {
+          const orcNumber = Number(header.orcamento_number)
+          // Only set if it's a valid number (not NaN)
+          if (!isNaN(orcNumber)) {
+            insertData.numero_orc = orcNumber
+          }
+        }
         const { id_cliente, cliente } = await resolveClienteName(
           header.customer_id ?? null,
         )
         insertData.Nome = cliente
       }
+      console.log('💾 Insert Data:', insertData)
       const { data: newJob, error } = await supabase
         .from('folhas_obras')
         .insert(insertData)
@@ -815,6 +864,7 @@ export default function ProducaoPage() {
           'id, numero_fo:Numero_do_, numero_orc, nome_campanha:Trabalho, cliente:Nome',
         )
         .single()
+      console.log('📥 Returned from INSERT+SELECT:', { newJob, error })
       if (error) throw error
       if (newJob) {
         const mappedJob = {
@@ -831,6 +881,7 @@ export default function ProducaoPage() {
             : null,
           data_in: header?.folha_obra_date ?? null,
         } as Job
+        console.log('🎯 Mapped Job for UI:', mappedJob)
         setJobs((prev) => prev.map((j) => (j.id === tempJobId ? mappedJob : j)))
         if (phcFolhaObraId) {
           await importPhcLinesForFo(
@@ -854,11 +905,21 @@ export default function ProducaoPage() {
   const prefillAndInsertFromOrc = useCallback(
     async (orcNumber: number, tempJobId: string) => {
       const header = await fetchPhcHeaderByOrc(orcNumber)
+      console.log('🔍 PHC Header Response (ORC):', {
+        orcNumber,
+        header,
+        nome_trabalho: header?.nome_trabalho,
+        observacoes: header?.observacoes,
+        customer_id: header?.customer_id,
+      })
       let phcFolhaObraId: string | null = null
+      // Use nome_trabalho if available, otherwise fall back to observacoes
+      const campaignName = header?.nome_trabalho || header?.observacoes || 'Nova Campanha'
       let insertData: any = {
         Numero_do_: header?.folha_obra_number || '0000',
-        Trabalho: header?.nome_trabalho || 'Nova Campanha',
+        Trabalho: campaignName,
         Nome: '',
+        numero_orc: orcNumber,
       }
       if (header) {
         phcFolhaObraId = header.folha_obra_id
@@ -867,19 +928,21 @@ export default function ProducaoPage() {
         )
         insertData.Nome = cliente
       }
+      console.log('💾 Insert Data (ORC):', insertData)
       const { data: newJob, error } = await supabase
         .from('folhas_obras')
         .insert(insertData)
         .select(
-          'id, numero_fo:Numero_do_, nome_campanha:Trabalho, cliente:Nome',
+          'id, numero_fo:Numero_do_, numero_orc, nome_campanha:Trabalho, cliente:Nome',
         )
         .single()
+      console.log('📥 Returned from INSERT+SELECT (ORC):', { newJob, error })
       if (error) throw error
       if (newJob) {
         const mappedJob = {
           id: (newJob as any).id,
           numero_fo: (newJob as any).numero_fo || '',
-          numero_orc: orcNumber,
+          numero_orc: (newJob as any).numero_orc ?? orcNumber,
           nome_campanha: (newJob as any).nome_campanha || '',
           cliente: (newJob as any).cliente || '',
           data_saida: null,
@@ -890,6 +953,7 @@ export default function ProducaoPage() {
             : null,
           data_in: header?.folha_obra_date ?? null,
         } as Job
+        console.log('🎯 Mapped Job for UI (ORC):', mappedJob)
         setJobs((prev) => prev.map((j) => (j.id === tempJobId ? mappedJob : j)))
         if (phcFolhaObraId) {
           await importPhcLinesForFo(
@@ -1098,8 +1162,9 @@ export default function ProducaoPage() {
               twoMonthsAgoString,
             )
             // For completed jobs, filter by last 2 months
+            // Note: data_concluido is in logistica_entregas, not in folhas_obras
             query = query.or(
-              `data_concluido.gte.${twoMonthsAgoString},updated_at.gte.${twoMonthsAgoString},created_at.gte.${twoMonthsAgoString}`,
+              `updated_at.gte.${twoMonthsAgoString},created_at.gte.${twoMonthsAgoString}`,
             )
           } else if (!hasActiveFilters) {
             // For other tabs (em_curso, pendentes) with no filters: show last 4 months
@@ -1637,12 +1702,11 @@ export default function ProducaoPage() {
     try {
       console.log('💰 Fetching FO totals...')
 
-      // Fetch all non-completed, non-saiu jobs from base table
-      // Then we'll separate em_curso (pendente false/null) from pendentes (pendente true)
+      // Fetch all jobs from folhas_obras table with their pendente status
       const { data: allJobs, error: allJobsError } = await supabase
         .from('folhas_obras')
         .select('Numero_do_, pendente')
-        .not('numero_orc', 'is', null)
+        .not('Numero_do_', 'is', null)
 
       if (allJobsError) throw allJobsError
 
@@ -1651,12 +1715,12 @@ export default function ProducaoPage() {
         sample: allJobs?.slice(0, 5),
       })
 
-      // Separate em_curso (not pendente) and pendentes
+      // Separate em_curso (not pendente) and pendentes based on pendente flag
       const emCursoJobs = allJobs?.filter((job) => job.pendente !== true) || []
       const pendentesJobs = allJobs?.filter((job) => job.pendente === true) || []
 
-      // Get FO numbers for each tab
-      // Convert to strings since PHC folha_obra_number is TEXT type
+      // Get FO numbers for each category
+      // Convert to strings since PHC document_number is TEXT type
       const emCursoFoNumbers = emCursoJobs
         ?.map((job) => String(job.Numero_do_))
         .filter((fo) => fo && fo !== 'null' && fo !== 'undefined') || []
@@ -1672,19 +1736,20 @@ export default function ProducaoPage() {
         pendentes_sample: pendentesFoNumbers.slice(0, 5),
       })
 
-      // Fetch values from PHC database
+      // Fetch values from PHC BO table
       let emCursoTotal = 0
       let pendentesTotal = 0
 
       if (emCursoFoNumbers.length > 0) {
-        console.log('🔍 Querying PHC for em curso FOs...')
+        console.log('🔍 Querying PHC BO table for em curso FOs...')
         const { data: emCursoValues, error: emCursoValuesError } = await supabase
           .schema('phc')
-          .from('folha_obra_with_orcamento')
-          .select('folha_obra_number, folha_obra_value')
-          .in('folha_obra_number', emCursoFoNumbers)
+          .from('bo')
+          .select('document_number, total_value')
+          .eq('document_type', 'Folha de Obra')
+          .in('document_number', emCursoFoNumbers)
 
-        console.log('📦 Em curso PHC results:', {
+        console.log('📦 Em curso PHC BO results:', {
           count: emCursoValues?.length || 0,
           sample: emCursoValues?.slice(0, 5),
           error: emCursoValuesError,
@@ -1694,7 +1759,7 @@ export default function ProducaoPage() {
           console.error('Error fetching em curso values:', emCursoValuesError)
         } else if (emCursoValues) {
           emCursoTotal = emCursoValues.reduce(
-            (sum, row) => sum + (Number(row.folha_obra_value) || 0),
+            (sum, row) => sum + (Number(row.total_value) || 0),
             0,
           )
           console.log('💵 Em curso total calculated:', emCursoTotal)
@@ -1702,14 +1767,15 @@ export default function ProducaoPage() {
       }
 
       if (pendentesFoNumbers.length > 0) {
-        console.log('🔍 Querying PHC for pendentes FOs...')
+        console.log('🔍 Querying PHC BO table for pendentes FOs...')
         const { data: pendentesValues, error: pendentesValuesError } = await supabase
           .schema('phc')
-          .from('folha_obra_with_orcamento')
-          .select('folha_obra_number, folha_obra_value')
-          .in('folha_obra_number', pendentesFoNumbers)
+          .from('bo')
+          .select('document_number, total_value')
+          .eq('document_type', 'Folha de Obra')
+          .in('document_number', pendentesFoNumbers)
 
-        console.log('📦 Pendentes PHC results:', {
+        console.log('📦 Pendentes PHC BO results:', {
           count: pendentesValues?.length || 0,
           sample: pendentesValues?.slice(0, 5),
           error: pendentesValuesError,
@@ -1719,7 +1785,7 @@ export default function ProducaoPage() {
           console.error('Error fetching pendentes values:', pendentesValuesError)
         } else if (pendentesValues) {
           pendentesTotal = pendentesValues.reduce(
-            (sum, row) => sum + (Number(row.folha_obra_value) || 0),
+            (sum, row) => sum + (Number(row.total_value) || 0),
             0,
           )
           console.log('💵 Pendentes total calculated:', pendentesTotal)
@@ -2367,106 +2433,119 @@ export default function ProducaoPage() {
                           }),
                         )
 
-                        // Fetch items with logistics data for these jobs (only incomplete logistics)
-                        const { data: itemsWithLogistics, error } =
+                        // STEP 1: Fetch items for these jobs
+                        const { data: itemsData, error: itemsError } =
                           await supabase
                             .from('items_base')
-                            .select(
-                              `
-                          id,
-                          folha_obra_id,
-                          descricao,
-                          quantidade,
-                          folhas_obras!inner (
-                            id,
-                            numero_orc,
-                            numero_fo,
-                            nome_campanha,
-                            id_cliente,
-                            data_in
-                          ),
-                          logistica_entregas!inner (
-                            data_concluido,
-                            transportadora,
-                            local_entrega,
-                            local_recolha,
-                            id_local_entrega,
-                            id_local_recolha,
-                            concluido
-                          )
-                        `,
-                            )
+                            .select('id, folha_obra_id, descricao, quantidade')
                             .in('folha_obra_id', jobIds)
-                            .eq('logistica_entregas.concluido', false)
 
-                        if (error) {
-                          console.error('Error fetching export data:', error)
-                          alert('Erro ao buscar dados para exportação.')
+                        if (itemsError) {
+                          console.error('Error fetching items:', itemsError)
+                          alert('Erro ao buscar itens.')
                           return
                         }
 
-                        if (
-                          !itemsWithLogistics ||
-                          itemsWithLogistics.length === 0
-                        ) {
+                        if (!itemsData || itemsData.length === 0) {
+                          alert('Não há itens para exportar.')
+                          return
+                        }
+
+                        const itemIds = itemsData.map((i: any) => i.id)
+
+                        // STEP 2: Fetch logistica for these items (only incomplete)
+                        const { data: logisticaData, error: logisticaError } =
+                          await supabase
+                            .from('logistica_entregas')
+                            .select(
+                              'item_id, data_concluido, data_saida, transportadora, local_entrega, local_recolha, id_local_entrega, id_local_recolha, concluido, notas, guia, contacto_entrega',
+                            )
+                            .in('item_id', itemIds)
+                            .eq('concluido', false)
+
+                        if (logisticaError) {
+                          console.error(
+                            'Error fetching logistics:',
+                            logisticaError,
+                          )
+                          alert('Erro ao buscar dados de logística.')
+                          return
+                        }
+
+                        if (!logisticaData || logisticaData.length === 0) {
                           alert(
-                            'Não há itens com logística incompleta (concluído=false) para exportar.',
+                            'Não há itens com logística incompleta para exportar.',
                           )
                           return
                         }
+
+                        // STEP 3: Fetch folhas_obras (including Nome which contains cliente name)
+                        const { data: folhasData, error: folhasError } =
+                          await supabase
+                            .from('folhas_obras')
+                            .select('id, numero_orc, Numero_do_, Trabalho, Data_do_do, Nome')
+                            .in('id', jobIds)
+
+                        if (folhasError) {
+                          console.error('Error fetching folhas obras:', folhasError)
+                          alert('Erro ao buscar folhas de obra.')
+                          return
+                        }
+
+                        // Create lookup maps
+                        const itemsMap = new Map(
+                          itemsData.map((i: any) => [i.id, i]),
+                        )
+                        const folhasMap = new Map(
+                          folhasData?.map((f: any) => [f.id, f]) || [],
+                        )
+                        const logisticaMap = new Map<string, any[]>()
+
+                        // Group logistics by item_id
+                        logisticaData.forEach((log: any) => {
+                          if (!logisticaMap.has(log.item_id)) {
+                            logisticaMap.set(log.item_id, [])
+                          }
+                          logisticaMap.get(log.item_id)!.push(log)
+                        })
 
                         // Transform data for export
-                        const exportRows = (itemsWithLogistics || []).map(
-                          (item: any) => {
-                            // Get the latest logistics entry for this item (if multiple exist)
-                            const latestLogistics =
-                              item.logistica_entregas &&
-                              item.logistica_entregas.length > 0
-                                ? item.logistica_entregas.reduce(
-                                    (latest: any, current: any) => {
-                                      if (!latest) return current
-                                      if (!current.data_concluido) return latest
-                                      if (!latest.data_concluido) return current
-                                      return new Date(current.data_concluido) >
-                                        new Date(latest.data_concluido)
-                                        ? current
-                                        : latest
-                                    },
-                                    null,
-                                  )
-                                : null
+                        const exportRows: any[] = []
+                        logisticaData.forEach((log: any) => {
+                          const item = itemsMap.get(log.item_id)
+                          if (!item) return
 
-                            // Resolve transportadora ID to name
-                            const transportadoraName =
-                              latestLogistics?.transportadora
-                                ? transportadorasMap.get(
-                                    latestLogistics.transportadora,
-                                  ) || latestLogistics.transportadora
-                                : ''
+                          const folhaObra = folhasMap.get(item.folha_obra_id)
+                          if (!folhaObra) return
 
-                            return {
-                              numero_orc: item.folhas_obras?.numero_orc || null,
-                              numero_fo: item.folhas_obras?.numero_fo || '',
-                              id_cliente: item.folhas_obras?.id_cliente || '',
-                              quantidade: item.quantidade || null,
-                              nome_campanha:
-                                item.folhas_obras?.nome_campanha || '',
-                              descricao: item.descricao || '',
-                              data_in: item.folhas_obras?.data_in || null,
-                              data_concluido:
-                                latestLogistics?.data_concluido || null,
-                              transportadora: transportadoraName,
-                              local_entrega:
-                                latestLogistics?.local_entrega || '',
-                              local_recolha:
-                                latestLogistics?.local_recolha || '',
-                              id_local_entrega:
-                                latestLogistics?.id_local_entrega || '',
-                              id_local_recolha:
-                                latestLogistics?.id_local_recolha || '',
-                            }
-                          },
-                        )
+                          // Resolve transportadora ID to name
+                          const transportadoraName = log.transportadora
+                            ? transportadorasMap.get(log.transportadora) ||
+                              log.transportadora
+                            : ''
+
+                          exportRows.push({
+                            numero_orc: folhaObra.numero_orc || null,
+                            numero_fo: folhaObra.Numero_do_
+                              ? String(folhaObra.Numero_do_)
+                              : '',
+                            cliente_nome: folhaObra.Nome || '', // Cliente name from folhas_obras.Nome
+                            quantidade: item.quantidade || null,
+                            nome_campanha: folhaObra.Trabalho || '',
+                            descricao: item.descricao || '',
+                            data_in: folhaObra.Data_do_do || null,
+                            data_saida: log.data_saida || null,
+                            data_concluido: log.data_concluido || null,
+                            transportadora: transportadoraName,
+                            local_entrega: log.local_entrega || '',
+                            local_recolha: log.local_recolha || '',
+                            id_local_entrega: log.id_local_entrega || '',
+                            id_local_recolha: log.id_local_recolha || '',
+                            notas: log.notas || '',
+                            guia: log.guia || '',
+                            contacto_entrega: log.contacto_entrega || '',
+                          })
+                        })
 
                         // Call the export function
                         exportProducaoToExcel({
@@ -2981,7 +3060,7 @@ export default function ProducaoPage() {
                                               // User confirmed to proceed with duplicate
                                               await supabase
                                                 .from('folhas_obras')
-                                                .update({ numero_fo: value })
+                                                .update({ Numero_do_: value })
                                                 .eq('id', job.id)
                                               setDuplicateDialog({
                                                 isOpen: false,
@@ -3015,14 +3094,14 @@ export default function ProducaoPage() {
                                           // No duplicate found, proceed with update
                                           await supabase
                                             .from('folhas_obras')
-                                            .update({ numero_fo: value })
+                                            .update({ Numero_do_: value })
                                             .eq('id', job.id)
                                         }
                                       } else {
                                         // Empty value, just update
                                         await supabase
                                           .from('folhas_obras')
-                                          .update({ numero_fo: value })
+                                          .update({ Numero_do_: value })
                                           .eq('id', job.id)
                                       }
                                     }
@@ -3101,7 +3180,7 @@ export default function ProducaoPage() {
                                     if (!job.id.startsWith('temp-')) {
                                       await supabase
                                         .from('folhas_obras')
-                                        .update({ nome_campanha: value })
+                                        .update({ Trabalho: value })
                                         .eq('id', job.id)
                                     }
                                   }}
@@ -3263,6 +3342,7 @@ export default function ProducaoPage() {
                                         <Button
                                           size="icon"
                                           variant="default"
+                                          className="border border-black"
                                           onClick={() => setOpenId(job.id)}
                                         >
                                           <Eye className="h-4 w-4" />
@@ -3288,11 +3368,23 @@ export default function ProducaoPage() {
                                             }
 
                                             try {
-                                              await supabase
+                                              // Delete from folhas_obras - CASCADE will handle related tables:
+                                              // - items_base (CASCADE)
+                                              // - logistica_entregas (CASCADE via items_base)
+                                              // - designer_items (CASCADE via items_base)
+                                              // - producao_operacoes (CASCADE via items_base)
+                                              const { error: deleteError } = await supabase
                                                 .from('folhas_obras')
                                                 .delete()
                                                 .eq('id', job.id)
 
+                                              if (deleteError) {
+                                                throw deleteError
+                                              }
+
+                                              console.log(`✅ Folha de Obra ${job.numero_fo} eliminada com sucesso (CASCADE)`)
+
+                                              // Update local state
                                               setJobs((prevJobs) =>
                                                 prevJobs.filter(
                                                   (j) => j.id !== job.id,
@@ -3373,10 +3465,10 @@ export default function ProducaoPage() {
               <JobsTableSkeleton />
             ) : (
               <>
-                {/* jobs table - exact same as em_curso - with P, A, C columns hidden */}
+                {/* jobs table - simplified without P, A, C, and Ações columns */}
                 <div className="bg-background w-full">
                   <div className="w-full">
-                    <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_td:nth-last-child(2)]:hidden [&_td:nth-last-child(3)]:hidden [&_td:nth-last-child(4)]:hidden [&_th]:px-3 [&_th]:py-2">
+                    <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
                       <TableHeader>
                         <TableRow>
                           <TableHead
@@ -3462,73 +3554,6 @@ export default function ProducaoPage() {
                               ) : (
                                 <ArrowDown className="ml-1 inline h-3 w-3" />
                               ))}
-                          </TableHead>
-
-                          <TableHead
-                            onClick={() => toggleSort('prioridade')}
-                            className="border-border sticky top-0 z-10 w-[36px] cursor-pointer border-b bg-primary p-0 text-center  text-primary-foreground uppercase select-none"
-                          >
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span>
-                                    P{' '}
-                                    {sortCol === 'prioridade' &&
-                                      (sortDir === 'asc' ? (
-                                        <ArrowUp className="ml-1 inline h-3 w-3" />
-                                      ) : (
-                                        <ArrowDown className="ml-1 inline h-3 w-3" />
-                                      ))}
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent>Prioridade</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </TableHead>
-                          <TableHead
-                            onClick={() => toggleSort('artwork')}
-                            className="border-border sticky top-0 z-10 w-[36px] cursor-pointer border-b bg-primary p-0 text-center  text-primary-foreground uppercase select-none"
-                          >
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span>
-                                    A{' '}
-                                    {sortCol === 'artwork' &&
-                                      (sortDir === 'asc' ? (
-                                        <ArrowUp className="ml-1 inline h-3 w-3" />
-                                      ) : (
-                                        <ArrowDown className="ml-1 inline h-3 w-3" />
-                                      ))}
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent>Artes Finais</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </TableHead>
-                          <TableHead
-                            onClick={() => toggleSort('corte')}
-                            className="border-border sticky top-0 z-10 w-[36px] cursor-pointer border-b bg-primary p-0 text-center  text-primary-foreground uppercase select-none"
-                          >
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span>
-                                    C{' '}
-                                    {sortCol === 'corte' &&
-                                      (sortDir === 'asc' ? (
-                                        <ArrowUp className="ml-1 inline h-3 w-3" />
-                                      ) : (
-                                        <ArrowDown className="ml-1 inline h-3 w-3" />
-                                      ))}
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent>Corte</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </TableHead>
-                          <TableHead className="border-border sticky top-0 z-10 w-[100px] border-b bg-primary text-center  text-primary-foreground uppercase">
-                            Ações
                           </TableHead>
                         </TableRow>
                       </TableHeader>
@@ -3783,7 +3808,7 @@ export default function ProducaoPage() {
                                               // User confirmed to proceed with duplicate
                                               await supabase
                                                 .from('folhas_obras')
-                                                .update({ numero_fo: value })
+                                                .update({ Numero_do_: value })
                                                 .eq('id', job.id)
                                               setDuplicateDialog({
                                                 isOpen: false,
@@ -3817,14 +3842,14 @@ export default function ProducaoPage() {
                                           // No duplicate found, proceed with update
                                           await supabase
                                             .from('folhas_obras')
-                                            .update({ numero_fo: value })
+                                            .update({ Numero_do_: value })
                                             .eq('id', job.id)
                                         }
                                       } else {
                                         // Empty value, just update
                                         await supabase
                                           .from('folhas_obras')
-                                          .update({ numero_fo: value })
+                                          .update({ Numero_do_: value })
                                           .eq('id', job.id)
                                       }
                                     }
@@ -3903,7 +3928,7 @@ export default function ProducaoPage() {
                                     if (!job.id.startsWith('temp-')) {
                                       await supabase
                                         .from('folhas_obras')
-                                        .update({ nome_campanha: value })
+                                        .update({ Trabalho: value })
                                         .eq('id', job.id)
                                     }
                                   }}
@@ -3955,153 +3980,13 @@ export default function ProducaoPage() {
                                   </span>
                                 </div>
                               </TableCell>
-
-                              <TableCell className="w-[36px] p-0 text-center">
-                                <button
-                                  className={`mx-auto flex h-3 w-3 items-center justify-center transition-colors ${getPColor(job)}`}
-                                  title={
-                                    job.prioridade
-                                      ? 'Prioritário'
-                                      : job.data_in &&
-                                          (Date.now() -
-                                            new Date(job.data_in).getTime()) /
-                                            (1000 * 60 * 60 * 24) >
-                                            3
-                                        ? 'Aguardando há mais de 3 dias'
-                                        : 'Normal'
-                                  }
-                                  onClick={async () => {
-                                    const newPrioridade = !job.prioridade
-                                    setJobs((prevJobs) =>
-                                      prevJobs.map((j) =>
-                                        j.id === job.id
-                                          ? { ...j, prioridade: newPrioridade }
-                                          : j,
-                                      ),
-                                    )
-                                    // Persist to Supabase
-                                    await supabase
-                                      .from('folhas_obras')
-                                      .update({ prioridade: newPrioridade })
-                                      .eq('id', job.id)
-                                  }}
-                                />
-                              </TableCell>
-                              <TableCell className="w-[36px] p-0 text-center">
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <span>
-                                        <span
-                                          className={`mx-auto flex h-3 w-3 items-center justify-center transition-colors ${getAColor(job.id, allItems, allDesignerItems)}`}
-                                          title="Artes Finais"
-                                        />
-                                      </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      Artes Finais
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              </TableCell>
-                              <TableCell className="w-[36px] p-0 text-center">
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <span>
-                                        <span
-                                          className={`mx-auto flex h-3 w-3 items-center justify-center transition-colors ${getCColor(job.id, allOperacoes)}`}
-                                          title="Corte"
-                                        />
-                                      </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Corte</TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              </TableCell>
-
-                              <TableCell className="w-[100px] p-0 pr-2">
-                                <div className="flex justify-center gap-2">
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          size="icon"
-                                          variant="default"
-                                          onClick={() => setOpenId(job.id)}
-                                        >
-                                          <Eye className="h-4 w-4" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>Items</TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          size="icon"
-                                          variant="destructive"
-                                          onClick={async () => {
-                                            if (
-                                              !confirm(
-                                                `Tem certeza que deseja eliminar a Folha de Obra ${job.numero_fo}? Esta ação irá eliminar todos os itens e dados logísticos associados.`,
-                                              )
-                                            ) {
-                                              return
-                                            }
-
-                                            try {
-                                              // Simple deletion using database CASCADE DELETE
-                                              // Cascade delete automatically handles:
-                                              // - items_base (CASCADE)
-                                              // - logistica_entregas (CASCADE via items_base)
-                                              // - designer_items (CASCADE via items_base)
-                                              // - producao_operacoes (CASCADE via items_base)
-                                              await supabase
-                                                .from('folhas_obras')
-                                                .delete()
-                                                .eq('id', job.id)
-
-                                              // 6. Update local state
-                                              setJobs((prevJobs) =>
-                                                prevJobs.filter(
-                                                  (j) => j.id !== job.id,
-                                                ),
-                                              )
-                                              setAllItems((prevItems) =>
-                                                prevItems.filter(
-                                                  (item) =>
-                                                    item.folha_obra_id !==
-                                                    job.id,
-                                                ),
-                                              )
-                                            } catch (error) {
-                                              console.error(
-                                                'Error deleting job:',
-                                                error,
-                                              )
-                                              alert(
-                                                'Erro ao eliminar a Folha de Obra. Tente novamente.',
-                                              )
-                                            }
-                                          }}
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>Eliminar</TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                </div>
-                              </TableCell>
                             </TableRow>
                           )
                         })}
                         {sorted.length === 0 && (
                           <TableRow>
                             <TableCell
-                              colSpan={11}
+                              colSpan={7}
                               className="py-8 text-center"
                             >
                               Nenhum trabalho com logística concluída
@@ -4566,7 +4451,7 @@ export default function ProducaoPage() {
                                               // User confirmed to proceed with duplicate
                                               await supabase
                                                 .from('folhas_obras')
-                                                .update({ numero_fo: value })
+                                                .update({ Numero_do_: value })
                                                 .eq('id', job.id)
                                               setDuplicateDialog({
                                                 isOpen: false,
@@ -4600,14 +4485,14 @@ export default function ProducaoPage() {
                                           // No duplicate found, proceed with update
                                           await supabase
                                             .from('folhas_obras')
-                                            .update({ numero_fo: value })
+                                            .update({ Numero_do_: value })
                                             .eq('id', job.id)
                                         }
                                       } else {
                                         // Empty value, just update
                                         await supabase
                                           .from('folhas_obras')
-                                          .update({ numero_fo: value })
+                                          .update({ Numero_do_: value })
                                           .eq('id', job.id)
                                       }
                                     }
@@ -4686,7 +4571,7 @@ export default function ProducaoPage() {
                                     if (!job.id.startsWith('temp-')) {
                                       await supabase
                                         .from('folhas_obras')
-                                        .update({ nome_campanha: value })
+                                        .update({ Trabalho: value })
                                         .eq('id', job.id)
                                     }
                                   }}
@@ -4849,6 +4734,7 @@ export default function ProducaoPage() {
                                         <Button
                                           size="icon"
                                           variant="default"
+                                          className="border border-black"
                                           onClick={() => setOpenId(job.id)}
                                         >
                                           <Eye className="h-4 w-4" />
@@ -4873,18 +4759,23 @@ export default function ProducaoPage() {
                                             }
 
                                             try {
-                                              // Simple deletion using database CASCADE DELETE
-                                              // Cascade delete automatically handles:
+                                              // Delete from folhas_obras - CASCADE will handle related tables:
                                               // - items_base (CASCADE)
                                               // - logistica_entregas (CASCADE via items_base)
                                               // - designer_items (CASCADE via items_base)
                                               // - producao_operacoes (CASCADE via items_base)
-                                              await supabase
+                                              const { error: deleteError } = await supabase
                                                 .from('folhas_obras')
                                                 .delete()
                                                 .eq('id', job.id)
 
-                                              // 6. Update local state
+                                              if (deleteError) {
+                                                throw deleteError
+                                              }
+
+                                              console.log(`✅ Folha de Obra ${job.numero_fo} eliminada com sucesso (CASCADE)`)
+
+                                              // Update local state
                                               setJobs((prevJobs) =>
                                                 prevJobs.filter(
                                                   (j) => j.id !== job.id,
@@ -5266,6 +5157,7 @@ function JobDrawerContent({
       })
 
       // 5. Refresh logistics data to show the new entry
+      logisticaFetchedRef.current = false // Reset ref to force re-fetch
       await fetchLogisticaRows()
     } catch (error: any) {
       console.error('Error accepting item:', error)
@@ -5364,11 +5256,42 @@ function JobDrawerContent({
         throw new Error(`Designer error: ${designerError.message}`)
       }
 
-      // Sync description to logistics
-      await supabase
+      // Sync all fields to logistics (not just description)
+      const logisticsUpdate = {
+        descricao: finalData.descricao,
+        quantidade: finalData.quantidade,
+      }
+      
+      // Try to update existing logistics entry
+      const { data: updateResult, error: logisticsError } = await supabase
         .from('logistica_entregas')
-        .update({ descricao: finalData.descricao })
+        .update(logisticsUpdate)
         .eq('item_id', itemId)
+        .select()
+      
+      if (logisticsError) {
+        console.warn('⚠️ Could not update logistics entry:', logisticsError)
+      } else if (!updateResult || updateResult.length === 0) {
+        // No logistics entry exists - create one for older items
+        console.log('📦 No logistics entry found, creating one...')
+        const { error: createError } = await supabase
+          .from('logistica_entregas')
+          .insert({
+            item_id: itemId,
+            descricao: finalData.descricao,
+            quantidade: finalData.quantidade,
+            data: new Date().toISOString().split('T')[0],
+            is_entrega: true,
+          })
+        
+        if (createError) {
+          console.warn('⚠️ Could not create logistics entry:', createError)
+        } else {
+          console.log('✅ Logistics entry created')
+        }
+      } else {
+        console.log('✅ Logistics entry updated:', logisticsUpdate)
+      }
 
       // Update local state (combine items_base and designer_items data)
       const combinedData = { ...finalData, ...designerData }
@@ -5387,6 +5310,10 @@ function JobDrawerContent({
         delete newValues[itemId]
         return newValues
       })
+
+      // Refresh logistics data to show updated values in Logística tab
+      logisticaFetchedRef.current = false // Reset ref to force re-fetch
+      await fetchLogisticaRows()
     } catch (error: any) {
       console.error('Error saving item:', error)
       alert(`Erro ao salvar item: ${error.message}`)
@@ -6055,6 +5982,51 @@ function JobDrawerContent({
               </div>
             </div>
 
+            {/* Add Item Button */}
+            <div className="mb-4 flex justify-end">
+              <Button
+                size="sm"
+                className="bg-yellow-400 hover:bg-yellow-500 border border-black text-black"
+                onClick={() => {
+                  if (!job) return
+                  
+                  // Generate a new temporary ID
+                  const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+                  
+                  // Create a new pending item
+                  const newItem: Item = {
+                    id: tempId,
+                    folha_obra_id: job.id,
+                    descricao: '',
+                    codigo: '',
+                    quantidade: 1,
+                    brindes: false,
+                    concluido: false,
+                  }
+                  
+                  // Add to pending items
+                  setPendingItems((prev) => ({
+                    ...prev,
+                    [tempId]: newItem,
+                  }))
+                  
+                  // Mark as editing
+                  setEditingItems((prev) => new Set([...Array.from(prev), tempId]))
+                  setTempValues((prev) => ({
+                    ...prev,
+                    [tempId]: {
+                      descricao: '',
+                      codigo: '',
+                      quantidade: 1,
+                    },
+                  }))
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Adicionar Item
+              </Button>
+            </div>
+
             {/* Production Items table */}
             <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
                   <TableHeader>
@@ -6284,7 +6256,7 @@ function JobDrawerContent({
                                       <Button
                                         size="icon"
                                         variant="default"
-                                        className="aspect-square !h-10 !w-10 !max-w-10 !min-w-10 !rounded-none !p-0"
+                                        className="aspect-square !h-10 !w-10 !max-w-10 !min-w-10 !rounded-none !p-0 border border-black"
                                         onClick={() =>
                                           isPending(it.id)
                                             ? acceptItem(it)
@@ -6310,7 +6282,7 @@ function JobDrawerContent({
                                       <Button
                                         size="icon"
                                         variant="destructive"
-                                        className="aspect-square !h-10 !w-10 !max-w-10 !min-w-10 !rounded-none !p-0"
+                                        className="aspect-square !h-10 !w-10 !max-w-10 !min-w-10 !rounded-none !p-0 border border-black"
                                         onClick={() => cancelEdit(it.id)}
                                         disabled={isSaving(it.id)}
                                       >
@@ -6330,7 +6302,7 @@ function JobDrawerContent({
                                       <Button
                                         size="icon"
                                         variant="outline"
-                                        className="aspect-square !h-10 !w-10 !max-w-10 !min-w-10 !rounded-none !p-0"
+                                        className="aspect-square !h-10 !w-10 !max-w-10 !min-w-10 !rounded-none !p-0 border border-black"
                                         onClick={() => {
                                           if (!isNewItem(it.id)) {
                                             setEditingItems(
@@ -6363,7 +6335,7 @@ function JobDrawerContent({
                                       <Button
                                         size="icon"
                                         variant="outline"
-                                        className="aspect-square !h-10 !w-10 !max-w-10 !min-w-10 !rounded-none !p-0"
+                                        className="aspect-square !h-10 !w-10 !max-w-10 !min-w-10 !rounded-none !p-0 border border-black"
                                         onClick={() => duplicateItem(it)}
                                       >
                                         <Copy className="h-4 w-4" />
@@ -6378,7 +6350,7 @@ function JobDrawerContent({
                                       <Button
                                         size="icon"
                                         variant="destructive"
-                                        className="aspect-square !h-10 !w-10 !max-w-10 !min-w-10 !rounded-none !p-0"
+                                        className="aspect-square !h-10 !w-10 !max-w-10 !min-w-10 !rounded-none !p-0 border border-black"
                                         onClick={async () => {
                                           if (isNewItem(it.id)) {
                                             // Just remove from state for temp items
@@ -6388,20 +6360,31 @@ function JobDrawerContent({
                                               ),
                                             )
                                           } else {
-                                            // Simple deletion using database CASCADE DELETE
-                                            // Cascade delete automatically handles:
-                                            // - logistica_entregas (CASCADE via items_base)
-                                            // - designer_items (CASCADE via items_base)
-                                            // - producao_operacoes (CASCADE via items_base)
-                                            await supabase
-                                              .from('items_base')
-                                              .delete()
-                                              .eq('id', it.id)
-                                            setAllItems((prev) =>
-                                              prev.filter(
-                                                (item) => item.id !== it.id,
-                                              ),
-                                            )
+                                            try {
+                                              // Delete from items_base - CASCADE will handle related tables:
+                                              // - logistica_entregas (CASCADE)
+                                              // - designer_items (CASCADE)
+                                              // - producao_operacoes (CASCADE)
+                                              const { error: deleteError } = await supabase
+                                                .from('items_base')
+                                                .delete()
+                                                .eq('id', it.id)
+
+                                              if (deleteError) {
+                                                throw deleteError
+                                              }
+
+                                              console.log(`✅ Item ${it.descricao} eliminado com sucesso (CASCADE)`)
+
+                                              setAllItems((prev) =>
+                                                prev.filter(
+                                                  (item) => item.id !== it.id,
+                                                ),
+                                              )
+                                            } catch (error) {
+                                              console.error('Error deleting item:', error)
+                                              alert('Erro ao eliminar o item. Tente novamente.')
+                                            }
                                           }
                                         }}
                                       >
@@ -6462,225 +6445,6 @@ function JobDrawerContent({
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={async () => {
-                    console.log('📊 Starting quantity copy process...')
-                    console.log('📊 Current job ID:', job.id)
-                    console.log(
-                      '📊 Current logistics rows:',
-                      logisticaRows.length,
-                    )
-                    console.log('📊 Current job items:', jobItems.length)
-
-                    if (logisticaRows.length === 0) {
-                      console.log('❌ No logistics items to copy quantities to')
-                      alert('Não há itens na tabela de logística.')
-                      return
-                    }
-
-                    if (jobItems.length === 0) {
-                      console.log(
-                        '❌ No job items found to copy quantities from',
-                      )
-                      alert(
-                        'Não há itens base encontrados para esta folha de obra.',
-                      )
-                      return
-                    }
-
-                    const confirmed = confirm(
-                      'Copiar quantidades originais dos itens para a tabela de logística? Isto irá substituir as quantidades existentes na logística.',
-                    )
-                    if (!confirmed) return
-
-                    try {
-                      // Use the jobItems that are already loaded instead of fetching again
-                      console.log(
-                        '📊 Using loaded job items:',
-                        jobItems.map((item) => ({
-                          id: item.id,
-                          descricao: item.descricao,
-                          quantidade: item.quantidade,
-                        })),
-                      )
-
-                      // Create a map of item_id -> quantidade from jobItems
-                      const quantityMap = new Map(
-                        jobItems.map((item) => [item.id, item.quantidade]),
-                      )
-
-                      console.log(
-                        '📊 Quantity map:',
-                        Object.fromEntries(quantityMap),
-                      )
-
-                      // Filter logistics rows that belong to items in this job
-                      const rowsToUpdate = logisticaRows.filter((row) => {
-                        const hasItemId =
-                          row.item_id && quantityMap.has(row.item_id)
-                        const hasLogisticsId = row.id // Must have logistics ID to update
-                        console.log(`📊 Checking row:`, {
-                          logisticsId: row.id,
-                          itemId: row.item_id,
-                          hasItemId,
-                          hasLogisticsId,
-                          currentQuantity: row.quantidade,
-                          newQuantity: quantityMap.get(row.item_id),
-                        })
-                        return hasItemId && hasLogisticsId
-                      })
-
-                      console.log(
-                        '📊 Logistics rows to update:',
-                        rowsToUpdate.length,
-                      )
-
-                      if (rowsToUpdate.length === 0) {
-                        console.log(
-                          '❌ No matching logistics rows found to update',
-                        )
-                        console.log('📊 Debug info:')
-                        console.log(
-                          '- Job items IDs:',
-                          jobItems.map((i) => i.id),
-                        )
-                        console.log(
-                          '- Logistics rows item_ids:',
-                          logisticaRows.map((r) => r.item_id),
-                        )
-                        console.log(
-                          '- Logistics rows with IDs:',
-                          logisticaRows
-                            .filter((r) => r.id)
-                            .map((r) => ({ id: r.id, item_id: r.item_id })),
-                        )
-
-                        alert(
-                          'Nenhuma linha de logística corresponde aos itens desta folha de obra. Verifique se os itens têm entradas de logística criadas.',
-                        )
-                        return
-                      }
-
-                      // Update each logistics row with the corresponding item quantity
-                      const updatePromises = rowsToUpdate.map(
-                        async (row, index) => {
-                          const originalQuantity = quantityMap.get(row.item_id)
-                          console.log(
-                            `📊 Updating row ${index + 1}/${rowsToUpdate.length}:`,
-                            {
-                              logisticsId: row.id,
-                              itemId: row.item_id,
-                              itemDescription: jobItems.find(
-                                (i) => i.id === row.item_id,
-                              )?.descricao,
-                              currentQuantity: row.quantidade,
-                              newQuantity: originalQuantity,
-                            },
-                          )
-
-                          try {
-                            const { error } = await supabase
-                              .from('logistica_entregas')
-                              .update({ quantidade: originalQuantity })
-                              .eq('id', row.id)
-
-                            if (error) {
-                              console.error(
-                                `❌ Failed to update row ${row.id}:`,
-                                error,
-                              )
-                              return { success: false, error, rowId: row.id }
-                            }
-
-                            console.log(`✅ Successfully updated row ${row.id}`)
-                            return { success: true, rowId: row.id }
-                          } catch (error) {
-                            console.error(
-                              `❌ Exception updating row ${row.id}:`,
-                              error,
-                            )
-                            return { success: false, error, rowId: row.id }
-                          }
-                        },
-                      )
-
-                      console.log('📊 Executing all updates...')
-                      const results = await Promise.all(updatePromises)
-
-                      // Check results
-                      const successful = results.filter((r) => r.success)
-                      const failed = results.filter((r) => !r.success)
-
-                      console.log(
-                        `📊 Update results: ${successful.length} successful, ${failed.length} failed`,
-                      )
-
-                      if (failed.length > 0) {
-                        console.error('❌ Some updates failed:', failed)
-                        alert(
-                          `Alguns updates falharam: ${failed.length}/${results.length}. Verifique o console para mais detalhes.`,
-                        )
-                        // Don't return here, still refresh to show partial updates
-                      }
-
-                      // Update local state to reflect the changes immediately
-                      setLogisticaRows((prevRows) =>
-                        prevRows.map((row) => {
-                          const newQuantity = quantityMap.get(row.item_id)
-                          const wasUpdated = rowsToUpdate.some(
-                            (r) => r.id === row.id,
-                          )
-
-                          if (wasUpdated && newQuantity !== undefined) {
-                            return { ...row, quantidade: newQuantity }
-                          }
-                          return row
-                        }),
-                      )
-
-                      console.log('✅ Local state updated')
-
-                      // Optionally refresh logistics data to ensure consistency
-                      console.log(
-                        '🔄 Refreshing logistics data to ensure consistency...',
-                      )
-                      await fetchLogisticaRows()
-
-                      console.log(
-                        '✅ Quantity copy process completed successfully',
-                      )
-
-                      if (failed.length === 0) {
-                        alert(
-                          `Quantidades copiadas com sucesso! ${successful.length} registros atualizados.`,
-                        )
-                      } else {
-                        alert(
-                          `Processo concluído com ${successful.length} sucessos e ${failed.length} falhas. Verifique o console para detalhes.`,
-                        )
-                      }
-                    } catch (error: any) {
-                      console.error(
-                        '❌ Error in copy quantities process:',
-                        error,
-                      )
-                      console.error('❌ Error details:', {
-                        message: error?.message,
-                        code: error?.code,
-                        details: error?.details,
-                        stack: error?.stack,
-                      })
-                      alert(
-                        `Erro ao copiar quantidades: ${error?.message || error}`,
-                      )
-                    }
-                  }}
-                >
-                  <Copy className="mr-2 h-4 w-4" />
-                  Copiar Quantidades
-                </Button>
                 <Button
                   size="sm"
                   variant="default"
@@ -6777,6 +6541,7 @@ function JobDrawerContent({
                     transportadoras={logisticaTransportadoras || []}
                     armazens={logisticaArmazens || []}
                     hideColumns={['saiu', 'cliente', 'guia']}
+                    hideActions={true}
                     showSourceSelection={true}
                     sourceRowId={sourceRowId}
                     onSourceRowChange={setSourceRowId}

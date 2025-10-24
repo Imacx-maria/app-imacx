@@ -63,6 +63,12 @@ def recreate_folha_obra_with_orcamento_view(conn):
     - Budgets (orcamentos) from phc.bo  
     - Customer info from phc.cl
     - Line items count from phc.bi
+    
+    Matching logic:
+    - Orçamento is matched to Folha de Obra by:
+      1. Same customer_id
+      2. Same total_value
+      3. If multiple matches, select the one with closest document_date
     """
     
     sql = """
@@ -71,8 +77,45 @@ def recreate_folha_obra_with_orcamento_view(conn):
     
     -- Recreate view
     -- Note: BO table contains BOTH folha de obra AND orcamento records
-    -- The 'origin' field links FO records to their source budget number
+    -- We match them by customer_id, total_value, and closest document_date
     CREATE VIEW phc.folha_obra_with_orcamento AS
+    WITH orcamento_with_lines AS (
+        SELECT 
+            orc.document_id,
+            orc.document_number,
+            orc.document_date,
+            orc.document_type,
+            orc.customer_id,
+            orc.total_value,
+            COUNT(DISTINCT orc_bi.line_id) AS orcamento_lines
+        FROM phc.bo orc
+        LEFT JOIN phc.bi orc_bi ON orc.document_id = orc_bi.document_id
+        WHERE orc.document_type = 'Orçamento'
+        GROUP BY 
+            orc.document_id,
+            orc.document_number,
+            orc.document_date,
+            orc.document_type,
+            orc.customer_id,
+            orc.total_value
+    ),
+    matched_orcamento AS (
+        SELECT DISTINCT ON (fo.document_id)
+            fo.document_id,
+            orc.document_id AS orcamento_id,
+            orc.document_number AS orcamento_number,
+            orc.document_date AS orcamento_date,
+            orc.total_value AS orcamento_value,
+            orc.orcamento_lines,
+            ABS(orc.document_date - fo.document_date) AS date_diff_days
+        FROM phc.bo fo
+        LEFT JOIN orcamento_with_lines orc ON 
+            orc.customer_id = fo.customer_id 
+            AND orc.total_value = fo.total_value
+            AND orc.document_id != fo.document_id
+        WHERE fo.document_type = 'Folha de Obra'
+        ORDER BY fo.document_id, date_diff_days ASC
+    )
     SELECT 
         -- Folha de Obra fields
         fo.document_id AS folha_obra_id,
@@ -90,22 +133,36 @@ def recreate_folha_obra_with_orcamento_view(conn):
         fo.nome_trabalho,
         COUNT(DISTINCT bi.line_id) AS folha_obra_lines,
         
-        -- Orcamento fields (budget number from origin field)
-        NULL::text AS orcamento_id,
-        fo.origin AS orcamento_number,
-        NULL::date AS orcamento_date,
-        NULL::numeric AS orcamento_value,
-        NULL::bigint AS orcamento_lines,
+        -- Orcamento fields (matched by customer_id, total_value, and closest date)
+        mo.orcamento_id,
+        mo.orcamento_number,
+        mo.orcamento_date,
+        mo.orcamento_value,
+        mo.orcamento_lines,
         
         -- Calculated fields
-        NULL::integer AS days_between_quote_and_work,
-        NULL::integer AS days_between_quote_and_delivery,
-        NULL::numeric AS value_difference
+        CASE 
+            WHEN mo.orcamento_date IS NOT NULL AND fo.document_date IS NOT NULL 
+            THEN (fo.document_date - mo.orcamento_date)::integer 
+            ELSE NULL 
+        END AS days_between_quote_and_work,
+        CASE 
+            WHEN mo.orcamento_date IS NOT NULL AND fo.last_delivery_date IS NOT NULL 
+            THEN (fo.last_delivery_date - mo.orcamento_date)::integer 
+            ELSE NULL 
+        END AS days_between_quote_and_delivery,
+        CASE 
+            WHEN mo.orcamento_value IS NOT NULL 
+            THEN (fo.total_value - mo.orcamento_value) 
+            ELSE NULL 
+        END AS value_difference
     
     FROM phc.bo fo
     LEFT JOIN phc.cl cl ON fo.customer_id = cl.customer_id
     LEFT JOIN phc.bi bi ON fo.document_id = bi.document_id
+    LEFT JOIN matched_orcamento mo ON fo.document_id = mo.document_id
     WHERE fo.document_number IS NOT NULL
+      AND fo.document_type = 'Folha de Obra'
     GROUP BY 
         fo.document_id,
         fo.document_number,
@@ -116,7 +173,11 @@ def recreate_folha_obra_with_orcamento_view(conn):
         fo.total_value,
         fo.observacoes,
         fo.nome_trabalho,
-        fo.origin;
+        mo.orcamento_id,
+        mo.orcamento_number,
+        mo.orcamento_date,
+        mo.orcamento_value,
+        mo.orcamento_lines;
     
     -- Grant permissions
     GRANT SELECT ON phc.folha_obra_with_orcamento TO authenticated;

@@ -98,6 +98,7 @@ interface LogisticaTableWithCreatableProps {
   onDeleteRow: (rowId: string) => Promise<void>
   tableDate: string
   hideColumns?: string[] // Array of column fields to hide
+  hideActions?: boolean // Hide the actions column (clone/delete buttons)
   showSourceSelection?: boolean // Show radio buttons for source selection
   sourceRowId?: string | null // Currently selected source row ID
   onSourceRowChange?: (rowId: string | null) => void // Callback when source row changes
@@ -118,6 +119,7 @@ export const LogisticaTableWithCreatable: React.FC<
   onFoSave,
   onItemSave,
   onSaiuSave,
+  hideActions = false,
   onGuiaSave,
   onBrindesSave,
   onClienteChange,
@@ -306,16 +308,16 @@ export const LogisticaTableWithCreatable: React.FC<
         tooltip: 'Concluido',
       },
       { label: 'DATA SAIDA', width: 'w-[190px]', field: 'data_saida' },
-      {
+      ...(!hideActions ? [{
         label: 'ACOES',
         width: 'w-[120px] max-w-[120px]',
         field: 'acoes',
         tooltip: 'Acoes',
-      },
+      }] : []),
     ]
     // Filter out hidden columns
     return allColumns.filter((col) => !hideColumns?.includes(col.field))
-  }, [hideColumns, showSourceSelection])
+  }, [hideColumns, showSourceSelection, hideActions])
 
   // Handle sorting - memoized to prevent recreation on renders
   const handleSort = useCallback(
@@ -950,40 +952,42 @@ export const LogisticaTableWithCreatable: React.FC<
                   </TableCell>
 
                   {/* Actions */}
-                  <TableCell className="flex w-[120px] justify-center gap-2 pr-2">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className={cloneButtonClass}
-                            onClick={() => onDuplicateRow(row)}
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Duplicar</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            size="icon"
-                            variant="destructive"
-                            className={deleteButtonClass}
-                            onClick={() =>
-                              handleDelete(row.id || row.items_base?.id || '')
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Eliminar</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </TableCell>
+                  {!hideActions && (
+                    <TableCell className="flex w-[120px] justify-center gap-2 pr-2">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className={cloneButtonClass}
+                              onClick={() => onDuplicateRow(row)}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Duplicar</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="icon"
+                              variant="destructive"
+                              className={deleteButtonClass}
+                              onClick={() =>
+                                handleDelete(row.id || row.items_base?.id || '')
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Eliminar</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}

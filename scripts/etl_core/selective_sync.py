@@ -889,7 +889,10 @@ class SelectiveSync:
                 for row in rows:
                     processed_row = []
                     for i, value in enumerate(row):
-                        if i == date_idx or i == extra_date_idx:
+                        # Skip the extra_date_idx column - it's only used for filtering, not insertion
+                        if extra_date_idx is not None and i == extra_date_idx:
+                            continue
+                        if i == date_idx:
                             if value:
                                 if isinstance(value, datetime):
                                     processed_row.append(value.strftime('%Y-%m-%d'))
