@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pyodbc
 import psycopg2
+import psycopg2.extras
 from dotenv import load_dotenv
 
 # Updated path: go up 2 levels from scripts/etl_core/ to project root
@@ -259,10 +260,10 @@ class SelectiveSync:
                     "Missing MSSQL_DIRECT_CONNECTION. Set it in the environment or .env file."
                 )
             self.phc_conn = pyodbc.connect(conn_str, timeout=30)
-            logger.info("✅ Connected to PHC database")
+            logger.info("[OK] Connected to PHC database")
             return True
         except Exception as e:
-            logger.error(f"❌ PHC connection failed: {e}")
+            logger.error(f"[ERROR] PHC connection failed: {e}")
             return False
     
     def connect_supabase(self):
@@ -282,10 +283,10 @@ class SelectiveSync:
             cursor.execute("CREATE SCHEMA IF NOT EXISTS phc")
             self.supabase_conn.commit()
             
-            logger.info("✅ Connected to Supabase")
+            logger.info("[OK] Connected to Supabase")
             return True
         except Exception as e:
-            logger.error(f"❌ Supabase connection failed: {e}")
+            logger.error(f"[ERROR] Supabase connection failed: {e}")
             return False
 
     # ------------------------------------------------------------------
@@ -531,7 +532,7 @@ class SelectiveSync:
         overlap_days: int,
         retention_months: int,
     ) -> dict:
-        logger.info("🔄 Incremental sync for %s (%s)", table_name.upper(), config.get('description'))
+        logger.info("[SYNC] Incremental sync for %s (%s)", table_name.upper(), config.get('description'))
 
         try:
             self._ensure_target_table(table_name, config)
@@ -625,7 +626,7 @@ class SelectiveSync:
                 self._update_watermark(table_name, new_watermark)
 
             logger.info(
-                "✅ %s: %s rows processed (watermark=%s)",
+                "[OK] %s: %s rows processed (watermark=%s)",
                 table_name.upper(),
                 total_rows,
                 max_date_seen.isoformat() if max_date_seen else watermark.isoformat(),
@@ -640,7 +641,7 @@ class SelectiveSync:
             }
 
         except Exception as exc:
-            logger.error("❌ Incremental sync failed for %s: %s", table_name.upper(), exc)
+            logger.error("[ERROR] Incremental sync failed for %s: %s", table_name.upper(), exc)
             if self.supabase_conn:
                 self.supabase_conn.rollback()
             return {
@@ -652,7 +653,7 @@ class SelectiveSync:
 
     def sync_fast_bo_bi_watermarked(self, overlap_days: int = 3, retention_months: int = 12) -> dict:
         """Run a fast incremental sync for BO/BI/CL tables using watermarks (last 3 days)."""
-        logger.info("⚡ Fast watermarked sync for BO/BI/CL (overlap=%s days)", overlap_days)
+        logger.info("[FAST] Fast watermarked sync for BO/BI/CL (overlap=%s days)", overlap_days)
 
         if not self.connect_phc() or not self.connect_supabase():
             return {}
@@ -668,7 +669,7 @@ class SelectiveSync:
                 
                 # Skip CL if synced in last 24h - rarely changes
                 if table_name == 'cl' and self._should_skip_table('cl', skip_hours=24):
-                    logger.info("⏭️  CL: Skipped (synced within last 24h)")
+                    logger.info("[SKIP] CL: Skipped (synced within last 24h)")
                     results[table_name] = {
                         'success': True,
                         'rows': 0,
@@ -689,7 +690,7 @@ class SelectiveSync:
 
     def sync_fast_all_tables_3days(self, overlap_days: int = 3, retention_months: int = 12) -> dict:
         """Run a fast incremental sync for ALL tables (CL, BO, BI, FT, FO) using watermarks."""
-        logger.info("⚡ Fast watermarked sync for ALL tables (overlap=%s days)", overlap_days)
+        logger.info("[FAST] Fast watermarked sync for ALL tables (overlap=%s days)", overlap_days)
 
         if not self.connect_phc() or not self.connect_supabase():
             return {}
@@ -705,7 +706,7 @@ class SelectiveSync:
                 
                 # Skip CL if synced in last 24h - rarely changes
                 if table_name == 'cl' and self._should_skip_table('cl', skip_hours=24):
-                    logger.info("⏭️  CL: Skipped (synced within last 24h)")
+                    logger.info("[SKIP] CL: Skipped (synced within last 24h)")
                     results[table_name] = {
                         'success': True,
                         'rows': 0,
@@ -726,7 +727,7 @@ class SelectiveSync:
 
     def sync_fast_clients_3days(self):
         """Fast sync for clients only"""
-        logger.info("⚡ Fast client sync")
+        logger.info("[FAST] Fast client sync")
         if not self.connect_phc() or not self.connect_supabase():
             return False
         
@@ -743,7 +744,7 @@ class SelectiveSync:
 
     def sync_today_bo_bi(self) -> dict:
         """Sync BO/BI/CL tables from today 00:00:00 (fastest for intraday updates)"""
-        logger.info("⚡ Today-only sync for BO/BI/CL (from midnight)")
+        logger.info("[TODAY] Today-only sync for BO/BI/CL (from midnight)")
         
         if not self.connect_phc() or not self.connect_supabase():
             return {}
@@ -759,7 +760,7 @@ class SelectiveSync:
                 
                 # Skip CL if synced in last 6 hours - rarely changes during the day
                 if table_name == 'cl' and self._should_skip_table('cl', skip_hours=6):
-                    logger.info("⏭️  CL: Skipped (synced within last 6h)")
+                    logger.info("[SKIP] CL: Skipped (synced within last 6h)")
                     results[table_name] = {
                         'success': True,
                         'rows': 0,
@@ -775,7 +776,7 @@ class SelectiveSync:
 
     def sync_today_clients(self) -> dict:
         """Sync clients only from today 00:00:00"""
-        logger.info("⚡ Today-only sync for clients")
+        logger.info("[TODAY] Today-only sync for clients")
         
         if not self.connect_phc() or not self.connect_supabase():
             return {}
@@ -793,7 +794,7 @@ class SelectiveSync:
 
     def sync_today_all_tables(self) -> dict:
         """Sync ALL tables (CL, BO, BI, FT, FO) from today 00:00:00"""
-        logger.info("⚡ Today-only sync for ALL tables (from midnight)")
+        logger.info("[TODAY] Today-only sync for ALL tables (from midnight)")
         
         if not self.connect_phc() or not self.connect_supabase():
             return {}
@@ -809,7 +810,7 @@ class SelectiveSync:
                 
                 # Skip CL if synced in last 6 hours - rarely changes during the day
                 if table_name == 'cl' and self._should_skip_table('cl', skip_hours=6):
-                    logger.info("⏭️  CL: Skipped (synced within last 6h)")
+                    logger.info("[SKIP] CL: Skipped (synced within last 6h)")
                     results[table_name] = {
                         'success': True,
                         'rows': 0,
@@ -825,7 +826,7 @@ class SelectiveSync:
 
     def _run_today_sync_for_table(self, table_name: str, config: dict) -> dict:
         """Sync a single table from today 00:00:00 (no overlap, fastest possible)"""
-        logger.info("🔄 Today sync for %s (%s)", table_name.upper(), config.get('description'))
+        logger.info("[SYNC] Today sync for %s (%s)", table_name.upper(), config.get('description'))
 
         try:
             self._ensure_target_table(table_name, config)
@@ -911,7 +912,7 @@ class SelectiveSync:
             # Update watermark
             self._update_watermark(table_name, datetime.now())
 
-            logger.info("✅ %s: %d rows synced from %s", table_name.upper(), row_count, start_date_str)
+            logger.info("[OK] %s: %d rows synced from %s", table_name.upper(), row_count, start_date_str)
             return {
                 'success': True,
                 'rows': row_count,
@@ -920,7 +921,7 @@ class SelectiveSync:
             }
 
         except Exception as e:
-            logger.error("❌ Error syncing %s: %s", table_name, e)
+            logger.error("[ERROR] Error syncing %s: %s", table_name, e)
             if self.supabase_conn:
                 self.supabase_conn.rollback()
             return {
@@ -945,7 +946,7 @@ class SelectiveSync:
                 
                 # Skip CL (customers) if synced in last 24h - rarely changes
                 if table_name == 'cl' and self._should_skip_table('cl', skip_hours=24):
-                    logger.info("⏭️  CL: Skipped (synced within last 24h)")
+                    logger.info("[SKIP] CL: Skipped (synced within last 24h)")
                     results[table_name] = {
                         'success': True,
                         'rows': 0,
@@ -967,7 +968,7 @@ class SelectiveSync:
     def sync_table_selective(self, table_name, config):
         """Sync table with selective columns and filtering"""
         try:
-            logger.info(f"🔄 Syncing {table_name} ({config['description']})")
+            logger.info(f"[SYNC] Syncing {table_name} ({config['description']})")
             
             phc_cursor = self.phc_conn.cursor()
             supabase_cursor = self.supabase_conn.cursor()
@@ -996,7 +997,7 @@ class SelectiveSync:
             supabase_cursor.execute(create_sql)
             self.supabase_conn.commit()
             
-            logger.info(f"   ✅ Table ready (recreated)")
+            logger.info(f"   [OK] Table ready (recreated)")
             
             # Build selective query
             column_list = ', '.join([f'[{col}]' for col in column_names])
@@ -1085,15 +1086,15 @@ class SelectiveSync:
                     total_rows += len(clean_rows)
                     
                     # Show progress every batch
-                    print(f"   ⏳ Batch {batch_num}: {total_rows:,} rows synced...", end='\r', flush=True)
+                    print(f"   [BATCH] Batch {batch_num}: {total_rows:,} rows synced...", end='\r', flush=True)
             
             # Clear progress line and show final result
-            print(f"   ✅ Completed: {total_rows:,} rows synced" + " " * 20)
-            logger.info(f"✅ {table_name}: {total_rows:,} rows synced")
+            print(f"   [OK] Completed: {total_rows:,} rows synced" + " " * 20)
+            logger.info(f"[OK] {table_name}: {total_rows:,} rows synced")
             return True, total_rows
             
         except Exception as e:
-            logger.error(f"❌ Error syncing {table_name}: {e}")
+            logger.error(f"[ERROR] Error syncing {table_name}: {e}")
             return False, 0
     
     def sync_configured_tables(self):
@@ -1105,13 +1106,13 @@ class SelectiveSync:
         success_count = 0
         
         total_tables = len(TABLE_CONFIGS)
-        logger.info(f"📊 Syncing {total_tables} configured tables")
+        logger.info(f"[SYNC] Syncing {total_tables} configured tables")
         print(f"\n{'='*80}")
         print(f"SYNCING {total_tables} TABLES: {', '.join(TABLE_CONFIGS.keys()).upper()}")
         print(f"{'='*80}\n")
         
         for idx, (table_name, config) in enumerate(TABLE_CONFIGS.items(), 1):
-            print(f"[{idx}/{total_tables}] 🔄 {table_name.upper()} - {config['description']}")
+            print(f"[{idx}/{total_tables}] {table_name.upper()} - {config['description']}")
             success, row_count = self.sync_table_selective(table_name, config)
             results[table_name] = {
                 'success': success, 
@@ -1124,12 +1125,12 @@ class SelectiveSync:
         
         self.close_connections()
         
-        logger.info(f"🎉 Selective sync complete: {success_count}/{len(TABLE_CONFIGS)} tables")
+        logger.info(f"[DONE] Selective sync complete: {success_count}/{len(TABLE_CONFIGS)} tables")
         
         # Show results
-        print(f"\n📊 SYNC RESULTS:")
+        print(f"\nSYNC RESULTS:")
         for table, result in results.items():
-            status = "✅" if result['success'] else "❌"
+            status = "[OK]" if result['success'] else "[ERROR]"
             print(f"   {status} {table} ({result['description']}): {result['rows']:,} rows")
         
         return results

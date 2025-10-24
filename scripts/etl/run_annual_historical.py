@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Annual Historical Sync - End of Year Data Snapshot
 ===================================================
@@ -18,7 +19,14 @@ from pathlib import Path
 from datetime import datetime, date
 from dotenv import load_dotenv
 import psycopg2
+import psycopg2.extras
 import pyodbc
+
+# Set UTF-8 encoding for Windows
+if sys.platform == 'win32':
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 # Add etl_core to path
 sys.path.insert(0, str(Path(__file__).parent.parent / 'etl_core'))
@@ -66,7 +74,7 @@ def sync_2years_bo(phc_conn, supabase_conn):
     Sync 2years_bo table with last 2 complete years of BO data
     Example: On 2025-12-31, syncs 2024 and 2025
     """
-    print("\n📊 Syncing 2years_bo table...")
+    print("\n[SYNC] Syncing 2years_bo table...")
     
     current_year = datetime.now().year
     year1 = current_year - 1  # Previous year
@@ -134,11 +142,11 @@ def sync_2years_bo(phc_conn, supabase_conn):
             row_count += len(batch)
         
         supabase_conn.commit()
-        print(f"✅ 2years_bo: {row_count} rows synced")
+        print(f"[OK] 2years_bo: {row_count} rows synced")
         return True
         
     except Exception as e:
-        print(f"❌ Failed to sync 2years_bo: {e}")
+        print(f"[ERROR] Failed to sync 2years_bo: {e}")
         supabase_conn.rollback()
         return False
 
@@ -147,7 +155,7 @@ def sync_2years_ft(phc_conn, supabase_conn):
     Sync 2years_ft table with last 2 complete years of FT data
     Example: On 2025-12-31, syncs 2024 and 2025
     """
-    print("\n📊 Syncing 2years_ft table...")
+    print("\n[SYNC] Syncing 2years_ft table...")
     
     current_year = datetime.now().year
     year1 = current_year - 1
@@ -213,11 +221,11 @@ def sync_2years_ft(phc_conn, supabase_conn):
             row_count += len(batch)
         
         supabase_conn.commit()
-        print(f"✅ 2years_ft: {row_count} rows synced")
+        print(f"[OK] 2years_ft: {row_count} rows synced")
         return True
         
     except Exception as e:
-        print(f"❌ Failed to sync 2years_ft: {e}")
+        print(f"[ERROR] Failed to sync 2years_ft: {e}")
         supabase_conn.rollback()
         return False
 
@@ -226,7 +234,7 @@ def update_bo_historical_monthly(phc_conn, supabase_conn):
     Update bo_historical_monthly with last 3 years of monthly aggregated data
     Example: On 2025-12-31, updates with 2023, 2024, 2025
     """
-    print("\n📊 Updating bo_historical_monthly...")
+    print("\n[SYNC] Updating bo_historical_monthly...")
     
     current_year = datetime.now().year
     year1 = current_year - 2
@@ -271,11 +279,11 @@ def update_bo_historical_monthly(phc_conn, supabase_conn):
             psycopg2.extras.execute_batch(supabase_cursor, insert_sql, rows, page_size=500)
         
         supabase_conn.commit()
-        print(f"✅ bo_historical_monthly: {len(rows)} monthly records updated")
+        print(f"[OK] bo_historical_monthly: {len(rows)} monthly records updated")
         return True
         
     except Exception as e:
-        print(f"❌ Failed to update bo_historical_monthly: {e}")
+        print(f"[ERROR] Failed to update bo_historical_monthly: {e}")
         supabase_conn.rollback()
         return False
 
@@ -283,7 +291,7 @@ def update_bo_historical_monthly_salesperson(phc_conn, supabase_conn):
     """
     Update bo_historical_monthly_salesperson with last 3 years by department
     """
-    print("\n📊 Updating bo_historical_monthly_salesperson...")
+    print("\n[SYNC] Updating bo_historical_monthly_salesperson...")
     
     current_year = datetime.now().year
     year1 = current_year - 2
@@ -330,11 +338,11 @@ def update_bo_historical_monthly_salesperson(phc_conn, supabase_conn):
             psycopg2.extras.execute_batch(supabase_cursor, insert_sql, rows, page_size=500)
         
         supabase_conn.commit()
-        print(f"✅ bo_historical_monthly_salesperson: {len(rows)} records updated")
+        print(f"[OK] bo_historical_monthly_salesperson: {len(rows)} records updated")
         return True
         
     except Exception as e:
-        print(f"❌ Failed to update bo_historical_monthly_salesperson: {e}")
+        print(f"[ERROR] Failed to update bo_historical_monthly_salesperson: {e}")
         supabase_conn.rollback()
         return False
 
@@ -342,7 +350,7 @@ def update_ft_historical_monthly(phc_conn, supabase_conn):
     """
     Update ft_historical_monthly with last 3 years of monthly aggregated data
     """
-    print("\n📊 Updating ft_historical_monthly...")
+    print("\n[SYNC] Updating ft_historical_monthly...")
     
     current_year = datetime.now().year
     year1 = current_year - 2
@@ -387,11 +395,11 @@ def update_ft_historical_monthly(phc_conn, supabase_conn):
             psycopg2.extras.execute_batch(supabase_cursor, insert_sql, rows, page_size=500)
         
         supabase_conn.commit()
-        print(f"✅ ft_historical_monthly: {len(rows)} monthly records updated")
+        print(f"[OK] ft_historical_monthly: {len(rows)} monthly records updated")
         return True
         
     except Exception as e:
-        print(f"❌ Failed to update ft_historical_monthly: {e}")
+        print(f"[ERROR] Failed to update ft_historical_monthly: {e}")
         supabase_conn.rollback()
         return False
 
@@ -399,7 +407,7 @@ def update_ft_historical_monthly_salesperson(phc_conn, supabase_conn):
     """
     Update ft_historical_monthly_salesperson with last 3 years by department
     """
-    print("\n📊 Updating ft_historical_monthly_salesperson...")
+    print("\n[SYNC] Updating ft_historical_monthly_salesperson...")
     
     current_year = datetime.now().year
     year1 = current_year - 2
@@ -446,17 +454,17 @@ def update_ft_historical_monthly_salesperson(phc_conn, supabase_conn):
             psycopg2.extras.execute_batch(supabase_cursor, insert_sql, rows, page_size=500)
         
         supabase_conn.commit()
-        print(f"✅ ft_historical_monthly_salesperson: {len(rows)} records updated")
+        print(f"[OK] ft_historical_monthly_salesperson: {len(rows)} records updated")
         return True
         
     except Exception as e:
-        print(f"❌ Failed to update ft_historical_monthly_salesperson: {e}")
+        print(f"[ERROR] Failed to update ft_historical_monthly_salesperson: {e}")
         supabase_conn.rollback()
         return False
 
 def recreate_historical_views():
     """Recreate historical database views"""
-    print("\n🔄 Recreating historical views...")
+    print("\n[VIEW] Recreating historical views...")
     
     try:
         import subprocess
@@ -469,30 +477,30 @@ def recreate_historical_views():
         )
         
         if "__HISTORICAL_VIEW_RECREATION_DONE__ success=true" in result.stdout:
-            print("✅ Historical views recreated successfully")
+            print("[OK] Historical views recreated successfully")
             return True
         else:
-            print("⚠️ Warning: Historical view recreation may have failed")
+            print("[WARN] Warning: Historical view recreation may have failed")
             print(result.stdout)
             return False
     except Exception as e:
-        print(f"⚠️ Warning: Could not recreate historical views: {e}")
+        print(f"[WARN] Warning: Could not recreate historical views: {e}")
         return False
 
 def main():
     print("=" * 80)
-    print("📅 ANNUAL HISTORICAL SYNC - END OF YEAR DATA SNAPSHOT")
+    print("ANNUAL HISTORICAL SYNC - END OF YEAR DATA SNAPSHOT")
     print("=" * 80)
     print(f"   Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"   Year ending: {datetime.now().year}")
     print()
     
     # Connect to databases
-    print("🔌 Connecting to databases...")
+    print("[CONN] Connecting to databases...")
     phc_conn = get_phc_connection()
-    print("✅ Connected to PHC")
+    print("[OK] Connected to PHC")
     supabase_conn = get_supabase_connection()
-    print("✅ Connected to Supabase")
+    print("[OK] Connected to Supabase")
     
     results = {}
     
@@ -509,28 +517,28 @@ def main():
     # Close connections
     phc_conn.close()
     supabase_conn.close()
-    print("\n✅ Database connections closed")
+    print("\n[OK] Database connections closed")
     
     # Recreate historical views
     results['historical_views'] = recreate_historical_views()
     
     # Summary
     print("\n" + "=" * 80)
-    print("📊 SYNC SUMMARY")
+    print("SYNC SUMMARY")
     print("=" * 80)
     for table, success in results.items():
-        status = "✅ SUCCESS" if success else "❌ FAILED"
+        status = "[OK] SUCCESS" if success else "[ERROR] FAILED"
         print(f"   {table}: {status}")
     
     # Overall result
     all_success = all(results.values())
     
     if all_success:
-        print("\n✅ Annual historical sync completed successfully!")
+        print("\n[OK] Annual historical sync completed successfully!")
         print("__ETL_DONE__ success=true")
         sys.exit(0)
     else:
-        print("\n❌ Annual historical sync completed with errors!")
+        print("\n[ERROR] Annual historical sync completed with errors!")
         print("__ETL_DONE__ success=false")
         sys.exit(1)
 
