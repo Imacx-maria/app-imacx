@@ -4,6 +4,10 @@
 /node_modules
 /.pnp
 .pnp.js
+.corepack/
+pnpm
+next
+imacx-clean@1.0.0
 
 # testing
 /coverage
@@ -56,6 +60,7 @@ build/
 # IDEs
 .vscode/
 .idea/
+.cursor/
 *.swp
 *.swo
 *~
@@ -63,6 +68,9 @@ build/
 # Temporary files
 TEMP/
 *.log
+requirements_txt.txt
+"=9.0.0\357\200\272"
+"C\357\200\272/"
 
 # OS
 Thumbs.db

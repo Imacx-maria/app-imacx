@@ -38,8 +38,8 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
                 src={theme === 'dark' ? '/imacx_neg.svg' : '/imacx_pos.svg'}
                 alt="IMACX Logo"
                 width={120}
-                height={0}
-                style={{ height: 'auto' }}
+                height={30}
+                style={{ width: '120px', height: 'auto' }}
                 priority
               />
             )}

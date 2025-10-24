@@ -116,8 +116,8 @@ interface Profile {
 interface FolhaObra {
   id: string
   numero_fo: string | null
-  numero_orc: string | null
-  campanha: string | null
+  numero_orc: number | null
+  Trabalho: string | null
 }
 
 interface Item {
@@ -230,11 +230,18 @@ export default function OperacoesPage() {
     try {
       const { data, error } = await supabase
         .from('folhas_obras')
-        .select('id, numero_fo, numero_orc, campanha')
-        .order('numero_fo')
+        .select('id, Numero_do_, numero_orc, Trabalho')
+        .order('Numero_do_')
 
       if (error) throw error
-      setFolhasObras(data || [])
+      // Map database columns to interface format
+      const mappedData = (data || []).map(fo => ({
+        id: fo.id,
+        numero_fo: fo.Numero_do_ ? String(fo.Numero_do_) : null,
+        numero_orc: fo.numero_orc,
+        Trabalho: fo.Trabalho
+      }))
+      setFolhasObras(mappedData)
     } catch (err) {
       console.error('Error fetching folhas obras:', err)
     }
@@ -1018,12 +1025,87 @@ export default function OperacoesPage() {
                   <SelectContent>
                     {folhasObras.map((fo) => (
                       <SelectItem key={fo.id} value={fo.id}>
-                        {fo.numero_fo || 'Sem número'} {fo.campanha ? `- ${fo.campanha}` : ''}
+                        FO: {fo.numero_fo || '-'} | ORC: {fo.numero_orc || '-'} {fo.Trabalho ? `- ${fo.Trabalho}` : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* ORC Number - Editable */}
+              {formData.folha_obra_id && (
+                <div className="grid gap-2">
+                  <Label>Número ORC *</Label>
+                  <Input
+                    type="number"
+                    value={(() => {
+                      const fo = folhasObras.find(f => f.id === formData.folha_obra_id)
+                      return fo?.numero_orc || ''
+                    })()}
+                    onChange={async (e) => {
+                      const newValue = e.target.value ? parseInt(e.target.value) : null
+                      if (formData.folha_obra_id) {
+                        try {
+                          const { error } = await supabase
+                            .from('folhas_obras')
+                            .update({ numero_orc: newValue })
+                            .eq('id', formData.folha_obra_id)
+                          
+                          if (error) throw error
+                          
+                          // Update local state
+                          setFolhasObras(prev => prev.map(fo => 
+                            fo.id === formData.folha_obra_id 
+                              ? { ...fo, numero_orc: newValue }
+                              : fo
+                          ))
+                        } catch (err: any) {
+                          console.error('Error updating numero_orc:', err)
+                          alert('Erro ao atualizar ORC: ' + err.message)
+                        }
+                      }
+                    }}
+                    placeholder="Número do orçamento"
+                  />
+                </div>
+              )}
+
+              {/* Campaign Name - Editable */}
+              {formData.folha_obra_id && (
+                <div className="grid gap-2">
+                  <Label>Nome da Campanha *</Label>
+                  <Input
+                    value={(() => {
+                      const fo = folhasObras.find(f => f.id === formData.folha_obra_id)
+                      return fo?.Trabalho || ''
+                    })()}
+                    onChange={async (e) => {
+                      const newValue = e.target.value
+                      if (formData.folha_obra_id) {
+                        try {
+                          const { error } = await supabase
+                            .from('folhas_obras')
+                            .update({ Trabalho: newValue })
+                            .eq('id', formData.folha_obra_id)
+                          
+                          if (error) throw error
+                          
+                          // Update local state
+                          setFolhasObras(prev => prev.map(fo => 
+                            fo.id === formData.folha_obra_id 
+                              ? { ...fo, Trabalho: newValue }
+                              : fo
+                          ))
+                        } catch (err: any) {
+                          console.error('Error updating Trabalho:', err)
+                          alert('Erro ao atualizar campanha: ' + err.message)
+                        }
+                      }
+                    }}
+                    placeholder="Nome da campanha"
+                  />
+                </div>
+              )}
 
               {/* Item */}
               <div className="grid gap-2">

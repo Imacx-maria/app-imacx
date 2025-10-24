@@ -12,6 +12,12 @@ export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
   title: "IMACX - Production Management",
   description: "Manufacturing and production management system",
+  icons: {
+    icon: [
+      { url: '/favico-16px.jpg', sizes: '16x16', type: 'image/jpeg' },
+      { url: '/favico-32px.jpg', sizes: '32x32', type: 'image/jpeg' },
+    ],
+  },
 }
 
 export default function RootLayout({

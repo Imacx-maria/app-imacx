@@ -58,12 +58,15 @@ export function PermissionsProvider({
         if (profile?.role_id) {
           setRole(profile.role_id)
 
-          const { data: rolePerms } = await supabase
+          const { data: rolePerms, error: permsError } = await supabase
             .from('role_permissions')
             .select('permission')
             .eq('role_id', profile.role_id)
 
-          if (rolePerms) {
+          if (permsError) {
+            console.error('Error fetching role permissions:', permsError)
+            // Continue without permissions rather than failing
+          } else if (rolePerms) {
             setPermissions(rolePerms.map((p) => p.permission))
           }
         }

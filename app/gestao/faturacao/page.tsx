@@ -315,6 +315,14 @@ export default function FaturacaoPage() {
     setSelectedJob(job)
     await fetchItemsForJob(job.id)
     setOpenDrawer(true)
+    setCurrentItemsPage(1)
+  }
+  
+  // Handle drawer close
+  const handleCloseDrawer = () => {
+    setOpenDrawer(false)
+    setSelectedJob(null)
+    setSelectedJobItems([])
   }
 
   // Filter and sort jobs
@@ -591,7 +599,7 @@ export default function FaturacaoPage() {
                         <TableCell>{job.created_at ? new Date(job.created_at).toLocaleDateString('pt-PT') : '-'}</TableCell>
                         <TableCell>{job.data_saida ? new Date(job.data_saida).toLocaleDateString('pt-PT') : '-'}</TableCell>
                         <TableCell className={`text-center font-semibold ${job.data_saida ? 'text-green-600 dark:text-green-400' : ''}`}>
-                          {calculateDays(job.created_at, job.data_saida)}
+                          {calculateDays(job.created_at ?? null, job.data_saida ?? null)}
                         </TableCell>
                         <TableCell className="text-center">
                           <div className="flex justify-center">
@@ -669,7 +677,7 @@ export default function FaturacaoPage() {
         </Tabs>
 
         {/* Job Details Drawer */}
-        <Drawer open={openDrawer} onOpenChange={setOpenDrawer}>
+        <Drawer open={openDrawer} onOpenChange={setOpenDrawer} modal={false}>
           <DrawerContent className="flex flex-col max-h-[85vh]">
             <DrawerHeader className="sr-only">
               <DrawerTitle>Detalhes da Faturação</DrawerTitle>
@@ -683,7 +691,7 @@ export default function FaturacaoPage() {
               <Button
                 size="icon"
                 variant="outline"
-                onClick={() => setOpenDrawer(false)}
+                onClick={handleCloseDrawer}
                 className="absolute top-6 right-6 z-10 border border-black"
               >
                 <X className="h-4 w-4" />
@@ -710,7 +718,10 @@ export default function FaturacaoPage() {
               {/* Items section */}
               <div className="space-y-4">
                 <div>
-                  <h3 className="font-semibold text-sm uppercase mb-3">Itens do Trabalho</h3>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-sm uppercase">Itens do Trabalho</h3>
+                    <span className="text-xs text-muted-foreground italic">Marcar como facturado</span>
+                  </div>
                   {itemsLoading ? (
                     <div className="flex justify-center py-4">
                       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -719,7 +730,7 @@ export default function FaturacaoPage() {
                     <p className="text-sm text-muted-foreground">Nenhum item encontrado</p>
                   ) : (
                     <>
-                      <div className="space-y-2 border rounded-lg p-3">
+                      <div className="space-y-2">
                         {paginatedItems.map((item) => (
                           <div key={item.id} className="flex items-start gap-3 p-3 border rounded-lg hover:bg-muted">
                             <div className="flex items-center pt-1">
