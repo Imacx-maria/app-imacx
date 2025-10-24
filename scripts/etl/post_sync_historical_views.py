@@ -6,10 +6,8 @@ Recreates historical database views after annual historical sync completes.
 Run automatically after annual historical sync to ensure views exist.
 
 Views recreated:
-- phc.v_bo_current_year_monthly_salesperson (current year BO monthly by salesperson)
-- phc.v_ft_current_year_monthly_salesperson (current year FT monthly by salesperson)
-
-Note: folha_obra_with_orcamento is NOT recreated (uses current tables)
+- phc.bo_historical_monthly_salesperson (Historical BO monthly - aliases bo_historical_monthly)
+- phc.ft_historical_monthly_salesperson (Historical FT monthly - aliases ft_historical_monthly)
 """
 
 import os
@@ -17,6 +15,12 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv
 import psycopg2
+
+# Set UTF-8 encoding for Windows
+if sys.platform == 'win32':
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 # Load environment variables from .env.local
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -48,43 +52,32 @@ def get_supabase_connection():
         print(f"❌ Failed to connect to Supabase: {e}")
         sys.exit(1)
 
-def recreate_v_bo_current_year_monthly_salesperson(conn):
+def recreate_bo_historical_monthly_salesperson(conn):
     """
-    Recreate phc.v_bo_current_year_monthly_salesperson view
+    Recreate phc.bo_historical_monthly_salesperson view
     
-    This view aggregates current year BO (budgets/work orders) data by:
-    - Year
-    - Month
-    - Department (salesperson/team)
-    - Document type
+    This view provides a salesperson/department breakdown by aliasing
+    the bo_historical_monthly table (which currently doesn't have department data)
     """
     
     sql = """
     -- Drop existing view if it exists
-    DROP VIEW IF EXISTS phc.v_bo_current_year_monthly_salesperson CASCADE;
+    DROP VIEW IF EXISTS phc.bo_historical_monthly_salesperson CASCADE;
     
-    -- Recreate view for current year BO monthly aggregation
-    CREATE VIEW phc.v_bo_current_year_monthly_salesperson AS
+    -- Create view as alias of bo_historical_monthly with department column
+    CREATE VIEW phc.bo_historical_monthly_salesperson AS
     SELECT 
-        EXTRACT(YEAR FROM document_date)::INTEGER AS year,
-        EXTRACT(MONTH FROM document_date)::INTEGER AS month,
-        COALESCE(department, 'UNKNOWN') AS department,
-        COALESCE(document_type, 'UNKNOWN') AS document_type,
-        SUM(total_value) AS total_value,
-        COUNT(*) AS document_count
-    FROM phc.bo
-    WHERE document_date >= DATE_TRUNC('year', CURRENT_DATE)
-        AND document_date < DATE_TRUNC('year', CURRENT_DATE) + INTERVAL '1 year'
-    GROUP BY 
-        EXTRACT(YEAR FROM document_date),
-        EXTRACT(MONTH FROM document_date),
-        department,
-        document_type
-    ORDER BY year, month, department;
+        year,
+        month,
+        'UNKNOWN' AS department,
+        document_type,
+        total_value,
+        document_count
+    FROM phc.bo_historical_monthly;
     
     -- Grant permissions
-    GRANT SELECT ON phc.v_bo_current_year_monthly_salesperson TO authenticated;
-    GRANT SELECT ON phc.v_bo_current_year_monthly_salesperson TO anon;
+    GRANT SELECT ON phc.bo_historical_monthly_salesperson TO authenticated;
+    GRANT SELECT ON phc.bo_historical_monthly_salesperson TO anon;
     """
     
     try:
@@ -92,50 +85,39 @@ def recreate_v_bo_current_year_monthly_salesperson(conn):
         cursor.execute(sql)
         conn.commit()
         cursor.close()
-        print("✅ View phc.v_bo_current_year_monthly_salesperson recreated successfully")
+        print("✅ View phc.bo_historical_monthly_salesperson recreated successfully")
         return True
     except Exception as e:
-        print(f"❌ Failed to recreate BO view: {e}")
+        print(f"❌ Failed to recreate BO historical salesperson view: {e}")
         conn.rollback()
         return False
 
-def recreate_v_ft_current_year_monthly_salesperson(conn):
+def recreate_ft_historical_monthly_salesperson(conn):
     """
-    Recreate phc.v_ft_current_year_monthly_salesperson view
+    Recreate phc.ft_historical_monthly_salesperson view
     
-    This view aggregates current year FT (invoices/credit notes) data by:
-    - Year
-    - Month
-    - Department (salesperson/team)
-    - Document type
+    This view provides a salesperson/department breakdown by aliasing
+    the ft_historical_monthly table (which currently doesn't have department data)
     """
     
     sql = """
     -- Drop existing view if it exists
-    DROP VIEW IF EXISTS phc.v_ft_current_year_monthly_salesperson CASCADE;
+    DROP VIEW IF EXISTS phc.ft_historical_monthly_salesperson CASCADE;
     
-    -- Recreate view for current year FT monthly aggregation
-    CREATE VIEW phc.v_ft_current_year_monthly_salesperson AS
+    -- Create view as alias of ft_historical_monthly with department column
+    CREATE VIEW phc.ft_historical_monthly_salesperson AS
     SELECT 
-        EXTRACT(YEAR FROM invoice_date)::INTEGER AS year,
-        EXTRACT(MONTH FROM invoice_date)::INTEGER AS month,
-        COALESCE(department, 'UNKNOWN') AS department,
-        COALESCE(document_type, 'UNKNOWN') AS document_type,
-        SUM(total_value) AS total_value,
-        COUNT(*) AS document_count
-    FROM phc.ft
-    WHERE invoice_date >= DATE_TRUNC('year', CURRENT_DATE)
-        AND invoice_date < DATE_TRUNC('year', CURRENT_DATE) + INTERVAL '1 year'
-    GROUP BY 
-        EXTRACT(YEAR FROM invoice_date),
-        EXTRACT(MONTH FROM invoice_date),
-        department,
-        document_type
-    ORDER BY year, month, department;
+        year,
+        month,
+        'UNKNOWN' AS department,
+        document_type,
+        total_value,
+        document_count
+    FROM phc.ft_historical_monthly;
     
     -- Grant permissions
-    GRANT SELECT ON phc.v_ft_current_year_monthly_salesperson TO authenticated;
-    GRANT SELECT ON phc.v_ft_current_year_monthly_salesperson TO anon;
+    GRANT SELECT ON phc.ft_historical_monthly_salesperson TO authenticated;
+    GRANT SELECT ON phc.ft_historical_monthly_salesperson TO anon;
     """
     
     try:
@@ -143,10 +125,10 @@ def recreate_v_ft_current_year_monthly_salesperson(conn):
         cursor.execute(sql)
         conn.commit()
         cursor.close()
-        print("✅ View phc.v_ft_current_year_monthly_salesperson recreated successfully")
+        print("✅ View phc.ft_historical_monthly_salesperson recreated successfully")
         return True
     except Exception as e:
-        print(f"❌ Failed to recreate FT view: {e}")
+        print(f"❌ Failed to recreate FT salesperson view: {e}")
         conn.rollback()
         return False
 
@@ -158,16 +140,16 @@ def main():
     conn = get_supabase_connection()
     print("✅ Connected to Supabase")
     
-    # Recreate views
-    success_bo = recreate_v_bo_current_year_monthly_salesperson(conn)
-    success_ft = recreate_v_ft_current_year_monthly_salesperson(conn)
+    # Recreate all 2 views
+    success_bo_hist = recreate_bo_historical_monthly_salesperson(conn)
+    success_ft_hist = recreate_ft_historical_monthly_salesperson(conn)
     
     # Close connection
     conn.close()
     
     # Exit with appropriate code
-    if success_bo and success_ft:
-        print("✅ All historical views recreated successfully")
+    if success_bo_hist and success_ft_hist:
+        print("✅ All 2 historical views recreated successfully")
         print("__HISTORICAL_VIEW_RECREATION_DONE__ success=true")
         sys.exit(0)
     else:

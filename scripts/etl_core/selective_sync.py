@@ -197,7 +197,7 @@ TABLE_CONFIGS = {
             'fdata': 'DATE',                  # PHC: fdata - Invoice/document date
             'nmdoc': 'TEXT',                  # PHC: nmdoc - Document type (Factura, Nota de Crédito, etc.)
             'ettiliq': 'NUMERIC',             # PHC: ettiliq - Net value WITHOUT VAT (can be negative)
-            'anulado': 'BOOLEAN'              # PHC: anulado - Cancelled/annulled flag
+            'anulado': 'TEXT'                 # PHC: ANULADO - New column
         },
         'column_mappings': {
             'ftstamp': 'invoice_id',          # Clearer: ftstamp → invoice_id
@@ -206,7 +206,7 @@ TABLE_CONFIGS = {
             'fdata': 'invoice_date',          # Clearer: fdata → invoice_date
             'nmdoc': 'document_type',         # Clearer: nmdoc → document_type
             'ettiliq': 'net_value',           # Clearer: ettiliq → net_value (without VAT)
-            'anulado': 'is_cancelled'         # Clearer: anulado → is_cancelled
+            'anulado': 'anulado'              # PHC: ANULADO → anulado
         },
         'filter': get_one_year_ago_filter_ft,  # Last 1 year from today (dynamic)
         'description': 'Invoices/Credit Notes (Last 1 Year)',

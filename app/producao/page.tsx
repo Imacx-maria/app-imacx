@@ -1084,6 +1084,13 @@ export default function ProducaoPage() {
         if (!jobIds) {
           console.log('🔄 Applying standard filters (no item search active)')
 
+          // Check if any filters are active
+          const hasActiveFilters = !!(
+            filters.foF?.trim() ||
+            filters.campF?.trim() ||
+            filters.clientF?.trim()
+          )
+
           // Tab-based filtering (completion status)
           if (filters.activeTab === 'concluidos') {
             console.log(
@@ -1094,6 +1101,16 @@ export default function ProducaoPage() {
             query = query.or(
               `data_concluido.gte.${twoMonthsAgoString},updated_at.gte.${twoMonthsAgoString},created_at.gte.${twoMonthsAgoString}`,
             )
+          } else if (!hasActiveFilters) {
+            // For other tabs (em_curso, pendentes) with no filters: show last 4 months
+            const fourMonthsAgo = new Date()
+            fourMonthsAgo.setMonth(fourMonthsAgo.getMonth() - 4)
+            const fourMonthsAgoString = fourMonthsAgo.toISOString()
+            console.log(
+              '🔄 No filters active - applying 4 month date filter:',
+              fourMonthsAgoString,
+            )
+            query = query.gte('created_at', fourMonthsAgoString)
           }
 
           // Direct field filters using real column names

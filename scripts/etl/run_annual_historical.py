@@ -3,14 +3,14 @@
 Annual Historical Sync - End of Year Data Snapshot
 ===================================================
 Runs once per year on December 31st to:
-1. Update historical tables with the year that just ended + 2 previous years (3 years total)
-2. Populate 2years_bo and 2years_ft tables with last 2 complete years
-3. Update monthly aggregation tables (bo_historical_monthly, ft_historical_monthly)
-4. Recreate historical database views
+1. Populate 2years_bo and 2years_ft tables with last 2 complete years
+2. Update monthly aggregation tables (bo_historical_monthly, ft_historical_monthly) with last 3 complete years
+3. Recreate historical database views with salesperson/department data
 
-Example: When 2025 ends (Dec 31, 2025):
-- Historical tables will contain: 2023, 2024, 2025
-- 2years tables will contain: 2024, 2025
+Example: When running in 2025:
+- 2years tables will contain: 2023, 2024
+- Historical monthly tables will contain: 2022, 2023, 2024
+- Views will be recreated to show current year (2025) data with salesperson joins
 """
 
 import sys
@@ -72,77 +72,97 @@ def get_supabase_connection():
 def sync_2years_bo(phc_conn, supabase_conn):
     """
     Sync 2years_bo table with last 2 complete years of BO data
-    Example: On 2025-12-31, syncs 2024 and 2025
+    Example: In 2025, syncs 2023 and 2024
     """
     print("\n[SYNC] Syncing 2years_bo table...")
     
     current_year = datetime.now().year
-    year1 = current_year - 1  # Previous year
-    year2 = current_year      # Current year (ending today)
+    year1 = current_year - 2  # 2 years ago
+    year2 = current_year - 1  # Previous year
     
     print(f"   Years: {year1}, {year2}")
     
     try:
-        # Clear existing data
-        supabase_cursor = supabase_conn.cursor()
-        supabase_cursor.execute("TRUNCATE TABLE phc.\"2years_bo\"")
-        
-        # Fetch from PHC
         phc_cursor = phc_conn.cursor()
+        supabase_cursor = supabase_conn.cursor()
+        
+        # Truncate table
+        supabase_cursor.execute('TRUNCATE TABLE phc."2years_bo"')
+        supabase_conn.commit()
+        
+        # Query PHC - match the exact columns from the bo table config
         query = f"""
         SELECT 
-            bostamp AS document_id,
-            obrano AS document_number,
-            nmdos AS document_type,
-            no AS customer_id,
-            dataobra AS document_date,
-            obs AS observacoes,
-            nomecli AS nome_trabalho,
-            origem AS origin,
-            etotal AS total_value,
-            vendnm AS department,
-            usrinis AS created_by,
-            datainis AS created_at,
-            usralt AS updated_by,
-            dataalt AS updated_at
-        FROM bo
+            [bostamp],
+            [obrano],
+            [nmdos],
+            [no],
+            [dataobra],
+            [obranome],
+            [obs],
+            [origem],
+            [ebo_2tvall],
+            [ultfact]
+        FROM [bo]
         WHERE YEAR(dataobra) IN ({year1}, {year2})
         ORDER BY dataobra DESC
         """
         
         phc_cursor.execute(query)
         
-        # Insert into Supabase
-        insert_sql = """
-        INSERT INTO phc."2years_bo" (
-            document_id, document_number, document_type, customer_id,
-            document_date, observacoes, nome_trabalho, origin, total_value,
-            department, created_by, created_at, updated_by, updated_at,
-            inserted_at, last_updated
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
-        """
+        batch_size = 1000
+        total_rows = 0
+        batch_num = 0
         
-        row_count = 0
+        print(f"   📥 Fetching data from PHC...", flush=True)
+        
         while True:
-            rows = phc_cursor.fetchmany(1000)
+            rows = phc_cursor.fetchmany(batch_size)
             if not rows:
                 break
             
-            batch = []
-            for row in rows:
-                processed_row = []
-                for value in row:
-                    if isinstance(value, (datetime, date)):
-                        processed_row.append(value.strftime('%Y-%m-%d'))
-                    else:
-                        processed_row.append(value)
-                batch.append(tuple(processed_row))
+            batch_num += 1
             
-            psycopg2.extras.execute_batch(supabase_cursor, insert_sql, batch, page_size=500)
-            row_count += len(batch)
+            # Clean and prepare data (same logic as selective_sync)
+            clean_rows = []
+            for row in rows:
+                clean_row = []
+                for i, val in enumerate(row):
+                    if val is None:
+                        clean_row.append(None)
+                    elif i == 3:  # no (customer_id) - INTEGER
+                        try:
+                            clean_row.append(int(float(val)) if val is not None else None)
+                        except (ValueError, TypeError):
+                            clean_row.append(None)
+                    elif i == 8:  # ebo_2tvall (total_value) - NUMERIC
+                        try:
+                            clean_row.append(float(val) if val is not None else None)
+                        except (ValueError, TypeError):
+                            clean_row.append(None)
+                    else:  # TEXT or DATE fields
+                        clean_row.append(str(val).strip() if val else None)
+                
+                clean_rows.append(tuple(clean_row))
+            
+            # Insert batch
+            if clean_rows:
+                insert_sql = '''
+                INSERT INTO phc."2years_bo" (
+                    "document_id", "document_number", "document_type", "customer_id",
+                    "document_date", "observacoes", "nome_trabalho", "origin",
+                    "total_value", "last_delivery_date"
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                '''
+                
+                supabase_cursor.executemany(insert_sql, clean_rows)
+                supabase_conn.commit()
+                
+                total_rows += len(clean_rows)
+                print(f"   [BATCH] Batch {batch_num}: {total_rows:,} rows synced...", end='\r', flush=True)
         
-        supabase_conn.commit()
-        print(f"[OK] 2years_bo: {row_count} rows synced")
+        print(f"   [OK] Completed: {total_rows:,} rows synced" + " " * 20)
+        print(f"[OK] 2years_bo: {total_rows:,} rows synced")
         return True
         
     except Exception as e:
@@ -153,75 +173,99 @@ def sync_2years_bo(phc_conn, supabase_conn):
 def sync_2years_ft(phc_conn, supabase_conn):
     """
     Sync 2years_ft table with last 2 complete years of FT data
-    Example: On 2025-12-31, syncs 2024 and 2025
+    Example: In 2025, syncs 2023 and 2024
     """
     print("\n[SYNC] Syncing 2years_ft table...")
     
     current_year = datetime.now().year
-    year1 = current_year - 1
-    year2 = current_year
+    year1 = current_year - 2  # 2 years ago
+    year2 = current_year - 1  # Previous year
     
     print(f"   Years: {year1}, {year2}")
     
     try:
-        # Clear existing data
-        supabase_cursor = supabase_conn.cursor()
-        supabase_cursor.execute("TRUNCATE TABLE phc.\"2years_ft\"")
-        
-        # Fetch from PHC
         phc_cursor = phc_conn.cursor()
+        supabase_cursor = supabase_conn.cursor()
+        
+        # Truncate table
+        supabase_cursor.execute('TRUNCATE TABLE phc."2years_ft"')
+        supabase_conn.commit()
+        
+        # Query PHC - match the exact columns from the ft table config
         query = f"""
         SELECT 
-            ftstamp AS invoice_id,
-            ft AS invoice_number,
-            nmdos AS document_type,
-            no AS customer_id,
-            fdata AS invoice_date,
-            nome AS customer_name,
-            etotal AS total_value,
-            vendnm AS department,
-            usrinis AS created_by,
-            datainis AS created_at,
-            usralt AS updated_by,
-            dataalt AS updated_at
-        FROM ft
+            [ftstamp],
+            [fno],
+            [no],
+            [fdata],
+            [nmdoc],
+            [ettiliq],
+            [anulado]
+        FROM [ft]
         WHERE YEAR(fdata) IN ({year1}, {year2})
+          AND COALESCE(CONVERT(VARCHAR(10), anulado), '') IN ('', '0', 'N')
         ORDER BY fdata DESC
         """
         
         phc_cursor.execute(query)
         
-        # Insert into Supabase
-        insert_sql = """
-        INSERT INTO phc."2years_ft" (
-            invoice_id, invoice_number, document_type, customer_id,
-            invoice_date, customer_name, total_value, department,
-            created_by, created_at, updated_by, updated_at,
-            inserted_at, last_updated
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
-        """
+        batch_size = 1000
+        total_rows = 0
+        batch_num = 0
         
-        row_count = 0
+        print(f"   📥 Fetching data from PHC...", flush=True)
+        
         while True:
-            rows = phc_cursor.fetchmany(1000)
+            rows = phc_cursor.fetchmany(batch_size)
             if not rows:
                 break
             
-            batch = []
-            for row in rows:
-                processed_row = []
-                for value in row:
-                    if isinstance(value, (datetime, date)):
-                        processed_row.append(value.strftime('%Y-%m-%d'))
-                    else:
-                        processed_row.append(value)
-                batch.append(tuple(processed_row))
+            batch_num += 1
             
-            psycopg2.extras.execute_batch(supabase_cursor, insert_sql, batch, page_size=500)
-            row_count += len(batch)
+            # Clean and prepare data (same logic as selective_sync)
+            clean_rows = []
+            for row in rows:
+                clean_row = []
+                for i, val in enumerate(row):
+                    if val is None:
+                        clean_row.append(None)
+                    elif i == 1:  # fno (invoice_number) - INTEGER
+                        try:
+                            clean_row.append(int(float(val)) if val is not None else None)
+                        except (ValueError, TypeError):
+                            clean_row.append(None)
+                    elif i == 2:  # no (customer_id) - INTEGER
+                        try:
+                            clean_row.append(int(float(val)) if val is not None else None)
+                        except (ValueError, TypeError):
+                            clean_row.append(None)
+                    elif i == 5:  # ettiliq (net_value) - NUMERIC
+                        try:
+                            clean_row.append(float(val) if val is not None else None)
+                        except (ValueError, TypeError):
+                            clean_row.append(None)
+                    else:  # TEXT or DATE fields
+                        clean_row.append(str(val).strip() if val else None)
+                
+                clean_rows.append(tuple(clean_row))
+            
+            # Insert batch
+            if clean_rows:
+                insert_sql = '''
+                INSERT INTO phc."2years_ft" (
+                    "invoice_id", "invoice_number", "customer_id", "invoice_date",
+                    "document_type", "net_value", "anulado"
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                '''
+                
+                supabase_cursor.executemany(insert_sql, clean_rows)
+                supabase_conn.commit()
+                
+                total_rows += len(clean_rows)
+                print(f"   [BATCH] Batch {batch_num}: {total_rows:,} rows synced...", end='\r', flush=True)
         
-        supabase_conn.commit()
-        print(f"[OK] 2years_ft: {row_count} rows synced")
+        print(f"   [OK] Completed: {total_rows:,} rows synced" + " " * 20)
+        print(f"[OK] 2years_ft: {total_rows:,} rows synced")
         return True
         
     except Exception as e:
@@ -231,15 +275,15 @@ def sync_2years_ft(phc_conn, supabase_conn):
 
 def update_bo_historical_monthly(phc_conn, supabase_conn):
     """
-    Update bo_historical_monthly with last 3 years of monthly aggregated data
-    Example: On 2025-12-31, updates with 2023, 2024, 2025
+    Update bo_historical_monthly with last 3 complete years of monthly aggregated data
+    Example: In 2025, updates with 2022, 2023, 2024
     """
     print("\n[SYNC] Updating bo_historical_monthly...")
     
     current_year = datetime.now().year
-    year1 = current_year - 2
-    year2 = current_year - 1
-    year3 = current_year
+    year1 = current_year - 3  # 3 years ago
+    year2 = current_year - 2  # 2 years ago
+    year3 = current_year - 1  # Previous year
     
     print(f"   Years: {year1}, {year2}, {year3}")
     
@@ -258,7 +302,7 @@ def update_bo_historical_monthly(phc_conn, supabase_conn):
             YEAR(dataobra) AS year,
             MONTH(dataobra) AS month,
             nmdos AS document_type,
-            SUM(etotal) AS total_value,
+            SUM(ebo_2tvall) AS total_value,
             COUNT(*) AS document_count
         FROM bo
         WHERE YEAR(dataobra) IN ({year1}, {year2}, {year3})
@@ -287,75 +331,17 @@ def update_bo_historical_monthly(phc_conn, supabase_conn):
         supabase_conn.rollback()
         return False
 
-def update_bo_historical_monthly_salesperson(phc_conn, supabase_conn):
-    """
-    Update bo_historical_monthly_salesperson with last 3 years by department
-    """
-    print("\n[SYNC] Updating bo_historical_monthly_salesperson...")
-    
-    current_year = datetime.now().year
-    year1 = current_year - 2
-    year2 = current_year - 1
-    year3 = current_year
-    
-    print(f"   Years: {year1}, {year2}, {year3}")
-    
-    try:
-        # Delete existing data
-        supabase_cursor = supabase_conn.cursor()
-        supabase_cursor.execute(f"""
-            DELETE FROM phc.bo_historical_monthly_salesperson
-            WHERE year IN ({year1}, {year2}, {year3})
-        """)
-        
-        # Aggregate from PHC with department
-        phc_cursor = phc_conn.cursor()
-        query = f"""
-        SELECT 
-            YEAR(dataobra) AS year,
-            MONTH(dataobra) AS month,
-            COALESCE(vendnm, 'UNKNOWN') AS department,
-            nmdos AS document_type,
-            SUM(etotal) AS total_value,
-            COUNT(*) AS document_count
-        FROM bo
-        WHERE YEAR(dataobra) IN ({year1}, {year2}, {year3})
-        GROUP BY YEAR(dataobra), MONTH(dataobra), vendnm, nmdos
-        ORDER BY year, month, department
-        """
-        
-        phc_cursor.execute(query)
-        
-        # Insert aggregated data
-        insert_sql = """
-        INSERT INTO phc.bo_historical_monthly_salesperson 
-        (year, month, department, document_type, total_value, document_count)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        """
-        
-        rows = phc_cursor.fetchall()
-        if rows:
-            psycopg2.extras.execute_batch(supabase_cursor, insert_sql, rows, page_size=500)
-        
-        supabase_conn.commit()
-        print(f"[OK] bo_historical_monthly_salesperson: {len(rows)} records updated")
-        return True
-        
-    except Exception as e:
-        print(f"[ERROR] Failed to update bo_historical_monthly_salesperson: {e}")
-        supabase_conn.rollback()
-        return False
-
 def update_ft_historical_monthly(phc_conn, supabase_conn):
     """
-    Update ft_historical_monthly with last 3 years of monthly aggregated data
+    Update ft_historical_monthly with last 3 complete years of monthly aggregated data
+    Example: In 2025, updates with 2022, 2023, 2024
     """
     print("\n[SYNC] Updating ft_historical_monthly...")
     
     current_year = datetime.now().year
-    year1 = current_year - 2
-    year2 = current_year - 1
-    year3 = current_year
+    year1 = current_year - 3  # 3 years ago
+    year2 = current_year - 2  # 2 years ago
+    year3 = current_year - 1  # Previous year
     
     print(f"   Years: {year1}, {year2}, {year3}")
     
@@ -373,12 +359,13 @@ def update_ft_historical_monthly(phc_conn, supabase_conn):
         SELECT 
             YEAR(fdata) AS year,
             MONTH(fdata) AS month,
-            nmdos AS document_type,
-            SUM(etotal) AS total_value,
+            nmdoc AS document_type,
+            SUM(ettiliq) AS total_value,
             COUNT(*) AS document_count
         FROM ft
         WHERE YEAR(fdata) IN ({year1}, {year2}, {year3})
-        GROUP BY YEAR(fdata), MONTH(fdata), nmdos
+          AND COALESCE(CONVERT(VARCHAR(10), anulado), '') IN ('', '0', 'N')
+        GROUP BY YEAR(fdata), MONTH(fdata), nmdoc
         ORDER BY year, month
         """
         
@@ -403,65 +390,6 @@ def update_ft_historical_monthly(phc_conn, supabase_conn):
         supabase_conn.rollback()
         return False
 
-def update_ft_historical_monthly_salesperson(phc_conn, supabase_conn):
-    """
-    Update ft_historical_monthly_salesperson with last 3 years by department
-    """
-    print("\n[SYNC] Updating ft_historical_monthly_salesperson...")
-    
-    current_year = datetime.now().year
-    year1 = current_year - 2
-    year2 = current_year - 1
-    year3 = current_year
-    
-    print(f"   Years: {year1}, {year2}, {year3}")
-    
-    try:
-        # Delete existing data
-        supabase_cursor = supabase_conn.cursor()
-        supabase_cursor.execute(f"""
-            DELETE FROM phc.ft_historical_monthly_salesperson
-            WHERE year IN ({year1}, {year2}, {year3})
-        """)
-        
-        # Aggregate from PHC with department
-        phc_cursor = phc_conn.cursor()
-        query = f"""
-        SELECT 
-            YEAR(fdata) AS year,
-            MONTH(fdata) AS month,
-            COALESCE(vendnm, 'UNKNOWN') AS department,
-            nmdos AS document_type,
-            SUM(etotal) AS total_value,
-            COUNT(*) AS document_count
-        FROM ft
-        WHERE YEAR(fdata) IN ({year1}, {year2}, {year3})
-        GROUP BY YEAR(fdata), MONTH(fdata), vendnm, nmdos
-        ORDER BY year, month, department
-        """
-        
-        phc_cursor.execute(query)
-        
-        # Insert aggregated data
-        insert_sql = """
-        INSERT INTO phc.ft_historical_monthly_salesperson 
-        (year, month, department, document_type, total_value, document_count)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        """
-        
-        rows = phc_cursor.fetchall()
-        if rows:
-            psycopg2.extras.execute_batch(supabase_cursor, insert_sql, rows, page_size=500)
-        
-        supabase_conn.commit()
-        print(f"[OK] ft_historical_monthly_salesperson: {len(rows)} records updated")
-        return True
-        
-    except Exception as e:
-        print(f"[ERROR] Failed to update ft_historical_monthly_salesperson: {e}")
-        supabase_conn.rollback()
-        return False
-
 def recreate_historical_views():
     """Recreate historical database views"""
     print("\n[VIEW] Recreating historical views...")
@@ -476,12 +404,12 @@ def recreate_historical_views():
             timeout=60
         )
         
-        if "__HISTORICAL_VIEW_RECREATION_DONE__ success=true" in result.stdout:
+        if result.returncode == 0:
             print("[OK] Historical views recreated successfully")
             return True
         else:
             print("[WARN] Warning: Historical view recreation may have failed")
-            print(result.stdout)
+            print(result.stdout or result.stderr)
             return False
     except Exception as e:
         print(f"[WARN] Warning: Could not recreate historical views: {e}")
@@ -510,9 +438,7 @@ def main():
     
     # Update historical monthly aggregations
     results['bo_historical_monthly'] = update_bo_historical_monthly(phc_conn, supabase_conn)
-    results['bo_historical_monthly_salesperson'] = update_bo_historical_monthly_salesperson(phc_conn, supabase_conn)
     results['ft_historical_monthly'] = update_ft_historical_monthly(phc_conn, supabase_conn)
-    results['ft_historical_monthly_salesperson'] = update_ft_historical_monthly_salesperson(phc_conn, supabase_conn)
     
     # Close connections
     phc_conn.close()

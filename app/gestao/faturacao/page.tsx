@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createBrowserClient } from '@/utils/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Table,
   TableBody,
@@ -19,11 +18,9 @@ import {
   DrawerContent,
   DrawerHeader,
   DrawerTitle,
-  DrawerClose,
   DrawerDescription,
 } from '@/components/ui/drawer'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Textarea } from '@/components/ui/textarea'
 import {
   Tooltip,
   TooltipContent,
@@ -31,16 +28,12 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import {
-  Plus,
-  Trash2,
   X,
   Loader2,
   RotateCw,
   ArrowUp,
   ArrowDown,
   Eye,
-  FolderSync,
-  Copy,
   XSquare,
   ArrowLeft,
   ArrowRight,
@@ -75,19 +68,19 @@ interface Item {
   quantidade?: number | null
   data_concluido?: string | null
   dias_conclusao?: number | null
+  facturado?: boolean | null
 }
 
 export default function FaturacaoPage() {
   const supabase = createBrowserClient()
 
   // State management
-  const [activeTab, setActiveTab] = useState('jobs')
+  const [jobsTab, setJobsTab] = useState<'por_facturar' | 'facturados'>('por_facturar')
   const [jobs, setJobs] = useState<Job[]>([])
-  const [items, setItems] = useState<Item[]>([])
+  const [allItems, setAllItems] = useState<Item[]>([]) // All items for filtering
   
   const [loading, setLoading] = useState(true)
   const [itemsLoading, setItemsLoading] = useState(false)
-  const [syncing, setSyncing] = useState(false)
   
   const [openDrawer, setOpenDrawer] = useState(false)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
@@ -106,7 +99,6 @@ export default function FaturacaoPage() {
   const [orcFilter, setOrcFilter] = useState('')
   const [campanhaFilter, setCampanhaFilter] = useState('')
   const [clienteFilter, setClienteFilter] = useState('')
-  const [showInvoiced, setShowInvoiced] = useState(false)
 
   // Debounced filter values
   const debouncedFoFilter = useDebounce(foFilter, 300)
@@ -118,46 +110,105 @@ export default function FaturacaoPage() {
   const [sortColumn, setSortColumn] = useState('numero_fo')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
-  // Form state
-  const [editFormData, setEditFormData] = useState({
-    numero_fo: '',
-    numero_orc: '',
-    nome_campanha: '',
-    cliente: '',
-    data_saida: '',
-    fatura: false,
-    notas: '',
-  })
+  // Helper function to calculate days difference
+  const calculateDays = (createdAt: string | null, dataSaida: string | null): number => {
+    if (!createdAt) return 0
+    
+    const startDate = new Date(createdAt)
+    const endDate = dataSaida ? new Date(dataSaida) : new Date()
+    
+    const diffTime = Math.abs(endDate.getTime() - startDate.getTime())
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    return diffDays
+  }
+
+  // Helper function to truncate text
+  const truncateText = (text: string | null | undefined, maxLength: number): string => {
+    if (!text) return '-'
+    if (text.length <= maxLength) return text
+    return text.substring(0, maxLength) + '...'
+  }
+
+  // Helper function to get fatura status for a job based on its items
+  const getJobFaturaStatus = useCallback((jobId: string, items: Item[]): 'none' | 'partial' | 'all' => {
+    const jobItems = items.filter(item => item.folha_obra_id === jobId)
+    if (jobItems.length === 0) return 'none'
+    
+    const facturadoCount = jobItems.filter(item => item.facturado === true).length
+    
+    if (facturadoCount === 0) return 'none'
+    if (facturadoCount === jobItems.length) return 'all'
+    return 'partial'
+  }, [])
 
   // Data fetching
   const fetchJobs = useCallback(async () => {
     setLoading(true)
     try {
       let query = supabase
-        .from('folhas_obras')
+        .from('folhas_obras_with_dias')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(500)
 
-      // Filter by invoice status
-      if (!showInvoiced) {
-        query = query.or('fatura.is.null,fatura.eq.false')
+      // Check if any filters are active
+      const hasActiveFilters = debouncedFoFilter || debouncedOrcFilter || debouncedCampanhaFilter || debouncedClienteFilter
+
+      // If no filters are active, only show last 2 months
+      if (!hasActiveFilters) {
+        const twoMonthsAgo = new Date()
+        twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2)
+        const twoMonthsAgoISO = twoMonthsAgo.toISOString()
+        query = query.gte('created_at', twoMonthsAgoISO)
       }
 
       // Filter by ORC (required for invoicing)
       query = query.not('numero_orc', 'is', null)
 
-      const { data, error } = await query
+      const { data: jobsData, error: jobsError } = await query
 
-      if (!error && data) {
-        setJobs(data)
+      if (jobsError) throw jobsError
+
+      // Fetch all items for these jobs
+      if (jobsData && jobsData.length > 0) {
+        const jobIds = jobsData.map(job => job.id)
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('items_base')
+          .select('id, folha_obra_id, descricao, codigo, quantidade, facturado')
+          .in('folha_obra_id', jobIds)
+
+        if (!itemsError && itemsData) {
+          setAllItems(itemsData)
+
+          // Filter jobs based on tab and item facturado status
+          const filteredJobs = jobsData.filter(job => {
+            const jobItems = itemsData.filter(item => item.folha_obra_id === job.id)
+            if (jobItems.length === 0) return jobsTab === 'por_facturar' // No items = por facturar
+            
+            const allFacturado = jobItems.every(item => item.facturado === true)
+            
+            if (jobsTab === 'facturados') {
+              return allFacturado
+            } else {
+              return !allFacturado
+            }
+          })
+
+          setJobs(filteredJobs)
+        } else {
+          setJobs(jobsData)
+          setAllItems([])
+        }
+      } else {
+        setJobs([])
+        setAllItems([])
       }
     } catch (error) {
       console.error('Error fetching jobs:', error)
     } finally {
       setLoading(false)
     }
-  }, [supabase, showInvoiced])
+  }, [supabase, jobsTab, debouncedFoFilter, debouncedOrcFilter, debouncedCampanhaFilter, debouncedClienteFilter])
 
   const fetchItemsForJob = useCallback(
     async (jobId: string) => {
@@ -171,6 +222,7 @@ export default function FaturacaoPage() {
             descricao,
             codigo,
             quantidade,
+            facturado,
             created_at,
             logistica_entregas (
               data_concluido,
@@ -186,6 +238,7 @@ export default function FaturacaoPage() {
             descricao: item.descricao,
             codigo: item.codigo,
             quantidade: item.quantidade,
+            facturado: item.facturado,
             data_concluido: item.logistica_entregas?.[0]?.data_concluido,
           }))
           setSelectedJobItems(processedItems)
@@ -204,70 +257,64 @@ export default function FaturacaoPage() {
     fetchJobs()
   }, [fetchJobs])
 
-  // Handle job selection
-  const handleSelectJob = async (job: Job) => {
-    setSelectedJob(job)
-    setEditFormData({
-      numero_fo: job.numero_fo,
-      numero_orc: job.numero_orc?.toString() || '',
-      nome_campanha: job.nome_campanha,
-      cliente: job.cliente || '',
-      data_saida: job.data_saida || '',
-      fatura: job.fatura || false,
-      notas: job.notas || '',
-    })
-    await fetchItemsForJob(job.id)
-    setOpenDrawer(true)
-  }
-
-  // Handle save job
-  const handleSaveJob = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!selectedJob || !editFormData.numero_orc) {
-      alert('ORC é obrigatório para faturação')
-      return
-    }
-
+  // Handle individual item facturado toggle
+  const handleItemFacturadoToggle = useCallback(async (itemId: string, newValue: boolean) => {
     try {
       const { error } = await supabase
-        .from('folhas_obras')
-        .update({
-          fatura: editFormData.fatura,
-          notas: editFormData.notas || null,
-        })
-        .eq('id', selectedJob.id)
+        .from('items_base')
+        .update({ facturado: newValue })
+        .eq('id', itemId)
 
       if (error) throw error
 
-      await fetchJobs()
-      setOpenDrawer(false)
-    } catch (error) {
-      console.error('Error saving job:', error)
-      alert(`Erro ao guardar: ${error}`)
-    }
-  }
+      // Update local state
+      setSelectedJobItems(prev => prev.map(item => 
+        item.id === itemId ? { ...item, facturado: newValue } : item
+      ))
 
-  // Handle ETL Sync
-  const handleETLSync = async (type: 'incremental' | 'full') => {
-    setSyncing(true)
+      // Refresh jobs to update main table
+      await fetchJobs()
+    } catch (error) {
+      console.error('Error updating item facturado:', error)
+      alert(`Erro ao atualizar: ${error}`)
+    }
+  }, [supabase, fetchJobs])
+
+  // Handle job-level facturado toggle (marks all items)
+  const handleJobFacturadoToggle = useCallback(async (job: Job, items: Item[]) => {
+    const jobItems = items.filter(item => item.folha_obra_id === job.id)
+    const currentStatus = getJobFaturaStatus(job.id, items)
+    
+    // If all are facturado, uncheck all. Otherwise, check all.
+    const newValue = currentStatus !== 'all'
+
     try {
-      const response = await fetch(`/api/etl/${type}`, {
-        method: 'POST',
-      })
+      // Update all items for this job
+      const updates = jobItems.map(item =>
+        supabase
+          .from('items_base')
+          .update({ facturado: newValue })
+          .eq('id', item.id)
+      )
 
-      if (!response.ok) {
-        throw new Error(`ETL ${type} failed`)
-      }
+      await Promise.all(updates)
 
-      alert(`ETL ${type} completado com sucesso!`)
+      // Refresh jobs and items
       await fetchJobs()
+      if (selectedJob?.id === job.id) {
+        await fetchItemsForJob(job.id)
+      }
     } catch (error) {
-      console.error(`Error syncing ETL ${type}:`, error)
-      alert(`Erro ao sincronizar: ${error}`)
-    } finally {
-      setSyncing(false)
+      console.error('Error updating job facturado:', error)
+      alert(`Erro ao atualizar: ${error}`)
     }
+  }, [supabase, getJobFaturaStatus, fetchJobs, fetchItemsForJob, selectedJob])
+
+  // Handle job selection
+  const handleSelectJob = async (job: Job) => {
+    setSelectedJob(job)
+    await fetchItemsForJob(job.id)
+    setOpenDrawer(true)
   }
 
   // Filter and sort jobs
@@ -361,14 +408,14 @@ export default function FaturacaoPage() {
           <p className="text-muted-foreground">Gerenciar faturação de trabalhos</p>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={jobsTab} onValueChange={(value: any) => setJobsTab(value)} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="jobs">Trabalhos</TabsTrigger>
-            <TabsTrigger value="etl">Sincronização</TabsTrigger>
+            <TabsTrigger value="por_facturar">Por Facturar</TabsTrigger>
+            <TabsTrigger value="facturados">Facturados</TabsTrigger>
           </TabsList>
 
-          {/* Jobs Tab */}
-          <TabsContent value="jobs" className="space-y-4">
+          {(['por_facturar', 'facturados'] as const).map((tab) => (
+            <TabsContent key={tab} value={tab} className="space-y-4">
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 flex-1">
                 <div className="relative flex-1">
@@ -446,13 +493,6 @@ export default function FaturacaoPage() {
               </div>
 
               <div className="flex items-center gap-2 flex-shrink-0">
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={showInvoiced}
-                    onCheckedChange={(checked) => setShowInvoiced(checked as boolean)}
-                  />
-                  Mostrar Faturados
-                </label>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -522,20 +562,22 @@ export default function FaturacaoPage() {
                     <TableHead className="bg-primary text-primary-foreground font-bold uppercase">Campanha</TableHead>
                     <TableHead className="bg-primary text-primary-foreground font-bold uppercase">Cliente</TableHead>
                     <TableHead className="bg-primary text-primary-foreground font-bold uppercase">Data Criação</TableHead>
-                    <TableHead className="bg-primary text-primary-foreground font-bold uppercase text-center">Faturado</TableHead>
+                    <TableHead className="bg-primary text-primary-foreground font-bold uppercase">Data Saída</TableHead>
+                    <TableHead className="bg-primary text-primary-foreground font-bold uppercase text-center">Dias</TableHead>
+                    <TableHead className="bg-primary text-primary-foreground font-bold uppercase text-center">Fact.</TableHead>
                     <TableHead className="bg-primary text-primary-foreground font-bold uppercase text-center">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-40 text-center">
+                      <TableCell colSpan={9} className="h-40 text-center">
                         <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />
                       </TableCell>
                     </TableRow>
                   ) : paginatedJobs.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                         Nenhum trabalho encontrado
                       </TableCell>
                     </TableRow>
@@ -545,10 +587,37 @@ export default function FaturacaoPage() {
                         <TableCell className="font-mono font-bold">{job.numero_fo}</TableCell>
                         <TableCell className="font-mono">{job.numero_orc || '-'}</TableCell>
                         <TableCell className="max-w-xs truncate">{job.nome_campanha}</TableCell>
-                        <TableCell className="max-w-xs truncate">{job.cliente || '-'}</TableCell>
+                        <TableCell>{truncateText(job.cliente, 20)}</TableCell>
                         <TableCell>{job.created_at ? new Date(job.created_at).toLocaleDateString('pt-PT') : '-'}</TableCell>
+                        <TableCell>{job.data_saida ? new Date(job.data_saida).toLocaleDateString('pt-PT') : '-'}</TableCell>
+                        <TableCell className={`text-center font-semibold ${job.data_saida ? 'text-green-600 dark:text-green-400' : ''}`}>
+                          {calculateDays(job.created_at, job.data_saida)}
+                        </TableCell>
                         <TableCell className="text-center">
-                          <Checkbox checked={job.fatura || false} disabled />
+                          <div className="flex justify-center">
+                            {(() => {
+                              const status = getJobFaturaStatus(job.id, allItems)
+                              return (
+                                <div
+                                  className={`h-4 w-4 border border-black rounded-sm cursor-pointer flex items-center justify-center ${
+                                    status === 'all' ? 'bg-black' : 
+                                    status === 'partial' ? 'bg-yellow-400' : 
+                                    'bg-transparent'
+                                  }`}
+                                  onClick={() => handleJobFacturadoToggle(job, allItems)}
+                                >
+                                  {status === 'all' && (
+                                    <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
+                                      <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                  )}
+                                  {status === 'partial' && (
+                                    <div className="w-2 h-2 bg-black rounded-sm"></div>
+                                  )}
+                                </div>
+                              )
+                            })()}
+                          </div>
                         </TableCell>
                         <TableCell className="text-center">
                           <Button
@@ -595,123 +664,51 @@ export default function FaturacaoPage() {
                 </div>
               )}
             </div>
-          </TabsContent>
-
-          {/* ETL Sync Tab */}
-          <TabsContent value="etl" className="space-y-4">
-            <div className="space-y-4">
-              <div className="border rounded-lg p-6">
-                <h3 className="font-bold text-lg mb-4">Sincronização de Dados ETL</h3>
-                <p className="text-sm text-muted-foreground mb-6">
-                  Sincronize dados com a base de dados usando os scripts ETL disponíveis.
-                </p>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <Button
-                    onClick={() => handleETLSync('incremental')}
-                    disabled={syncing}
-                    className="flex items-center gap-2"
-                  >
-                    {syncing && <Loader2 className="h-4 w-4 animate-spin" />}
-                    <FolderSync className="h-4 w-4" />
-                    Sincronização Incremental
-                  </Button>
-                  
-                  <Button
-                    onClick={() => handleETLSync('full')}
-                    disabled={syncing}
-                    variant="secondary"
-                    className="flex items-center gap-2"
-                  >
-                    {syncing && <Loader2 className="h-4 w-4 animate-spin" />}
-                    <FolderSync className="h-4 w-4" />
-                    Sincronização Completa
-                  </Button>
-                </div>
-              </div>
-
-              <div className="border rounded-lg p-6">
-                <h3 className="font-bold text-lg mb-4">Informações</h3>
-                <div className="space-y-2 text-sm">
-                  <p><strong>Trabalhos carregados:</strong> {jobs.length}</p>
-                  <p><strong>Trabalhos para faturar:</strong> {jobs.filter((j) => !j.fatura).length}</p>
-                  <p><strong>Trabalhos faturados:</strong> {jobs.filter((j) => j.fatura).length}</p>
-                </div>
-              </div>
-            </div>
-          </TabsContent>
+            </TabsContent>
+          ))}
         </Tabs>
 
         {/* Job Details Drawer */}
         <Drawer open={openDrawer} onOpenChange={setOpenDrawer}>
           <DrawerContent className="flex flex-col max-h-[85vh]">
-            <DrawerHeader className="flex-shrink-0">
+            <DrawerHeader className="sr-only">
               <DrawerTitle>Detalhes da Faturação</DrawerTitle>
               <DrawerDescription>
                 {selectedJob?.numero_fo} - {selectedJob?.nome_campanha}
               </DrawerDescription>
             </DrawerHeader>
 
-            <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4" style={{ minHeight: 0 }}>
-              <form onSubmit={handleSaveJob} className="space-y-4">
-                {/* FO & ORC */}
-                <div className="grid grid-cols-2 gap-4">
+            <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4 relative" style={{ minHeight: 0 }}>
+              {/* Close button - top right */}
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={() => setOpenDrawer(false)}
+                className="absolute top-6 right-6 z-10 border border-black"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+
+              {/* Job Info Header */}
+              <div className="mb-6 p-4 uppercase">
+                <div className="mb-2 flex items-center gap-8">
                   <div>
-                    <Label htmlFor="numero_fo" className="text-sm font-semibold uppercase">FO</Label>
-                    <Input
-                      id="numero_fo"
-                      value={editFormData.numero_fo}
-                      disabled
-                      className="mt-2 bg-muted"
-                    />
+                    <div className="text-xs">ORC</div>
+                    <div className="font-mono">{selectedJob?.numero_orc ?? '-'}</div>
                   </div>
                   <div>
-                    <Label htmlFor="numero_orc" className="text-sm font-semibold uppercase">ORC *</Label>
-                    <Input
-                      id="numero_orc"
-                      value={editFormData.numero_orc}
-                      disabled
-                      className="mt-2 bg-muted"
-                    />
+                    <div className="text-xs">FO</div>
+                    <div className="font-mono">{selectedJob?.numero_fo}</div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-xs">Nome Campanha</div>
+                    <div className="truncate font-mono">{selectedJob?.nome_campanha}</div>
                   </div>
                 </div>
+              </div>
 
-                {/* Campanha & Cliente */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="nome_campanha" className="text-sm font-semibold uppercase">Campanha</Label>
-                    <Input
-                      id="nome_campanha"
-                      value={editFormData.nome_campanha}
-                      disabled
-                      className="mt-2 bg-muted"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="cliente" className="text-sm font-semibold uppercase">Cliente</Label>
-                    <Input
-                      id="cliente"
-                      value={editFormData.cliente}
-                      disabled
-                      className="mt-2 bg-muted"
-                    />
-                  </div>
-                </div>
-
-                {/* Invoice Status */}
-                <div>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <Checkbox
-                      checked={editFormData.fatura}
-                      onCheckedChange={(checked) =>
-                        setEditFormData({ ...editFormData, fatura: checked as boolean })
-                      }
-                    />
-                    <span className="text-sm font-semibold uppercase">Marcado como Faturado</span>
-                  </label>
-                </div>
-
-                {/* Items section */}
+              {/* Items section */}
+              <div className="space-y-4">
                 <div>
                   <h3 className="font-semibold text-sm uppercase mb-3">Itens do Trabalho</h3>
                   {itemsLoading ? (
@@ -724,7 +721,13 @@ export default function FaturacaoPage() {
                     <>
                       <div className="space-y-2 border rounded-lg p-3">
                         {paginatedItems.map((item) => (
-                          <div key={item.id} className="flex items-start gap-2 p-2 border-b">
+                          <div key={item.id} className="flex items-start gap-3 p-3 border rounded-lg hover:bg-muted">
+                            <div className="flex items-center pt-1">
+                              <Checkbox
+                                checked={item.facturado || false}
+                                onCheckedChange={(checked) => handleItemFacturadoToggle(item.id, checked as boolean)}
+                              />
+                            </div>
                             <div className="flex-1">
                               <p className="text-sm font-medium">{item.descricao}</p>
                               <p className="text-xs text-muted-foreground">
@@ -771,19 +774,7 @@ export default function FaturacaoPage() {
                     </>
                   )}
                 </div>
-
-                {/* Form Actions */}
-                <div className="flex gap-4 pt-6">
-                  <Button type="submit" className="flex-1 border border-black">
-                    Guardar
-                  </Button>
-                  <DrawerClose asChild>
-                    <Button type="button" variant="outline" className="border border-black">
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </DrawerClose>
-                </div>
-              </form>
+              </div>
             </div>
           </DrawerContent>
         </Drawer>

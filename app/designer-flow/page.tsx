@@ -123,6 +123,17 @@ const fetchJobs = async (
       .not('numero_fo', 'is', null)
       .not('numero_orc', 'is', null)
 
+    // Check if any filters are active
+    const hasActiveFilters = foFilter?.trim() || campaignFilter?.trim() || hasItemFilters
+
+    // If no filters are active, only show last 4 months
+    if (!hasActiveFilters) {
+      const fourMonthsAgo = new Date()
+      fourMonthsAgo.setMonth(fourMonthsAgo.getMonth() - 4)
+      const fourMonthsAgoISO = fourMonthsAgo.toISOString()
+      query = query.gte('created_at', fourMonthsAgoISO)
+    }
+
     if (jobIds) {
       query = query.in('id', jobIds)
     }
