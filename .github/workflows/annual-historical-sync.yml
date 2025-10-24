@@ -1,0 +1,66 @@
+name: Annual Historical Sync (December 31st)
+
+on:
+  # Run annually on December 31st at 23:00 UTC (before midnight)
+  schedule:
+    - cron: '0 23 31 12 *'  # 23:00 UTC on Dec 31st every year
+  
+  # Allow manual trigger for testing
+  workflow_dispatch:
+
+jobs:
+  annual-historical-sync:
+    name: Sync Historical Data (3 Years)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60  # 1 hour timeout for large historical sync
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install ODBC Driver for SQL Server
+        run: |
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+          curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql17
+      
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r scripts/requirements.txt
+      
+      - name: Run Annual Historical Sync
+        env:
+          MSSQL_DIRECT_CONNECTION: ${{ secrets.MSSQL_DIRECT_CONNECTION }}
+          PG_HOST: ${{ secrets.PG_HOST }}
+          PG_DB: ${{ secrets.PG_DB }}
+          PG_USER: ${{ secrets.PG_USER }}
+          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
+          PG_PORT: ${{ secrets.PG_PORT }}
+          PG_SSLMODE: ${{ secrets.PG_SSLMODE }}
+        run: |
+          echo "🎉 Starting Annual Historical Sync for year $(date +%Y)"
+          echo "📅 Date: $(date)"
+          python scripts/etl/run_annual_historical.py
+      
+      - name: Check sync result
+        run: |
+          if [ $? -eq 0 ]; then
+            echo "✅ Annual historical sync completed successfully"
+          else
+            echo "❌ Annual historical sync failed"
+            exit 1
+          fi
+      
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Annual historical sync failed on $(date)"
+          echo "Please check the logs and run manually if needed"
+

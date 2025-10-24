@@ -24,6 +24,7 @@ import {
   TrendingDown,
   ChevronDown,
   ChevronUp,
+  RefreshCcw,
 } from 'lucide-react'
 import {
   Tooltip,
@@ -170,6 +171,7 @@ export default function AnalyticsPage() {
   const [departmentData, setDepartmentData] = useState<DepartmentMetrics[]>([])
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [activeTab, setActiveTab] = useState<'cards' | 'charts'>('cards')
+  const [isSyncing, setIsSyncing] = useState(false)
 
   const currentYear = new Date().getFullYear()
   const previousYear = currentYear - 1
@@ -940,10 +942,54 @@ export default function AnalyticsPage() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
+                  onClick={async () => {
+                    setIsSyncing(true)
+                    try {
+                      const resp = await fetch('/api/etl/incremental', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'today_all' }),
+                      })
+                      if (!resp.ok) {
+                        const body = await resp.json().catch(() => ({}) as any)
+                        console.error('ETL today sync failed', body)
+                        alert('Falhou a sincronização (ETL). Verifique logs do servidor.')
+                        return
+                      }
+                      // Refresh data after successful sync
+                      await fetchAnalyticsData()
+                      await fetchDepartmentRankings()
+                    } catch (e) {
+                      console.error('Erro ao executar sincronização:', e)
+                      alert('Erro ao executar sincronização.')
+                    } finally {
+                      setIsSyncing(false)
+                    }
+                  }}
+                  variant="outline"
+                  size="icon"
+                  className="border border-black"
+                  disabled={isSyncing}
+                >
+                  {isSyncing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCcw className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Sincronizar Dados (Hoje)</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
                   onClick={fetchAnalyticsData}
                   variant="outline"
                   size="icon"
                   className="border border-black"
+                  disabled={loading}
                 >
                   <RotateCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 </Button>
@@ -1014,7 +1060,7 @@ export default function AnalyticsPage() {
               <CardContent>
                 {departmentData.length > 0 ? (
                   <div className="overflow-x-auto">
-                    <Table>
+                    <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-[200px]">DEPARTAMENTO</TableHead>

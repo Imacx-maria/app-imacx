@@ -741,6 +741,194 @@ class SelectiveSync:
         finally:
             self.close_connections()
 
+    def sync_today_bo_bi(self) -> dict:
+        """Sync BO/BI/CL tables from today 00:00:00 (fastest for intraday updates)"""
+        logger.info("⚡ Today-only sync for BO/BI/CL (from midnight)")
+        
+        if not self.connect_phc() or not self.connect_supabase():
+            return {}
+
+        try:
+            self._ensure_watermark_table()
+            results = {}
+            for table_name in ('cl', 'bo', 'bi'):
+                config = TABLE_CONFIGS.get(table_name)
+                if not config:
+                    logger.warning("Config for table %s not found; skipping", table_name)
+                    continue
+                
+                # Skip CL if synced in last 6 hours - rarely changes during the day
+                if table_name == 'cl' and self._should_skip_table('cl', skip_hours=6):
+                    logger.info("⏭️  CL: Skipped (synced within last 6h)")
+                    results[table_name] = {
+                        'success': True,
+                        'rows': 0,
+                        'description': config.get('description'),
+                        'skipped': True,
+                    }
+                    continue
+                
+                results[table_name] = self._run_today_sync_for_table(table_name, config)
+            return results
+        finally:
+            self.close_connections()
+
+    def sync_today_clients(self) -> dict:
+        """Sync clients only from today 00:00:00"""
+        logger.info("⚡ Today-only sync for clients")
+        
+        if not self.connect_phc() or not self.connect_supabase():
+            return {}
+
+        try:
+            self._ensure_watermark_table()
+            config = TABLE_CONFIGS.get('cl')
+            if not config:
+                return {}
+            
+            result = self._run_today_sync_for_table('cl', config)
+            return {'cl': result}
+        finally:
+            self.close_connections()
+
+    def sync_today_all_tables(self) -> dict:
+        """Sync ALL tables (CL, BO, BI, FT, FO) from today 00:00:00"""
+        logger.info("⚡ Today-only sync for ALL tables (from midnight)")
+        
+        if not self.connect_phc() or not self.connect_supabase():
+            return {}
+
+        try:
+            self._ensure_watermark_table()
+            results = {}
+            for table_name in ('cl', 'bo', 'bi', 'ft', 'fo'):
+                config = TABLE_CONFIGS.get(table_name)
+                if not config:
+                    logger.warning("Config for table %s not found; skipping", table_name)
+                    continue
+                
+                # Skip CL if synced in last 6 hours - rarely changes during the day
+                if table_name == 'cl' and self._should_skip_table('cl', skip_hours=6):
+                    logger.info("⏭️  CL: Skipped (synced within last 6h)")
+                    results[table_name] = {
+                        'success': True,
+                        'rows': 0,
+                        'description': config.get('description'),
+                        'skipped': True,
+                    }
+                    continue
+                
+                results[table_name] = self._run_today_sync_for_table(table_name, config)
+            return results
+        finally:
+            self.close_connections()
+
+    def _run_today_sync_for_table(self, table_name: str, config: dict) -> dict:
+        """Sync a single table from today 00:00:00 (no overlap, fastest possible)"""
+        logger.info("🔄 Today sync for %s (%s)", table_name.upper(), config.get('description'))
+
+        try:
+            self._ensure_target_table(table_name, config)
+
+            columns = config['columns']
+            column_names = list(columns.keys())
+            column_mappings = config.get('column_mappings', {})
+            primary_key = config.get('primary_key')
+
+            # Today at 00:00:00 (local system time)
+            today_midnight = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            start_date_str = today_midnight.strftime('%Y-%m-%d')
+
+            query, date_idx, extra_date_idx = self._build_incremental_query(
+                table_name,
+                column_names,
+                config,
+                start_date_str,
+            )
+
+            phc_cursor = self.phc_conn.cursor()
+            phc_cursor.execute(query)
+
+            final_column_names = [column_mappings.get(col, col) for col in column_names]
+            placeholders = ','.join(['%s'] * len(final_column_names))
+            column_list_pg = ','.join([f'"{col}"' for col in final_column_names])
+
+            update_columns = [col for col in final_column_names if col != primary_key]
+            if primary_key:
+                if update_columns:
+                    update_clause = ', '.join(
+                        [f'"{col}" = EXCLUDED."{col}"' for col in update_columns]
+                    )
+                    insert_sql = (
+                        f'INSERT INTO phc."{table_name}" ({column_list_pg}) '
+                        f'VALUES ({placeholders}) '
+                        f'ON CONFLICT ("{primary_key}") DO UPDATE SET {update_clause}'
+                    )
+                else:
+                    insert_sql = (
+                        f'INSERT INTO phc."{table_name}" ({column_list_pg}) '
+                        f'VALUES ({placeholders}) '
+                        f'ON CONFLICT ("{primary_key}") DO NOTHING'
+                    )
+            else:
+                insert_sql = (
+                    f'INSERT INTO phc."{table_name}" ({column_list_pg}) '
+                    f'VALUES ({placeholders})'
+                )
+
+            supabase_cursor = self.supabase_conn.cursor()
+            row_count = 0
+
+            while True:
+                rows = phc_cursor.fetchmany(5000)
+                if not rows:
+                    break
+
+                batch = []
+                for row in rows:
+                    processed_row = []
+                    for i, value in enumerate(row):
+                        if i == date_idx or i == extra_date_idx:
+                            if value:
+                                if isinstance(value, datetime):
+                                    processed_row.append(value.strftime('%Y-%m-%d'))
+                                elif isinstance(value, date):
+                                    processed_row.append(value.strftime('%Y-%m-%d'))
+                                else:
+                                    processed_row.append(value)
+                            else:
+                                processed_row.append(None)
+                        else:
+                            processed_row.append(value)
+                    batch.append(tuple(processed_row))
+
+                if batch:
+                    psycopg2.extras.execute_batch(supabase_cursor, insert_sql, batch, page_size=1000)
+                    row_count += len(batch)
+
+            self.supabase_conn.commit()
+
+            # Update watermark
+            self._update_watermark(table_name, datetime.now())
+
+            logger.info("✅ %s: %d rows synced from %s", table_name.upper(), row_count, start_date_str)
+            return {
+                'success': True,
+                'rows': row_count,
+                'description': config.get('description'),
+                'start_date': start_date_str,
+            }
+
+        except Exception as e:
+            logger.error("❌ Error syncing %s: %s", table_name, e)
+            if self.supabase_conn:
+                self.supabase_conn.rollback()
+            return {
+                'success': False,
+                'error': str(e),
+                'description': config.get('description'),
+            }
+
     def sync_incremental_year(self, overlap_days: int = 3, retention_months: int = 12):
         """Incremental sync for the current year"""
         if not self.connect_phc() or not self.connect_supabase():

@@ -1164,6 +1164,7 @@ export default function ProducaoPage() {
             ),
           )
           if (foNumbers.length > 0) {
+            // Query folha_obra_with_orcamento view for document dates
             const { data: phcDates, error: phcErr } = await supabase
               .schema('phc')
               .from('folha_obra_with_orcamento')
@@ -1173,7 +1174,7 @@ export default function ProducaoPage() {
               const dateMap = new Map<string, string | null>()
               phcDates.forEach((r: any) => {
                 if (r?.folha_obra_number) {
-                  dateMap.set(r.folha_obra_number, r.folha_obra_date || null)
+                  dateMap.set(String(r.folha_obra_number), r.folha_obra_date || null)
                 }
               })
               filteredJobs = filteredJobs.map((j) => ({
@@ -2009,75 +2010,12 @@ export default function ProducaoPage() {
                     className="border border-black"
                     disabled={isSyncing}
                     onClick={async () => {
-                      const confirmed = confirm(
-                        'Atenção, esta actualização pode demorar entre 15 a 30 minutos dependendo da velocidade da internet. Continuar?',
-                      )
-                      if (!confirmed) return
-
-                      setIsSyncing(true)
-                      try {
-                        const resp = await fetch('/api/etl/full', {
-                          method: 'POST',
-                        })
-                        if (!resp.ok) {
-                          const body = await resp
-                            .json()
-                            .catch(() => ({}) as any)
-                          console.error('Full ETL sync failed', body)
-                          alert(
-                            'Falhou a sincronização completa (ETL). Verifique logs do servidor.',
-                          )
-                          return
-                        }
-
-                        // Refresh UI data after successful sync
-                        setError(null)
-                        setJobs([])
-                        setAllItems([])
-                        setJobsSaiuStatus({})
-                        setCurrentPage(0)
-                        setHasMoreJobs(true)
-                        await fetchJobs(0, true, {
-                          foF: debouncedFoF,
-                          campF: debouncedCampF,
-                          itemF: debouncedItemF,
-                          codeF: debouncedCodeF,
-                          clientF: debouncedClientF,
-                          showFatura,
-                          activeTab,
-                        })
-                        alert('Sincronização completa concluída com sucesso!')
-                      } catch (e) {
-                        console.error(
-                          'Erro ao executar sincronização completa:',
-                          e,
-                        )
-                        alert('Erro ao executar sincronização completa.')
-                      } finally {
-                        setIsSyncing(false)
-                      }
-                    }}
-                  >
-                    <FolderSync className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Sincronização Completa</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    className="border border-black"
-                    onClick={async () => {
                       setIsSyncing(true)
                       try {
                         const resp = await fetch('/api/etl/incremental', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ type: 'fast_clients_3days' }),
+                          body: JSON.stringify({ type: 'today_clients' }),
                         })
                         if (!resp.ok) {
                           const body = await resp
@@ -2137,7 +2075,7 @@ export default function ProducaoPage() {
                         const resp = await fetch('/api/etl/incremental', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ type: 'fast_bo_bi_only' }),
+                          body: JSON.stringify({ type: 'today_bo_bi' }),
                         })
                         if (!resp.ok) {
                           const body = await resp

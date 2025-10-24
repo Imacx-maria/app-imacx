@@ -14,6 +14,10 @@ export const maxDuration = 300 // 5 minutes timeout (Vercel hobby plan limit)
  * - default: run_incremental.py (regular incremental)
  * - fast_clients_3days: run_fast_client_sync.py (last 3 days contacts)
  * - fast_bo_bi_only: run_fast_bo_bi_sync.py (BO/BI tables with watermark)
+ * - fast_all: run_fast_all_tables_sync.py (all tables with watermark)
+ * - today_clients: run_today_clients.py (clients from today 00:00:00)
+ * - today_bo_bi: run_today_bo_bi.py (BO/BI/CL from today 00:00:00)
+ * - today_all: run_today_all.py (all tables from today 00:00:00)
  * POST /api/etl/incremental
  */
 export async function POST(req: NextRequest) {
@@ -55,6 +59,9 @@ export async function POST(req: NextRequest) {
         fast_clients_3days: 'run_fast_client_sync.py',
         fast_bo_bi_only: 'run_fast_bo_bi_sync.py',
         fast_all: 'run_fast_all_tables_sync.py',
+        today_clients: 'run_today_clients.py',
+        today_bo_bi: 'run_today_bo_bi.py',
+        today_all: 'run_today_all.py',
       }
 
       const scriptName = scriptMap[syncType] || scriptMap.default

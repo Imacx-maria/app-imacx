@@ -81,6 +81,29 @@ def main() -> int:
             # If results isn't JSON serializable, ignore
             pass
 
+        # Recreate views after successful sync
+        if success:
+            print("\n🔄 Recreating database views...")
+            try:
+                import subprocess
+                post_sync_script = PROJECT_ROOT / "scripts" / "etl" / "post_sync_views.py"
+                if post_sync_script.exists():
+                    result = subprocess.run(
+                        [sys.executable, str(post_sync_script)],
+                        capture_output=True,
+                        text=True,
+                        timeout=30
+                    )
+                    print(result.stdout)
+                    if result.returncode != 0:
+                        print(f"⚠️ View recreation failed: {result.stderr}")
+                else:
+                    print(f"⚠️ Post-sync script not found: {post_sync_script}")
+            except Exception as e:
+                print(f"⚠️ Error running post-sync views: {e}")
+                # Don't fail the whole ETL if view recreation fails
+                traceback.print_exc()
+
         # Emit completion marker for the API route to detect
         print(f"__ETL_DONE__ success={'true' if success else 'false'}")
         return 0 if success else 1
