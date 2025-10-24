@@ -519,6 +519,59 @@ Dark Mode:
 
 ### Tables
 
+**Table Structure:**
+
+Tables have **NO outside borders** - only internal row borders for clean, modern appearance.
+
+```tsx
+// ✅ CORRECT: No border wrapper
+<div className="bg-background w-full">
+  <div className="w-full">
+    <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+      ...
+    </Table>
+  </div>
+</div>
+
+// ❌ WRONG: Don't add border to wrapper
+<div className="bg-background border-border w-full border">
+  ...
+</div>
+```
+
+**Standard Table Cell/Row Spacing:**
+
+All tables must use **`px-3 py-2`** for consistent, compact row height:
+
+```tsx
+// ✅ CORRECT: Compact spacing on Table component
+<Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+  <TableHeader>
+    <TableRow>
+      <TableHead>...</TableHead>
+    </TableRow>
+  </TableHeader>
+  <TableBody>
+    <TableRow className="hover:bg-accent transition-colors">
+      <TableCell>...</TableCell>
+    </TableRow>
+  </TableBody>
+</Table>
+
+// ❌ WRONG: Don't use default padding (too much vertical space)
+<Table className="w-full">
+  ...
+</Table>
+
+// ❌ WRONG: Don't add custom padding to individual cells
+<TableCell className="p-4">...</TableCell>
+```
+
+**Standard Row Spacing:**
+- Horizontal padding: `px-3` (12px)
+- Vertical padding: `py-2` (8px)
+- Applied via `[&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2` on Table component
+
 **Headers automatically styled:**
 
 ```tsx
@@ -531,7 +584,21 @@ Dark Mode:
 <TableHead className="bg-primary text-black">...</TableHead>
 ```
 
-**Row hover states:**
+**Global CSS for Table Headers:**
+
+```css
+th {
+  background-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+```
+
+This means:
+- Light mode: Yellow background + Black text
+- Dark mode: Yellow background + Black text (same!)
+- No component-level classes needed
+
+**Row borders and hover states:**
 
 ```tsx
 // ✅ CORRECT: Use utility class, global CSS handles colors
@@ -540,10 +607,16 @@ Dark Mode:
 </TableRow>
 ```
 
+**Internal row borders only:**
+- TableRow has `border-b` class by default (from ui/table.tsx)
+- Creates horizontal lines between rows
+- NO outside border on table wrapper
+
 In dark mode:
 - Hover background: Dark gray (40%)
 - Hover text: Light gray (85%)
 - Buttons/icons: Maintain their colors
+- Row borders: Medium gray (50%) - visible on dark background
 
 ---
 
@@ -615,6 +688,7 @@ export default function Page() {
 - Sections: `space-y-6` (24px)
 - Forms: `space-y-4` (16px)
 - Card padding: `p-6` (24px)
+- Table cells/headers: `px-3 py-2` (12px horizontal, 8px vertical)
 
 ### Component Checklist
 

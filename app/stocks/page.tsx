@@ -664,7 +664,7 @@ export default function StocksPage() {
             </div>
 
             <div className="rounded-lg overflow-hidden">
-              <Table>
+              <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
                 <TableHeader>
                   <TableRow>
                     <TableHead
@@ -830,7 +830,7 @@ export default function StocksPage() {
             </div>
 
             <div className="rounded-lg overflow-hidden">
-              <Table>
+              <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="font-bold uppercase">Referência</TableHead>
@@ -975,7 +975,7 @@ export default function StocksPage() {
             </div>
 
             <div className="rounded-lg overflow-hidden">
-              <Table>
+              <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="font-bold uppercase">Nº Palete</TableHead>
@@ -1086,9 +1086,9 @@ export default function StocksPage() {
                   currentStocks
                     .filter((s) => (s.stock_minimo && s.stock_atual < s.stock_minimo) || false)
                     .map((stock) => (
-                      <div key={stock.id} className="flex items-center justify-between rounded border border-warning/40 bg-warning/15 p-2">
+                      <div key={stock.id} className="flex items-center justify-between rounded border p-2 bg-accent">
                         <span className="text-sm font-medium">{[stock.material, stock.cor].filter(Boolean).join(' - ')}</span>
-                        <span className="text-sm text-warning-foreground">Stock: {stock.stock_atual} (Mín: {stock.stock_minimo})</span>
+                        <span className="text-sm">Stock: {stock.stock_atual} (Mín: {stock.stock_minimo})</span>
                       </div>
                     ))
                 )}

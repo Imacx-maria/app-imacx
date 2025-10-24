@@ -201,9 +201,11 @@ export default function OperacoesPage() {
         .order('data_operacao', { ascending: false })
 
       if (error) throw error
+      console.log('✅ Fetched operations:', data?.length || 0, 'total records')
+      console.log('Sample data:', data?.[0])
       setOperacoes(data || [])
     } catch (err: any) {
-      console.error('Error fetching operations:', err)
+      console.error('❌ Error fetching operations:', err)
       setError(err.message)
     } finally {
       setLoading(false)
@@ -292,12 +294,15 @@ export default function OperacoesPage() {
 
   const filteredOperacoes = useMemo(() => {
     let filtered = operacoes
+    console.log('🔍 Total operations before filtering:', operacoes.length)
 
     // Tab filtering
     if (activeTab === 'em_curso') {
       filtered = filtered.filter((op) => !op.concluido)
+      console.log('📋 Em Curso (concluido=false):', filtered.length)
     } else {
       filtered = filtered.filter((op) => op.concluido)
+      console.log('✅ Concluídas (concluido=true):', filtered.length)
     }
 
     // Search filters
@@ -531,7 +536,16 @@ export default function OperacoesPage() {
       <div className="flex items-center justify-between">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold text-foreground">Produção - Operações</h1>
-          <p className="text-muted-foreground">Gestão de operações de produção</p>
+          <p className="text-muted-foreground">
+            Gestão de operações de produção
+            {operacoes.length > 0 && (
+              <span className="ml-2">
+                • {operacoes.length} {operacoes.length === 1 ? 'operação' : 'operações'} total
+                {activeTab === 'em_curso' && ` • ${filteredOperacoes.length} em curso`}
+                {activeTab === 'concluidas' && ` • ${filteredOperacoes.length} concluídas`}
+              </span>
+            )}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={fetchOperacoes} variant="outline" size="icon" className="border border-black">
@@ -655,7 +669,7 @@ export default function OperacoesPage() {
 
           {/* Table */}
           <div className="flex-1 overflow-y-auto">
-            <Table>
+            <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
               <TableHeader className="sticky top-0 z-10 bg-muted">
                 <TableRow>
                   <TableHead className="w-[100px]">
@@ -868,7 +882,7 @@ export default function OperacoesPage() {
 
           {/* Table */}
           <div className="flex-1 overflow-y-auto">
-            <Table>
+            <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
               <TableHeader className="sticky top-0 z-10 bg-muted">
                 <TableRow>
                   <TableHead className="w-[100px]">

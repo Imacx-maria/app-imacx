@@ -850,7 +850,7 @@ export default function DesignerFlow() {
 
               {/* Jobs Table */}
               <div className="rounded-lg overflow-hidden">
-                <Table>
+                <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
                   <TableHeader>
                     <TableRow className="border-b border-border">
                       <TableHead className="bg-primary text-primary-foreground font-bold uppercase w-16 text-center">P</TableHead>

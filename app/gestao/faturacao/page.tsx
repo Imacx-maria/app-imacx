@@ -493,7 +493,7 @@ export default function FaturacaoPage() {
             </div>
 
             <div className="rounded-lg overflow-hidden">
-              <Table>
+              <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
                 <TableHeader>
                   <TableRow className="border-b border-border">
                     <TableHead

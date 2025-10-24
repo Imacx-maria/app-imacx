@@ -117,6 +117,20 @@ export function Navigation() {
     )
   }
 
+  const handleSubmenuClick = (title: string) => {
+    // If sidebar is collapsed, expand it first
+    if (isCollapsed) {
+      setIsCollapsed(false)
+      // Also open the submenu
+      if (!openSubmenus.includes(title)) {
+        setOpenSubmenus(prev => [...prev, title])
+      }
+    } else {
+      // If already expanded, just toggle the submenu
+      toggleSubmenu(title)
+    }
+  }
+
   const handleLogout = async () => {
     try {
       const { createBrowserClient } = await import('@/utils/supabase')
@@ -165,7 +179,7 @@ export function Navigation() {
               
               return (
                 <li key={item.title}>
-                  <Collapsible open={isOpen} onOpenChange={() => !isCollapsed && toggleSubmenu(item.title)}>
+                  <Collapsible open={isOpen} onOpenChange={() => handleSubmenuClick(item.title)}>
                     <CollapsibleTrigger asChild>
                       <button
                         className={cn(
