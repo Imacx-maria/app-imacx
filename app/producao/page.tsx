@@ -342,6 +342,16 @@ export default function ProducaoPage() {
     'em_curso' | 'concluidos' | 'pendentes'
   >('em_curso')
 
+  /* FO totals state */
+  const [foTotals, setFoTotals] = useState<{
+    em_curso: number
+    pendentes: number
+  }>({
+    em_curso: 0,
+    pendentes: 0,
+  })
+  const [showTotals, setShowTotals] = useState(false)
+
   // Debounced filter values for performance
   const debouncedFoF = useDebounce(foF, 300)
   const debouncedCampF = useDebounce(campF, 300)
@@ -1605,6 +1615,114 @@ export default function ProducaoPage() {
     [supabase, allItems],
   )
 
+  // Fetch FO totals for Em curso and Pendentes tabs
+  const fetchFoTotals = useCallback(async () => {
+    try {
+      console.log('💰 Fetching FO totals...')
+
+      // Fetch all non-completed, non-saiu jobs from base table
+      // Then we'll separate em_curso (pendente false/null) from pendentes (pendente true)
+      const { data: allJobs, error: allJobsError } = await supabase
+        .from('folhas_obras')
+        .select('Numero_do_, pendente')
+        .not('numero_orc', 'is', null)
+
+      if (allJobsError) throw allJobsError
+
+      console.log('📋 Raw jobs data:', {
+        totalJobs: allJobs?.length,
+        sample: allJobs?.slice(0, 5),
+      })
+
+      // Separate em_curso (not pendente) and pendentes
+      const emCursoJobs = allJobs?.filter((job) => job.pendente !== true) || []
+      const pendentesJobs = allJobs?.filter((job) => job.pendente === true) || []
+
+      // Get FO numbers for each tab
+      // Convert to strings since PHC folha_obra_number is TEXT type
+      const emCursoFoNumbers = emCursoJobs
+        ?.map((job) => String(job.Numero_do_))
+        .filter((fo) => fo && fo !== 'null' && fo !== 'undefined') || []
+      
+      const pendentesFoNumbers = pendentesJobs
+        ?.map((job) => String(job.Numero_do_))
+        .filter((fo) => fo && fo !== 'null' && fo !== 'undefined') || []
+
+      console.log('📊 FO numbers sample:', {
+        em_curso_count: emCursoFoNumbers.length,
+        em_curso_sample: emCursoFoNumbers.slice(0, 5),
+        pendentes_count: pendentesFoNumbers.length,
+        pendentes_sample: pendentesFoNumbers.slice(0, 5),
+      })
+
+      // Fetch values from PHC database
+      let emCursoTotal = 0
+      let pendentesTotal = 0
+
+      if (emCursoFoNumbers.length > 0) {
+        console.log('🔍 Querying PHC for em curso FOs...')
+        const { data: emCursoValues, error: emCursoValuesError } = await supabase
+          .schema('phc')
+          .from('folha_obra_with_orcamento')
+          .select('folha_obra_number, folha_obra_value')
+          .in('folha_obra_number', emCursoFoNumbers)
+
+        console.log('📦 Em curso PHC results:', {
+          count: emCursoValues?.length || 0,
+          sample: emCursoValues?.slice(0, 5),
+          error: emCursoValuesError,
+        })
+
+        if (emCursoValuesError) {
+          console.error('Error fetching em curso values:', emCursoValuesError)
+        } else if (emCursoValues) {
+          emCursoTotal = emCursoValues.reduce(
+            (sum, row) => sum + (Number(row.folha_obra_value) || 0),
+            0,
+          )
+          console.log('💵 Em curso total calculated:', emCursoTotal)
+        }
+      }
+
+      if (pendentesFoNumbers.length > 0) {
+        console.log('🔍 Querying PHC for pendentes FOs...')
+        const { data: pendentesValues, error: pendentesValuesError } = await supabase
+          .schema('phc')
+          .from('folha_obra_with_orcamento')
+          .select('folha_obra_number, folha_obra_value')
+          .in('folha_obra_number', pendentesFoNumbers)
+
+        console.log('📦 Pendentes PHC results:', {
+          count: pendentesValues?.length || 0,
+          sample: pendentesValues?.slice(0, 5),
+          error: pendentesValuesError,
+        })
+
+        if (pendentesValuesError) {
+          console.error('Error fetching pendentes values:', pendentesValuesError)
+        } else if (pendentesValues) {
+          pendentesTotal = pendentesValues.reduce(
+            (sum, row) => sum + (Number(row.folha_obra_value) || 0),
+            0,
+          )
+          console.log('💵 Pendentes total calculated:', pendentesTotal)
+        }
+      }
+
+      console.log('💰 FO totals calculated:', {
+        em_curso: emCursoTotal,
+        pendentes: pendentesTotal,
+      })
+
+      setFoTotals({
+        em_curso: emCursoTotal,
+        pendentes: pendentesTotal,
+      })
+    } catch (error) {
+      console.error('Error fetching FO totals:', error)
+    }
+  }, [supabase])
+
   // Initial data load
   useEffect(() => {
     const loadInitialData = async () => {
@@ -2122,6 +2240,39 @@ export default function ProducaoPage() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Atualizar Folhas de Obra</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="border border-black gap-2"
+                    onClick={async () => {
+                      setShowTotals(!showTotals)
+                      if (!showTotals) {
+                        await fetchFoTotals()
+                      }
+                    }}
+                  >
+                    {showTotals ? (
+                      <>
+                        <div className="flex flex-col text-left">
+                          <span className="text-xs font-semibold">Em Curso: €{Math.round(foTotals.em_curso).toLocaleString('pt-PT', { useGrouping: true })}</span>
+                          <span className="text-xs font-semibold">Pendentes: €{Math.round(foTotals.pendentes).toLocaleString('pt-PT', { useGrouping: true })}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <ReceiptText className="h-4 w-4" />
+                        <span className="text-sm">Totais FO</span>
+                      </>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {showTotals ? 'Ocultar Totais' : 'Ver Total de Valores das FOs'}
+                </TooltipContent>
               </Tooltip>
             </TooltipProvider>
             <TooltipProvider>
