@@ -22,19 +22,27 @@ export const FullYearCalendar: React.FC<FullYearCalendarProps> = ({
 }) => {
   useAccessibilityFixes()
 
-  const months = Array.from({ length: 12 }, (_, i) => new Date(year, i, 1))
+  const today = new Date()
+  const currentMonth = today.getMonth()
+  const currentYear = today.getFullYear()
+
+  const months = [
+    new Date(currentMonth === 0 ? currentYear - 1 : currentYear, (currentMonth - 1 + 12) % 12, 1),
+    new Date(currentYear, currentMonth, 1),
+    new Date(currentMonth === 11 ? currentYear + 1 : currentYear, (currentMonth + 1) % 12, 1),
+  ]
 
   const calendarContainerRef = useRef<HTMLDivElement>(null)
 
   return (
     <div
       ref={calendarContainerRef}
-      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+      className="grid grid-cols-1 md:grid-cols-3 gap-6"
       data-no-aria-hidden="true"
     >
       {months.map((monthDate) => (
         <div
-          key={monthDate.getMonth()}
+          key={`${monthDate.getFullYear()}-${monthDate.getMonth()}`}
           className="rounded-none border border-border p-2"
           data-no-aria-hidden="true"
         >
@@ -46,7 +54,7 @@ export const FullYearCalendar: React.FC<FullYearCalendarProps> = ({
             month={monthDate}
             selected={undefined}
             holidays={holidays}
-            showOutsideDays
+            showOutsideDays={false}
             onSelect={onSelect}
             components={{
               IconLeft: () => null,

@@ -87,13 +87,19 @@ export default function DashboardPage() {
 
   const fetchHolidays = useCallback(async () => {
     try {
-      const currentDate = new Date().toISOString().split('T')[0]
+      const today = new Date()
+      const startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+      const endDate = new Date(today.getFullYear(), today.getMonth() + 2, 0)
+      
+      const startDateStr = startDate.toISOString().split('T')[0]
+      const endDateStr = endDate.toISOString().split('T')[0]
+
       const { data, error } = await supabase
         .from('feriados')
         .select('id, holiday_date, description')
-        .gte('holiday_date', currentDate)
+        .gte('holiday_date', startDateStr)
+        .lte('holiday_date', endDateStr)
         .order('holiday_date', { ascending: true })
-        .limit(50)
 
       if (error) {
         console.error('Error fetching holidays:', error)
