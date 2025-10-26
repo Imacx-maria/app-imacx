@@ -43,7 +43,7 @@ export const FullYearCalendar: React.FC<FullYearCalendarProps> = ({
       {months.map((monthDate) => (
         <div
           key={`${monthDate.getFullYear()}-${monthDate.getMonth()}`}
-          className="rounded-none border border-border p-2"
+          className="rounded-none p-2"
           data-no-aria-hidden="true"
         >
           <div className="text-center font-semibold mb-2 text-lg">
@@ -62,7 +62,7 @@ export const FullYearCalendar: React.FC<FullYearCalendarProps> = ({
               Caption: () => null,
             }}
             classNames={{
-              day: 'size-8 p-0 font-normal border-none outline-none focus:outline-none focus:ring-0 cursor-pointer',
+              day: 'size-8 p-0 font-normal border-none outline-none focus:outline-none focus:ring-0 cursor-pointer text-right',
             }}
           />
         </div>

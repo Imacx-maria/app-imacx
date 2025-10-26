@@ -466,3 +466,32 @@ input:-webkit-autofill:focus {
 .calendar-custom .rdp-months {
   background-color: var(--background);
 }
+
+.rdp-chevron {
+  display: none !important;
+}
+
+.rdp-cell {
+  position: relative;
+  text-align: right !important;
+}
+
+.rdp-button {
+  justify-content: flex-end !important;
+  text-align: right !important;
+  padding-right: 2px !important;
+}
+
+.rdp-day_holiday {
+  color: var(--orange) !important;
+  font-weight: 700 !important;
+}
+
+/* ============================================
+   TEXT SIZES
+   ============================================ */
+
+.text-tiny {
+  font-size: 13px !important;
+  line-height: 1.4 !important;
+}

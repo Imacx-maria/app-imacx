@@ -65,8 +65,14 @@ function Calendar({
   const modifiersStyles = React.useMemo(
     () => ({
       weekend: { backgroundColor: 'var(--secondary-background)' },
-      holiday: { backgroundColor: 'var(--secondary-background)' },
       today: { backgroundColor: 'var(--orange)', color: 'var(--color-accent-foreground)' },
+    }),
+    []
+  )
+
+  const modifiersClassNames = React.useMemo(
+    () => ({
+      holiday: 'rdp-day_holiday',
     }),
     []
   )
@@ -99,6 +105,7 @@ function Calendar({
         locale={pt}
         modifiers={modifiers}
         modifiersStyles={modifiersStyles}
+        modifiersClassNames={modifiersClassNames}
         classNames={{
           months: 'flex flex-col sm:flex-row gap-2',
           month: 'flex flex-col gap-4',
