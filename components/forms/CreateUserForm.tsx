@@ -237,16 +237,6 @@ export default function CreateUserForm({ editingUser, roles: providedRoles = [],
       </div>
 
       <div className="space-y-2">
-        <Label>TELEMÓVEL</Label>
-        <Input
-          type="tel"
-          value={formData.phone}
-          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-          placeholder="+351 XXX XXX XXX"
-        />
-      </div>
-
-      <div className="space-y-2">
         <Label>NOTAS</Label>
         <Textarea
           value={formData.notes}

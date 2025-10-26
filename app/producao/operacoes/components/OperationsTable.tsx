@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import SimpleNotasPopover from '@/components/ui/SimpleNotasPopover'
+import SimpleNotasPopover from '@/components/custom/SimpleNotasPopover'
 import {
   Table,
   TableBody,

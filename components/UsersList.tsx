@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Edit2, Trash2, RefreshCw } from 'lucide-react'
+import { Edit2, Trash2, RefreshCw, ArrowUpDown } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -50,6 +50,8 @@ interface UsersListProps {
 export default function UsersList({ users, roles, onEdit, onDelete, onRefresh }: UsersListProps) {
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<User | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [sortBy, setSortBy] = useState<'first_name' | 'last_name' | 'role_id' | null>(null)
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
   const roleNameById = useMemo(() => {
     return roles.reduce<Record<string, string>>((acc, role) => {
@@ -57,6 +59,44 @@ export default function UsersList({ users, roles, onEdit, onDelete, onRefresh }:
       return acc
     }, {})
   }, [roles])
+
+  const toggleSort = (column: 'first_name' | 'last_name' | 'role_id') => {
+    if (sortBy === column) {
+      if (sortOrder === 'asc') {
+        setSortOrder('desc')
+      } else {
+        setSortBy(null)
+        setSortOrder('asc')
+      }
+    } else {
+      setSortBy(column)
+      setSortOrder('asc')
+    }
+  }
+
+  const sortedUsers = useMemo(() => {
+    if (!sortBy) return users
+
+    return [...users].sort((a, b) => {
+      let aVal: string | number = ''
+      let bVal: string | number = ''
+
+      if (sortBy === 'first_name') {
+        aVal = (a.first_name || '').toLowerCase()
+        bVal = (b.first_name || '').toLowerCase()
+      } else if (sortBy === 'last_name') {
+        aVal = (a.last_name || '').toLowerCase()
+        bVal = (b.last_name || '').toLowerCase()
+      } else if (sortBy === 'role_id') {
+        aVal = (a.role_id && roleNameById[a.role_id] || '').toLowerCase()
+        bVal = (b.role_id && roleNameById[b.role_id] || '').toLowerCase()
+      }
+
+      if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1
+      if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1
+      return 0
+    })
+  }, [users, sortBy, sortOrder, roleNameById])
 
   const handleRefresh = async () => {
     setRefreshing(true)
@@ -79,6 +119,17 @@ export default function UsersList({ users, roles, onEdit, onDelete, onRefresh }:
     })
   }
 
+  const getSortIcon = (column: 'first_name' | 'last_name' | 'role_id') => {
+    if (sortBy !== column) {
+      return <ArrowUpDown className="h-3 w-3 ml-1 inline opacity-30" />
+    }
+    return sortOrder === 'asc' ? (
+      <span className="ml-1 inline">↑</span>
+    ) : (
+      <span className="ml-1 inline">↓</span>
+    )
+  }
+
   if (users.length === 0) {
     return (
       <div className="rounded-lg border border-border bg-card p-12 text-center">
@@ -99,24 +150,37 @@ export default function UsersList({ users, roles, onEdit, onDelete, onRefresh }:
             <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
               <TableHeader className="sticky top-0 z-10 border-b text-center uppercase">
                 <TableRow>
-                  <TableHead className="text-center">NOME</TableHead>
-                  <TableHead className="text-center">APELIDO</TableHead>
+                  <TableHead 
+                    className="text-center cursor-pointer hover:bg-accent transition-colors select-none"
+                    onClick={() => toggleSort('first_name')}
+                  >
+                    NOME{getSortIcon('first_name')}
+                  </TableHead>
+                  <TableHead 
+                    className="text-center cursor-pointer hover:bg-accent transition-colors select-none"
+                    onClick={() => toggleSort('last_name')}
+                  >
+                    APELIDO{getSortIcon('last_name')}
+                  </TableHead>
                   <TableHead className="text-center">EMAIL</TableHead>
-                  <TableHead className="text-center">FUNÇÃO</TableHead>
-                  <TableHead className="text-center">TELEMÓVEL</TableHead>
+                  <TableHead 
+                    className="text-center cursor-pointer hover:bg-accent transition-colors select-none"
+                    onClick={() => toggleSort('role_id')}
+                  >
+                    FUNÇÃO{getSortIcon('role_id')}
+                  </TableHead>
                   <TableHead className="text-center">ESTADO</TableHead>
                   <TableHead className="text-center">DATA CRIAÇÃO</TableHead>
                   <TableHead className="text-center">AÇÕES</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user) => (
+                {sortedUsers.map((user) => (
                   <TableRow key={user.id} className="hover:bg-accent transition-colors">
                     <TableCell>{user.first_name || '-'}</TableCell>
                     <TableCell>{user.last_name || '-'}</TableCell>
                     <TableCell>{user.email || '-'}</TableCell>
                     <TableCell>{(user.role_id && roleNameById[user.role_id]) || '-'}</TableCell>
-                    <TableCell>{user.phone || '-'}</TableCell>
                     <TableCell>{user.active === false ? 'Inativo' : 'Ativo'}</TableCell>
                     <TableCell>{formatDate(user.created_at)}</TableCell>
                     <TableCell>

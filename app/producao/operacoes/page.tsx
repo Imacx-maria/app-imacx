@@ -514,10 +514,10 @@ export default function OperacoesPage() {
                   <strong>Entregas não concluídas</strong> (logistica_entregas.concluido = false)
                 </li>
                 <li>
-                  <strong>Não ser brinde</strong> (brindes ≠ true)
+                  <strong>Não ser brinde</strong> (brindes &ne; true)
                 </li>
                 <li>
-                  <strong>Complexidade não ser OFFSET</strong> (complexidade ≠ 'OFFSET')
+                  <strong>Complexidade não ser OFFSET</strong> (complexidade &ne; &apos;OFFSET&apos;)
                 </li>
               </ul>
         </div>
@@ -1172,7 +1172,7 @@ function OperationsTable({
             {operations.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={12} className="text-center text-muted-foreground">
-                  Nenhuma operação. Clique em "Adicionar" para criar.
+                  Nenhuma operação. Clique em &quot;Adicionar&quot; para criar.
                 </TableCell>
               </TableRow>
             ) : (

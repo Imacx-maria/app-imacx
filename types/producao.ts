@@ -99,3 +99,70 @@ export interface PaletesFilters {
   dateFrom?: string
   dateTo?: string
 }
+
+export interface Machine {
+  id: string
+  nome?: string
+  nome_maquina?: string
+  tipo?: string
+}
+
+export enum OperationType {
+  CORTE = 'corte',
+  IMPRESSAO = 'impressao',
+  LAMINACAO = 'laminacao',
+  DOBRAGEM = 'dobragem',
+  COLAGEM = 'colagem',
+  EMBALAGEM = 'embalagem',
+}
+
+export const OPERATION_TYPES = Object.values(OperationType)
+
+export interface ProductionOperation {
+  id: string
+  folha_obra_id?: string
+  item_id: string
+  operador_id?: string
+  data_operacao?: string
+  hora_inicio?: string
+  hora_fim?: string
+  tipo_operacao?: string
+  no_interno?: string
+  maquina_impressao_id?: string
+  maquina_corte_id?: string
+  maquina_id?: string
+  material_id?: string
+  quantidade_material_usado?: number
+  desperdicio?: number
+  qualidade?: string
+  observacoes?: string
+  status?: 'pendente' | 'em_progresso' | 'concluida' | 'cancelada'
+  created_at: string
+  updated_at: string
+}
+
+export interface ProductionOperationWithRelations extends ProductionOperation {
+  items_base?: any | null
+  machines?: Machine | null
+  profiles?: Profile | null
+}
+
+export interface ProductionOperationInput {
+  folha_obra_id?: string
+  item_id: string
+  operador_id?: string
+  data_operacao?: string
+  hora_inicio?: string
+  hora_fim?: string
+  tipo_operacao?: string
+  no_interno?: string
+  maquina_impressao_id?: string
+  maquina_corte_id?: string
+  maquina_id?: string
+  material_id?: string
+  quantidade_material_usado?: number
+  desperdicio?: number
+  qualidade?: string
+  observacoes?: string
+  status?: 'pendente' | 'em_progresso' | 'concluida' | 'cancelada'
+}

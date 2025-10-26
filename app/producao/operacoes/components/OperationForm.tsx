@@ -212,7 +212,7 @@ export const OperationForm: React.FC<OperationFormProps> = ({
 
   // Get filtered machines by type
   const getFilteredMachines = (type: string) => {
-    return machines.filter(machine => machine.tipo.toLowerCase().includes(type.toLowerCase()))
+    return machines.filter(machine => machine.tipo?.toLowerCase().includes(type.toLowerCase()))
   }
 
   // Show/hide machine selectors based on operation type
@@ -272,13 +272,12 @@ export const OperationForm: React.FC<OperationFormProps> = ({
                   <div>
                     <Label htmlFor="data_operacao">Data da Operação</Label>
                     <DatePicker
-                      selected={formData.data_operacao ? new Date(formData.data_operacao) : undefined}
-                      onSelect={(date) => {
+                      value={formData.data_operacao ? new Date(formData.data_operacao) : undefined}
+                      onChange={(date) => {
                         if (date) {
                           handleInputChange('data_operacao', format(date, 'yyyy-MM-dd'))
                         }
                       }}
-                      buttonClassName="w-full"
                     />
                   </div>
 
@@ -388,7 +387,7 @@ export const OperationForm: React.FC<OperationFormProps> = ({
                       <SelectContent>
                         {getFilteredMachines('impressão').map(machine => (
                           <SelectItem key={machine.id} value={machine.id}>
-                            {machine.nome_maquina}
+                            {machine.nome}
                           </SelectItem>
                         ))}
                       </SelectContent>
