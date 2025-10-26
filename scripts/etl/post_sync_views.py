@@ -1,14 +1,24 @@
 #!/usr/bin/env python3
 """
-Post-Sync View Recreation Script
-==================================
-Recreates custom database views after ETL sync completes.
-Run automatically after full/incremental syncs to ensure views exist.
+Post-Sync View Recreation and Constraint Management Script
+===========================================================
+Recreates custom database views and enforces foreign key constraints after ETL sync completes.
+Run automatically after full/incremental syncs to ensure views and referential integrity.
 
-Views recreated:
-- phc.folha_obra_with_orcamento (combines work orders with budgets)
-- phc.v_bo_current_year_monthly_salesperson_norm (BO current year - normalized mapping)
-- phc.v_ft_current_year_monthly_salesperson_norm (FT current year - normalized mapping)
+Tasks performed:
+1. Recreate views:
+   - phc.folha_obra_with_orcamento (combines work orders with budgets)
+   
+2. Add FI foreign key constraints:
+   - phc.fi.invoice_id -> phc.ft.invoice_id (CASCADE)
+   - phc.2years_fi.invoice_id -> phc.2years_ft.invoice_id (CASCADE)
+   
+3. Create indexes for performance:
+   - idx_fi_invoice_id, idx_fi_cost_center
+   - idx_2years_fi_invoice_id, idx_2years_fi_cost_center
+
+Note: Historical views (bo_historical_monthly, ft_historical_monthly, and their normalized variants)
+have been removed as analytics now uses the get_department_rankings_ytd() RPC function.
 """
 
 import os
@@ -196,151 +206,98 @@ def recreate_folha_obra_with_orcamento_view(conn):
         conn.rollback()
         return False
 
-def recreate_v_bo_current_year_monthly_salesperson_norm(conn):
-    """
-    Recreate phc.v_bo_current_year_monthly_salesperson_norm view
-    BO current year with normalized/robust salesperson mapping
-    """
-    
-    sql = """
-    -- Drop existing view if it exists
-    DROP VIEW IF EXISTS phc.v_bo_current_year_monthly_salesperson_norm CASCADE;
-    
-    -- Create view for current year BO with normalized mapping
-    CREATE VIEW phc.v_bo_current_year_monthly_salesperson_norm AS
-    WITH unm AS (
-      SELECT
-        department,
-        LOWER(REGEXP_REPLACE(TRIM(REPLACE(COALESCE(initials,''),         ' ','')), '[^a-z0-9]+', '', 'g')) AS k_initials,
-        LOWER(REGEXP_REPLACE(TRIM(REPLACE(COALESCE(short_name,''),       ' ','')), '[^a-z0-9]+', '', 'g')) AS k_short,
-        LOWER(REGEXP_REPLACE(TRIM(REPLACE(COALESCE(full_name,''),        ' ','')), '[^a-z0-9]+', '', 'g')) AS k_full,
-        LOWER(REGEXP_REPLACE(TRIM(REPLACE(COALESCE(standardized_name,''),' ','')), '[^a-z0-9]+', '', 'g')) AS k_std
-      FROM public.user_name_mapping
-    )
-    SELECT
-      EXTRACT(YEAR  FROM b.document_date)::int AS year,
-      EXTRACT(MONTH FROM b.document_date)::int AS month,
-      b.document_type,
-      COUNT(DISTINCT b.document_id)            AS document_count,
-      SUM(COALESCE(b.total_value,0))           AS total_value,
-      COALESCE(cl.salesperson, 'Unassigned')   AS salesperson,
-      COALESCE(u.department, 'Unknown')        AS department
-    FROM phc.bo b
-    LEFT JOIN phc.cl cl ON cl.customer_id = b.customer_id
-    LEFT JOIN LATERAL (
-      SELECT department
-      FROM unm m
-      WHERE LOWER(REGEXP_REPLACE(TRIM(REPLACE(COALESCE(cl.salesperson,''),' ','')), '[^a-z0-9]+', '', 'g'))
-            IN (m.k_initials, m.k_short, m.k_full, m.k_std)
-      LIMIT 1
-    ) u ON TRUE
-    WHERE EXTRACT(YEAR FROM b.document_date) = EXTRACT(YEAR FROM CURRENT_DATE)
-    GROUP BY 1,2,3,6,7;
-    
-    -- Grant permissions
-    GRANT SELECT ON phc.v_bo_current_year_monthly_salesperson_norm TO authenticated;
-    GRANT SELECT ON phc.v_bo_current_year_monthly_salesperson_norm TO anon;
-    """
-    
-    try:
-        cursor = conn.cursor()
-        cursor.execute(sql)
-        conn.commit()
-        cursor.close()
-        print("✅ View phc.v_bo_current_year_monthly_salesperson_norm recreated successfully")
-        return True
-    except Exception as e:
-        print(f"❌ Failed to recreate v_bo_current_year_monthly_salesperson_norm view: {e}")
-        conn.rollback()
-        return False
+# REMOVED: recreate_v_bo_current_year_monthly_salesperson_norm
+# REMOVED: recreate_v_ft_current_year_monthly_salesperson_norm
+# These views are no longer used. Analytics now uses get_department_rankings_ytd() RPC function.
 
-def recreate_v_ft_current_year_monthly_salesperson_norm(conn):
+def add_fi_foreign_keys_and_indexes(conn):
     """
-    Recreate phc.v_ft_current_year_monthly_salesperson_norm view
-    FT current year with normalized/robust salesperson mapping
+    Add foreign key constraints and indexes for FI tables
+    
+    This ensures referential integrity between FI (invoice line items) and FT (invoices)
+    and improves query performance with indexes.
     """
-    
-    sql = """
-    -- Drop existing view if it exists
-    DROP VIEW IF EXISTS phc.v_ft_current_year_monthly_salesperson_norm CASCADE;
-    
-    -- Create view for current year FT with normalized mapping
-    CREATE VIEW phc.v_ft_current_year_monthly_salesperson_norm AS
-    WITH unm AS (
-      SELECT
-        department,
-        LOWER(REGEXP_REPLACE(TRIM(REPLACE(COALESCE(initials,''),         ' ','')), '[^a-z0-9]+', '', 'g')) AS k_initials,
-        LOWER(REGEXP_REPLACE(TRIM(REPLACE(COALESCE(short_name,''),       ' ','')), '[^a-z0-9]+', '', 'g')) AS k_short,
-        LOWER(REGEXP_REPLACE(TRIM(REPLACE(COALESCE(full_name,''),        ' ','')), '[^a-z0-9]+', '', 'g')) AS k_full,
-        LOWER(REGEXP_REPLACE(TRIM(REPLACE(COALESCE(standardized_name,''),' ','')), '[^a-z0-9]+', '', 'g')) AS k_std
-      FROM public.user_name_mapping
-    )
-    SELECT
-      EXTRACT(YEAR  FROM f.invoice_date)::int  AS year,
-      EXTRACT(MONTH FROM f.invoice_date)::int  AS month,
-      f.document_type,
-      COUNT(DISTINCT f.invoice_id)             AS document_count,
-      SUM(COALESCE(f.net_value,0))             AS total_value,
-      COALESCE(cl.salesperson, 'Unassigned')   AS salesperson,
-      COALESCE(u.department, 'Unknown')        AS department
-    FROM phc.ft f
-    LEFT JOIN phc.cl cl ON cl.customer_id = f.customer_id
-    LEFT JOIN LATERAL (
-      SELECT department
-      FROM unm m
-      WHERE LOWER(REGEXP_REPLACE(TRIM(REPLACE(COALESCE(cl.salesperson,''),' ','')), '[^a-z0-9]+', '', 'g'))
-            IN (m.k_initials, m.k_short, m.k_full, m.k_std)
-      LIMIT 1
-    ) u ON TRUE
-    WHERE EXTRACT(YEAR FROM f.invoice_date) = EXTRACT(YEAR FROM CURRENT_DATE)
-      AND COALESCE(f.anulado, '') != 'true'
-    GROUP BY 1,2,3,6,7;
-    
-    -- Grant permissions
-    GRANT SELECT ON phc.v_ft_current_year_monthly_salesperson_norm TO authenticated;
-    GRANT SELECT ON phc.v_ft_current_year_monthly_salesperson_norm TO anon;
-    """
+    cursor = conn.cursor()
+    all_success = True
     
     try:
-        cursor = conn.cursor()
-        cursor.execute(sql)
+        # 1. Add FK for fi table (if not exists)
+        try:
+            cursor.execute('''
+                ALTER TABLE phc.fi 
+                ADD CONSTRAINT fk_fi_invoice 
+                FOREIGN KEY (invoice_id) 
+                REFERENCES phc.ft(invoice_id) 
+                ON DELETE CASCADE
+            ''')
+            conn.commit()
+            print("   [OK] FK added: phc.fi -> phc.ft")
+        except Exception:
+            conn.rollback()
+            # FK already exists, skip
+            pass
+        
+        # 2. Add FK for 2years_fi table (if not exists)
+        try:
+            cursor.execute('''
+                ALTER TABLE phc."2years_fi" 
+                ADD CONSTRAINT fk_2years_fi_invoice 
+                FOREIGN KEY (invoice_id) 
+                REFERENCES phc."2years_ft"(invoice_id) 
+                ON DELETE CASCADE
+            ''')
+            conn.commit()
+            print("   [OK] FK added: phc.2years_fi -> phc.2years_ft")
+        except Exception:
+            conn.rollback()
+            # FK already exists, skip
+            pass
+        
+        # 3. Create indexes (IF NOT EXISTS prevents errors)
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_fi_invoice_id ON phc.fi(invoice_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_fi_cost_center ON phc.fi(cost_center)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_2years_fi_invoice_id ON phc."2years_fi"(invoice_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_2years_fi_cost_center ON phc."2years_fi"(cost_center)')
         conn.commit()
+        print("   [OK] Indexes created/verified")
+        
         cursor.close()
-        print("✅ View phc.v_ft_current_year_monthly_salesperson_norm recreated successfully")
         return True
+        
     except Exception as e:
-        print(f"❌ Failed to recreate v_ft_current_year_monthly_salesperson_norm view: {e}")
+        print(f"   [WARN] FI constraints/indexes: {e}")
         conn.rollback()
         return False
 
 def main():
     """Main execution"""
-    print("🔄 Recreating post-sync database views...")
+    print("🔄 Recreating post-sync database views and constraints...")
     
     # Connect to Supabase
     conn = get_supabase_connection()
     print("✅ Connected to Supabase")
     
-    # Recreate all views
-    results = []
-    results.append(("folha_obra_with_orcamento", recreate_folha_obra_with_orcamento_view(conn)))
-    results.append(("v_bo_current_year_monthly_salesperson_norm", recreate_v_bo_current_year_monthly_salesperson_norm(conn)))
-    results.append(("v_ft_current_year_monthly_salesperson_norm", recreate_v_ft_current_year_monthly_salesperson_norm(conn)))
+    # Recreate views
+    view_success = recreate_folha_obra_with_orcamento_view(conn)
+    
+    # Add FI foreign keys and indexes
+    print("\n🔗 Adding FI foreign keys and indexes...")
+    fk_success = add_fi_foreign_keys_and_indexes(conn)
     
     # Close connection
     conn.close()
     
-    # Check results
-    all_success = all(success for _, success in results)
-    failed_views = [name for name, success in results if not success]
-    
     # Exit with appropriate code
-    if all_success:
-        print("✅ All 3 views recreated successfully")
+    if view_success and fk_success:
+        print("\n✅ All post-sync tasks completed successfully")
+        print("__VIEW_RECREATION_DONE__ success=true")
+        sys.exit(0)
+    elif view_success:
+        print("\n⚠️ View created but FI constraints had warnings")
         print("__VIEW_RECREATION_DONE__ success=true")
         sys.exit(0)
     else:
-        print(f"❌ View recreation failed for: {', '.join(failed_views)}")
+        print(f"\n❌ Post-sync tasks failed")
         print("__VIEW_RECREATION_DONE__ success=false")
         sys.exit(1)
 

@@ -70,9 +70,9 @@ def main() -> int:
         except Exception:
             pass
 
-        # Recreate views after successful sync
+        # Recreate view after successful sync
         if success:
-            print("\n🔄 Recreating database views...")
+            print("\n🔄 Recreating database view...")
             try:
                 import subprocess
                 post_sync_script = PROJECT_ROOT / "scripts" / "etl" / "post_sync_views.py"
@@ -86,12 +86,8 @@ def main() -> int:
                     print(result.stdout)
                     if result.returncode != 0:
                         print(f"⚠️ View recreation failed: {result.stderr}")
-                else:
-                    print(f"⚠️ Post-sync script not found: {post_sync_script}")
             except Exception as e:
-                print(f"⚠️ Error running post-sync views: {e}")
-                # Don't fail the whole ETL if view recreation fails
-                traceback.print_exc()
+                print(f"⚠️ Error running post-sync view: {e}")
 
         print(f"__ETL_DONE__ success={'true' if success else 'false'}")
         return 0 if success else 1

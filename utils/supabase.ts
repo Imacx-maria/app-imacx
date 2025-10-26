@@ -6,15 +6,34 @@ import {
 import { cookies } from 'next/headers'
 import type { NextRequest } from 'next/server'
 
+// SECURITY: Define expected project to prevent credential mixing
+const EXPECTED_PROJECT_ID = 'bnfixjkjrbfalgcqhzof'
+const EXPECTED_PROJECT_URL = `https://${EXPECTED_PROJECT_ID}.supabase.co`
+
 export const createBrowserClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  // SECURITY: Force correct project URL
+  const supabaseUrl = EXPECTED_PROJECT_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      'Supabase URL and anonymous key are required. Please check your .env file.',
-    )
+  if (!supabaseAnonKey) {
+    throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is required. Please check your .env.local file.')
   }
+
+  // SECURITY: Verify JWT matches expected project
+  try {
+    const payload = JSON.parse(atob(supabaseAnonKey.split('.')[1]))
+    if (payload.ref !== EXPECTED_PROJECT_ID) {
+      console.error('🚨 SECURITY ALERT: Supabase project mismatch!')
+      console.error('Expected project:', EXPECTED_PROJECT_ID)
+      console.error('JWT contains:', payload.ref)
+      throw new Error(`SECURITY: Supabase key is for wrong project! Expected ${EXPECTED_PROJECT_ID} but got ${payload.ref}`)
+    }
+  } catch (e) {
+    if (e instanceof Error && e.message.includes('SECURITY')) throw e
+    console.warn('Could not verify JWT:', e)
+  }
+
+  console.log('✅ Supabase client verified for project:', EXPECTED_PROJECT_ID)
 
   return browserClient(supabaseUrl, supabaseAnonKey, {
     auth: {

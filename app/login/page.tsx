@@ -23,20 +23,37 @@ export default function LoginPage() {
     setError(null)
 
     try {
+      console.log('🔐 Iniciando login...')
+      
       const supabase = createBrowserClient()
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log('✅ Supabase client criado')
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
+      console.log('Response:', { user: data?.user?.email, error })
+
       if (error) {
+        console.error('❌ Auth error:', error)
         setError(error.message)
       } else {
+        console.log('✅ Login bem-sucedido! Aguardando sessão...')
+        
+        // Wait a moment for session to be stored
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        console.log('🔄 Redirecionando para dashboard...')
         router.push('/dashboard')
+        
+        // Refresh to ensure middleware runs and sees the session
+        await new Promise(resolve => setTimeout(resolve, 100))
         router.refresh()
       }
-    } catch (err) {
-      setError('Ocorreu um erro inesperado')
+    } catch (err: any) {
+      console.error('❌ Exception:', err)
+      setError(err.message || 'Ocorreu um erro inesperado')
     } finally {
       setLoading(false)
     }

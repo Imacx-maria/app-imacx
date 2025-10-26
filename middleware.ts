@@ -13,6 +13,8 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone()
     const pathname = url.pathname
 
+    console.log(`[Middleware] Path: ${pathname}, Session: ${session ? 'YES' : 'NO'}, Error: ${error ? error.message : 'NONE'}`)
+
     const publicRoutes = ['/login', '/reset-password', '/update-password']
     const isPublicRoute = publicRoutes.includes(pathname)
 
@@ -28,20 +30,25 @@ export async function middleware(request: NextRequest) {
     )
 
     if (error) {
-      console.error('Session error in middleware:', error)
+      console.error('[Middleware] Session error:', error)
       if (isProtectedRoute) {
+        console.log('[Middleware] Redirecting to login (protected route, session error)')
         url.pathname = '/login'
         return NextResponse.redirect(url)
       }
     }
 
     if (!session) {
+      console.log(`[Middleware] No session, isProtectedRoute: ${isProtectedRoute}`)
       if (isProtectedRoute) {
+        console.log('[Middleware] Redirecting to login (no session)')
         url.pathname = '/login'
         return NextResponse.redirect(url)
       }
     } else {
+      console.log('[Middleware] Session found')
       if (pathname === '/login') {
+        console.log('[Middleware] Redirecting to dashboard (on login page with session)')
         url.pathname = '/dashboard'
         return NextResponse.redirect(url)
       }
@@ -49,7 +56,7 @@ export async function middleware(request: NextRequest) {
 
     return response
   } catch (e) {
-    console.error('Middleware error:', e)
+    console.error('[Middleware] Exception:', e)
     const url = request.nextUrl.clone()
     const pathname = url.pathname
     const protectedRoutes = [
@@ -64,6 +71,7 @@ export async function middleware(request: NextRequest) {
     )
 
     if (isProtectedRoute) {
+      console.log('[Middleware] Exception - redirecting to login')
       url.pathname = '/login'
       return NextResponse.redirect(url)
     }

@@ -55,13 +55,21 @@ const PRIORITY_COLORS = {
 
 type PriorityColor = keyof typeof PRIORITY_COLORS
 
-// Helper to determine priority color
+// Helper to determine priority color - MUST match main producao page logic exactly
+// Note: prioridade field is controlled on main producao page
 const getPriorityColor = (job: Job): PriorityColor => {
-  // Explicit priority field takes precedence
+  // RED: Priority explicitly set on main page
   if (job.prioridade === true) return 'red'
-  if (job.prioridade === false) return 'blue'
   
-  // Fallback to green
+  // BLUE: Jobs older than 3 days (uses same field as main page)
+  // NOTE: Main page uses data_in, but since that field doesn't exist yet,
+  // we temporarily use created_at until migration is run
+  if (job.created_at) {
+    const days = (Date.now() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24)
+    if (days > 3) return 'blue'
+  }
+  
+  // GREEN: Normal jobs (no priority, < 3 days old)
   return 'green'
 }
 
@@ -705,25 +713,10 @@ export default function DesignerFlow() {
     []
   )
 
-  const SortHeader = ({ column, label }: { column: string; label: string }) => (
-    <TableHead
-      className="cursor-pointer select-none hover:opacity-80 bg-primary text-primary-foreground font-bold uppercase"
-      onClick={() => handleSort(column)}
-    >
-      <div className="flex items-center justify-between gap-2">
-        {label}
-        {sortColumn === column && (
-          <span>{sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />}</span>
-        )}
-      </div>
-    </TableHead>
-  )
-
   return (
     <div className="w-full space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold text-foreground">Designer Flow</h1>
-        <p className="text-muted-foreground">Manage design workflow and task assignments</p>
+      <div className="space-y-4">
+        <h1 className="text-2xl font-bold">Designer Flow</h1>
       </div>
 
       <Tabs value={activeTab} onValueChange={(value: any) => setActiveTab(value)} className="w-full">
@@ -735,142 +728,127 @@ export default function DesignerFlow() {
         {(['aberto', 'paginados'] as const).map((tab) => (
           <TabsContent key={tab} value={tab} className="space-y-6">
             {/* Filters */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-4 flex-1">
-                  <div>
-                    <Label htmlFor="fo-filter">FO Filter</Label>
-                    <div className="relative">
-                    <Input
-                      id="fo-filter"
-                      placeholder="Search by FO..."
-                      value={foFilter}
-                      onChange={(e) => setFoFilter(e.target.value)}
-                      disabled={loading}
-                      className="pr-10"
-                    />
-                    {foFilter && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="FILTRAR POR FO..."
+                  value={foFilter}
+                  onChange={(e) => setFoFilter(e.target.value)}
+                  disabled={loading}
+                  className="h-10 w-[150px] rounded-none"
+                />
+                <Input
+                  placeholder="FILTRAR POR CAMPANHA..."
+                  value={campaignFilter}
+                  onChange={(e) => setCampaignFilter(e.target.value)}
+                  disabled={loading}
+                  className="h-10 w-[200px] rounded-none"
+                />
+                <Input
+                  placeholder="FILTRAR POR ITEM..."
+                  value={itemFilter}
+                  onChange={(e) => setItemFilter(e.target.value)}
+                  disabled={loading}
+                  className="h-10 w-[180px] rounded-none"
+                />
+                <Input
+                  placeholder="FILTRAR POR CÓDIGO..."
+                  value={codigoFilter}
+                  onChange={(e) => setCodigoFilter(e.target.value)}
+                  disabled={loading}
+                  className="h-10 w-[180px] rounded-none"
+                />
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="icon"
-                        className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                        onClick={() => setFoFilter('')}
-                        disabled={loading}
+                        className="h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
+                        onClick={() => {
+                          setFoFilter('')
+                          setCampaignFilter('')
+                          setItemFilter('')
+                          setCodigoFilter('')
+                        }}
+                        disabled={!foFilter && !campaignFilter && !itemFilter && !codigoFilter}
                       >
                         <XSquare className="h-4 w-4" />
                       </Button>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="campaign-filter">Campaign</Label>
-                  <div className="relative">
-                    <Input
-                      id="campaign-filter"
-                      placeholder="Search by campaign..."
-                      value={campaignFilter}
-                      onChange={(e) => setCampaignFilter(e.target.value)}
-                      disabled={loading}
-                      className="pr-10"
-                    />
-                    {campaignFilter && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                        onClick={() => setCampaignFilter('')}
-                        disabled={loading}
-                      >
-                        <XSquare className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="item-filter">Item Description</Label>
-                  <div className="relative">
-                    <Input
-                      id="item-filter"
-                      placeholder="Search by description..."
-                      value={itemFilter}
-                      onChange={(e) => setItemFilter(e.target.value)}
-                      disabled={loading}
-                      className="pr-10"
-                    />
-                    {itemFilter && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                        onClick={() => setItemFilter('')}
-                        disabled={loading}
-                      >
-                        <XSquare className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="codigo-filter">Code</Label>
-                  <div className="relative">
-                    <Input
-                      id="codigo-filter"
-                      placeholder="Search by code..."
-                      value={codigoFilter}
-                      onChange={(e) => setCodigoFilter(e.target.value)}
-                      disabled={loading}
-                      className="pr-10"
-                    />
-                    {codigoFilter && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                        onClick={() => setCodigoFilter('')}
-                        disabled={loading}
-                      >
-                        <XSquare className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                  </div>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          className="bg-yellow-400 hover:bg-yellow-500 border border-black ml-2"
-                          onClick={() => {
-                            setFoFilter('')
-                            setCampaignFilter('')
-                            setItemFilter('')
-                            setCodigoFilter('')
-                          }}
-                          disabled={!foFilter && !campaignFilter && !itemFilter && !codigoFilter || loading}
-                        >
-                          <XSquare className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Limpar Filtros</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
+                    </TooltipTrigger>
+                    <TooltipContent>Limpar Filtros</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
 
-              {/* Jobs Table */}
-              <div className="rounded-lg overflow-hidden">
+              <div className="flex items-center gap-2">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-10 w-10"
+                        onClick={() => {
+                          const loadJobs = async () => {
+                            setLoading(true)
+                            const jobsData = await fetchJobs(
+                              supabase,
+                              debouncedFoFilter,
+                              debouncedCampaignFilter,
+                              debouncedItemFilter,
+                              debouncedCodigoFilter,
+                              activeTab,
+                            )
+                            setJobs(jobsData)
+                            setLoading(false)
+                          }
+                          loadJobs()
+                        }}
+                      >
+                        <RotateCw className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Atualizar</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </div>
+
+            {/* Jobs Table */}
+            <div className="w-full">
+              <div className="w-full">
                 <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
                   <TableHeader>
-                    <TableRow className="border-b border-border">
-                      <TableHead className="bg-primary text-primary-foreground font-bold uppercase w-16 text-center">P</TableHead>
-                      <SortHeader column="numero_fo" label="FO" />
-                      <SortHeader column="numero_orc" label="ORC" />
-                      <SortHeader column="nome_campanha" label="CAMPAIGN" />
-                      <TableHead className="bg-primary text-primary-foreground font-bold uppercase min-w-[200px]">DESIGNER</TableHead>
-                      <SortHeader column="created_at" label="CREATED" />
-                      <TableHead className="bg-primary text-primary-foreground font-bold uppercase w-24 text-center">ACTIONS</TableHead>
+                    <TableRow>
+                      <TableHead className="sticky top-0 z-10 w-16 border-b text-center">P</TableHead>
+                      <TableHead className="sticky top-0 z-10 w-[120px] cursor-pointer border-b select-none" onClick={() => handleSort('numero_fo')}>
+                        FO
+                        {sortColumn === 'numero_fo' && (
+                          sortDirection === 'asc' ? <ArrowUp className="ml-1 inline h-3 w-3" /> : <ArrowDown className="ml-1 inline h-3 w-3" />
+                        )}
+                      </TableHead>
+                      <TableHead className="sticky top-0 z-10 w-[120px] cursor-pointer border-b select-none" onClick={() => handleSort('numero_orc')}>
+                        ORC
+                        {sortColumn === 'numero_orc' && (
+                          sortDirection === 'asc' ? <ArrowUp className="ml-1 inline h-3 w-3" /> : <ArrowDown className="ml-1 inline h-3 w-3" />
+                        )}
+                      </TableHead>
+                      <TableHead className="sticky top-0 z-10 cursor-pointer border-b select-none" onClick={() => handleSort('nome_campanha')}>
+                        Campanha
+                        {sortColumn === 'nome_campanha' && (
+                          sortDirection === 'asc' ? <ArrowUp className="ml-1 inline h-3 w-3" /> : <ArrowDown className="ml-1 inline h-3 w-3" />
+                        )}
+                      </TableHead>
+                      <TableHead className="sticky top-0 z-10 min-w-[200px] border-b">Designer</TableHead>
+                      <TableHead className="sticky top-0 z-10 w-[120px] cursor-pointer border-b select-none" onClick={() => handleSort('created_at')}>
+                        Criado
+                        {sortColumn === 'created_at' && (
+                          sortDirection === 'asc' ? <ArrowUp className="ml-1 inline h-3 w-3" /> : <ArrowDown className="ml-1 inline h-3 w-3" />
+                        )}
+                      </TableHead>
+                      <TableHead className="sticky top-0 z-10 w-[90px] border-b text-center">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -879,21 +857,21 @@ export default function DesignerFlow() {
                         <TableCell colSpan={7} className="text-center py-8">
                           <div className="flex items-center justify-center gap-2">
                             <Loader2 className="animate-spin" size={16} />
-                            Loading...
+                            A carregar...
                           </div>
                         </TableCell>
                       </TableRow>
                     ) : paginatedJobs.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                          No jobs found
+                        <TableCell colSpan={7} className="text-center text-gray-500">
+                          Nenhum trabalho encontrado.
                         </TableCell>
                       </TableRow>
                     ) : (
                       paginatedJobs.map((job) => (
                         <TableRow
                           key={job.id}
-                          className={selectedJob?.id === job.id ? 'bg-primary/10' : 'hover:bg-accent hover:text-accent-foreground dark:hover:text-accent-foreground'}
+                          className={selectedJob?.id === job.id ? 'bg-accent' : 'hover:bg-accent'}
                         >
                           <TableCell className="text-center">
                             <PriorityIndicator currentPriority={getPriorityColor(job)} />
@@ -908,55 +886,52 @@ export default function DesignerFlow() {
                             />
                           </TableCell>
                           <TableCell>{formatDate(job.created_at)}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center justify-center">
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <ViewButton onClick={() => setSelectedJob(job)} />
-                                  </TooltipTrigger>
-                                  <TooltipContent>View Items</TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </div>
+                          <TableCell className="text-center">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <ViewButton onClick={() => setSelectedJob(job)} />
+                                </TooltipTrigger>
+                                <TooltipContent>Ver Itens</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           </TableCell>
                         </TableRow>
                       ))
                     )}
                   </TableBody>
                 </Table>
-
-                {/* Pagination Controls */}
-                {totalPages > 1 && (
-                  <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-                    <div className="text-sm text-muted-foreground">
-                      Página {currentPage} de {totalPages} ({sortedJobs.length} items)
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                        disabled={currentPage === 1}
-                        className="border border-black"
-                      >
-                        <ArrowLeft className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                        disabled={currentPage === totalPages}
-                        className="border border-black"
-                      >
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </div>
-            </TabsContent>
-          ))}
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between border-t border-border pt-4">
+                <div className="text-sm text-muted-foreground">
+                  Página {currentPage} de {totalPages} ({sortedJobs.length} trabalhos)
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </TabsContent>
+        ))}
         </Tabs>
 
         {/* Items Drawer */}

@@ -80,6 +80,13 @@ const menuItems: MenuItem[] = [
       { title: 'Análises', href: '/gestao/analytics', icon: <LayoutDashboard className="h-4 w-4" /> },
     ],
   },
+  {
+    title: 'Definições',
+    icon: <Settings className="h-5 w-5" />,
+    submenu: [
+      { title: 'Gestão de Utilizadores', href: '/definicoes/utilizadores', icon: <Users className="h-4 w-4" /> },
+    ],
+  },
 ]
 
 export function Navigation() {

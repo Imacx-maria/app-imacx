@@ -169,6 +169,7 @@ export default function AnalyticsPage() {
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [departmentData, setDepartmentData] = useState<DepartmentMetrics[]>([])
+  const [totalsData, setTotalsData] = useState<DepartmentMetrics | null>(null)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [activeTab, setActiveTab] = useState<'cards' | 'charts'>('cards')
   const [isSyncing, setIsSyncing] = useState(false)
@@ -183,8 +184,10 @@ export default function AnalyticsPage() {
     setError(null)
     
     try {
-      // Fetch data from PHC schema tables
-      const currentMonth = new Date().getMonth() + 1
+      // Calculate YTD date range for comparison
+      const today = new Date()
+      const currentDayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24))
+      const previousYearSameDay = new Date(previousYear, 0, currentDayOfYear)
 
       // Helper to normalize document types
       const normalizeDocType = (value: string | null | undefined): string => {
@@ -194,136 +197,111 @@ export default function AnalyticsPage() {
           .replace(/[\u0300-\u036f]/g, '')
           .trim()
         if (normalized.includes('nota') && normalized.includes('credito')) return 'nota_de_credito'
-        if (normalized.includes('guia') && normalized.includes('transporte')) return 'guia_de_transporte'
         if (normalized.includes('factura') || normalized.includes('fatura')) return 'factura'
         if (normalized.includes('orcamento')) return 'orcamento'
         return normalized
       }
 
-      // Fetch historical invoice data (previous year) - using salesperson table as per data flow
-      const { data: ftHistoricalData, error: ftHistError } = await supabase
-        .schema('phc')
-        .from('ft_historical_monthly_salesperson')
-        .select('year, month, document_type, total_value, document_count')
-        .eq('year', previousYear)
-        .lte('month', currentMonth)
-        .order('year', { ascending: true })
-        .order('month', { ascending: true })
+      // Helper to check if invoice is cancelled
+      const isNotCancelled = (anulado: any): boolean => {
+        return !anulado || anulado === '' || anulado === '0'
+      }
 
-      // Fetch current year invoices - using view as per data flow
+      console.log('💳 Overview Cards Data Fetch - Direct from phc.ft and phc.bo')
+      console.log('  Current Year:', currentYear, '| Previous Year:', previousYear)
+      console.log('  YTD Comparison Date:', previousYearSameDay.toISOString().split('T')[0])
+
+      // Fetch current year invoices (2025 YTD)
       const { data: currentYearInvoices, error: ftCurrentError } = await supabase
         .schema('phc')
-        .from('v_ft_current_year_monthly_salesperson_norm')
-        .select('year, month, document_type, total_value, document_count')
-        .order('month', { ascending: true })
+        .from('ft')
+        .select('document_type, net_value, anulado, invoice_date, customer_id')
+        .gte('invoice_date', `${currentYear}-01-01`)
+        .lte('invoice_date', today.toISOString())
 
-      // Fetch historical quotes data (previous year) - using salesperson table as per data flow
-      const { data: boHistoricalData, error: boHistError } = await supabase
+      // Fetch previous year invoices (2024 same period)
+      const { data: previousYearInvoices, error: ftPrevError } = await supabase
         .schema('phc')
-        .from('bo_historical_monthly_salesperson')
-        .select('year, month, document_type, total_value, document_count')
-        .eq('year', previousYear)
-        .lte('month', currentMonth)
-        .order('year', { ascending: true })
-        .order('month', { ascending: true })
+        .from('ft')
+        .select('document_type, net_value, anulado, invoice_date, customer_id')
+        .gte('invoice_date', `${previousYear}-01-01`)
+        .lte('invoice_date', previousYearSameDay.toISOString())
 
-      // Fetch current year quotes - using view as per data flow
+      // Fetch current year quotes (2025 YTD)
       const { data: currentYearQuotes, error: boCurrentError } = await supabase
         .schema('phc')
-        .from('v_bo_current_year_monthly_salesperson_norm')
-        .select('year, month, document_type, total_value, document_count')
-        .order('month', { ascending: true })
+        .from('bo')
+        .select('document_type, total_value, document_date, customer_id')
+        .gte('document_date', `${currentYear}-01-01`)
+        .lte('document_date', today.toISOString())
 
-      if (ftHistError) throw ftHistError
+      // Fetch previous year quotes (2024 same period)
+      const { data: previousYearQuotes, error: boPrevError } = await supabase
+        .schema('phc')
+        .from('bo')
+        .select('document_type, total_value, document_date, customer_id')
+        .gte('document_date', `${previousYear}-01-01`)
+        .lte('document_date', previousYearSameDay.toISOString())
+
       if (ftCurrentError) throw ftCurrentError
-      if (boHistError) throw boHistError
+      if (ftPrevError) throw ftPrevError
       if (boCurrentError) throw boCurrentError
+      if (boPrevError) throw boPrevError
       
-      // Debug logging for overview cards data
-      console.log('💳 Overview Cards Data Fetch:')
-      console.log('  ftHistoricalData (2024):', ftHistoricalData?.length || 0, 'rows')
-      console.log('  currentYearInvoices (2025):', currentYearInvoices?.length || 0, 'rows')
-      console.log('  boHistoricalData (2024):', boHistoricalData?.length || 0, 'rows')
-      console.log('  currentYearQuotes (2025):', currentYearQuotes?.length || 0, 'rows')
-      
-      if (ftHistoricalData && ftHistoricalData.length > 0) {
-        console.log('  Sample ftHistoricalData:', ftHistoricalData[0])
-      }
-      if (currentYearInvoices && currentYearInvoices.length > 0) {
-        console.log('  Sample currentYearInvoices:', currentYearInvoices[0])
-      }
+      console.log('  Current Year Invoices:', currentYearInvoices?.length || 0, 'rows')
+      console.log('  Previous Year Invoices:', previousYearInvoices?.length || 0, 'rows')
+      console.log('  Current Year Quotes:', currentYearQuotes?.length || 0, 'rows')
+      console.log('  Previous Year Quotes:', previousYearQuotes?.length || 0, 'rows')
 
       // Calculate metrics for a specific year
-      const calculateYearMetrics = (year: number) => {
+      const calculateMetrics = (invoices: any[], quotes: any[]) => {
         let faturasValue = 0
         let faturasCount = 0
         let notasValue = 0
         let notasCount = 0
         let orcamentosValue = 0
         let orcamentosCount = 0
+        const customersWithQuotes = new Set<string>()
+        const customersWithInvoices = new Set<string>()
 
-        if (year < currentYear) {
-          // Use historical monthly data for previous years
-          if (ftHistoricalData) {
-            ftHistoricalData.forEach((row: any) => {
-              const rowYear = Number(row.year)
-              if (rowYear !== year) return
+        // Process invoices
+        invoices?.forEach((row: any) => {
               const docType = normalizeDocType(row.document_type)
-              
-              if (docType === 'factura') {
-                faturasValue += Number(row.total_value || 0)
-                faturasCount += Number(row.document_count || 0)
+          const value = Number(row.net_value || 0)
+          
+          if (docType === 'factura' && isNotCancelled(row.anulado)) {
+            faturasValue += value
+            faturasCount += 1
+            if (row.customer_id) customersWithInvoices.add(row.customer_id)
               } else if (docType === 'nota_de_credito') {
-                notasValue += Math.abs(Number(row.total_value || 0))
-                notasCount += Number(row.document_count || 0)
-              }
-            })
+            notasValue += Math.abs(value) // Notas are typically negative
+            notasCount += 1
           }
+        })
 
-          if (boHistoricalData) {
-            boHistoricalData.forEach((row: any) => {
-              const rowYear = Number(row.year)
-              if (rowYear !== year) return
+        // Process quotes
+        quotes?.forEach((row: any) => {
               const docType = normalizeDocType(row.document_type)
+          const value = Number(row.total_value || 0)
               
               if (docType === 'orcamento') {
-                orcamentosValue += Number(row.total_value || 0)
-                orcamentosCount += Number(row.document_count || 0)
-              }
-            })
+            orcamentosValue += value
+            orcamentosCount += 1
+            if (row.customer_id) customersWithQuotes.add(row.customer_id)
           }
-        } else {
-          // Use current year data from views (aggregated monthly)
-          if (currentYearInvoices) {
-            currentYearInvoices.forEach((row: any) => {
-              const docType = normalizeDocType(row.document_type)
-              
-              if (docType === 'factura') {
-                faturasValue += Number(row.total_value || 0)
-                faturasCount += Number(row.document_count || 0)
-              } else if (docType === 'nota_de_credito') {
-                notasValue += Math.abs(Number(row.total_value || 0))
-                notasCount += Number(row.document_count || 0)
-              }
-            })
-          }
-
-          if (currentYearQuotes) {
-            currentYearQuotes.forEach((row: any) => {
-              const docType = normalizeDocType(row.document_type)
-              
-              if (docType === 'orcamento') {
-                orcamentosValue += Number(row.total_value || 0)
-                orcamentosCount += Number(row.document_count || 0)
-              }
-            })
-          }
-        }
+        })
 
         const netRevenue = faturasValue - notasValue
         const avgFactura = faturasCount > 0 ? faturasValue / faturasCount : 0
-        const conversion = orcamentosCount > 0 ? (faturasCount / orcamentosCount) * 100 : 0
+        
+        // Conversion: customers who got invoices after having quotes / total customers with quotes
+        const conversion = customersWithQuotes.size > 0 
+          ? (Array.from(customersWithInvoices).filter(c => customersWithQuotes.has(c)).length / customersWithQuotes.size) * 100
+          : 0
+        
         const avgOrcamento = orcamentosCount > 0 ? orcamentosValue / orcamentosCount : 0
+        const currentMonth = new Date().getMonth() + 1
+        const orcamentosPorMes = currentMonth > 0 ? orcamentosCount / currentMonth : orcamentosCount
 
         return {
           faturasValue,
@@ -336,11 +314,12 @@ export default function AnalyticsPage() {
           orcamentosCount,
           conversion,
           avgOrcamento,
+          orcamentosPorMes,
         }
       }
 
-      const metricsCurrentYear = calculateYearMetrics(currentYear)
-      const metricsPreviousYear = calculateYearMetrics(previousYear)
+      const metricsCurrentYear = calculateMetrics(currentYearInvoices || [], currentYearQuotes || [])
+      const metricsPreviousYear = calculateMetrics(previousYearInvoices || [], previousYearQuotes || [])
       
       // Debug: Log calculated metrics
       console.log('📊 Calculated Metrics:')
@@ -432,8 +411,9 @@ export default function AnalyticsPage() {
         },
         {
           title: `Orçamentos/Mês ${currentYear}`,
-          currentValue: metricsCurrentYear.orcamentosCount / currentMonth,
-          previousValue: metricsPreviousYear.orcamentosCount / currentMonth,
+          currentValue: metricsCurrentYear.orcamentosPorMes,
+          previousValue: metricsPreviousYear.orcamentosPorMes,
+          formatter: number,
           subtitle: `vs ${previousYear}`,
         },
         {
@@ -465,416 +445,87 @@ export default function AnalyticsPage() {
 
   const fetchDepartmentRankings = async () => {
     try {
-      const currentMonth = new Date().getMonth() + 1 // Current system month (1-12)
+      console.log('📊 Fetching Department Rankings via SQL query...')
       
-      // Helper function to normalize document types for consistent matching
-      const normalizeDocumentType = (docType: string | null | undefined): string => {
-        if (!docType) return ''
-        const normalized = docType
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '') // strip accents
-          .trim()
-        // Map common PHC labels
-        if (normalized.includes('factur') || normalized.includes('fatur')) return 'factura'
-        if (normalized.includes('nota') && normalized.includes('credito')) return 'nota_de_credito'
-        if (normalized.includes('orcamento')) return 'orcamento'
-        return normalized
+      // Execute the comprehensive SQL query via RPC
+      const { data: deptRankings, error } = await supabase.rpc('get_department_rankings_ytd')
+      
+      if (error) {
+        console.error('❌ Error fetching department rankings:', error)
+        throw error
       }
       
-      const normalizeDepartmentName = (name: string | null | undefined): string => {
-        if (!name) return 'UNKNOWN'
-        const norm = name
-          .toString()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .trim()
-          .toUpperCase()
-        // Merge common aliases by contains rules
-        if (norm.includes('IMACX')) return 'IMACX'
-        if (norm.includes('DIGITA')) return 'DIGITAL'
-        if (norm.includes('BRINDE')) return 'BRINDES'
-        if (norm.includes('PRODUC')) return 'PRODUCAO'
-        if (norm.includes('ADMIN')) return 'ADMIN'
-        return norm
+      if (!deptRankings || deptRankings.length === 0) {
+        console.warn('⚠️ No department ranking data returned')
+        setDepartmentData([])
+        return
       }
       
-      // Fetch from 4 tables - all have department field
-      const [
-        ftHistResult,      // Previous year: Factura + Nota de Crédito
-        boHistResult,      // Previous year: Orçamento
-        ftCurrentResult,   // Current year: Factura + Nota de Crédito
-        boCurrentResult,   // Current year: Orçamento
-      ] = await Promise.all([
-        // ft_historical_monthly_salesperson: previous year Jan-current month
-        supabase
-          .schema('phc')
-          .from('ft_historical_monthly_salesperson')
-          .select('*')
-          .eq('year', previousYear)
-          .lte('month', currentMonth),
-        
-        // bo_historical_monthly_salesperson: previous year Jan-current month
-        supabase
-          .schema('phc')
-          .from('bo_historical_monthly_salesperson')
-          .select('*')
-          .eq('year', previousYear)
-          .lte('month', currentMonth),
-        
-        // v_ft_current_year_monthly_salesperson_norm: current year all months
-        supabase
-          .schema('phc')
-          .from('v_ft_current_year_monthly_salesperson_norm')
-          .select('*'),
-        
-        // v_bo_current_year_monthly_salesperson_norm: current year all months
-        supabase
-          .schema('phc')
-          .from('v_bo_current_year_monthly_salesperson_norm')
-          .select('*'),
-      ])
-
-      const ftHist = ftHistResult.data || []
-      const boHist = boHistResult.data || []
-      const ftCurrent = ftCurrentResult.data || []
-      const boCurrent = boCurrentResult.data || []
+      console.log(`✅ Fetched ${deptRankings.length} department rows (including TOTAL)`)
       
-      // Debug logging
-      console.log('📊 Department Data Fetch Results:')
-      console.log('  ft_historical (2024):', ftHist.length, 'rows')
-      console.log('  bo_historical (2024):', boHist.length, 'rows')
-      console.log('  ft_current (2025):', ftCurrent.length, 'rows')
-      console.log('  bo_current (2025):', boCurrent.length, 'rows')
+      // Extract TOTAL row separately
+      const totalRow = deptRankings.find((row: any) => row.departamento === 'TOTAL')
       
-      if (ftHist.length > 0) {
-        console.log('  Sample ft_historical row:', ftHist[0])
-      }
-      if (boHist.length > 0) {
-        console.log('  Sample bo_historical row:', boHist[0])
-      }
-
-      if ((ftHistResult as any).error) {
-        console.error('ft_historical_monthly_salesperson select error:', (ftHistResult as any).error)
-      }
-      if ((boHistResult as any).error) {
-        console.error('bo_historical_monthly_salesperson select error:', (boHistResult as any).error)
-      }
-      if ((ftCurrentResult as any).error) {
-        console.error('v_ft_current_year_monthly_salesperson_norm select error:', (ftCurrentResult as any).error)
-      }
-      if ((boCurrentResult as any).error) {
-        console.error('v_bo_current_year_monthly_salesperson_norm select error:', (boCurrentResult as any).error)
-      }
-
-      const uniq = (a: any[]) => Array.from(new Set(a.filter(Boolean)))
-      console.log('  ftHist years:', uniq(ftHist.map((r: any) => r.year)), 'months:', uniq(ftHist.map((r: any) => r.month)))
-      console.log('  ftHist doc types:', uniq(ftHist.map((r: any) => r.document_type)))
-      console.log('  boHist years:', uniq(boHist.map((r: any) => r.year)), 'months:', uniq(boHist.map((r: any) => r.month)))
-      console.log('  boHist doc types:', uniq(boHist.map((r: any) => r.document_type)))
-      console.log('  ftHist departments:', uniq(ftHist.map((r: any) => r.department)))
-      console.log('  boHist departments:', uniq(boHist.map((r: any) => r.department)))
-      console.log('  mapped departments (sample):', uniq(
-        [...ftHist, ...boHist, ...ftCurrent, ...boCurrent]
-          .map((r: any) => normalizeDepartmentName(r.department))
-      ))
-      if (ftHist.length) console.log('  ftHist[0] keys:', Object.keys(ftHist[0] || {}))
-      if (boHist.length) console.log('  boHist[0] keys:', Object.keys(boHist[0] || {}))
-      if (ftCurrent.length) console.log('  ftCurrent[0] keys:', Object.keys(ftCurrent[0] || {}))
-      if (boCurrent.length) console.log('  boCurrent[0] keys:', Object.keys(boCurrent[0] || {}))
-
-      // Quick totals to verify LY aggregation is non-zero
-      const lyFtFactura = ftHist
-        .filter((r: any) => normalizeDocumentType(r.document_type) === 'factura')
-        .reduce((s: number, r: any) => s + Number(r.total_value || 0), 0)
-      const lyFtNotas = ftHist
-        .filter((r: any) => normalizeDocumentType(r.document_type) === 'nota_de_credito')
-        .reduce((s: number, r: any) => s + Math.abs(Number(r.total_value || 0)), 0)
-      const lyBoOrc = boHist
-        .filter((r: any) => normalizeDocumentType(r.document_type) === 'orcamento')
-        .reduce((s: number, r: any) => s + Number(r.total_value || 0), 0)
-      console.log('  LY sanity totals — Facturas:', lyFtFactura, 'Notas:', lyFtNotas, 'Orcamentos:', lyBoOrc)
-
-      // Per-department LY summary to cross-check mapping
-      const lyByDept = new Map<string, { faturas: number; notas: number; orcamentos: number }>()
-      const dep = (n: any) => normalizeDepartmentName(n)
-      const ensure = (d: string) => {
-        if (!lyByDept.has(d)) lyByDept.set(d, { faturas: 0, notas: 0, orcamentos: 0 })
-        return lyByDept.get(d)!
-      }
-      ftHist.forEach((r: any) => {
-        const d = ensure(dep(r.department))
-        const dt = normalizeDocumentType(r.document_type)
-        if (dt === 'factura') d.faturas += Number(r.total_value || 0)
-        if (dt === 'nota_de_credito') d.notas += Math.abs(Number(r.total_value || 0))
-      })
-      boHist.forEach((r: any) => {
-        const d = ensure(dep(r.department))
-        const dt = normalizeDocumentType(r.document_type)
-        if (dt === 'orcamento') d.orcamentos += Number(r.total_value || 0)
-      })
-      const lyDeptDump: Record<string, any> = {}
-      Array.from(lyByDept.entries()).forEach(([k, v]) => {
-        lyDeptDump[k] = v
-      })
-      console.log('  LY totals by department:', lyDeptDump)
-
-      // Build salesperson -> department map from datasets that include both fields (if present)
-      const salespersonToDept = new Map<string, string>()
-      const pickDept = (row: any): string | undefined => {
-        const candidates = [
-          row?.department,
-          row?.department_name,
-          row?.department_desc,
-          row?.department_code,
-          row?.departamento,
-          row?.dept,
-          row?.dept_name,
-          row?.seller_department,
-          row?.salesperson_department,
-        ]
-        const val = candidates.find((v) => v && String(v).trim().length)
-        return val ? normalizeDepartmentName(val) : undefined
-      }
-      const pickSalesperson = (row: any): string | undefined => {
-        const candidates = [
-          row?.salesperson,
-          row?.sales_person,
-          row?.salesperson_name,
-          row?.salesperson_code,
-          row?.vendedor,
-          row?.seller,
-          row?.seller_name,
-          row?.seller_code,
-        ]
-        const val = candidates.find((v) => v && String(v).trim().length)
-        return val ? String(val).trim() : undefined
-      }
-      const mapCurrentRows = [...ftCurrent, ...boCurrent]
-      const mapHistoricalRows = [...ftHist, ...boHist]
-      mapCurrentRows.forEach((row: any) => {
-        const sp = pickSalesperson(row)
-        const d = pickDept(row)
-        if (sp && d && !salespersonToDept.has(sp)) {
-          salespersonToDept.set(sp, d)
+      // Transform SQL results to DepartmentMetrics format
+      const departments: DepartmentMetrics[] = deptRankings
+        .filter((row: any) => row.departamento !== 'TOTAL' && row.departamento !== 'ADMIN' && row.departamento !== 'PRODUCAO')
+        .map((row: any) => ({
+          department: row.departamento,
+          faturacaoYTD: Number(row.faturacao || 0),
+          faturacaoLY: Number(row.faturacao_anterior || 0),
+          notasYTD: Number(row.notas_credito || 0),
+          notasLY: Number(row.notas_credito_anterior || 0),
+          receitaLiquidaYTD: Number(row.faturacao || 0) - Number(row.notas_credito || 0),
+          receitaLiquidaLY: Number(row.faturacao_anterior || 0) - Number(row.notas_credito_anterior || 0),
+          nrFaturasYTD: Number(row.num_faturas || 0),
+          nrFaturasLY: Number(row.num_faturas_anterior || 0),
+          nrNotasYTD: Number(row.num_notas || 0),
+          nrNotasLY: Number(row.num_notas_anterior || 0),
+          ticketMedioYTD: Number(row.ticket_medio || 0),
+          ticketMedioLY: Number(row.ticket_medio_anterior || 0),
+          orcamentosValorYTD: Number(row.orcamentos_valor || 0),
+          orcamentosValorLY: Number(row.orcamentos_valor_anterior || 0),
+          orcamentosQtdYTD: Number(row.orcamentos_qtd || 0),
+          orcamentosQtdLY: Number(row.orcamentos_qtd_anterior || 0),
+          taxaConversaoYTD: Number(row.taxa_conversao || 0),
+          taxaConversaoLY: Number(row.taxa_conversao_anterior || 0),
+        }))
+      
+      // Transform TOTAL row if it exists
+      if (totalRow) {
+        const totals: DepartmentMetrics = {
+          department: 'TOTAL',
+          faturacaoYTD: Number(totalRow.faturacao || 0),
+          faturacaoLY: Number(totalRow.faturacao_anterior || 0),
+          notasYTD: Number(totalRow.notas_credito || 0),
+          notasLY: Number(totalRow.notas_credito_anterior || 0),
+          receitaLiquidaYTD: Number(totalRow.faturacao || 0) - Number(totalRow.notas_credito || 0),
+          receitaLiquidaLY: Number(totalRow.faturacao_anterior || 0) - Number(totalRow.notas_credito_anterior || 0),
+          nrFaturasYTD: Number(totalRow.num_faturas || 0),
+          nrFaturasLY: Number(totalRow.num_faturas_anterior || 0),
+          nrNotasYTD: Number(totalRow.num_notas || 0),
+          nrNotasLY: Number(totalRow.num_notas_anterior || 0),
+          ticketMedioYTD: Number(totalRow.ticket_medio || 0),
+          ticketMedioLY: Number(totalRow.ticket_medio_anterior || 0),
+          orcamentosValorYTD: Number(totalRow.orcamentos_valor || 0),
+          orcamentosValorLY: Number(totalRow.orcamentos_valor_anterior || 0),
+          orcamentosQtdYTD: Number(totalRow.orcamentos_qtd || 0),
+          orcamentosQtdLY: Number(totalRow.orcamentos_qtd_anterior || 0),
+          taxaConversaoYTD: Number(totalRow.taxa_conversao || 0),
+          taxaConversaoLY: Number(totalRow.taxa_conversao_anterior || 0),
         }
-      })
-      // Only fill missing from historical as a fallback
-      mapHistoricalRows.forEach((row: any) => {
-        const sp = pickSalesperson(row)
-        const d = pickDept(row)
-        if (sp && d && !salespersonToDept.has(sp)) {
-          salespersonToDept.set(sp, d)
-        }
-      })
-      console.log('  salesperson->dept pairs (sample up to 10):', Array.from(salespersonToDept.entries()).slice(0, 10))
-
-      // Unified extractor used in processing loops
-      const KNOWN_DEPTS = new Set(['IMACX', 'DIGITAL', 'BRINDES', 'ADMIN', 'PRODUCAO'])
-      const SALES_TO_DEPT_OVERRIDES: Record<string, string> = {
-        IMACX: 'IMACX',
-        DIGITAL: 'DIGITAL',
+        setTotalsData(totals)
       }
-      const extractDepartment = (row: any, preferSalesperson = false): string => {
-        const sp = pickSalesperson(row)
-        const mappedFromSp = sp && salespersonToDept.has(sp) ? salespersonToDept.get(sp)! : undefined
-        const rawDept = pickDept(row)
-        const normDept = rawDept ? normalizeDepartmentName(rawDept) : undefined
-        const spNorm = sp ? normalizeDepartmentName(sp) : undefined
-        // Hard overrides by salesperson label
-        if (preferSalesperson && spNorm && SALES_TO_DEPT_OVERRIDES[spNorm]) {
-          return SALES_TO_DEPT_OVERRIDES[spNorm]
-        }
-
-        // For historical rows, prefer salesperson mapping when available
-        if (preferSalesperson && mappedFromSp) return mappedFromSp
-
-        // If current value is missing or not recognized, fall back to salesperson map
-        if ((!normDept || !KNOWN_DEPTS.has(normDept)) && mappedFromSp) return mappedFromSp
-
-        // Final fallback: default to IMACX as requested
-        return normDept || 'IMACX'
-      }
-
-      // Aggregate by department
-      const deptMap = new Map<string, DepartmentMetrics>()
-
-      const getDept = (name: string): DepartmentMetrics => {
-        if (!deptMap.has(name)) {
-          deptMap.set(name, {
-            department: name,
-            faturacaoYTD: 0,
-            faturacaoLY: 0,
-            notasYTD: 0,
-            notasLY: 0,
-            receitaLiquidaYTD: 0,
-            receitaLiquidaLY: 0,
-            nrFaturasYTD: 0,
-            nrFaturasLY: 0,
-            nrNotasYTD: 0,
-            nrNotasLY: 0,
-            ticketMedioYTD: 0,
-            ticketMedioLY: 0,
-            orcamentosValorYTD: 0,
-            orcamentosValorLY: 0,
-            orcamentosQtdYTD: 0,
-            orcamentosQtdLY: 0,
-            taxaConversaoYTD: 0,
-            taxaConversaoLY: 0,
-          })
-        }
-        return deptMap.get(name)!
-      }
-
-      // Process ft_historical_monthly_salesperson (Previous Year: Factura + Nota de Crédito)
-      let assignCounts = { histDept: 0, histSP: 0, currDept: 0, currSP: 0 }
-
-      let imacxHistRows = 0
-      let imacxHistFactura = 0
-      let imacxHistNotas = 0
-      ftHist.forEach((row: any) => {
-        const sp = pickSalesperson(row)
-        const spNorm = sp ? normalizeDepartmentName(sp) : ''
-        let extracted = extractDepartment(row, true)
-        // Force-map historical IMACX salesperson to IMACX department
-        if (spNorm === 'IMACX') {
-          extracted = 'IMACX'
-          imacxHistRows++
-        }
-        if (pickDept(row)) assignCounts.histDept++
-        else if (pickSalesperson(row)) assignCounts.histSP++
-        const dept = getDept(extracted)
-        const value = Number(row.total_value || 0)
-        const count = Number(row.document_count || 0)
-        const docType = normalizeDocumentType(row.document_type)
-
-        if (docType === 'factura') {
-          dept.faturacaoLY += value
-          dept.nrFaturasLY += count
-          if (spNorm === 'IMACX') imacxHistFactura += value
-        } else if (docType === 'nota_de_credito') {
-          dept.notasLY += Math.abs(value)
-          dept.nrNotasLY += count
-          if (spNorm === 'IMACX') imacxHistNotas += Math.abs(value)
-        }
-      })
-
-      // Process bo_historical_monthly_salesperson (Previous Year: Orçamento)
-      boHist.forEach((row: any) => {
-        const sp = pickSalesperson(row)
-        const spNorm = sp ? normalizeDepartmentName(sp) : ''
-        let extracted = extractDepartment(row, true)
-        if (spNorm === 'IMACX') extracted = 'IMACX'
-        if (pickDept(row)) assignCounts.histDept++
-        else if (pickSalesperson(row)) assignCounts.histSP++
-        const dept = getDept(extracted)
-        const value = Number(row.total_value || 0)
-        const count = Number(row.document_count || 0)
-        const docType = normalizeDocumentType(row.document_type)
-
-        if (docType === 'orcamento') {
-          dept.orcamentosValorLY += value
-          dept.orcamentosQtdLY += count
-        }
-      })
-
-      // Process v_ft_current_year_monthly_salesperson_norm (Current Year: Factura + Nota de Crédito)
-      ftCurrent.forEach((row: any) => {
-        const extracted = extractDepartment(row, false)
-        if (pickDept(row)) assignCounts.currDept++
-        else if (pickSalesperson(row)) assignCounts.currSP++
-        const dept = getDept(extracted)
-        const value = Number(row.total_value || 0)
-        const count = Number(row.document_count || 0)
-        const docType = normalizeDocumentType(row.document_type)
-
-        if (docType === 'factura') {
-          dept.faturacaoYTD += value
-          dept.nrFaturasYTD += count
-        } else if (docType === 'nota_de_credito') {
-          dept.notasYTD += Math.abs(value)
-          dept.nrNotasYTD += count
-        }
-      })
-
-      // Process v_bo_current_year_monthly_salesperson_norm (Current Year: Orçamento)
-      boCurrent.forEach((row: any) => {
-        const extracted = extractDepartment(row, false)
-        if (pickDept(row)) assignCounts.currDept++
-        else if (pickSalesperson(row)) assignCounts.currSP++
-        const dept = getDept(extracted)
-        const value = Number(row.total_value || 0)
-        const count = Number(row.document_count || 0)
-        const docType = normalizeDocumentType(row.document_type)
-
-        if (docType === 'orcamento') {
-          dept.orcamentosValorYTD += value
-          dept.orcamentosQtdYTD += count
-        }
-      })
-
-      console.log('  IMACX historical reassignment — rows:', imacxHistRows, 'facturas€:', imacxHistFactura, 'notas€:', imacxHistNotas)
-
-      // If some rows don't carry department but should count for IMACX, merge UNKNOWN -> IMACX
-      if (deptMap.has('UNKNOWN')) {
-        const unknown = deptMap.get('UNKNOWN')!
-        const target = getDept('IMACX')
-        target.faturacaoYTD += unknown.faturacaoYTD
-        target.faturacaoLY += unknown.faturacaoLY
-        target.notasYTD += unknown.notasYTD
-        target.notasLY += unknown.notasLY
-        target.nrFaturasYTD += unknown.nrFaturasYTD
-        target.nrFaturasLY += unknown.nrFaturasLY
-        target.nrNotasYTD += unknown.nrNotasYTD
-        target.nrNotasLY += unknown.nrNotasLY
-        target.ticketMedioYTD += 0 // derived later
-        target.ticketMedioLY += 0  // derived later
-        target.orcamentosValorYTD += unknown.orcamentosValorYTD
-        target.orcamentosValorLY += unknown.orcamentosValorLY
-        target.orcamentosQtdYTD += unknown.orcamentosQtdYTD
-        target.orcamentosQtdLY += unknown.orcamentosQtdLY
-        // Conversion derived later
-        deptMap.delete('UNKNOWN')
-        console.log('  Merged UNKNOWN department metrics into IMACX')
-      }
-      console.log('  Department assignment counts:', assignCounts)
-
-      // Calculate derived metrics
-      deptMap.forEach((dept) => {
-        // Net revenue (receita líquida)
-        dept.receitaLiquidaYTD = dept.faturacaoYTD - dept.notasYTD
-        dept.receitaLiquidaLY = dept.faturacaoLY - dept.notasLY
-
-        // Average ticket (ticket médio)
-        dept.ticketMedioYTD =
-          dept.nrFaturasYTD > 0 ? dept.faturacaoYTD / dept.nrFaturasYTD : 0
-        dept.ticketMedioLY =
-          dept.nrFaturasLY > 0 ? dept.faturacaoLY / dept.nrFaturasLY : 0
-
-        // Conversion rate (taxa de conversão)
-        dept.taxaConversaoYTD =
-          dept.orcamentosQtdYTD > 0
-            ? (dept.nrFaturasYTD / dept.orcamentosQtdYTD) * 100
-            : 0
-        dept.taxaConversaoLY =
-          dept.orcamentosQtdLY > 0
-            ? (dept.nrFaturasLY / dept.orcamentosQtdLY) * 100
-            : 0
-      })
-
-      // Sort by net revenue and set data
-      const departments = Array.from(deptMap.values())
-        .filter(d => d.department !== 'ADMIN' && d.department !== 'PRODUCAO')
-        .sort((a, b) => b.receitaLiquidaYTD - a.receitaLiquidaYTD)
       
       // Debug: Log aggregated department data
-      console.log('📈 Aggregated Department Metrics:')
+      console.log('📈 Department Metrics from SQL:')
       departments.forEach(dept => {
         console.log(`  ${dept.department}:`, {
           faturacaoLY: dept.faturacaoLY,
           faturacaoYTD: dept.faturacaoYTD,
           notasLY: dept.notasLY,
-          notasYTD: dept.notasYTD
+          notasYTD: dept.notasYTD,
+          receitaLiquidaYTD: dept.receitaLiquidaYTD
         })
       })
 
@@ -945,23 +596,34 @@ export default function AnalyticsPage() {
                   onClick={async () => {
                     setIsSyncing(true)
                     try {
+                      console.log('🔄 Starting ETL sync (today_all)...')
                       const resp = await fetch('/api/etl/incremental', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ type: 'today_all' }),
                       })
+                      
+                      console.log('📡 ETL API Response Status:', resp.status)
+                      
                       if (!resp.ok) {
                         const body = await resp.json().catch(() => ({}) as any)
-                        console.error('ETL today sync failed', body)
-                        alert('Falhou a sincronização (ETL). Verifique logs do servidor.')
+                        console.error('❌ ETL today sync failed:', {
+                          status: resp.status,
+                          statusText: resp.statusText,
+                          body: body
+                        })
+                        alert(`Falhou a sincronização (ETL).\nStatus: ${resp.status}\nDetalhes: ${JSON.stringify(body, null, 2)}`)
                         return
                       }
+                      
+                      const result = await resp.json()
+                      console.log('✅ ETL sync completed:', result)
+                      
                       // Refresh data after successful sync
                       await fetchAnalyticsData()
-                      await fetchDepartmentRankings()
                     } catch (e) {
-                      console.error('Erro ao executar sincronização:', e)
-                      alert('Erro ao executar sincronização.')
+                      console.error('❌ Erro ao executar sincronização:', e)
+                      alert(`Erro ao executar sincronização: ${e instanceof Error ? e.message : 'Unknown error'}`)
                     } finally {
                       setIsSyncing(false)
                     }
@@ -969,7 +631,7 @@ export default function AnalyticsPage() {
                   variant="outline"
                   size="icon"
                   className="border border-black"
-                  disabled={isSyncing}
+                  disabled={isSyncing || loading}
                 >
                   {isSyncing ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -978,23 +640,7 @@ export default function AnalyticsPage() {
                   )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Sincronizar Dados (Hoje)</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  onClick={fetchAnalyticsData}
-                  variant="outline"
-                  size="icon"
-                  className="border border-black"
-                  disabled={loading}
-                >
-                  <RotateCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Atualizar Dados</TooltipContent>
+              <TooltipContent>Sincronizar e Atualizar Dados (Hoje)</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
@@ -1241,6 +887,88 @@ export default function AnalyticsPage() {
                             </TableRow>
                           )
                         })}
+                        
+                        {/* TOTAL ROW */}
+                        {totalsData && (
+                          <TableRow className="bg-muted/50 font-bold border-t-2 border-border">
+                            <TableCell className="font-bold text-lg">TOTAL</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex flex-col items-end gap-0.5">
+                                <span className="font-bold">{currency(totalsData.faturacaoYTD)}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {currency(totalsData.faturacaoLY)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex flex-col items-end gap-0.5">
+                                <span className="font-bold">{currency(totalsData.notasYTD)}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {currency(totalsData.notasLY)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex flex-col items-end gap-0.5">
+                                <span className="font-bold text-lg">{currency(totalsData.receitaLiquidaYTD)}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {currency(totalsData.receitaLiquidaLY)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex flex-col items-end gap-0.5">
+                                <span className="font-bold">{totalsData.nrFaturasYTD.toFixed(0)}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {totalsData.nrFaturasLY.toFixed(0)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex flex-col items-end gap-0.5">
+                                <span className="font-bold">{totalsData.nrNotasYTD.toFixed(0)}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {totalsData.nrNotasLY.toFixed(0)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex flex-col items-end gap-0.5">
+                                <span className="font-bold">{currency(totalsData.ticketMedioYTD)}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {currency(totalsData.ticketMedioLY)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex flex-col items-end gap-0.5">
+                                <span className="font-bold">{currency(totalsData.orcamentosValorYTD)}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {currency(totalsData.orcamentosValorLY)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex flex-col items-end gap-0.5">
+                                <span className="font-bold">{totalsData.orcamentosQtdYTD.toFixed(0)}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {totalsData.orcamentosQtdLY.toFixed(0)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex flex-col items-end gap-0.5">
+                                <span className="font-bold">{percent(totalsData.taxaConversaoYTD)}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {percent(totalsData.taxaConversaoLY)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {/* No action button for totals */}
+                            </TableCell>
+                          </TableRow>
+                        )}
                       </TableBody>
                     </Table>
                   </div>

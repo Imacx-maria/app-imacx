@@ -323,6 +323,28 @@
   --overlay: 0.18 0 0 / 0.72;
   --radius: 0px;
   
+  /* Chart Colors - Material Types */
+  --chart-cartao: oklch(0.87 0.1 95);        /* Soft pastel yellow */
+  --chart-rigidos: oklch(0.47 0.08 230);     /* Muted teal blue */
+  --chart-flexiveis: oklch(0.65 0.1 140);    /* Earthy green */
+  --chart-neutral: oklch(0.77 0.02 75);      /* Warm beige */
+  --chart-critical: oklch(0.28 0.01 35);     /* Dark charcoal brown */
+  --chart-good: oklch(0.65 0.1 140);         /* Earthy green (same as flexiveis) */
+  
+  /* Chart Colors - Multi-purpose Palette */
+  --chart-1: oklch(0.47 0.08 230);           /* Muted teal blue */
+  --chart-2: oklch(0.65 0.1 140);            /* Earthy green */
+  --chart-3: oklch(0.87 0.1 95);             /* Soft pastel yellow */
+  --chart-4: oklch(0.77 0.02 75);            /* Warm beige */
+  --chart-5: oklch(0.28 0.01 35);            /* Dark charcoal brown */
+  --chart-6: oklch(0.62 0.1 235);            /* Sky blue */
+  --chart-7: oklch(0.58 0.15 35);            /* Burnt orange */
+  --chart-8: oklch(0.52 0.08 285);           /* Purple */
+  --chart-9: oklch(0.68 0.12 155);           /* Light green */
+  --chart-10: oklch(0.72 0.15 55);           /* Orange */
+  --chart-11: oklch(0.62 0.18 25);           /* Red-orange */
+  --chart-12: oklch(0.42 0.06 245);          /* Navy blue */
+  
   color-scheme: light;
 }
 
@@ -356,6 +378,28 @@
   --info: 0.66 0.09 235;
   --info-foreground: 0.28 0.02 235;
   --overlay: 0.2 0 0 / 0.7;
+  
+  /* Chart Colors - Material Types (same as light mode) */
+  --chart-cartao: oklch(0.87 0.1 95);
+  --chart-rigidos: oklch(0.47 0.08 230);
+  --chart-flexiveis: oklch(0.65 0.1 140);
+  --chart-neutral: oklch(0.77 0.02 75);
+  --chart-critical: oklch(0.28 0.01 35);
+  --chart-good: oklch(0.65 0.1 140);
+  
+  /* Chart Colors - Multi-purpose Palette (same as light mode) */
+  --chart-1: oklch(0.47 0.08 230);
+  --chart-2: oklch(0.65 0.1 140);
+  --chart-3: oklch(0.87 0.1 95);
+  --chart-4: oklch(0.77 0.02 75);
+  --chart-5: oklch(0.28 0.01 35);
+  --chart-6: oklch(0.62 0.1 235);
+  --chart-7: oklch(0.58 0.15 35);
+  --chart-8: oklch(0.52 0.08 285);
+  --chart-9: oklch(0.68 0.12 155);
+  --chart-10: oklch(0.72 0.15 55);
+  --chart-11: oklch(0.62 0.18 25);
+  --chart-12: oklch(0.42 0.06 245);
   
   color-scheme: dark;
 }

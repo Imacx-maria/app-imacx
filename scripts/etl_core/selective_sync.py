@@ -92,6 +92,14 @@ def get_last_7_days_filter_ft():
     return f"fdata >= '{seven_days_ago}'"
 
 
+def get_one_year_ago_filter_fi():
+    """Get filter for FI table - last 1 year from today (dynamic)"""
+    current_year_start = _current_year_start_date().isoformat()
+    # Join with FT table to filter by invoice date and exclude cancelled documents
+    # Only include lines with non-zero values (matching 2years_fi behavior)
+    return f"[ftstamp] IN (SELECT [ftstamp] FROM [ft] WHERE [fdata] >= '{current_year_start}' AND COALESCE(CONVERT(VARCHAR(10), anulado), '') IN ('', '0', 'N')) AND [etiliquido] IS NOT NULL AND [etiliquido] <> 0"
+
+
 def get_one_year_ago_filter_fo():
     current_year_start = _current_year_start_date().isoformat()
     return f"pdata >= '{current_year_start}'"
@@ -242,6 +250,33 @@ TABLE_CONFIGS = {
         'primary_key': 'document_id',
         'source_date_column': 'pdata',
         'retention_column': 'document_date',
+        'supports_incremental': True
+    },
+    
+    'fi': {
+        'columns': {
+            'fistamp': 'TEXT NOT NULL',       # PHC: fistamp - Primary key/line item stamp
+            'ftstamp': 'TEXT NOT NULL',       # PHC: ftstamp - Foreign key to ft.ftstamp
+            'fno': 'INTEGER',                 # PHC: fno - Document number
+            'ficcusto': 'TEXT',               # PHC: ficcusto - Cost center (Centro Analítico)
+            'fivendnm': 'TEXT',               # PHC: fivendnm - Salesperson name
+            'etiliquido': 'NUMERIC'           # PHC: etiliquido - Net liquid value
+        },
+        'column_mappings': {
+            'fistamp': 'line_item_id',        # Clearer: fistamp → line_item_id
+            'ftstamp': 'invoice_id',          # Clearer: ftstamp → invoice_id (FK)
+            'fno': 'document_number',         # Clearer: fno → document_number
+            'ficcusto': 'cost_center',        # Clearer: ficcusto → cost_center
+            'fivendnm': 'salesperson_name',   # Clearer: fivendnm → salesperson_name
+            'etiliquido': 'net_liquid_value'  # Clearer: etiliquido → net_liquid_value
+        },
+        'filter': get_one_year_ago_filter_fi,  # Last 1 year from today (dynamic), excludes cancelled and zero-value lines
+        'description': 'Invoice Line Items (Last 1 Year, Non-Zero)',
+        'primary_key': 'line_item_id',
+        'source_date_column': None,
+        'parent_source_table': 'ft',
+        'parent_source_key_column': 'ftstamp',
+        'parent_source_date_column': 'fdata',
         'supports_incremental': True
     }
 }
@@ -415,6 +450,22 @@ class SelectiveSync:
             )
             return query, None, len(column_names)
 
+        if table_name == 'fi' and supports_incremental and start_date_str:
+            parent_table = config.get('parent_source_table', 'ft')
+            parent_key = config.get('parent_source_key_column', 'ftstamp')
+            parent_date_column = config.get('parent_source_date_column', 'fdata')
+            # Prefix columns with 'child.' alias to avoid ambiguous column errors
+            child_select = ', '.join([f'child.[{col}]' for col in column_names])
+            query = (
+                f'SELECT {child_select}, parent.[{parent_date_column}] AS parent_date '
+                f'FROM [{table_name}] AS child '
+                f'JOIN [{parent_table}] AS parent ON parent.[{parent_key}] = child.[{parent_key}] '
+                f"WHERE parent.[{parent_date_column}] >= '{start_date_str}' "
+                f"AND COALESCE(CONVERT(VARCHAR(10), parent.[anulado]), '') IN ('', '0', 'N') "
+                f"AND child.[etiliquido] IS NOT NULL AND child.[etiliquido] <> 0"
+            )
+            return query, None, len(column_names)
+
         if supports_incremental and source_date_column and start_date_str:
             query = f"SELECT {base_select} FROM [{table_name}] WHERE [{source_date_column}] >= '{start_date_str}'"
             return query, column_names.index(source_date_column), None
@@ -519,6 +570,16 @@ class SelectiveSync:
                 USING phc."bo" AS parent
                 WHERE child.document_id = parent.document_id
                   AND parent.document_date < %s
+                ''',
+                (retention_start,),
+            )
+        elif table_name == 'fi':
+            cursor.execute(
+                '''
+                DELETE FROM phc."fi" AS child
+                USING phc."ft" AS parent
+                WHERE child.invoice_id = parent.invoice_id
+                  AND parent.invoice_date < %s
                 ''',
                 (retention_start,),
             )
@@ -689,7 +750,7 @@ class SelectiveSync:
             self.close_connections()
 
     def sync_fast_all_tables_3days(self, overlap_days: int = 3, retention_months: int = 12) -> dict:
-        """Run a fast incremental sync for ALL tables (CL, BO, BI, FT, FO) using watermarks."""
+        """Run a fast incremental sync for ALL tables (CL, BO, BI, FT, FO, FI) using watermarks."""
         logger.info("[FAST] Fast watermarked sync for ALL tables (overlap=%s days)", overlap_days)
 
         if not self.connect_phc() or not self.connect_supabase():
@@ -698,7 +759,7 @@ class SelectiveSync:
         try:
             self._ensure_watermark_table()
             results = {}
-            for table_name in ('cl', 'bo', 'bi', 'ft', 'fo'):
+            for table_name in ('cl', 'bo', 'bi', 'ft', 'fo', 'fi'):
                 config = TABLE_CONFIGS.get(table_name)
                 if not config:
                     logger.warning("Config for table %s not found; skipping", table_name)
@@ -793,7 +854,7 @@ class SelectiveSync:
             self.close_connections()
 
     def sync_today_all_tables(self) -> dict:
-        """Sync ALL tables (CL, BO, BI, FT, FO) from today 00:00:00"""
+        """Sync ALL tables (CL, BO, BI, FT, FO, FI) from today 00:00:00"""
         logger.info("[TODAY] Today-only sync for ALL tables (from midnight)")
         
         if not self.connect_phc() or not self.connect_supabase():
@@ -802,7 +863,7 @@ class SelectiveSync:
         try:
             self._ensure_watermark_table()
             results = {}
-            for table_name in ('cl', 'bo', 'bi', 'ft', 'fo'):
+            for table_name in ('cl', 'bo', 'bi', 'ft', 'fo', 'fi'):
                 config = TABLE_CONFIGS.get(table_name)
                 if not config:
                     logger.warning("Config for table %s not found; skipping", table_name)
@@ -940,7 +1001,7 @@ class SelectiveSync:
 
         try:
             self._ensure_watermark_table()
-            tables = ['cl', 'bo', 'bi', 'ft', 'fo']
+            tables = ['cl', 'bo', 'bi', 'ft', 'fo', 'fi']
             results = {}
             for table_name in tables:
                 config = TABLE_CONFIGS.get(table_name)

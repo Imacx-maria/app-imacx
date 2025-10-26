@@ -26,6 +26,7 @@ const PermissionsContext = createContext<PermissionsContextType>({
 export const usePermissions = () => useContext(PermissionsContext)
 
 const DESIGNER_ROLE_ID = '3132fced-ae83-4f56-9d15-c92c3ef6b6ae'
+const ADMIN_ROLE_ID = '7c53a7a2-ab07-4ba3-8c1a-7e8e215cadf0'
 
 export function PermissionsProvider({
   children,
@@ -60,14 +61,14 @@ export function PermissionsProvider({
 
           const { data: rolePerms, error: permsError } = await supabase
             .from('role_permissions')
-            .select('permission')
+            .select('page_path, can_access')
             .eq('role_id', profile.role_id)
 
           if (permsError) {
             console.error('Error fetching role permissions:', permsError)
             // Continue without permissions rather than failing
           } else if (rolePerms) {
-            setPermissions(rolePerms.map((p) => p.permission))
+            setPermissions(rolePerms.filter((p) => p.can_access).map((p) => p.page_path))
           }
         }
       } catch (error) {
@@ -87,7 +88,7 @@ export function PermissionsProvider({
     permissions,
     role,
     loading,
-    isAdmin: permissions.includes('admin'),
+    isAdmin: role === ADMIN_ROLE_ID,
     isDesigner: role === DESIGNER_ROLE_ID,
     hasPermission,
     hasRole,
