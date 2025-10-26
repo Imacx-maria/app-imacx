@@ -7,7 +7,8 @@ import {
   ClipboardList, 
   FileText, 
   Palette,
-  ArrowRight
+  ArrowRight,
+  Clock
 } from 'lucide-react'
 import { LogisticaTable } from '@/components/LogisticaTable'
 import { FullYearCalendar } from '@/components/FullYearCalendar'
