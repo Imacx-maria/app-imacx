@@ -471,9 +471,18 @@ input:-webkit-autofill:focus {
   display: none !important;
 }
 
+.rdp-nav {
+  display: none !important;
+}
+
+.calendar-custom .rdp-months {
+  width: 100% !important;
+}
+
 .rdp-cell {
   position: relative;
   text-align: right !important;
+  padding-right: 0 !important;
 }
 
 .rdp-button {

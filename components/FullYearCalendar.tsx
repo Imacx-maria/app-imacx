@@ -46,9 +46,6 @@ export const FullYearCalendar: React.FC<FullYearCalendarProps> = ({
           className="rounded-none p-2"
           data-no-aria-hidden="true"
         >
-          <div className="text-center font-semibold mb-2 text-lg">
-            {monthDate.toLocaleString('pt-PT', { month: 'long', year: 'numeric' })}
-          </div>
           <Calendar
             mode="single"
             month={monthDate}
@@ -59,10 +56,10 @@ export const FullYearCalendar: React.FC<FullYearCalendarProps> = ({
             components={{
               IconLeft: () => null,
               IconRight: () => null,
-              Caption: () => null,
             }}
             classNames={{
-              day: 'size-8 p-0 font-normal border-none outline-none focus:outline-none focus:ring-0 cursor-pointer text-right',
+              day: 'size-8 p-0 font-normal border-none outline-none focus:outline-none focus:ring-0 cursor-pointer text-center',
+              caption_label: 'text-lg font-semibold uppercase',
             }}
           />
         </div>
