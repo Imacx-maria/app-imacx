@@ -7,16 +7,18 @@ import {
   ClipboardList, 
   FileText, 
   Palette,
-  TrendingUp,
-  Clock,
-  CheckCircle,
-  AlertCircle,
   ArrowRight
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { LogisticaTable } from '@/components/LogisticaTable'
+import { FullYearCalendar } from '@/components/FullYearCalendar'
 import { createBrowserClient } from '@/utils/supabase'
 import { format } from 'date-fns'
+
+interface Holiday {
+  id: string
+  holiday_date: string
+  description?: string
+}
 
 interface LogisticaRecord {
   logistica_id?: string
@@ -75,42 +77,35 @@ const moduleCards = [
   },
 ]
 
-const quickStats = [
-  {
-    label: 'Trabalhos Ativos',
-    value: '-',
-    icon: TrendingUp,
-    iconClass: 'text-info',
-    wrapperClass: 'bg-info/15 text-info',
-  },
-  {
-    label: 'Pendentes',
-    value: '-',
-    icon: Clock,
-    iconClass: 'text-warning',
-    wrapperClass: 'bg-warning/20 text-warning-foreground',
-  },
-  {
-    label: 'Concluídos Hoje',
-    value: '-',
-    icon: CheckCircle,
-    iconClass: 'text-success',
-    wrapperClass: 'bg-success/20 text-success-foreground',
-  },
-  {
-    label: 'Alertas',
-    value: '-',
-    icon: AlertCircle,
-    iconClass: 'text-destructive',
-    wrapperClass: 'bg-destructive/10 text-destructive',
-  },
-]
-
 export default function DashboardPage() {
   const [records, setRecords] = useState<LogisticaRecord[]>([])
   const [loading, setLoading] = useState(false)
+  const [holidays, setHolidays] = useState<Holiday[]>([])
 
   const supabase = createBrowserClient()
+
+  const fetchHolidays = useCallback(async () => {
+    try {
+      const currentDate = new Date().toISOString().split('T')[0]
+      const { data, error } = await supabase
+        .from('feriados')
+        .select('id, holiday_date, description')
+        .gte('holiday_date', currentDate)
+        .order('holiday_date', { ascending: true })
+        .limit(50)
+
+      if (error) {
+        console.error('Error fetching holidays:', error)
+        return
+      }
+
+      if (data) {
+        setHolidays(data)
+      }
+    } catch (error) {
+      console.error('Error fetching holidays:', error)
+    }
+  }, [supabase])
 
   const fetchLogisticaData = useCallback(async () => {
     setLoading(true)
@@ -190,7 +185,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchLogisticaData()
-  }, [fetchLogisticaData])
+    fetchHolidays()
+  }, [fetchLogisticaData, fetchHolidays])
 
   return (
     <div className="w-full space-y-8">
@@ -200,27 +196,13 @@ export default function DashboardPage() {
         <p className="text-muted-foreground mt-2">Bem-vindo ao Sistema de Gestão de Produção IMACX</p>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {quickStats.map((stat) => {
-          const Icon = stat.icon
-          return (
-            <div
-              key={stat.label}
-              className="rounded-none shadow-sm border border-border p-6 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <p className="text-3xl mt-2">{stat.value}</p>
-                </div>
-                <div className={`p-3 rounded-none ${stat.wrapperClass}`}>
-                  <Icon className="w-6 h-6" />
-                </div>
-              </div>
-            </div>
-          )
-        })}
+      {/* Calendar */}
+      <div className="mt-8">
+        <h2 className="text-2xl mb-6">Calendário</h2>
+        <FullYearCalendar 
+          holidays={holidays}
+          year={new Date().getFullYear()}
+        />
       </div>
 
       {/* Logistics Table */}
