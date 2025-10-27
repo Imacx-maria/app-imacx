@@ -2845,7 +2845,7 @@ export default function StocksPage() {
                   <Input
                     id="quantidade_disponivel"
                     type="number"
-                    value={formData.quantidade_disponível}
+                    value={formData.quantidade_disponivel}
                     onChange={(e) =>
                       setFormData((prev) => ({
                         ...prev,

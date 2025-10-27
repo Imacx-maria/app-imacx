@@ -39,7 +39,6 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
                 alt="IMACX Logo"
                 width={120}
                 height={30}
-                style={{ width: '120px', height: 'auto' }}
                 priority
               />
             )}

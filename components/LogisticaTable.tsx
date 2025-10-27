@@ -119,6 +119,32 @@ export const LogisticaTable: React.FC<LogisticaTableProps> = ({
   const [hasUserSorted, setHasUserSorted] = useState(false)
   const [showDispatched, setShowDispatched] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
+  const [transportadorasLookup, setTransportadorasLookup] = useState<Record<string, string>>({})
+
+  const supabase = useMemo(() => createBrowserClient(), [])
+
+  // Fetch transportadoras lookup on mount
+  useEffect(() => {
+    const fetchTransportadoras = async () => {
+      try {
+        const { data } = await supabase
+          .from('transportadora')
+          .select('id, name')
+        
+        if (data) {
+          const lookup: Record<string, string> = {}
+          data.forEach((t: any) => {
+            lookup[t.id] = t.name
+          })
+          setTransportadorasLookup(lookup)
+        }
+      } catch (error) {
+        console.error('Error fetching transportadoras:', error)
+      }
+    }
+
+    fetchTransportadoras()
+  }, [supabase])
 
   const debouncedFilters = useDebounce(filters, 300)
 
@@ -189,7 +215,7 @@ export const LogisticaTable: React.FC<LogisticaTableProps> = ({
 
       if (dateFilter !== 'all') {
         const recordDate = record.data_saida || record.data
-        if (!recordDate) return dateFilter === 'all'
+        if (!recordDate) return false
 
         if (dateFilter === 'today' && recordDate !== getTodayString()) {
           return false
@@ -295,90 +321,85 @@ export const LogisticaTable: React.FC<LogisticaTableProps> = ({
       </div>
 
       {/* Filter Bar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          placeholder="FO"
-          value={filters.numeroFo}
-          onChange={(e) =>
-            setFilters((prev) => ({ ...prev, numeroFo: e.target.value }))
-          }
-        />
-        <Input
-          placeholder="Guia"
-          value={filters.guia}
-          onChange={(e) =>
-            setFilters((prev) => ({ ...prev, guia: e.target.value }))
-          }
-        />
-        <Input
-          placeholder="Cliente"
-          value={filters.cliente}
-          onChange={(e) =>
-            setFilters((prev) => ({ ...prev, cliente: e.target.value }))
-          }
-        />
-        <Input
-          placeholder="Nome Campanha"
-          className="flex-1"
-          value={filters.nomeCampanha}
-          onChange={(e) =>
-            setFilters((prev) => ({ ...prev, nomeCampanha: e.target.value }))
-          }
-        />
-        <Input
-          placeholder="Item"
-          className="flex-1"
-          value={filters.item}
-          onChange={(e) =>
-            setFilters((prev) => ({ ...prev, item: e.target.value }))
-          }
-        />
-
-        {/* Date filter buttons */}
-        <div className="flex items-center gap-1 border-l border-border pl-2">
-          <Button
-            variant={dateFilter === 'all' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setDateFilter('all')}
-          >
-            Todos
-          </Button>
-          <Button
-            variant={dateFilter === 'today' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setDateFilter('today')}
-          >
-            Hoje
-          </Button>
-          <Button
-            variant={dateFilter === 'tomorrow' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setDateFilter('tomorrow')}
-          >
-            Amanhã
-          </Button>
+      <div className="flex flex-col gap-2">
+        {/* Row 1: FO, GUIA, CLIENTE */}
+        <div className="flex items-center gap-2">
+          <Input
+            id="numeroFo"
+            placeholder="FO"
+            value={filters.numeroFo}
+            onChange={(e) => setFilters({ ...filters, numeroFo: e.target.value })}
+            className="w-[110px] shrink-0"
+          />
+          <Input
+            id="guia"
+            placeholder="Guia"
+            value={filters.guia}
+            onChange={(e) => setFilters({ ...filters, guia: e.target.value })}
+            className="w-[130px] shrink-0"
+          />
+          {/* Revert to simple input for Cliente to avoid missing import/props */}
+          <Input
+            id="cliente"
+            placeholder="Cliente"
+            value={filters.cliente}
+            onChange={(e) => setFilters({ ...filters, cliente: e.target.value })}
+            className="w-[220px] shrink-0"
+          />
         </div>
-
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" size="icon" onClick={clearFilters}>
-                <X className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Limpar Filtros</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        {/* Row 2: NOME CAMPANHA, ITEM, date filters + clear */}
+        <div className="flex items-center gap-2">
+          <Input
+            id="nomeCampanha"
+            placeholder="Nome Campanha"
+            value={filters.nomeCampanha}
+            onChange={(e) => setFilters({ ...filters, nomeCampanha: e.target.value })}
+            className="flex-1 min-w-[300px]"
+          />
+          <Input
+            id="item"
+            placeholder="Item"
+            value={filters.item}
+            onChange={(e) => setFilters({ ...filters, item: e.target.value })}
+            className="flex-1 min-w-[240px]"
+          />
+          <div className="flex items-center gap-2 ml-auto">
+            <Button
+              variant={dateFilter === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setDateFilter('all')}
+            >
+              Todos
+            </Button>
+            <Button
+              variant={dateFilter === 'today' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setDateFilter('today')}
+            >
+              Hoje
+            </Button>
+            <Button
+              variant={dateFilter === 'tomorrow' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setDateFilter('tomorrow')}
+            >
+              Amanhã
+            </Button>
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              Limpar filtros
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Table */}
       <div className="w-full overflow-auto rounded-none border border-border">
-        <Table className="w-full">
+        <Table className="w-full table-fixed">
           <TableHeader>
             <TableRow>
               <TableHead
                 onClick={() => toggleSort('numero_fo')}
-                className="cursor-pointer sticky top-0 z-10 w-[100px] whitespace-nowrap"
+                className="cursor-pointer sticky top-0 z-10 w-16"
               >
                 <div className="flex items-center gap-2">
                   FO
@@ -391,8 +412,22 @@ export const LogisticaTable: React.FC<LogisticaTableProps> = ({
                 </div>
               </TableHead>
               <TableHead
+                onClick={() => toggleSort('guia')}
+                className="cursor-pointer sticky top-0 z-10 w-16"
+              >
+                <div className="flex items-center gap-2">
+                  Guia
+                  {sortCol === 'guia' &&
+                    (sortDir === 'asc' ? (
+                      <ArrowUp className="h-4 w-4" />
+                    ) : (
+                      <ArrowDown className="h-4 w-4" />
+                    ))}
+                </div>
+              </TableHead>
+              <TableHead
                 onClick={() => toggleSort('cliente')}
-                className="cursor-pointer sticky top-0 z-10 whitespace-nowrap"
+                className="cursor-pointer sticky top-0 z-10 w-32"
               >
                 <div className="flex items-center gap-2">
                   Cliente
@@ -406,7 +441,7 @@ export const LogisticaTable: React.FC<LogisticaTableProps> = ({
               </TableHead>
               <TableHead
                 onClick={() => toggleSort('nome_campanha')}
-                className="cursor-pointer sticky top-0 z-10 whitespace-nowrap"
+                className="cursor-pointer sticky top-0 z-10 w-[120px] whitespace-nowrap"
               >
                 <div className="flex items-center gap-2">
                   Campanha
@@ -420,7 +455,7 @@ export const LogisticaTable: React.FC<LogisticaTableProps> = ({
               </TableHead>
               <TableHead
                 onClick={() => toggleSort('item_descricao')}
-                className="cursor-pointer sticky top-0 z-10 whitespace-nowrap"
+                className="cursor-pointer sticky top-0 z-10 w-[120px] whitespace-nowrap"
               >
                 <div className="flex items-center gap-2">
                   Item
@@ -439,20 +474,6 @@ export const LogisticaTable: React.FC<LogisticaTableProps> = ({
                 <div className="flex items-center justify-center gap-2">
                   Qt
                   {sortCol === 'quantidade' &&
-                    (sortDir === 'asc' ? (
-                      <ArrowUp className="h-4 w-4" />
-                    ) : (
-                      <ArrowDown className="h-4 w-4" />
-                    ))}
-                </div>
-              </TableHead>
-              <TableHead
-                onClick={() => toggleSort('guia')}
-                className="cursor-pointer sticky top-0 z-10 w-[100px]"
-              >
-                <div className="flex items-center gap-2">
-                  Guia
-                  {sortCol === 'guia' &&
                     (sortDir === 'asc' ? (
                       <ArrowUp className="h-4 w-4" />
                     ) : (
@@ -504,7 +525,7 @@ export const LogisticaTable: React.FC<LogisticaTableProps> = ({
               </TableHead>
               <TableHead
                 onClick={() => toggleSort('concluido')}
-                className="cursor-pointer sticky top-0 z-10 text-center w-[60px]"
+                className="cursor-pointer sticky top-0 z-10 w-[60px]"
               >
                 <div className="flex items-center justify-center gap-2">
                   C
@@ -532,7 +553,7 @@ export const LogisticaTable: React.FC<LogisticaTableProps> = ({
               </TableHead>
               <TableHead
                 onClick={() => toggleSort('saiu')}
-                className="cursor-pointer sticky top-0 z-10 text-center w-[60px]"
+                className="cursor-pointer sticky top-0 z-10 w-[60px]"
               >
                 <div className="flex items-center justify-center gap-2">
                   S
@@ -557,26 +578,36 @@ export const LogisticaTable: React.FC<LogisticaTableProps> = ({
               paginatedRecords.map((record) => {
                 const recordId = `${record.item_id}-${record.logistica_id || 'no-logistics'}`
 
+                const clienteDisplay = record.cliente 
+                  ? record.cliente.length > 15 
+                    ? record.cliente.substring(0, 15) + '...'
+                    : record.cliente
+                  : '-'
+                
+                const transportadoraName = record.transportadora 
+                  ? transportadorasLookup[record.transportadora] || record.transportadora
+                  : '-'
+
                 return (
                   <TableRow key={recordId}>
                     <TableCell>{record.numero_fo || '-'}</TableCell>
-                    <TableCell>{record.cliente || '-'}</TableCell>
+                    <TableCell>{record.guia || '-'}</TableCell>
+                    <TableCell>{clienteDisplay}</TableCell>
                     <TableCell>{record.nome_campanha || '-'}</TableCell>
                     <TableCell>{record.item_descricao || '-'}</TableCell>
                     <TableCell className="text-center">
                       {record.quantidade || '-'}
                     </TableCell>
-                    <TableCell>{record.guia || '-'}</TableCell>
                     <TableCell>{record.local_recolha || '-'}</TableCell>
                     <TableCell>{record.local_entrega || '-'}</TableCell>
-                    <TableCell>{record.transportadora || '-'}</TableCell>
-                    <TableCell className="text-center">
+                    <TableCell>{transportadoraName}</TableCell>
+                    <TableCell className="flex items-center justify-center">
                       <Checkbox checked={record.concluido || false} disabled />
                     </TableCell>
                     <TableCell className="text-center">
                       {record.data_saida || '-'}
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="flex items-center justify-center">
                       <Checkbox checked={record.saiu || false} disabled />
                     </TableCell>
                   </TableRow>

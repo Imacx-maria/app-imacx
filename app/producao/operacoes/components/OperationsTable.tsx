@@ -36,9 +36,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import type { ProductionOperationWithRelations } from '@/types/producao'
-import { useTableData } from '../hooks/useTableData'
-import { useMaterialsCascading } from '../hooks/useMaterialsCascading'
-import type { MaterialData } from '../hooks/useMaterialsCascading'
+import { useTableData } from '@/hooks/useTableData'
+import { useMaterialsCascading } from '@/hooks/useMaterialsCascading'
+import type { MaterialData } from '@/hooks/useMaterialsCascading'
 
 interface OperationsTableProps {
   operations: ProductionOperationWithRelations[]
@@ -575,17 +575,16 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                   >
                     <TableCell className="font-mono text-xs">
                       <DatePicker
-                        selected={
+                        value={
                           operation.data_operacao
                             ? new Date(operation.data_operacao)
-                            : new Date()
+                            : undefined
                         }
-                        onSelect={(date) => {
+                        onChange={(date) => {
                           // Handle date change
                           console.log('Date selected:', date)
                         }}
                         placeholder="Data"
-                        buttonClassName="w-full h-10 text-sm"
                       />
                     </TableCell>
                     <TableCell className="font-mono font-medium">

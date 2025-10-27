@@ -145,6 +145,13 @@ export interface ProductionOperationWithRelations extends ProductionOperation {
   items_base?: any | null
   machines?: Machine | null
   profiles?: Profile | null
+  concluido?: boolean
+  folhas_obras?: {
+    numero_fo?: string
+    nome_campanha?: string
+    numero_orc?: number
+    prioridade?: boolean | null
+  } | null
 }
 
 export interface ProductionOperationInput {
