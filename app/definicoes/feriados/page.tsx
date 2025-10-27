@@ -331,11 +331,10 @@ export default function FeriadosPage() {
                       <TableCell className="font-medium uppercase">
                         {editingId === feriado.id ? (
                           <DatePicker
-                            selected={editDate}
-                            onSelect={(date) => {
+                            value={editDate}
+                            onChange={(date) => {
                               setEditDate(date)
                             }}
-                            buttonClassName="w-full h-10 border-0 outline-0 focus:ring-0 focus:border-0"
                           />
                         ) : (
                           formatDisplayDate(feriado.holiday_date)
