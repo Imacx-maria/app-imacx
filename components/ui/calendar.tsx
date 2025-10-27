@@ -10,6 +10,9 @@ import { cn } from '@/utils/tailwind'
 
 export interface CalendarProps extends React.ComponentProps<typeof DayPicker> {
   holidays?: { holiday_date: string }[]
+  // Ensure compatibility with usages in the app and different DayPicker versions
+  month?: Date
+  onDayClick?: (date: Date) => void
 }
 
 function Calendar({
@@ -72,6 +75,7 @@ function Calendar({
   return (
     <div className="calendar-wrapper">
       <DayPicker
+        // Default locale; can be overridden by props
         locale={pt}
         modifiers={modifiers}
         formatters={formatters}
@@ -80,6 +84,7 @@ function Calendar({
           holiday: { fontWeight: '700', color: 'oklch(0.63 0.23 25)' },
         }}
         className={cn('rdp', className)}
+        // Spread incoming props first so we can override selectively
         {...props}
       />
     </div>
