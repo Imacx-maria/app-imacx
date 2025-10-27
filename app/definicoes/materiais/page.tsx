@@ -369,8 +369,8 @@ export default function MateriaisPage() {
     setEditRow({})
   }
 
-  const formatCurrency = (value: number | null) => {
-    if (value === null) return '-'
+  const formatCurrency = (value: number | null | undefined) => {
+    if (value === null || value === undefined) return '-'
     return new Intl.NumberFormat('pt-PT', {
       style: 'currency',
       currency: 'EUR',

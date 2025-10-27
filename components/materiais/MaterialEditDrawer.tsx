@@ -336,8 +336,8 @@ export default function MaterialEditDrawer({
     label: tipo,
   }))
 
-  const formatCurrency = (value: number | null) => {
-    if (value === null) return ''
+  const formatCurrency = (value: number | null | undefined) => {
+    if (value === null || value === undefined) return ''
     return value.toString()
   }
 
