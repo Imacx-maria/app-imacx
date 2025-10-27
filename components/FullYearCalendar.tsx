@@ -35,39 +35,30 @@ export const FullYearCalendar: React.FC<FullYearCalendarProps> = ({
   const calendarContainerRef = useRef<HTMLDivElement>(null)
 
   return (
-    <>
-      <style>{`
-        .rdp-nav_button {
-          display: none !important;
-        }
-      `}</style>
-      <div
-        ref={calendarContainerRef}
-        className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full"
-        data-no-aria-hidden="true"
-      >
-        {months.map((monthDate) => (
-          <div
-            key={`${monthDate.getFullYear()}-${monthDate.getMonth()}`}
-            className="rounded-none p-2 w-full"
-            data-no-aria-hidden="true"
-          >
-            <Calendar
-              mode="single"
-              month={monthDate}
-              selected={undefined}
-              holidays={holidays}
-              showOutsideDays={false}
-              onSelect={onSelect}
-              classNames={{
-                day: 'size-8 p-0 font-normal border-none outline-none focus:outline-none focus:ring-0 cursor-pointer text-center',
-                caption_label: 'text-lg font-semibold uppercase',
-                nav: 'hidden',
-              }}
-            />
-          </div>
-        ))}
-      </div>
-    </>
+    <div
+      ref={calendarContainerRef}
+      className="grid grid-cols-1 md:grid-cols-3 gap-8"
+      data-no-aria-hidden="true"
+    >
+      {months.map((monthDate) => (
+        <div
+          key={`${monthDate.getFullYear()}-${monthDate.getMonth()}`}
+          className="rounded-none p-2 flex justify-center"
+          data-no-aria-hidden="true"
+        >
+          <Calendar
+            mode="single"
+            month={monthDate}
+            selected={undefined}
+            holidays={holidays}
+            showOutsideDays={false}
+            onSelect={onSelect}
+            classNames={{
+              month_caption: 'text-lg font-semibold uppercase text-center mb-2',
+            }}
+          />
+        </div>
+      ))}
+    </div>
   )
 }

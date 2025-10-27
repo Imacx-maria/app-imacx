@@ -36,6 +36,12 @@
     font-weight: 400 !important;
   }
   
+  /* EXCEPTION: Calendar holidays need to be bold */
+  .calendar-wrapper [data-holiday="true"],
+  .calendar-wrapper button[data-holiday="true"] {
+    font-weight: 700 !important;
+  }
+  
   /* No rounded corners anywhere */
   * {
     border-radius: 0 !important;
@@ -454,46 +460,24 @@ input:-webkit-autofill:focus {
   -webkit-text-fill-color: var(--foreground) !important;
 }
 
+
+
 /* ============================================
    CALENDAR STYLING
    ============================================ */
 
-.rdp-head_row > :first-child,
-.rdp-head_row > :last-child {
-  background-color: var(--secondary-background) !important;
+.calendar-wrapper {
+  --rdp-day-height: 48px;
+  --rdp-day-width: 48px;
 }
 
-.calendar-custom .rdp-months {
-  background-color: var(--background);
+.calendar-wrapper .rdp-weekday {
+  font-size: 14px;
+  font-weight: 700;
 }
 
-.rdp-chevron {
-  display: none !important;
-}
-
-.rdp-nav {
-  display: none !important;
-}
-
-.calendar-custom .rdp-months {
-  width: 100% !important;
-}
-
-.rdp-cell {
-  position: relative;
-  text-align: right !important;
-  padding-right: 0 !important;
-}
-
-.rdp-button {
-  justify-content: flex-end !important;
-  text-align: right !important;
-  padding-right: 2px !important;
-}
-
-.rdp-day_holiday {
-  color: var(--orange) !important;
-  font-weight: 700 !important;
+.calendar-wrapper .rdp-nav {
+  display: none;
 }
 
 /* ============================================
