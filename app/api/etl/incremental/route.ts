@@ -67,7 +67,9 @@ export async function POST(req: NextRequest) {
         if (ghToken && ghRepoOwner && ghRepoName) {
           const url = `https://api.github.com/repos/${ghRepoOwner}/${ghRepoName}/actions/workflows/${ghWorkflowFile}/dispatches`
           console.log('🔁 Non-Windows runtime detected. Dispatching GitHub Action:', url)
-          const resp = await fetch(url, {
+
+          // First try with inputs
+          let resp = await fetch(url, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -79,6 +81,34 @@ export async function POST(req: NextRequest) {
 
           if (!resp.ok) {
             const text = await resp.text().catch(() => '')
+            // If workflow doesn't define inputs, GitHub may return 422
+            if (resp.status === 422 || /inputs/i.test(text)) {
+              console.warn('⚠️ Inputs likely not supported by workflow. Retrying dispatch without inputs.')
+              const resp2 = await fetch(url, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/vnd.github+json',
+                  'Authorization': `Bearer ${ghToken}`,
+                },
+                body: JSON.stringify({ ref: ghRef }),
+              })
+
+              if (!resp2.ok) {
+                const text2 = await resp2.text().catch(() => '')
+                throw new Error(`GitHub dispatch failed (fallback): ${resp2.status} ${text2}`)
+              }
+
+              return NextResponse.json(
+                {
+                  success: true,
+                  message: 'ETL dispatched to GitHub Actions (fallback without inputs)',
+                  dispatch: { workflow: ghWorkflowFile, repo: `${ghRepoOwner}/${ghRepoName}`, ref: ghRef, type: syncType, inputsSupported: false },
+                },
+                { status: 200 },
+              )
+            }
+
             throw new Error(`GitHub dispatch failed: ${resp.status} ${text}`)
           }
 
@@ -86,7 +116,7 @@ export async function POST(req: NextRequest) {
             {
               success: true,
               message: 'ETL dispatched to GitHub Actions',
-              dispatch: { workflow: ghWorkflowFile, repo: `${ghRepoOwner}/${ghRepoName}`, ref: ghRef, type: syncType },
+              dispatch: { workflow: ghWorkflowFile, repo: `${ghRepoOwner}/${ghRepoName}`, ref: ghRef, type: syncType, inputsSupported: true },
             },
             { status: 200 },
           )
@@ -161,7 +191,9 @@ export async function POST(req: NextRequest) {
     if (ghToken && ghRepoOwner && ghRepoName) {
       const url = `https://api.github.com/repos/${ghRepoOwner}/${ghRepoName}/actions/workflows/${ghWorkflowFile}/dispatches`
       console.log('🔁 No local/external ETL configured. Dispatching GitHub Action:', url)
-      const resp = await fetch(url, {
+
+      // First try with inputs
+      let resp = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -174,11 +206,49 @@ export async function POST(req: NextRequest) {
       if (!resp.ok) {
         const text = await resp.text().catch(() => '')
         console.error('❌ GitHub dispatch failed:', resp.status, text)
+
+        // If inputs are not supported, retry without inputs
+        if (resp.status === 422 || /inputs/i.test(text)) {
+          console.warn('⚠️ Inputs likely not supported by workflow. Retrying dispatch without inputs.')
+          const resp2 = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/vnd.github+json',
+              'Authorization': `Bearer ${ghToken}`,
+            },
+            body: JSON.stringify({ ref: ghRef }),
+          })
+
+          if (!resp2.ok) {
+            const text2 = await resp2.text().catch(() => '')
+            return NextResponse.json(
+              {
+                success: false,
+                message: 'Failed to dispatch ETL to GitHub Actions (fallback without inputs)',
+                status: resp2.status,
+                details: text2.substring(0, 300),
+              },
+              { status: 500 },
+            )
+          }
+
+          return NextResponse.json(
+            {
+              success: true,
+              message: 'ETL dispatched to GitHub Actions (fallback without inputs)',
+              dispatch: { workflow: ghWorkflowFile, repo: `${ghRepoOwner}/${ghRepoName}`, ref: ghRef, type: syncType, inputsSupported: false },
+            },
+            { status: 200 },
+          )
+        }
+
         return NextResponse.json(
           {
             success: false,
             message: 'Failed to dispatch ETL to GitHub Actions',
             status: resp.status,
+            details: text.substring(0, 300),
           },
           { status: 500 },
         )
@@ -188,7 +258,7 @@ export async function POST(req: NextRequest) {
         {
           success: true,
           message: 'ETL dispatched to GitHub Actions',
-          dispatch: { workflow: ghWorkflowFile, repo: `${ghRepoOwner}/${ghRepoName}`, ref: ghRef, type: syncType },
+          dispatch: { workflow: ghWorkflowFile, repo: `${ghRepoOwner}/${ghRepoName}`, ref: ghRef, type: syncType, inputsSupported: true },
         },
         { status: 200 },
       )
