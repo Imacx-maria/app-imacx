@@ -11,7 +11,7 @@ async function verifyMaria() {
     const supabase = createClient(supabaseUrl, anonKey)
 
     const email = 'maria.martins@imacx.pt'
-    const password = 'Maria123!@#'
+    const password = process.env.MARIA_PASSWORD || 'Maria123!@#'
 
     console.log(`📧 Email: ${email}`)
     console.log(`🔐 Palavra-passe: ${password}\n`)

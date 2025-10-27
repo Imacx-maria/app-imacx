@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { Navigation } from './Navigation'
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
@@ -34,13 +35,15 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
           {/* Top Bar with Logo */}
           <div className="flex justify-end items-center px-6 py-4">
             {mounted && (
-              <Image
-                src={theme === 'dark' ? '/imacx_neg.svg' : '/imacx_pos.svg'}
-                alt="IMACX Logo"
-                width={120}
-                height={30}
-                priority
-              />
+              <Link href="/dashboard" className="cursor-pointer hover:opacity-80 transition-opacity">
+                <Image
+                  src={theme === 'dark' ? '/imacx_neg.svg' : '/imacx_pos.svg'}
+                  alt="IMACX Logo"
+                  width={120}
+                  height={30}
+                  priority
+                />
+              </Link>
             )}
           </div>
           

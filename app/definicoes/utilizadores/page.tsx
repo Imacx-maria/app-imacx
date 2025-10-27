@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createBrowserClient } from '@/utils/supabase'
 import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
+import { Plus, RefreshCw } from 'lucide-react'
 import CreateUserForm from '@/components/forms/CreateUserForm'
 import UsersList from '@/components/UsersList'
 import {
@@ -42,6 +42,7 @@ export type ManagedUser = {
 export default function UtilizadoresPage() {
   const [users, setUsers] = useState<ManagedUser[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null)
@@ -73,12 +74,17 @@ export default function UtilizadoresPage() {
         )
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error('Error loading users:', error)
+        throw error
+      }
+      
+      console.log('Loaded users:', data)
       setUsers((data as ManagedUser[]) || [])
       setError(null)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading users:', err)
-      setError('Erro ao carregar utilizadores')
+      setError(`Erro ao carregar utilizadores: ${err.message || err}`)
     } finally {
       setLoading(false)
     }
@@ -121,6 +127,12 @@ export default function UtilizadoresPage() {
     setIsDialogOpen(true)
   }
 
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await loadUsers()
+    setRefreshing(false)
+  }
+
   return (
     <div className="w-full space-y-6">
       <div className="flex items-center justify-between">
@@ -128,40 +140,46 @@ export default function UtilizadoresPage() {
           <h1 className="text-2xl font-bold text-foreground">GESTÃO DE UTILIZADORES</h1>
           <p className="text-muted-foreground mt-2">Crie e gerencie utilizadores, perfis e funções</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="default"
-                    size="icon"
-                    onClick={() => setEditingUser(null)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Adicionar</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                {editingUser ? 'EDITAR UTILIZADOR' : 'CRIAR NOVO UTILIZADOR'}
-              </DialogTitle>
-            </DialogHeader>
-            <CreateUserForm
-              editingUser={editingUser}
-              roles={roles}
-              onSuccess={handleCreateSuccess}
-              onCancel={() => {
-                setIsDialogOpen(false)
-                setEditingUser(null)
-              }}
-            />
-          </DialogContent>
-        </Dialog>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline"
+            size="icon"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            title="Recarregar utilizadores"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+          </Button>
+
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="default"
+                size="icon"
+                onClick={() => setEditingUser(null)}
+                title="Adicionar utilizador"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingUser ? 'EDITAR UTILIZADOR' : 'CRIAR NOVO UTILIZADOR'}
+                </DialogTitle>
+              </DialogHeader>
+              <CreateUserForm
+                editingUser={editingUser}
+                roles={roles}
+                onSuccess={handleCreateSuccess}
+                onCancel={() => {
+                  setIsDialogOpen(false)
+                  setEditingUser(null)
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {error && (

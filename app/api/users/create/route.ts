@@ -58,11 +58,35 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create user profile
-    const { error: profileError } = await adminClient
+    // Wait for trigger to create profile (with retries)
+    let profile: any = null
+    for (let i = 0; i < 10; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      const { data } = await adminClient
+        .from('profiles')
+        .select('*')
+        .eq('user_id', authData.user.id)
+        .single()
+
+      if (data) {
+        profile = data
+        break
+      }
+    }
+
+    if (!profile) {
+      // Trigger didn't create the profile in time; clean up auth user
+      await adminClient.auth.admin.deleteUser(authData.user.id)
+      return NextResponse.json(
+        { error: 'Profile creation timed out' },
+        { status: 500 }
+      )
+    }
+
+    // Update profile with additional fields
+    const { error: profileUpdateError } = await adminClient
       .from('profiles')
-      .insert({
-        user_id: authData.user.id,
+      .update({
         email,
         first_name,
         last_name,
@@ -70,14 +94,15 @@ export async function POST(request: NextRequest) {
         phone: phone || null,
         notes: notes || null,
         active: true,
+        updated_at: new Date().toISOString(),
       })
+      .eq('user_id', authData.user.id)
 
-    if (profileError) {
-      console.error('Profile error:', profileError)
-      // If profile creation fails, we should delete the auth user
+    if (profileUpdateError) {
+      console.error('Profile update error:', profileUpdateError)
       await adminClient.auth.admin.deleteUser(authData.user.id)
       return NextResponse.json(
-        { error: `Failed to create profile: ${profileError.message}` },
+        { error: `Failed to update profile: ${profileUpdateError.message}` },
         { status: 500 }
       )
     }
