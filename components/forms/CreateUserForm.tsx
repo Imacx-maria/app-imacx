@@ -5,14 +5,8 @@ import { createBrowserClient } from '@/utils/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import CreatableRoleCombobox from '@/components/forms/CreatableRoleCombobox'
 
 interface EditingUser {
   user_id: string
@@ -112,56 +106,55 @@ export default function CreateUserForm({ editingUser, roles: providedRoles = [],
       }
 
       if (editingUser) {
-        // Update existing user
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({
+        // Update existing user via API
+        const response = await fetch(`/api/users/${editingUser.user_id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
             email: formData.email,
+            password: password || undefined,
             first_name: formData.first_name,
             last_name: formData.last_name,
             role_id: formData.role_id,
             phone: formData.phone,
             notes: formData.notes,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('user_id', editingUser.user_id)
+          }),
+        })
 
-        if (updateError) throw updateError
+        const result = await response.json()
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Erro ao atualizar utilizador')
+        }
       } else {
-        // Create new user via Supabase Auth
+        // Create new user via API
         if (!password) {
           throw new Error('Defina uma palavra-passe para o novo utilizador')
         }
 
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: formData.email,
-          password: password,
-          options: {
-            data: {
-              first_name: formData.first_name,
-              last_name: formData.last_name,
-            },
+        const response = await fetch('/api/users/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
           },
-        })
-
-        if (authError) throw authError
-        if (!authData.user) throw new Error('Falha ao criar utilizador')
-
-        // Create user profile
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            user_id: authData.user.id,
+          body: JSON.stringify({
             email: formData.email,
+            password: password,
             first_name: formData.first_name,
             last_name: formData.last_name,
             role_id: formData.role_id,
             phone: formData.phone,
             notes: formData.notes,
-            active: true,
-          })
+          }),
+        })
 
-        if (profileError) throw profileError
+        const result = await response.json()
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Erro ao criar utilizador')
+        }
       }
 
       onSuccess()
@@ -204,37 +197,30 @@ export default function CreateUserForm({ editingUser, roles: providedRoles = [],
         </div>
       </div>
 
-      {!editingUser && (
-        <div className="space-y-2">
-          <Label>PALAVRA-PASSE *</Label>
-          <Input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Mínimo 6 caracteres"
-          />
-        </div>
-      )}
-
       <div className="space-y-2">
-        <Label>FUNÇÃO *</Label>
-        {loadingRoles ? (
-          <div className="text-sm text-muted-foreground">Carregando funções...</div>
-        ) : (
-          <Select value={formData.role_id} onValueChange={(value) => setFormData({ ...formData, role_id: value })}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione uma função" />
-            </SelectTrigger>
-            <SelectContent>
-              {roles.map((role) => (
-                <SelectItem key={role.id} value={role.id}>
-                  {role.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <Label>PALAVRA-PASSE {!editingUser && '*'}</Label>
+        <Input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder={editingUser ? "Deixe em branco para manter a atual" : "Mínimo 6 caracteres"}
+        />
+        {editingUser && (
+          <p className="text-xs text-muted-foreground">
+            Preencha apenas se desejar alterar a palavra-passe
+          </p>
         )}
       </div>
+
+      <CreatableRoleCombobox
+        value={formData.role_id}
+        onChange={(value) => setFormData({ ...formData, role_id: value })}
+        roles={roles}
+        onRoleCreated={loadRoles}
+        label="FUNÇÃO *"
+        placeholder="Selecione uma função"
+        disabled={loadingRoles}
+      />
 
       <div className="space-y-2">
         <Label>NOTAS</Label>

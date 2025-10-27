@@ -132,7 +132,7 @@ export default function UsersList({ users, roles, onEdit, onDelete, onRefresh }:
 
   if (users.length === 0) {
     return (
-      <div className="rounded-lg border border-border bg-card p-12 text-center">
+      <div className="bg-card p-12 text-center">
         <p className="text-muted-foreground mb-4">Nenhum utilizador registado</p>
         <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
           <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
@@ -144,10 +144,9 @@ export default function UsersList({ users, roles, onEdit, onDelete, onRefresh }:
 
   return (
     <>
-      <div className="rounded-lg border border-border overflow-hidden">
-        <div className="bg-background w-full">
-          <div className="w-full overflow-x-auto">
-            <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+      <div className="bg-background w-full">
+        <div className="w-full overflow-x-auto">
+          <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
               <TableHeader className="sticky top-0 z-10 border-b text-center uppercase">
                 <TableRow>
                   <TableHead 
@@ -186,7 +185,7 @@ export default function UsersList({ users, roles, onEdit, onDelete, onRefresh }:
                     <TableCell>
                       <div className="flex items-center justify-center gap-2">
                         <Button
-                          variant="outline"
+                          variant="default"
                           size="icon"
                           onClick={() => onEdit(user)}
                           title="Editar utilizador"
@@ -194,10 +193,9 @@ export default function UsersList({ users, roles, onEdit, onDelete, onRefresh }:
                           <Edit2 className="h-4 w-4" />
                         </Button>
                         <Button
-                          variant="outline"
+                          variant="destructive"
                           size="icon"
                           onClick={() => setDeleteConfirmUser(user)}
-                          className="text-destructive hover:text-destructive"
                           title="Eliminar utilizador"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -210,7 +208,6 @@ export default function UsersList({ users, roles, onEdit, onDelete, onRefresh }:
             </Table>
           </div>
         </div>
-      </div>
 
       <div className="flex justify-end">
         <Button 

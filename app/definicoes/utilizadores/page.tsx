@@ -13,6 +13,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 type Role = {
   id: string
@@ -93,17 +99,20 @@ export default function UtilizadoresPage() {
     if (!window.confirm('Tem certeza que deseja eliminar este utilizador?')) return
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('user_id', userId)
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'DELETE',
+      })
 
-      if (error) throw error
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Erro ao eliminar utilizador')
+      }
       
       await loadUsers()
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error deleting user:', err)
-      setError('Erro ao eliminar utilizador')
+      setError(err.message || 'Erro ao eliminar utilizador')
     }
   }
 
@@ -121,14 +130,20 @@ export default function UtilizadoresPage() {
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button 
-              variant="default"
-              className="gap-2"
-              onClick={() => setEditingUser(null)}
-            >
-              <Plus className="h-4 w-4" />
-              NOVO UTILIZADOR
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="default"
+                    size="icon"
+                    onClick={() => setEditingUser(null)}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Adicionar</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>

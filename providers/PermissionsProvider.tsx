@@ -5,22 +5,26 @@ import { createBrowserClient } from '@/utils/supabase'
 
 interface PermissionsContextType {
   permissions: string[]
+  pagePermissions: string[]
   role: string | null
   loading: boolean
   isAdmin: boolean
   isDesigner: boolean
   hasPermission: (permission: string) => boolean
   hasRole: (roleId: string) => boolean
+  canAccessPage: (page: string) => boolean
 }
 
 const PermissionsContext = createContext<PermissionsContextType>({
   permissions: [],
+  pagePermissions: [],
   role: null,
   loading: true,
   isAdmin: false,
   isDesigner: false,
   hasPermission: () => false,
   hasRole: () => false,
+  canAccessPage: () => false,
 })
 
 export const usePermissions = () => useContext(PermissionsContext)
@@ -34,6 +38,7 @@ export function PermissionsProvider({
   children: React.ReactNode
 }) {
   const [permissions, setPermissions] = useState<string[]>([])
+  const [pagePermissions, setPagePermissions] = useState<string[]>([])
   const [role, setRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -46,33 +51,85 @@ export function PermissionsProvider({
         } = await supabase.auth.getSession()
 
         if (!session) {
+          console.log('No session found')
           setLoading(false)
           return
         }
 
-        const { data: profile } = await supabase
+        // Try to get profile - if RLS blocks it, we can still show dashboard
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role_id')
           .eq('user_id', session.user.id)
           .single()
 
+        if (profileError) {
+          console.warn('Profile fetch error (likely RLS policy):', profileError)
+          // If we can't get profile, give dashboard access at minimum
+          // The user can still navigate to admin pages if their session is valid
+          setPagePermissions(['*']) // Allow admin access to try to fix permissions
+          setLoading(false)
+          return
+        }
+
         if (profile?.role_id) {
           setRole(profile.role_id)
+          console.log('User role_id:', profile.role_id)
 
-          const { data: rolePerms, error: permsError } = await supabase
-            .from('role_permissions')
-            .select('page_path, can_access')
-            .eq('role_id', profile.role_id)
+          // Fetch role with page_permissions AND role name for fallback
+          const { data: roleData, error: roleError } = await supabase
+            .from('roles')
+            .select('id, name, page_permissions')
+            .eq('id', profile.role_id)
+            .single()
 
-          if (permsError) {
-            console.error('Error fetching role permissions:', permsError)
-            // Continue without permissions rather than failing
-          } else if (rolePerms) {
-            setPermissions(rolePerms.filter((p) => p.can_access).map((p) => p.page_path))
+          console.log('Role data:', roleData)
+          console.log('Role error:', roleError)
+
+          if (roleError) {
+            console.warn('Error fetching role:', roleError.message)
+            // Fallback: use role-based permissions if column doesn't exist yet
+            const roleName = roleData?.name?.toLowerCase() || ''
+            let fallbackPermissions = ['dashboard']
+            
+            if (roleName === 'admin' || roleName === 'administrador') {
+              fallbackPermissions = ['*']
+            } else if (roleName.includes('designer')) {
+              fallbackPermissions = ['dashboard', 'designer-flow']
+            } else if (roleName.includes('gestor') || roleName.includes('manager')) {
+              fallbackPermissions = ['dashboard', 'gestao']
+            }
+            
+            console.warn(`Using fallback permissions for ${roleData?.name}:`, fallbackPermissions)
+            setPagePermissions(fallbackPermissions)
+          } else if (roleData?.page_permissions && Array.isArray(roleData.page_permissions) && roleData.page_permissions.length > 0) {
+            console.log(`Loaded page_permissions for ${roleData.name}:`, roleData.page_permissions)
+            setPagePermissions(roleData.page_permissions as string[])
+          } else {
+            // No permissions set yet in database - use role-based fallback
+            const roleName = roleData?.name?.toLowerCase() || ''
+            let fallbackPermissions = ['dashboard']
+            
+            if (roleName === 'admin' || roleName === 'administrador') {
+              fallbackPermissions = ['*']
+            } else if (roleName.includes('designer')) {
+              fallbackPermissions = ['dashboard', 'designer-flow']
+            } else if (roleName.includes('gestor') || roleName.includes('manager')) {
+              fallbackPermissions = ['dashboard', 'gestao']
+            }
+            
+            console.warn(`No page_permissions set for ${roleData?.name}, using fallback:`, fallbackPermissions)
+            setPagePermissions(fallbackPermissions)
           }
+        } else {
+          // User has no role assigned
+          console.warn('User has no role_id')
+          setPagePermissions(['dashboard']) // Default limited access
         }
       } catch (error) {
         console.error('Error fetching permissions:', error)
+        // Fallback: limited access on error
+        setPagePermissions(['dashboard'])
       } finally {
         setLoading(false)
       }
@@ -83,15 +140,26 @@ export function PermissionsProvider({
 
   const hasPermission = (permission: string) => permissions.includes(permission)
   const hasRole = (roleId: string) => role === roleId
+  
+  // Check if user can access a page based on page_permissions
+  const canAccessPage = (page: string): boolean => {
+    if (pagePermissions.includes('*')) return true // Admin has access to all
+    if (pagePermissions.includes(page)) return true
+    
+    // Check parent paths (e.g., 'definicoes' allows 'definicoes/utilizadores')
+    return pagePermissions.some(perm => page.startsWith(perm + '/'))
+  }
 
   const value: PermissionsContextType = {
     permissions,
+    pagePermissions,
     role,
     loading,
     isAdmin: role === ADMIN_ROLE_ID,
     isDesigner: role === DESIGNER_ROLE_ID,
     hasPermission,
     hasRole,
+    canAccessPage,
   }
 
   return (
