@@ -22,14 +22,10 @@ import {
   ArrowUp,
   ArrowDown,
   RefreshCcw,
-  Eye,
-  EyeOff,
   X,
-  Edit,
-  Check,
-  X as Cancel,
   FileText,
 } from 'lucide-react'
+import { Tabs, TabsList, TabsContent, TabsTrigger } from '@/components/ui/tabs'
 import DatePicker from '@/components/ui/DatePicker'
 import { createBrowserClient } from '@/utils/supabase'
 import CreatableArmazemCombobox, {
@@ -39,6 +35,7 @@ import CreatableTransportadoraCombobox, {
   TransportadoraOption,
 } from '@/components/forms/CreatableTransportadoraCombobox'
 import NotasPopover from '@/components/custom/NotasPopover'
+import TransportePopover from '@/components/custom/TransportePopover'
 
 // Debug logging helper
 const debugLog = (label: string, data: any) => console.log(label, data)
@@ -137,16 +134,14 @@ interface DashboardLogisticaTableProps {
 // Define sortable columns type following the same pattern as main production table
 type SortableLogisticaKey =
   | 'numero_fo'
+  | 'numero_orc'
+  | 'guia'
   | 'cliente'
   | 'nome_campanha'
   | 'item'
-  | 'guia'
-  | 'local_recolha'
-  | 'local_entrega'
-  | 'transportadora'
   | 'quantidade'
-  | 'concluido'
   | 'data_saida'
+  | 'concluido'
   | 'saiu'
 
 export const DashboardLogisticaTable: React.FC<
@@ -157,7 +152,6 @@ export const DashboardLogisticaTable: React.FC<
   const [transportadoras, setTransportadoras] = useState<Transportadora[]>([])
   const [armazens, setArmazens] = useState<ArmazemOption[]>([])
   const [loading, setLoading] = useState(true)
-  const [showDispatched, setShowDispatched] = useState(false)
 
   // Filter state
   const [filters, setFilters] = useState({
@@ -183,7 +177,6 @@ export const DashboardLogisticaTable: React.FC<
   const [hasUserSorted, setHasUserSorted] = useState(false) // Track if user has manually sorted
 
   // Editing state management
-  const [editingRows, setEditingRows] = useState<Record<string, boolean>>({})
   const [editValues, setEditValues] = useState<Record<string, any>>({})
 
   // Toggle sort function following the same pattern as main production table
@@ -243,64 +236,27 @@ export const DashboardLogisticaTable: React.FC<
 
   // Fetch data with database-level filtering
   const fetchData = useCallback(
-    async (dispatched = false, filterParams: Partial<typeof filters> = {}) => {
+    async (filterParams: Partial<typeof filters> = {}) => {
       setLoading(true)
       try {
-        // Fetch work orders with their items and logistics entries
-        // Show all items regardless of concluido status
+        // Fetch all logistics records (both em curso and despachados)
         let logisticsQuery = supabase.from('logistica_entregas').select(`
           *,
-          items_base!inner (
+          items_base (
             id,
             descricao,
+            codigo,
+            quantidade,
             brindes,
             folha_obra_id,
-            data_saida,
             folhas_obras (
               id,
               numero_orc,
-              numero_fo:Numero_do_,
-              nome_campanha:Trabalho,
-              cliente:Nome,
-              id_cliente,
-              saiu,
-              data_saida:Data_efeti
+              Numero_do_,
+              Nome
             )
           )
         `)
-
-        if (dispatched) {
-          logisticsQuery = logisticsQuery.eq('saiu', true)
-        }
-
-        // Apply database-level filters
-        if (filterParams.cliente?.trim()) {
-          logisticsQuery = logisticsQuery.ilike(
-            'items_base.folhas_obras.Nome',
-            `%${filterParams.cliente.trim()}%`,
-          )
-        }
-
-        if (filterParams.nomeCampanha?.trim()) {
-          logisticsQuery = logisticsQuery.ilike(
-            'items_base.folhas_obras.Trabalho',
-            `%${filterParams.nomeCampanha.trim()}%`,
-          )
-        }
-
-        if (filterParams.item?.trim()) {
-          logisticsQuery = logisticsQuery.ilike(
-            'items_base.descricao',
-            `%${filterParams.item.trim()}%`,
-          )
-        }
-
-        if (filterParams.codigo?.trim()) {
-          logisticsQuery = logisticsQuery.ilike(
-            'items_base.codigo',
-            `%${filterParams.codigo.trim()}%`,
-          )
-        }
 
         if (filterParams.guia?.trim()) {
           logisticsQuery = logisticsQuery.ilike(
@@ -308,16 +264,17 @@ export const DashboardLogisticaTable: React.FC<
             `%${filterParams.guia.trim()}%`,
           )
         }
+
         const { data: logisticsData, error: logisticsError } =
-          await logisticsQuery.order('data', { ascending: false }).limit(500)
+          await logisticsQuery.order('created_at', { ascending: false }).limit(500)
 
         if (logisticsError) {
           console.error('Error fetching logistics:', logisticsError)
-          return
         }
 
-        debugLog('Fetched logistics data:', logisticsData)
-        debugLog('Logistics count:', logisticsData?.length || 0)
+        debugLog('Fetched logistics:', logisticsData?.length || 0)
+
+
 
         // Fetch clientes
         const { data: clientesData, error: clientesError } = await supabase
@@ -347,8 +304,7 @@ export const DashboardLogisticaTable: React.FC<
           console.error('Error fetching armazens:', armazensError)
         }
 
-        // Transform the nested data into flat records
-        // Each record from logistica_entregas query is already a logistics entry with nested items_base.folhas_obras
+        // Transform the nested data into flat records (same pattern as producao drawer)
         const flatRecords: DashboardLogisticaRecord[] = (logisticsData || []).map((logistica: any) => {
           const item = logistica.items_base || {}
           const folhaObra = item.folhas_obras || {}
@@ -356,20 +312,20 @@ export const DashboardLogisticaTable: React.FC<
           return {
             // From folhas_obras
             folha_obra_id: folhaObra.id || '',
-            numero_fo: folhaObra.numero_fo || '',
+            numero_fo: folhaObra.Numero_do_ || '',
             numero_orc: folhaObra.numero_orc,
-            nome_campanha: folhaObra.nome_campanha || '',
-            fo_data_saida: folhaObra.data_saida,
-            fo_saiu: folhaObra.saiu,
-            cliente: folhaObra.cliente,
-            id_cliente: folhaObra.id_cliente,
+            nome_campanha: '',
+            fo_data_saida: undefined,
+            fo_saiu: undefined,
+            cliente: folhaObra.Nome,
+            id_cliente: '',
             // From items_base
             item_id: item.id || '',
             item_descricao: item.descricao || '',
             codigo: item.codigo,
             quantidade: item.quantidade,
             brindes: item.brindes,
-            data_conc: item.data_conc,
+            data_conc: undefined,
             // From logistica_entregas
             logistica_id: logistica.id,
             guia: logistica.guia,
@@ -392,8 +348,7 @@ export const DashboardLogisticaTable: React.FC<
           }
         })
 
-        debugLog('Processed flat records:', flatRecords)
-        debugLog('Flat records count:', flatRecords.length)
+        debugLog('Processed flat records:', flatRecords.length)
 
         setRecords(flatRecords)
         setClientes(
@@ -423,10 +378,10 @@ export const DashboardLogisticaTable: React.FC<
     [supabase],
   )
 
-  // On mount and when showDispatched changes, refetch data
+  // On mount, refetch data
   useEffect(() => {
-    fetchData(showDispatched)
-  }, [fetchData, showDispatched])
+    fetchData()
+  }, [fetchData])
 
   // Removed auto-refresh on focus/visibility change to prevent unwanted refreshes during editing
   // Table will only refresh when the refresh button is explicitly clicked
@@ -449,16 +404,12 @@ export const DashboardLogisticaTable: React.FC<
   }, [transportadoras])
 
   // Client-side filtering logic
-  const filteredRecords = useMemo(() => {
-    return records.filter((record) => {
-      // Cliente filter - search both direct cliente field and resolved client name
+  const filterRecords = (recordsList: DashboardLogisticaRecord[]) => {
+    return recordsList.filter((record) => {
+      // Cliente filter
       const clienteMatch =
         !filters.cliente ||
-        record.cliente?.toLowerCase().includes(filters.cliente.toLowerCase()) ||
-        (record.id_cliente &&
-          clienteLookup[record.id_cliente]
-            ?.toLowerCase()
-            .includes(filters.cliente.toLowerCase()))
+        record.cliente?.toLowerCase().includes(filters.cliente.toLowerCase())
 
       // Nome Campanha filter
       const campanhaMatch =
@@ -487,14 +438,13 @@ export const DashboardLogisticaTable: React.FC<
       // Date filter for data_saida
       let dateMatch = true
       if (dateFilter !== 'all' && record.data_saida) {
-        const recordDate = record.data_saida.split('T')[0] // Get YYYY-MM-DD part
+        const recordDate = record.data_saida.split('T')[0]
         if (dateFilter === 'today') {
           dateMatch = recordDate === getTodayString()
         } else if (dateFilter === 'tomorrow') {
           dateMatch = recordDate === getTomorrowString()
         }
       } else if (dateFilter !== 'all' && !record.data_saida) {
-        // If date filter is active but record has no data_saida, don't show it
         dateMatch = false
       }
 
@@ -507,23 +457,26 @@ export const DashboardLogisticaTable: React.FC<
         dateMatch
       )
     })
-  }, [
-    records,
-    filters,
-    clienteLookup,
-    dateFilter,
-    getTodayString,
-    getTomorrowString,
-  ])
+  }
+
+  // Separate records by saiu status and filter
+  const filteredEmCurso = useMemo(
+    () => filterRecords(records.filter((r) => !r.saiu)),
+    [records, filters, dateFilter, getTodayString, getTomorrowString],
+  )
+
+  const filteredDespachados = useMemo(
+    () => filterRecords(records.filter((r) => r.saiu)),
+    [records, filters, dateFilter, getTodayString, getTomorrowString],
+  )
 
   // Updated sorting logic following the same pattern as main production table
-  const sorted = useMemo(() => {
-    // Only apply sorting if user has manually sorted
+  const createSorted = (filtered: DashboardLogisticaRecord[]) => {
     if (!hasUserSorted) {
-      return [...filteredRecords] // Return unsorted data
+      return [...filtered]
     }
 
-    const arr = [...filteredRecords]
+    const arr = [...filtered]
     arr.sort((a, b) => {
       let A: any, B: any
       switch (sortCol) {
@@ -531,6 +484,14 @@ export const DashboardLogisticaTable: React.FC<
           // Smart numeric sorting: numbers first, then letters
           A = parseNumericField(a.numero_fo)
           B = parseNumericField(b.numero_fo)
+          break
+        case 'numero_orc':
+          A = parseNumericField(a.numero_orc)
+          B = parseNumericField(b.numero_orc)
+          break
+        case 'guia':
+          A = a.guia ?? ''
+          B = b.guia ?? ''
           break
         case 'cliente': {
           const clientIdA = a.id_cliente
@@ -547,25 +508,6 @@ export const DashboardLogisticaTable: React.FC<
           A = a.item_descricao ?? ''
           B = b.item_descricao ?? ''
           break
-        case 'guia':
-          A = a.guia ?? ''
-          B = b.guia ?? ''
-          break
-        case 'local_recolha':
-          A = a.local_recolha ?? ''
-          B = b.local_recolha ?? ''
-          break
-        case 'local_entrega':
-          A = a.local_entrega ?? ''
-          B = b.local_entrega ?? ''
-          break
-        case 'transportadora': {
-          const transIdA = a.transportadora
-          const transIdB = b.transportadora
-          A = (transIdA ? transportadoraLookup[transIdA] : '') || ''
-          B = (transIdB ? transportadoraLookup[transIdB] : '') || ''
-          break
-        }
         case 'quantidade':
           A = a.logistica_quantidade ?? 0
           B = b.logistica_quantidade ?? 0
@@ -593,14 +535,31 @@ export const DashboardLogisticaTable: React.FC<
       return 0
     })
     return arr
-  }, [
-    filteredRecords,
-    sortCol,
-    sortDir,
-    clienteLookup,
-    transportadoraLookup,
-    hasUserSorted,
-  ])
+  }
+
+  const sortedEmCurso = useMemo(
+    () => createSorted(filteredEmCurso),
+    [
+      filteredEmCurso,
+      sortCol,
+      sortDir,
+      clienteLookup,
+      transportadoraLookup,
+      hasUserSorted,
+    ],
+  )
+
+  const sortedDespachados = useMemo(
+    () => createSorted(filteredDespachados),
+    [
+      filteredDespachados,
+      sortCol,
+      sortDir,
+      clienteLookup,
+      transportadoraLookup,
+      hasUserSorted,
+    ],
+  )
 
   // Clear filters function
   const clearFilters = useCallback(() => {
@@ -617,27 +576,11 @@ export const DashboardLogisticaTable: React.FC<
 
   // Handle refresh
   const handleRefresh = useCallback(() => {
-    fetchData(showDispatched)
+    fetchData()
     onRefresh?.()
-  }, [fetchData, onRefresh, showDispatched])
+  }, [fetchData, onRefresh])
 
   // Editing helper functions
-  const startEditing = useCallback(
-    (recordId: string, currentValues: Record<string, unknown>) => {
-      setEditingRows((prev) => ({ ...prev, [recordId]: true }))
-      setEditValues((prev) => ({ ...prev, [recordId]: currentValues }))
-    },
-    [],
-  )
-
-  const cancelEditing = useCallback((recordId: string) => {
-    setEditingRows((prev) => ({ ...prev, [recordId]: false }))
-    setEditValues((prev) => {
-      const { [recordId]: _, ...rest } = prev
-      return rest
-    })
-  }, [])
-
   const updateEditValue = useCallback(
     (recordId: string, field: string, value: unknown) => {
       setEditValues((prev) => ({
@@ -676,28 +619,23 @@ export const DashboardLogisticaTable: React.FC<
         if (error) throw error
 
         // Update local state optimistically
-        setRecords(
-          (prevRecords) =>
-            prevRecords
-              .map((r) => {
-                const currentRecordId = `${r.item_id}-${r.logistica_id || 'no-logistics'}`
-                if (currentRecordId === recordId) {
-                  return {
-                    ...r,
-                    guia: editedValues.guia,
-                    local_entrega: editedValues.local_entrega,
-                    notas: editedValues.notas,
-                    logistica_quantidade: editedValues.quantidade,
-                    saiu: editedValues.saiu,
-                  }
-                }
-                return r
-              })
-              .filter((r) => (!showDispatched ? !r.saiu : true)), // Filter out dispatched items if not showing them
+        const updatedRecord: DashboardLogisticaRecord = {
+          ...record,
+          guia: editedValues.guia,
+          local_entrega: editedValues.local_entrega,
+          notas: editedValues.notas,
+          logistica_quantidade: editedValues.quantidade,
+          saiu: editedValues.saiu,
+        }
+
+        // Update local state optimistically
+        setRecords((prevRecords) =>
+          prevRecords.map((r) =>
+            r.logistica_id === record.logistica_id ? updatedRecord : r,
+          ),
         )
 
-        // Exit editing mode
-        setEditingRows((prev) => ({ ...prev, [recordId]: false }))
+        // Clear the edit values for this record
         setEditValues((prev) => {
           const { [recordId]: _, ...rest } = prev
           return rest
@@ -707,7 +645,7 @@ export const DashboardLogisticaTable: React.FC<
         alert('Erro ao guardar alterações. Tente novamente.')
       }
     },
-    [editValues, supabase, setRecords, showDispatched],
+    [editValues, supabase],
   )
 
   // Handler functions for creatable comboboxes
@@ -987,46 +925,17 @@ export const DashboardLogisticaTable: React.FC<
   return (
     <div className="w-full">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Trabalhos em Curso</h2>
-        <div className="flex items-center gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="outline"
-                  onClick={() => setShowDispatched((v) => !v)}
-                  aria-label={
-                    showDispatched
-                      ? 'Mostrar Não Despachados'
-                      : 'Mostrar Despachados'
-                  }
-                >
-                  {showDispatched ? (
-                    <Eye className="h-5 w-5" />
-                  ) : (
-                    <EyeOff className="h-5 w-5" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {showDispatched
-                  ? 'Mostrar Não Despachados'
-                  : 'Mostrar Despachados'}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" onClick={handleRefresh}>
-                  <RefreshCcw className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Atualizar</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
+        <h2 className="text-2xl font-bold">Logística</h2>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="icon" onClick={handleRefresh}>
+                <RefreshCcw className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Atualizar</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       {/* Filter Bar */}
@@ -1116,17 +1025,48 @@ export const DashboardLogisticaTable: React.FC<
         </TooltipProvider>
       </div>
 
-      <div className="w-full">
-        <div className="w-full">
-          <Table className="w-full table-fixed uppercase [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+      {/* Tabs for Em Curso and Despachados */}
+      <Tabs defaultValue="em_curso" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="em_curso">Em Curso ({sortedEmCurso.length})</TabsTrigger>
+          <TabsTrigger value="despachados">Despachados ({sortedDespachados.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="em_curso" className="w-full">
+          <div className="w-full">
+            <Table className="w-full table-fixed uppercase [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
             <TableHeader>
               <TableRow>
                 <TableHead
                   onClick={() => toggleSort('numero_fo')}
-                  className="sticky top-0 z-10 w-[90px] cursor-pointer border-b text-center font-bold uppercase select-none"
+                  className="sticky top-0 z-10 w-[70px] cursor-pointer border-b text-center font-bold uppercase select-none"
                 >
                   FO{' '}
                   {sortCol === 'numero_fo' &&
+                    (sortDir === 'asc' ? (
+                      <ArrowUp className="ml-1 inline h-3 w-3" />
+                    ) : (
+                      <ArrowDown className="ml-1 inline h-3 w-3" />
+                    ))}
+                </TableHead>
+                <TableHead
+                  onClick={() => toggleSort('numero_orc')}
+                  className="sticky top-0 z-10 w-[70px] cursor-pointer border-b text-center font-bold uppercase select-none"
+                >
+                  ORC{' '}
+                  {sortCol === 'numero_orc' &&
+                    (sortDir === 'asc' ? (
+                      <ArrowUp className="ml-1 inline h-3 w-3" />
+                    ) : (
+                      <ArrowDown className="ml-1 inline h-3 w-3" />
+                    ))}
+                </TableHead>
+                <TableHead
+                  onClick={() => toggleSort('guia')}
+                  className="sticky top-0 z-10 w-[70px] cursor-pointer border-b text-center font-bold uppercase select-none"
+                >
+                  Guia{' '}
+                  {sortCol === 'guia' &&
                     (sortDir === 'asc' ? (
                       <ArrowUp className="ml-1 inline h-3 w-3" />
                     ) : (
@@ -1171,7 +1111,7 @@ export const DashboardLogisticaTable: React.FC<
                 </TableHead>
                 <TableHead
                   onClick={() => toggleSort('quantidade')}
-                  className="sticky top-0 z-10 w-[90px] cursor-pointer border-b text-center font-bold uppercase select-none"
+                  className="sticky top-0 z-10 w-[60px] cursor-pointer border-b text-center font-bold uppercase select-none"
                 >
                   Qt{' '}
                   {sortCol === 'quantidade' &&
@@ -1181,56 +1121,20 @@ export const DashboardLogisticaTable: React.FC<
                       <ArrowDown className="ml-1 inline h-3 w-3" />
                     ))}
                 </TableHead>
-                <TableHead
-                  onClick={() => toggleSort('guia')}
-                  className="sticky top-0 z-10 w-[90px] cursor-pointer border-b text-center font-bold uppercase select-none"
-                >
-                  Guia{' '}
-                  {sortCol === 'guia' &&
-                    (sortDir === 'asc' ? (
-                      <ArrowUp className="ml-1 inline h-3 w-3" />
-                    ) : (
-                      <ArrowDown className="ml-1 inline h-3 w-3" />
-                    ))}
+                <TableHead className="sticky top-0 z-10 w-[100px] border-b text-center font-bold uppercase">
+                  Transporte
                 </TableHead>
                 <TableHead
-                  onClick={() => toggleSort('local_recolha')}
+                  onClick={() => toggleSort('data_saida')}
                   className="sticky top-0 z-10 w-[160px] cursor-pointer border-b text-center font-bold uppercase select-none"
                 >
-                  Local Recolha{' '}
-                  {sortCol === 'local_recolha' &&
+                  Data Saída{' '}
+                  {sortCol === 'data_saida' &&
                     (sortDir === 'asc' ? (
                       <ArrowUp className="ml-1 inline h-3 w-3" />
                     ) : (
                       <ArrowDown className="ml-1 inline h-3 w-3" />
                     ))}
-                </TableHead>
-                <TableHead
-                  onClick={() => toggleSort('local_entrega')}
-                  className="sticky top-0 z-10 w-[160px] cursor-pointer border-b text-center font-bold uppercase select-none"
-                >
-                  Local Entrega{' '}
-                  {sortCol === 'local_entrega' &&
-                    (sortDir === 'asc' ? (
-                      <ArrowUp className="ml-1 inline h-3 w-3" />
-                    ) : (
-                      <ArrowDown className="ml-1 inline h-3 w-3" />
-                    ))}
-                </TableHead>
-                <TableHead
-                  onClick={() => toggleSort('transportadora')}
-                  className="sticky top-0 z-10 w-[180px] cursor-pointer border-b text-center font-bold uppercase select-none"
-                >
-                  Transportadora{' '}
-                  {sortCol === 'transportadora' &&
-                    (sortDir === 'asc' ? (
-                      <ArrowUp className="ml-1 inline h-3 w-3" />
-                    ) : (
-                      <ArrowDown className="ml-1 inline h-3 w-3" />
-                    ))}
-                </TableHead>
-                <TableHead className="sticky top-0 z-10 w-[50px] border-b text-center font-bold uppercase">
-                  Notas
                 </TableHead>
                 <TableHead
                   onClick={() => toggleSort('concluido')}
@@ -1254,18 +1158,6 @@ export const DashboardLogisticaTable: React.FC<
                   </TooltipProvider>
                 </TableHead>
                 <TableHead
-                  onClick={() => toggleSort('data_saida')}
-                  className="sticky top-0 z-10 w-44 cursor-pointer border-b text-center font-bold uppercase select-none"
-                >
-                  Data Saída{' '}
-                  {sortCol === 'data_saida' &&
-                    (sortDir === 'asc' ? (
-                      <ArrowUp className="ml-1 inline h-3 w-3" />
-                    ) : (
-                      <ArrowDown className="ml-1 inline h-3 w-3" />
-                    ))}
-                </TableHead>
-                <TableHead
                   onClick={() => toggleSort('saiu')}
                   className="sticky top-0 z-10 w-12 cursor-pointer border-b text-center font-bold uppercase select-none"
                 >
@@ -1286,21 +1178,38 @@ export const DashboardLogisticaTable: React.FC<
                     </Tooltip>
                   </TooltipProvider>
                 </TableHead>
-                <TableHead className="sticky top-0 z-10 w-[100px] border-b text-center font-bold uppercase">
-                  AÇÕES
-                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sorted.map((record) => {
+              {sortedEmCurso.map((record) => {
                 const recordId = `${record.item_id}-${record.logistica_id || 'no-logistics'}`
-                const isEditing = editingRows[recordId]
                 const currentEditValues = editValues[recordId] || {}
 
                 return (
                   <TableRow key={recordId}>
                     {/* FO - Not editable */}
                     <TableCell>{record.numero_fo || '-'}</TableCell>
+
+                    {/* ORC - Not editable */}
+                    <TableCell className="text-center">{record.numero_orc || '-'}</TableCell>
+
+                    {/* Guia - Always Editable */}
+                    <TableCell className="text-center">
+                      <Input
+                        className="h-8 text-sm text-center"
+                        value={currentEditValues.guia ?? record.guia ?? ''}
+                        onChange={(e) =>
+                          updateEditValue(recordId, 'guia', e.target.value)
+                        }
+                        onBlur={() => {
+                          const values = editValues[recordId] || {}
+                          if (values.guia !== undefined && values.guia !== record.guia) {
+                            saveEditing(record)
+                          }
+                        }}
+                        placeholder="-"
+                      />
+                    </TableCell>
 
                     {/* Cliente - Not editable */}
                     <TableCell>
@@ -1324,128 +1233,60 @@ export const DashboardLogisticaTable: React.FC<
                     {/* Item - Not editable */}
                     <TableCell>{record.item_descricao || '-'}</TableCell>
 
-                    {/* Quantidade - Editable */}
+                    {/* Quantidade - Always Editable */}
                     <TableCell className="text-center">
-                      {isEditing ? (
-                        <Input
-                          type="number"
-                          className="h-8 w-16 text-center text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          value={
-                            currentEditValues.quantidade ??
-                            record.logistica_quantidade ??
-                            ''
-                          }
-                          onChange={(e) =>
-                            updateEditValue(
-                              recordId,
-                              'quantidade',
-                              Number(e.target.value) || null,
-                            )
-                          }
-                        />
-                      ) : (
-                        record.logistica_quantidade || '-'
-                      )}
-                    </TableCell>
-
-                    {/* Guia - Editable */}
-                    <TableCell>
-                      {isEditing ? (
-                        <Input
-                          className="h-8 text-sm"
-                          value={currentEditValues.guia ?? record.guia ?? ''}
-                          onChange={(e) =>
-                            updateEditValue(recordId, 'guia', e.target.value)
-                          }
-                        />
-                      ) : (
-                        record.guia || '-'
-                      )}
-                    </TableCell>
-
-                    {/* Local Recolha - Creatable Armazem Combobox */}
-                    <TableCell>
-                      <CreatableArmazemCombobox
-                        value={record.id_local_recolha || ''}
-                        onChange={(value) => handleRecolhaChange(record, value)}
-                        options={armazens}
-                        onOptionsUpdate={handleArmazensUpdate}
-                        placeholder="Selecionar..."
-                        className="w-full"
-                      />
-                    </TableCell>
-
-                    {/* Local Entrega - Creatable Armazem Combobox */}
-                    <TableCell>
-                      <CreatableArmazemCombobox
-                        value={record.id_local_entrega || ''}
-                        onChange={(value) => handleEntregaChange(record, value)}
-                        options={armazens}
-                        onOptionsUpdate={handleArmazensUpdate}
-                        placeholder="Selecionar..."
-                        className="w-full"
-                      />
-                    </TableCell>
-
-                    {/* Transportadora - Creatable Transportadora Combobox */}
-                    <TableCell>
-                      <CreatableTransportadoraCombobox
-                        value={record.transportadora || ''}
-                        onChange={(value) =>
-                          handleTransportadoraChange(record, value)
+                      <Input
+                        type="number"
+                        className="h-8 w-16 text-center text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        value={
+                          currentEditValues.quantidade ??
+                          record.logistica_quantidade ??
+                          ''
                         }
-                        options={transportadoras}
-                        onOptionsUpdate={handleTransportadorasUpdate}
-                        placeholder="Selecionar..."
+                        onChange={(e) =>
+                          updateEditValue(
+                            recordId,
+                            'quantidade',
+                            Number(e.target.value) || null,
+                          )
+                        }
+                        onBlur={() => {
+                          const values = editValues[recordId] || {}
+                          if (values.quantidade !== undefined && values.quantidade !== record.logistica_quantidade) {
+                            saveEditing(record)
+                          }
+                        }}
+                        placeholder="-"
                       />
                     </TableCell>
 
-                    {/* Notas - Complex Popover with delivery contacts */}
+                    {/* Transporte - Popover with Local Recolha, Local Entrega, Transportadora, Notas, etc */}
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div>
-                                <NotasPopover
-                                  value={record.notas || ''}
-                                  contacto_entrega={
-                                    record.contacto_entrega || ''
-                                  }
-                                  telefone_entrega={
-                                    record.telefone_entrega || ''
-                                  }
-                                  data={record.data || null}
-                                  onChange={(value) => {
-                                    // This is for real-time preview, actual save happens in onSave
-                                  }}
-                                  onSave={async (fields) => {
-                                    await handleNotasSave(record, fields)
-                                  }}
-                                  iconType="file"
-                                  buttonSize="icon"
-                                  centered={true}
-                                />
-                              </div>
-                            </TooltipTrigger>
-                            {record.notas && record.notas.trim() !== '' && (
-                              <TooltipContent>{record.notas}</TooltipContent>
-                            )}
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </TableCell>
-
-                    {/* Concluído - Checkbox (always interactive) */}
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center">
-                        <Checkbox
-                          checked={!!record.concluido}
-                          onCheckedChange={(checked) => {
-                            const value =
-                              checked === 'indeterminate' ? false : checked
-                            handleConcluidoUpdate(record, value)
+                        <TransportePopover
+                          localRecolha={record.local_recolha || ''}
+                          localEntrega={record.local_entrega || ''}
+                          transportadora={record.transportadora || ''}
+                          idLocalRecolha={record.id_local_recolha || ''}
+                          idLocalEntrega={record.id_local_entrega || ''}
+                          notas={record.notas || ''}
+                          contactoEntrega={record.contacto_entrega || ''}
+                          telefoneEntrega={record.telefone_entrega || ''}
+                          armazens={armazens}
+                          transportadoras={transportadoras}
+                          onSave={async (fields) => {
+                            await handleRecolhaChange(record, fields.id_local_recolha)
+                            await handleEntregaChange(record, fields.id_local_entrega)
+                            await handleTransportadoraChange(record, fields.transportadora)
+                            await handleNotasSave(record, {
+                              outras: fields.notas,
+                              contacto_entrega: fields.contacto_entrega,
+                              telefone_entrega: fields.telefone_entrega,
+                              data: record.data || null,
+                            })
                           }}
+                          onArmazensUpdate={handleArmazensUpdate}
+                          onTransportadorasUpdate={handleTransportadorasUpdate}
                         />
                       </div>
                     </TableCell>
@@ -1466,82 +1307,264 @@ export const DashboardLogisticaTable: React.FC<
                       />
                     </TableCell>
 
-                    {/* Saiu - Checkbox (editable only when in edit mode) */}
+                    {/* Concluído - Checkbox (always interactive) */}
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center">
-                        {isEditing ? (
-                          <Checkbox
-                            checked={
-                              currentEditValues.saiu ?? (record.saiu || false)
-                            }
-                            onCheckedChange={(checked) => {
-                              const value =
-                                checked === 'indeterminate' ? false : checked
-                              updateEditValue(recordId, 'saiu', value)
-                            }}
-                          />
-                        ) : (
-                          <Checkbox
-                            checked={!!record.saiu}
-                            disabled
-                          />
-                        )}
+                        <Checkbox
+                          checked={!!record.concluido}
+                          onCheckedChange={(checked) => {
+                            const value =
+                              checked === 'indeterminate' ? false : checked
+                            handleConcluidoUpdate(record, value)
+                          }}
+                        />
                       </div>
                     </TableCell>
 
-                    {/* Actions */}
+                    {/* Saiu - Always interactive */}
                     <TableCell className="text-center">
-                      <div className="flex justify-center gap-2">
-                        {isEditing ? (
-                          <>
-                            <Button
-                              size="icon"
-                              variant="default"
-                              onClick={() => saveEditing(record)}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              onClick={() => cancelEditing(recordId)}
-                            >
-                              <Cancel className="h-4 w-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            onClick={() =>
-                              startEditing(recordId, {
-                                quantidade: record.logistica_quantidade,
-                                guia: record.guia,
-                                local_entrega: record.local_entrega,
-                                notas: record.notas,
-                                saiu: record.saiu,
-                              })
-                            }
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        )}
+                      <div className="flex items-center justify-center">
+                        <Checkbox
+                          checked={!!record.saiu}
+                          onCheckedChange={(checked) => {
+                            const value =
+                              checked === 'indeterminate' ? false : checked
+                            handleSaiuUpdate(record, value)
+                          }}
+                        />
                       </div>
                     </TableCell>
                   </TableRow>
                 )
               })}
-              {sorted.length === 0 && (
+              {sortedEmCurso.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={14} className="py-8 text-center">
-                    Nenhum trabalho concluído encontrado.
+                  <TableCell colSpan={10} className="py-8 text-center">
+                    Nenhum trabalho em curso encontrado.
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
-        </div>
-      </div>
+            </div>
+        </TabsContent>
+
+        <TabsContent value="despachados" className="w-full">
+          <div className="w-full">
+            <Table className="w-full table-fixed uppercase [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+            <TableHeader>
+              <TableRow>
+                <TableHead
+                  onClick={() => toggleSort('numero_fo')}
+                  className="sticky top-0 z-10 w-[70px] cursor-pointer border-b text-center font-bold uppercase select-none"
+                >
+                  FO
+                </TableHead>
+                <TableHead
+                  onClick={() => toggleSort('numero_orc')}
+                  className="sticky top-0 z-10 w-[70px] cursor-pointer border-b text-center font-bold uppercase select-none"
+                >
+                  ORC
+                </TableHead>
+                <TableHead
+                  onClick={() => toggleSort('guia')}
+                  className="sticky top-0 z-10 w-[70px] cursor-pointer border-b text-center font-bold uppercase select-none"
+                >
+                  Guia
+                </TableHead>
+                <TableHead
+                  onClick={() => toggleSort('cliente')}
+                  className="sticky top-0 z-10 cursor-pointer border-b text-center font-bold uppercase select-none"
+                >
+                  Cliente
+                </TableHead>
+                <TableHead
+                  onClick={() => toggleSort('nome_campanha')}
+                  className="sticky top-0 z-10 cursor-pointer border-b text-center font-bold uppercase select-none"
+                >
+                  Nome Campanha
+                </TableHead>
+                <TableHead
+                  onClick={() => toggleSort('item')}
+                  className="sticky top-0 z-10 cursor-pointer border-b text-center font-bold uppercase select-none"
+                >
+                  Item
+                </TableHead>
+                <TableHead
+                  onClick={() => toggleSort('quantidade')}
+                  className="sticky top-0 z-10 w-[60px] cursor-pointer border-b text-center font-bold uppercase select-none"
+                >
+                  Qt
+                </TableHead>
+                <TableHead className="sticky top-0 z-10 w-[100px] border-b text-center font-bold uppercase">
+                  Transporte
+                </TableHead>
+                <TableHead
+                  onClick={() => toggleSort('data_saida')}
+                  className="sticky top-0 z-10 w-[160px] cursor-pointer border-b text-center font-bold uppercase select-none"
+                >
+                  Data Saída
+                </TableHead>
+                <TableHead
+                  onClick={() => toggleSort('concluido')}
+                  className="sticky top-0 z-10 w-12 cursor-pointer border-b text-center font-bold uppercase select-none"
+                >
+                  C
+                </TableHead>
+                <TableHead
+                  onClick={() => toggleSort('saiu')}
+                  className="sticky top-0 z-10 w-12 cursor-pointer border-b text-center font-bold uppercase select-none"
+                >
+                  S
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedDespachados.map((record) => {
+                const recordId = `${record.item_id}-${record.logistica_id || 'no-logistics'}`
+                const currentEditValues = editValues[recordId] || {}
+
+                return (
+                  <TableRow key={recordId}>
+                    <TableCell>{record.numero_fo || '-'}</TableCell>
+                    <TableCell className="text-center">{record.numero_orc || '-'}</TableCell>
+                    <TableCell className="text-center">
+                      <Input
+                        className="h-8 text-sm text-center"
+                        value={currentEditValues.guia ?? record.guia ?? ''}
+                        onChange={(e) =>
+                          updateEditValue(recordId, 'guia', e.target.value)
+                        }
+                        onBlur={() => {
+                          const values = editValues[recordId] || {}
+                          if (values.guia !== undefined && values.guia !== record.guia) {
+                            saveEditing(record)
+                          }
+                        }}
+                        placeholder="-"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const clientId = record.id_cliente
+                        const clientName =
+                          (clientId ? clienteLookup[clientId] : '') ||
+                          record.cliente ||
+                          '-'
+                        return clientName.length > 28
+                          ? `${clientName.substring(0, 28)}...`
+                          : clientName
+                      })()}
+                    </TableCell>
+                    <TableCell>{record.nome_campanha || '-'}</TableCell>
+                    <TableCell>{record.item_descricao || '-'}</TableCell>
+                    <TableCell className="text-center">
+                      <Input
+                        type="number"
+                        className="h-8 w-16 text-center text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        value={
+                          currentEditValues.quantidade ??
+                          record.logistica_quantidade ??
+                          ''
+                        }
+                        onChange={(e) =>
+                          updateEditValue(
+                            recordId,
+                            'quantidade',
+                            Number(e.target.value) || null,
+                          )
+                        }
+                        onBlur={() => {
+                          const values = editValues[recordId] || {}
+                          if (values.quantidade !== undefined && values.quantidade !== record.logistica_quantidade) {
+                            saveEditing(record)
+                          }
+                        }}
+                        placeholder="-"
+                      />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center">
+                        <TransportePopover
+                          localRecolha={record.local_recolha || ''}
+                          localEntrega={record.local_entrega || ''}
+                          transportadora={record.transportadora || ''}
+                          idLocalRecolha={record.id_local_recolha || ''}
+                          idLocalEntrega={record.id_local_entrega || ''}
+                          notas={record.notas || ''}
+                          contactoEntrega={record.contacto_entrega || ''}
+                          telefoneEntrega={record.telefone_entrega || ''}
+                          armazens={armazens}
+                          transportadoras={transportadoras}
+                          onSave={async (fields) => {
+                            await handleRecolhaChange(record, fields.id_local_recolha)
+                            await handleEntregaChange(record, fields.id_local_entrega)
+                            await handleTransportadoraChange(record, fields.transportadora)
+                            await handleNotasSave(record, {
+                              outras: fields.notas,
+                              contacto_entrega: fields.contacto_entrega,
+                              telefone_entrega: fields.telefone_entrega,
+                              data: record.data || null,
+                            })
+                          }}
+                          onArmazensUpdate={handleArmazensUpdate}
+                          onTransportadorasUpdate={handleTransportadorasUpdate}
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <DatePicker
+                        value={
+                          record.data_saida
+                            ? parseDateFromYYYYMMDD(
+                                record.data_saida.split('T')[0],
+                              )
+                            : undefined
+                        }
+                        onChange={(date) =>
+                          handleDataSaidaUpdate(record, date || null)
+                        }
+                      />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center">
+                        <Checkbox
+                          checked={!!record.concluido}
+                          onCheckedChange={(checked) => {
+                            const value =
+                              checked === 'indeterminate' ? false : checked
+                            handleConcluidoUpdate(record, value)
+                          }}
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center">
+                        <Checkbox
+                          checked={!!record.saiu}
+                          onCheckedChange={(checked) => {
+                            const value =
+                              checked === 'indeterminate' ? false : checked
+                            handleSaiuUpdate(record, value)
+                          }}
+                        />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+              {sortedDespachados.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={10} className="py-8 text-center">
+                    Nenhum trabalho despachado encontrado.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+            </div>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

@@ -152,10 +152,8 @@ export function Navigation() {
     // If sidebar is collapsed, expand it first
     if (isCollapsed) {
       setIsCollapsed(false)
-      // Also open the submenu
-      if (!openSubmenus.includes(title)) {
-        setOpenSubmenus(prev => [...prev, title])
-      }
+      // Also open the submenu (only this one)
+      setOpenSubmenus([title])
     } else {
       // If already expanded, just toggle the submenu
       toggleSubmenu(title)

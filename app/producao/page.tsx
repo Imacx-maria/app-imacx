@@ -1364,26 +1364,32 @@ export default function ProducaoPage() {
                 }
               })
 
-              // Filter jobs based on items' C checkbox status
+              // Filter jobs based on logistica_entregas concluido status (source of truth)
               if (filters.activeTab === 'em_curso') {
-                // Show jobs where ANY item has concluido=false and not pendente
+                // Show jobs where ANY item has logistica concluido=false and not pendente
                 filteredJobs = filteredJobs.filter((job) => {
                   if (job.pendente === true) return false
                   const jobItems = itemsData.filter(
                     (item) => item.folha_obra_id === job.id,
                   )
                   if (jobItems.length === 0) return true // Show if no items yet
-                  return jobItems.some((item) => item.concluido !== true)
+                  return jobItems.some((item) => {
+                    const logEntry = logisticsData.find((l) => l.item_id === item.id)
+                    return !logEntry || logEntry.concluido !== true
+                  })
                 })
               } else if (filters.activeTab === 'concluidos') {
-                // Show jobs where ALL items have concluido=true and not pendente
+                // Show jobs where ALL items have logistica concluido=true and not pendente
                 filteredJobs = filteredJobs.filter((job) => {
                   if (job.pendente === true) return false
                   const jobItems = itemsData.filter(
                     (item) => item.folha_obra_id === job.id,
                   )
                   if (jobItems.length === 0) return false // Don't show if no items
-                  return jobItems.every((item) => item.concluido === true)
+                  return jobItems.every((item) => {
+                    const logEntry = logisticsData.find((l) => l.item_id === item.id)
+                    return logEntry && logEntry.concluido === true
+                  })
                 })
               } else if (filters.activeTab === 'pendentes') {
                 // Show jobs that are marked as pendente = true
@@ -4015,29 +4021,29 @@ export default function ProducaoPage() {
                                       checked={allItemsCompleted}
                                       onCheckedChange={async (checked) => {
                                         if (jobItems.length === 0) {
-                                          setJobs((prevJobs) =>
-                                            prevJobs.filter((j) => j.id !== job.id),
-                                          )
                                           return
                                         }
                                         
-                                        setJobs((prevJobs) =>
-                                          prevJobs.filter((j) => j.id !== job.id),
-                                        )
-                                        
                                         if (!job.id.startsWith('temp-')) {
                                           try {
+                                            const today = new Date().toISOString().split('T')[0]
+                                            const newStatus = !allItemsCompleted
+                                            
                                             for (const item of jobItems) {
                                               await supabase
                                                 .from('logistica_entregas')
-                                                .update({ concluido: false })
+                                                .update({ 
+                                                  concluido: newStatus,
+                                                  data_concluido: newStatus ? today : null,
+                                                  data_saida: newStatus ? today : null,
+                                                })
                                                 .eq('item_id', item.id)
                                             }
                                             
                                             setAllItems((prevItems) =>
                                               prevItems.map((item) =>
                                                 jobItems.some((ji) => ji.id === item.id)
-                                                  ? { ...item, concluido: false }
+                                                  ? { ...item, concluido: newStatus }
                                                   : item,
                                               ),
                                             )
@@ -4046,7 +4052,6 @@ export default function ProducaoPage() {
                                               'Error updating items:',
                                               error,
                                             )
-                                            setJobs((prevJobs) => [...prevJobs, job])
                                           }
                                         }
                                       }}

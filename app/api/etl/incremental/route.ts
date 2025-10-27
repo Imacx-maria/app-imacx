@@ -26,8 +26,15 @@ export async function POST(req: NextRequest) {
     const syncType = body.type || 'default'
     
     const externalUrl = process.env.ETL_SYNC_URL
-    const pythonPath = process.env.PYTHON_PATH || 'python'
+    const isWindows = process.platform === 'win32'
+    const pythonPath = process.env.PYTHON_PATH || (isWindows ? 'python' : 'python3')
+    const pythonArgs = process.env.PYTHON_ARGS || ''
     const etlScriptsPath = process.env.ETL_SCRIPTS_PATH
+    const ghToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_PAT
+    const ghRepoOwner = process.env.GH_REPO_OWNER
+    const ghRepoName = process.env.GH_REPO_NAME
+    const ghWorkflowFile = process.env.GH_WORKFLOW_FILE || 'daily-etl-sync.yml'
+    const ghRef = process.env.GH_REF || 'main'
     
     // Option 1: Use external ETL service
     if (externalUrl) {
@@ -51,29 +58,74 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Option 2: Run local Python ETL script
+    // Option 2: Run local Python ETL script (Windows-only; dev/local use)
     if (etlScriptsPath) {
+      // Prevent attempting to run Windows paths on a non-Windows runtime (e.g., Vercel/Linux)
+      const looksLikeWindowsPath = /[A-Za-z]:\\/.test(etlScriptsPath)
+      if (!isWindows) {
+        // Fallback: dispatch GitHub Action when running on non-Windows environments
+        if (ghToken && ghRepoOwner && ghRepoName) {
+          const url = `https://api.github.com/repos/${ghRepoOwner}/${ghRepoName}/actions/workflows/${ghWorkflowFile}/dispatches`
+          console.log('🔁 Non-Windows runtime detected. Dispatching GitHub Action:', url)
+          const resp = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/vnd.github+json',
+              'Authorization': `Bearer ${ghToken}`,
+            },
+            body: JSON.stringify({ ref: ghRef, inputs: { type: syncType } }),
+          })
+
+          if (!resp.ok) {
+            const text = await resp.text().catch(() => '')
+            throw new Error(`GitHub dispatch failed: ${resp.status} ${text}`)
+          }
+
+          return NextResponse.json(
+            {
+              success: true,
+              message: 'ETL dispatched to GitHub Actions',
+              dispatch: { workflow: ghWorkflowFile, repo: `${ghRepoOwner}/${ghRepoName}`, ref: ghRef, type: syncType },
+            },
+            { status: 200 },
+          )
+        }
+
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Local ETL is only supported when the server runs on Windows.',
+            details: `Detected runtime: ${process.platform}. Configure ETL_SYNC_URL or set GH_TOKEN/GH_REPO_OWNER/GH_REPO_NAME for GitHub Actions dispatch.`,
+          },
+          { status: 500 },
+        )
+      }
+
       // Map sync type to Python script
       const scriptMap: Record<string, string> = {
-        default: 'run_incremental.py',
-        fast_clients_3days: 'run_fast_client_sync.py',
-        fast_bo_bi_only: 'run_fast_bo_bi_sync.py',
+        // Default incremental: for simplicity, use fast_all watermark sync
+        default: 'run_fast_all_tables_sync.py',
+        // Map archived fast variants to today-based equivalents to keep UI buttons working
+        fast_clients_3days: 'run_today_clients.py',
+        fast_bo_bi_only: 'run_today_bo_bi.py',
         fast_all: 'run_fast_all_tables_sync.py',
         today_clients: 'run_today_clients.py',
         today_bo_bi: 'run_today_bo_bi.py',
-        today_all: 'run_today_all.py',
+        // today_all archived; route to fast_all which is short and safe
+        today_all: 'run_fast_all_tables_sync.py',
       }
 
       const scriptName = scriptMap[syncType] || scriptMap.default
       console.log(`🚀 Starting ${syncType} ETL sync...`)
       
-      // Support both absolute and relative paths
-      const resolvedPath = path.isAbsolute(etlScriptsPath)
-        ? etlScriptsPath
-        : path.join(process.cwd(), etlScriptsPath)
-      
+      // Support both absolute and relative paths, across Windows/Posix
+      const isAbs = path.win32.isAbsolute(etlScriptsPath) || path.posix.isAbsolute(etlScriptsPath)
+      const resolvedPath = isAbs ? etlScriptsPath : path.join(process.cwd(), etlScriptsPath)
+
       const scriptPath = path.join(resolvedPath, scriptName)
-      const command = `"${pythonPath}" "${scriptPath}"`
+      const pythonCmd = pythonArgs ? `"${pythonPath}" ${pythonArgs}` : `"${pythonPath}"`
+      const command = `${pythonCmd} "${scriptPath}"`
 
       console.log(`📝 Executing: ${command}`)
       
@@ -105,12 +157,49 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // No ETL configured
-    console.warn('⚠️ No ETL configuration found')
+    // No ETL configured: try GitHub Dispatch if available
+    if (ghToken && ghRepoOwner && ghRepoName) {
+      const url = `https://api.github.com/repos/${ghRepoOwner}/${ghRepoName}/actions/workflows/${ghWorkflowFile}/dispatches`
+      console.log('🔁 No local/external ETL configured. Dispatching GitHub Action:', url)
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/vnd.github+json',
+          'Authorization': `Bearer ${ghToken}`,
+        },
+        body: JSON.stringify({ ref: ghRef, inputs: { type: syncType } }),
+      })
+
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => '')
+        console.error('❌ GitHub dispatch failed:', resp.status, text)
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Failed to dispatch ETL to GitHub Actions',
+            status: resp.status,
+          },
+          { status: 500 },
+        )
+      }
+
+      return NextResponse.json(
+        {
+          success: true,
+          message: 'ETL dispatched to GitHub Actions',
+          dispatch: { workflow: ghWorkflowFile, repo: `${ghRepoOwner}/${ghRepoName}`, ref: ghRef, type: syncType },
+        },
+        { status: 200 },
+      )
+    }
+
+    // No ETL configured and no GitHub dispatch available
+    console.warn('⚠️ No ETL configuration found and GitHub dispatch not configured')
     return NextResponse.json(
       {
         success: false,
-        message: 'ETL not configured. Set ETL_SYNC_URL or ETL_SCRIPTS_PATH in .env.local',
+        message: 'ETL not configured. Set ETL_SYNC_URL or ETL_SCRIPTS_PATH in .env.local, or configure GH_TOKEN/GH_REPO_OWNER/GH_REPO_NAME.',
       },
       { status: 500 }
     )

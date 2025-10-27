@@ -21,7 +21,7 @@ interface DatePickerProps {
 export default function DatePicker({
   value,
   onChange,
-  placeholder = "Selecionar data",
+  placeholder = "DATA",
   disabled = false,
 }: DatePickerProps) {
   return (
@@ -36,10 +36,10 @@ export default function DatePicker({
           )}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
-          {value ? format(value, "d MMMM yyyy", { locale: ptBR }) : placeholder}
+          {value ? format(value, "dd/MM/yyyy") : placeholder}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent className="w-auto p-4" align="start">
         <Calendar
           mode="single"
           selected={value}

@@ -29,8 +29,32 @@ export const maxDuration = 300 // 5 minutes timeout
  */
 export async function POST() {
   try {
-    const pythonPath = process.env.PYTHON_PATH || 'python'
+    const externalUrl = process.env.ETL_SYNC_URL
+    const isWindows = process.platform === 'win32'
+    const pythonPath = process.env.PYTHON_PATH || (isWindows ? 'python' : 'python3')
+    const pythonArgs = process.env.PYTHON_ARGS || ''
     const etlScriptsPath = process.env.ETL_SCRIPTS_PATH
+    
+    // Option 1: Use external ETL service
+    if (externalUrl) {
+      const response = await fetch(`${externalUrl}/etl/annual-update`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.ETL_API_KEY || ''}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`External ETL service returned ${response.status}`)
+      }
+
+      const data = await response.json()
+      return NextResponse.json(
+        { success: true, message: 'Annual historical sync completed', data },
+        { status: 200 }
+      )
+    }
     
     if (!etlScriptsPath) {
       return NextResponse.json(
@@ -44,13 +68,24 @@ export async function POST() {
 
     console.log('🎉 Starting annual historical sync...')
     
-    // Support both absolute and relative paths
-    const resolvedPath = path.isAbsolute(etlScriptsPath)
-      ? etlScriptsPath
-      : path.join(process.cwd(), etlScriptsPath)
+    if (!isWindows) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Local annual ETL is only supported on Windows runtime.',
+          details: `Detected runtime: ${process.platform}. Configure ETL_SYNC_URL for production or run scripts manually.`,
+        },
+        { status: 500 },
+      )
+    }
+    
+    // Support both absolute and relative paths across Windows/Posix
+    const isAbs = path.win32.isAbsolute(etlScriptsPath) || path.posix.isAbsolute(etlScriptsPath)
+    const resolvedPath = isAbs ? etlScriptsPath : path.join(process.cwd(), etlScriptsPath)
     
     const scriptPath = path.join(resolvedPath, 'run_annual_historical.py')
-    const command = `"${pythonPath}" "${scriptPath}"`
+    const pythonCmd = pythonArgs ? `"${pythonPath}" ${pythonArgs}` : `"${pythonPath}"`
+    const command = `${pythonCmd} "${scriptPath}"`
 
     console.log(`📝 Executing: ${command}`)
     

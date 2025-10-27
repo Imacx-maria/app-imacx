@@ -16,7 +16,9 @@ export const maxDuration = 300 // 5 minutes timeout (Vercel hobby plan limit)
 export async function POST(req: NextRequest) {
   try {
     const externalUrl = process.env.ETL_SYNC_URL
-    const pythonPath = process.env.PYTHON_PATH || 'python'
+    const isWindows = process.platform === 'win32'
+    const pythonPath = process.env.PYTHON_PATH || (isWindows ? 'python' : 'python3')
+    const pythonArgs = process.env.PYTHON_ARGS || ''
     const etlScriptsPath = process.env.ETL_SCRIPTS_PATH
 
     // Option 1: Use external ETL service
@@ -42,15 +44,25 @@ export async function POST(req: NextRequest) {
 
     // Option 2: Run local Python ETL script
     if (etlScriptsPath) {
+      if (!isWindows) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Local full ETL is only supported on Windows runtime.',
+            details: `Detected runtime: ${process.platform}. Configure ETL_SYNC_URL for production or run scripts manually.`,
+          },
+          { status: 500 },
+        )
+      }
       console.log('🚀 Starting Full ETL sync (this may take 20+ minutes)...')
       
-      // Support both absolute and relative paths
-      const resolvedPath = path.isAbsolute(etlScriptsPath)
-        ? etlScriptsPath
-        : path.join(process.cwd(), etlScriptsPath)
+      // Support both absolute and relative paths across Windows/Posix
+      const isAbs = path.win32.isAbsolute(etlScriptsPath) || path.posix.isAbsolute(etlScriptsPath)
+      const resolvedPath = isAbs ? etlScriptsPath : path.join(process.cwd(), etlScriptsPath)
       
       const scriptPath = path.join(resolvedPath, 'run_full.py')
-      const command = `"${pythonPath}" "${scriptPath}"`
+      const pythonCmd = pythonArgs ? `"${pythonPath}" ${pythonArgs}` : `"${pythonPath}"`
+      const command = `${pythonCmd} "${scriptPath}"`
 
       console.log(`📝 Executing: ${command}`)
       
