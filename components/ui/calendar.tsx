@@ -8,16 +8,26 @@ import 'react-day-picker/style.css'
 
 import { cn } from '@/utils/tailwind'
 
-export interface CalendarProps extends React.ComponentProps<typeof DayPicker> {
+export interface CalendarProps {
   holidays?: { holiday_date: string }[]
   // Ensure compatibility with usages in the app and different DayPicker versions
   month?: Date
   onDayClick?: (date: Date) => void
+  showOutsideDays?: boolean
+  // Compatibility shims for projects passing these props explicitly
+  mode?: any
+  initialFocus?: boolean
+  selected?: any
+  onSelect?: any
+  classNames?: any
+  modifiers?: any
+  [key: string]: any
 }
 
 function Calendar({
   className,
   holidays = [],
+  onDayClick,
   ...props
 }: CalendarProps) {
   const holidayDates = React.useMemo(() => {
@@ -86,6 +96,16 @@ function Calendar({
         className={cn('rdp', className)}
         // Spread incoming props first so we can override selectively
         {...props}
+        // Map legacy onDayClick to DayPicker onSelect if not provided
+        onSelect={
+          props.onSelect ??
+          (onDayClick
+            ? (date: any) => {
+                if (!date) return
+                onDayClick(date as Date)
+              }
+            : undefined)
+        }
       />
     </div>
   )
