@@ -100,6 +100,7 @@ export default function CreatableRoleCombobox({
 
   useEffect(() => {
     fetchRoles()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [providedRoles])
 
   const handleCreateRole = async () => {
@@ -185,7 +186,7 @@ export default function CreatableRoleCombobox({
                     className="gap-2"
                   >
                     <Plus className="h-4 w-4" />
-                    Criar "{searchValue}"
+                    Criar &quot;{searchValue}&quot;
                   </Button>
                 </div>
               </CommandEmpty>

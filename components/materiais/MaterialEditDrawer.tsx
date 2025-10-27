@@ -225,6 +225,7 @@ export default function MaterialEditDrawer({
       )
         fetchCores(material.tipo, material.material, material.carateristica)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, material])
 
   const handleInputChange = (
