@@ -1308,7 +1308,7 @@ export default function ProducaoPage() {
           // Get all items for these jobs
           const { data: itemsData, error: itemsError } = await supabase
             .from('items_base')
-            .select('id, folha_obra_id')
+            .select('id, folha_obra_id, concluido')
             .in('folha_obra_id', currentJobIds)
 
           if (!itemsError && itemsData && itemsData.length > 0) {
@@ -1364,18 +1364,27 @@ export default function ProducaoPage() {
                 }
               })
 
-              // Filter jobs based on tab and completion status
+              // Filter jobs based on items' C checkbox status
               if (filters.activeTab === 'em_curso') {
-                // Show jobs that are NOT fully completed (incomplete logistics) AND not marked as pendente
-                filteredJobs = filteredJobs.filter(
-                  (job) =>
-                    !jobCompletionMap.get(job.id) && job.pendente !== true,
-                )
+                // Show jobs where ANY item has concluido=false and not pendente
+                filteredJobs = filteredJobs.filter((job) => {
+                  if (job.pendente === true) return false
+                  const jobItems = itemsData.filter(
+                    (item) => item.folha_obra_id === job.id,
+                  )
+                  if (jobItems.length === 0) return true // Show if no items yet
+                  return jobItems.some((item) => item.concluido !== true)
+                })
               } else if (filters.activeTab === 'concluidos') {
-                // Show jobs that are fully completed (all logistics entries have concluido=true)
-                filteredJobs = filteredJobs.filter((job) =>
-                  jobCompletionMap.get(job.id),
-                )
+                // Show jobs where ALL items have concluido=true and not pendente
+                filteredJobs = filteredJobs.filter((job) => {
+                  if (job.pendente === true) return false
+                  const jobItems = itemsData.filter(
+                    (item) => item.folha_obra_id === job.id,
+                  )
+                  if (jobItems.length === 0) return false // Don't show if no items
+                  return jobItems.every((item) => item.concluido === true)
+                })
               } else if (filters.activeTab === 'pendentes') {
                 // Show jobs that are marked as pendente = true
                 filteredJobs = filteredJobs.filter(
@@ -3555,6 +3564,18 @@ export default function ProducaoPage() {
                                 <ArrowDown className="ml-1 inline h-3 w-3" />
                               ))}
                           </TableHead>
+                          <TableHead
+                            className="border-border sticky top-0 z-10 w-[36px] border-b bg-primary p-0 text-center text-primary-foreground uppercase select-none"
+                          >
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span>C</span>
+                                </TooltipTrigger>
+                                <TooltipContent>Concluído</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -3980,13 +4001,66 @@ export default function ProducaoPage() {
                                   </span>
                                 </div>
                               </TableCell>
+                              <TableCell className="w-[36px] p-0 text-center">
+                                {(() => {
+                                  const jobItems = allItems.filter(
+                                    (item) => item.folha_obra_id === job.id,
+                                  )
+                                  const allItemsCompleted =
+                                    jobItems.length > 0 &&
+                                    jobItems.every((item) => item.concluido === true)
+                                  
+                                  return (
+                                    <Checkbox
+                                      checked={allItemsCompleted}
+                                      onCheckedChange={async (checked) => {
+                                        if (jobItems.length === 0) {
+                                          setJobs((prevJobs) =>
+                                            prevJobs.filter((j) => j.id !== job.id),
+                                          )
+                                          return
+                                        }
+                                        
+                                        setJobs((prevJobs) =>
+                                          prevJobs.filter((j) => j.id !== job.id),
+                                        )
+                                        
+                                        if (!job.id.startsWith('temp-')) {
+                                          try {
+                                            for (const item of jobItems) {
+                                              await supabase
+                                                .from('logistica_entregas')
+                                                .update({ concluido: false })
+                                                .eq('item_id', item.id)
+                                            }
+                                            
+                                            setAllItems((prevItems) =>
+                                              prevItems.map((item) =>
+                                                jobItems.some((ji) => ji.id === item.id)
+                                                  ? { ...item, concluido: false }
+                                                  : item,
+                                              ),
+                                            )
+                                          } catch (error) {
+                                            console.error(
+                                              'Error updating items:',
+                                              error,
+                                            )
+                                            setJobs((prevJobs) => [...prevJobs, job])
+                                          }
+                                        }
+                                      }}
+                                    />
+                                  )
+                                })()}
+                              </TableCell>
                             </TableRow>
                           )
                         })}
                         {sorted.length === 0 && (
                           <TableRow>
                             <TableCell
-                              colSpan={7}
+                              colSpan={8}
                               className="py-8 text-center"
                             >
                               Nenhum trabalho com logística concluída
