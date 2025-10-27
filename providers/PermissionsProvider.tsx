@@ -88,20 +88,8 @@ export function PermissionsProvider({
 
           if (roleError) {
             console.warn('Error fetching role:', roleError.message)
-            // Fallback: use role-based permissions if column doesn't exist yet
-            const roleName = roleData?.name?.toLowerCase() || ''
-            let fallbackPermissions = ['dashboard']
-            
-            if (roleName === 'admin' || roleName === 'administrador') {
-              fallbackPermissions = ['*']
-            } else if (roleName.includes('designer')) {
-              fallbackPermissions = ['dashboard', 'designer-flow']
-            } else if (roleName.includes('gestor') || roleName.includes('manager')) {
-              fallbackPermissions = ['dashboard', 'gestao']
-            }
-            
-            console.warn(`Using fallback permissions for ${roleData?.name}:`, fallbackPermissions)
-            setPagePermissions(fallbackPermissions)
+            // When there's an error, just give dashboard access
+            setPagePermissions(['dashboard'])
           } else if (roleData?.page_permissions && Array.isArray(roleData.page_permissions) && roleData.page_permissions.length > 0) {
             console.log(`Loaded page_permissions for ${roleData.name}:`, roleData.page_permissions)
             setPagePermissions(roleData.page_permissions as string[])
@@ -118,7 +106,7 @@ export function PermissionsProvider({
               fallbackPermissions = ['dashboard', 'gestao']
             }
             
-            console.warn(`No page_permissions set for ${roleData?.name}, using fallback:`, fallbackPermissions)
+            console.warn(`No page_permissions set, using fallback:`, fallbackPermissions)
             setPagePermissions(fallbackPermissions)
           }
         } else {
