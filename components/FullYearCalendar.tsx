@@ -12,7 +12,7 @@ interface Holiday {
 interface FullYearCalendarProps {
   holidays?: Holiday[]
   year?: number
-  onSelect?: (date: Date | undefined) => void
+  onSelect?: (date: Date) => void
 }
 
 export const FullYearCalendar: React.FC<FullYearCalendarProps> = ({
@@ -47,12 +47,10 @@ export const FullYearCalendar: React.FC<FullYearCalendarProps> = ({
           data-no-aria-hidden="true"
         >
           <Calendar
-            mode="single"
             month={monthDate}
-            selected={undefined}
             holidays={holidays}
             showOutsideDays={false}
-            onSelect={onSelect}
+            onDayClick={onSelect}
             classNames={{
               month_caption: 'text-lg font-semibold uppercase text-center mb-2',
             }}
