@@ -10,6 +10,17 @@ on:
   
   # Allow manual trigger from Actions tab
   workflow_dispatch:
+    inputs:
+      type:
+        description: "Sync type"
+        required: false
+        type: choice
+        options:
+          - today_all
+          - today_clients
+          - today_bo_bi
+          - fast_all
+        default: fast_all
 
 jobs:
   sync-phc-data:
@@ -38,13 +49,73 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r scripts/requirements.txt
-      
-      - name: Run Fast ETL Sync (Last 3 Days)
+
+      - name: Run Today Clients
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.type == 'today_clients' }}
         env:
-          # PHC Database Connection
           MSSQL_DIRECT_CONNECTION: ${{ secrets.MSSQL_DIRECT_CONNECTION }}
-          
-          # Supabase Connection
+          PG_HOST: ${{ secrets.PG_HOST }}
+          PG_DB: ${{ secrets.PG_DB }}
+          PG_USER: ${{ secrets.PG_USER }}
+          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
+          PG_PORT: ${{ secrets.PG_PORT }}
+          PG_SSLMODE: ${{ secrets.PG_SSLMODE }}
+        run: |
+          echo "🚀 Starting Today Clients sync..."
+          python scripts/etl/run_today_clients.py
+          if [ $? -eq 0 ]; then
+            echo "✅ Today Clients sync completed successfully!"
+          else
+            echo "❌ Today Clients sync failed!"
+            exit 1
+          fi
+
+      - name: Run Today BO/BI
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.type == 'today_bo_bi' }}
+        env:
+          MSSQL_DIRECT_CONNECTION: ${{ secrets.MSSQL_DIRECT_CONNECTION }}
+          PG_HOST: ${{ secrets.PG_HOST }}
+          PG_DB: ${{ secrets.PG_DB }}
+          PG_USER: ${{ secrets.PG_USER }}
+          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
+          PG_PORT: ${{ secrets.PG_PORT }}
+          PG_SSLMODE: ${{ secrets.PG_SSLMODE }}
+        run: |
+          echo "🚀 Starting Today BO/BI sync..."
+          python scripts/etl/run_today_bo_bi.py
+          if [ $? -eq 0 ]; then
+            echo "✅ Today BO/BI sync completed successfully!"
+          else
+            echo "❌ Today BO/BI sync failed!"
+            exit 1
+          fi
+
+      - name: Run Today All
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.type == 'today_all' }}
+        env:
+          MSSQL_DIRECT_CONNECTION: ${{ secrets.MSSQL_DIRECT_CONNECTION }}
+          PG_HOST: ${{ secrets.PG_HOST }}
+          PG_DB: ${{ secrets.PG_DB }}
+          PG_USER: ${{ secrets.PG_USER }}
+          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
+          PG_PORT: ${{ secrets.PG_PORT }}
+          PG_SSLMODE: ${{ secrets.PG_SSLMODE }}
+        run: |
+          echo "🚀 Starting Today ALL sync (clients + BO/BI)..."
+          python scripts/etl/run_today_clients.py
+          python scripts/etl/run_today_bo_bi.py
+          if [ $? -eq 0 ]; then
+            echo "✅ Today ALL sync completed successfully!"
+          else
+            echo "❌ Today ALL sync failed!"
+            exit 1
+          fi
+
+      - name: Run Fast ETL Sync (Last 3 Days)
+        # Default path for schedule runs, or when type is fast_all/empty
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.type == 'fast_all' || github.event.inputs.type == '' }}
+        env:
+          MSSQL_DIRECT_CONNECTION: ${{ secrets.MSSQL_DIRECT_CONNECTION }}
           PG_HOST: ${{ secrets.PG_HOST }}
           PG_DB: ${{ secrets.PG_DB }}
           PG_USER: ${{ secrets.PG_USER }}
@@ -54,7 +125,6 @@ jobs:
         run: |
           echo "🚀 Starting Fast ETL Sync (last 3 days with watermarks)..."
           python scripts/etl/run_fast_all_tables_sync.py
-          
           if [ $? -eq 0 ]; then
             echo "✅ ETL Sync completed successfully!"
           else
