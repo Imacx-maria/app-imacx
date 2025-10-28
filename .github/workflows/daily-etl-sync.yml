@@ -1,59 +1,48 @@
-name: Daily ETL Sync (Fast - Last 3 Days)
+name: Daily ETL Sync (Fast All Tables)
 
 on:
-  schedule:
-    # Runs every day at midnight UTC (00:00)
-    # Adjust to your timezone if needed:
-    # - 0 23 * * * = 11 PM UTC (midnight in Lisbon winter)
-    # - 0 1 * * * = 1 AM UTC (2 AM in Lisbon summer)
-    - cron: '0 0 * * *'
-  
-  # Allow manual trigger from Actions tab
   workflow_dispatch:
     inputs:
       type:
-        description: "Sync type"
+        description: 'Sync type'
         required: false
+        default: 'fast_all'
         type: choice
         options:
-          - today_all
-          - today_clients
-          - today_bo_bi
           - fast_all
-        default: fast_all
+          - today_bo_bi
+          - today_clients
+  # Run automatically every day at 6am UTC
+  schedule:
+    - cron: '0 6 * * *'
 
 jobs:
-  sync-phc-data:
+  fast-sync:
+    name: Fast All Tables Sync (Last 3 Days)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    
+    timeout-minutes: 20
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
-      
-      - name: Set up Python
+
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
-      
-      - name: Install ODBC Driver for SQL Server
-        run: |
-          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-          curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
-          sudo apt-get update
-          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql17
-          sudo apt-get install -y unixodbc-dev
-      
+
       - name: Install Python dependencies
         run: |
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
           pip install -r scripts/requirements.txt
 
-      - name: Run Today Clients
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.type == 'today_clients' }}
+      - name: Run Fast All Tables Sync
         env:
+          # PHC SQL Server connection
           MSSQL_DIRECT_CONNECTION: ${{ secrets.MSSQL_DIRECT_CONNECTION }}
+          
+          # Supabase PostgreSQL credentials
           PG_HOST: ${{ secrets.PG_HOST }}
           PG_DB: ${{ secrets.PG_DB }}
           PG_USER: ${{ secrets.PG_USER }}
@@ -61,79 +50,14 @@ jobs:
           PG_PORT: ${{ secrets.PG_PORT }}
           PG_SSLMODE: ${{ secrets.PG_SSLMODE }}
         run: |
-          echo "🚀 Starting Today Clients sync..."
-          python scripts/etl/run_today_clients.py
-          if [ $? -eq 0 ]; then
-            echo "✅ Today Clients sync completed successfully!"
-          else
-            echo "❌ Today Clients sync failed!"
-            exit 1
-          fi
-
-      - name: Run Today BO/BI
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.type == 'today_bo_bi' }}
-        env:
-          MSSQL_DIRECT_CONNECTION: ${{ secrets.MSSQL_DIRECT_CONNECTION }}
-          PG_HOST: ${{ secrets.PG_HOST }}
-          PG_DB: ${{ secrets.PG_DB }}
-          PG_USER: ${{ secrets.PG_USER }}
-          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
-          PG_PORT: ${{ secrets.PG_PORT }}
-          PG_SSLMODE: ${{ secrets.PG_SSLMODE }}
-        run: |
-          echo "🚀 Starting Today BO/BI sync..."
-          python scripts/etl/run_today_bo_bi.py
-          if [ $? -eq 0 ]; then
-            echo "✅ Today BO/BI sync completed successfully!"
-          else
-            echo "❌ Today BO/BI sync failed!"
-            exit 1
-          fi
-
-      - name: Run Today All
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.type == 'today_all' }}
-        env:
-          MSSQL_DIRECT_CONNECTION: ${{ secrets.MSSQL_DIRECT_CONNECTION }}
-          PG_HOST: ${{ secrets.PG_HOST }}
-          PG_DB: ${{ secrets.PG_DB }}
-          PG_USER: ${{ secrets.PG_USER }}
-          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
-          PG_PORT: ${{ secrets.PG_PORT }}
-          PG_SSLMODE: ${{ secrets.PG_SSLMODE }}
-        run: |
-          echo "🚀 Starting Today ALL sync (clients + BO/BI)..."
-          python scripts/etl/run_today_clients.py
-          python scripts/etl/run_today_bo_bi.py
-          if [ $? -eq 0 ]; then
-            echo "✅ Today ALL sync completed successfully!"
-          else
-            echo "❌ Today ALL sync failed!"
-            exit 1
-          fi
-
-      - name: Run Fast ETL Sync (Last 3 Days)
-        # Default path for schedule runs, or when type is fast_all/empty
-        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.type == 'fast_all' || github.event.inputs.type == '' }}
-        env:
-          MSSQL_DIRECT_CONNECTION: ${{ secrets.MSSQL_DIRECT_CONNECTION }}
-          PG_HOST: ${{ secrets.PG_HOST }}
-          PG_DB: ${{ secrets.PG_DB }}
-          PG_USER: ${{ secrets.PG_USER }}
-          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
-          PG_PORT: ${{ secrets.PG_PORT }}
-          PG_SSLMODE: ${{ secrets.PG_SSLMODE }}
-        run: |
-          echo "🚀 Starting Fast ETL Sync (last 3 days with watermarks)..."
           python scripts/etl/run_fast_all_tables_sync.py
-          if [ $? -eq 0 ]; then
-            echo "✅ ETL Sync completed successfully!"
-          else
-            echo "❌ ETL Sync failed!"
-            exit 1
-          fi
-      
+
+      - name: Verify sync results
+        if: success()
+        run: |
+          echo "✅ Fast sync completed successfully (last 3 days)"
+
       - name: Notify on failure
         if: failure()
         run: |
-          echo "⚠️ ETL sync failed! Check logs for details."
-          echo "Failed at: $(date)"
+          echo "::error::Daily ETL sync failed. Dashboard data may be outdated."

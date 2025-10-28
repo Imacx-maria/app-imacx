@@ -46,6 +46,22 @@ UI Buttons & .env configuration
   - `PYTHON_PATH` → opcional, por defeito `python`. Se usar o launcher do Windows, defina `PYTHON_PATH=py` e `PYTHON_ARGS=-3` (em vez de `py -3`).
 - If a Windows absolute path is set in `ETL_SCRIPTS_PATH` and the server runs on Linux, the API will return a helpful error instead of failing.
 
+GitHub Actions Setup (Recommended for Online/Production)
+
+- The app can dispatch GitHub Actions workflows automatically when UI buttons are pressed.
+- Configure these environment variables in `.env.local`:
+  - `GH_TOKEN` → GitHub Personal Access Token (with `repo` and `workflow` scopes)
+  - `GH_REPO_OWNER` → Your GitHub username (e.g., `Imacx-maria`)
+  - `GH_REPO_NAME` → Your repository name (e.g., `app-imacx`)
+  - `GH_REF` → Branch to run workflows on (default: `main`)
+- **CRITICAL**: Add database credentials as GitHub Secrets (see `TEMP/docs/QUICK_FIX_GITHUB_ACTIONS.md`)
+  - Workflows need: `MSSQL_DIRECT_CONNECTION`, `PG_HOST`, `PG_DB`, `PG_USER`, `PG_PASSWORD`, `PG_PORT`, `PG_SSLMODE`
+- Workflow files are in `.github/workflows/`:
+  - `today-bo-bi-sync.yml` → Today BO/BI sync
+  - `today-clients-sync.yml` → Today clients sync
+  - `annual-historical-sync.yml` → Annual 2-year snapshot
+  - `daily-etl-sync.yml` → Fast all tables sync
+
 Valid incremental types from the UI
 
 - `today_bo_bi` → runs `run_today_bo_bi.py`

@@ -207,11 +207,11 @@ export default function AnalyticsPage() {
         return !anulado || anulado === '' || anulado === '0'
       }
 
-      console.log('💳 Overview Cards Data Fetch - Direct from phc.ft and phc.bo')
+      console.log('💳 Overview Cards Data Fetch - Using phc.ft + phc.2years_ft and phc.bo + phc.2years_bo')
       console.log('  Current Year:', currentYear, '| Previous Year:', previousYear)
       console.log('  YTD Comparison Date:', previousYearSameDay.toISOString().split('T')[0])
 
-      // Fetch current year invoices (2025 YTD)
+      // Fetch current year invoices (2025 YTD) from phc.ft
       const { data: currentYearInvoices, error: ftCurrentError } = await supabase
         .schema('phc')
         .from('ft')
@@ -219,15 +219,15 @@ export default function AnalyticsPage() {
         .gte('invoice_date', `${currentYear}-01-01`)
         .lte('invoice_date', today.toISOString())
 
-      // Fetch previous year invoices (2024 same period)
+      // Fetch previous year invoices (2024 same period) from phc.2years_ft
       const { data: previousYearInvoices, error: ftPrevError } = await supabase
         .schema('phc')
-        .from('ft')
+        .from('2years_ft')
         .select('document_type, net_value, anulado, invoice_date, customer_id')
         .gte('invoice_date', `${previousYear}-01-01`)
         .lte('invoice_date', previousYearSameDay.toISOString())
 
-      // Fetch current year quotes (2025 YTD)
+      // Fetch current year quotes (2025 YTD) from phc.bo
       const { data: currentYearQuotes, error: boCurrentError } = await supabase
         .schema('phc')
         .from('bo')
@@ -235,10 +235,10 @@ export default function AnalyticsPage() {
         .gte('document_date', `${currentYear}-01-01`)
         .lte('document_date', today.toISOString())
 
-      // Fetch previous year quotes (2024 same period)
+      // Fetch previous year quotes (2024 same period) from phc.2years_bo
       const { data: previousYearQuotes, error: boPrevError } = await supabase
         .schema('phc')
-        .from('bo')
+        .from('2years_bo')
         .select('document_type, total_value, document_date, customer_id')
         .gte('document_date', `${previousYear}-01-01`)
         .lte('document_date', previousYearSameDay.toISOString())
@@ -248,10 +248,10 @@ export default function AnalyticsPage() {
       if (boCurrentError) throw boCurrentError
       if (boPrevError) throw boPrevError
       
-      console.log('  Current Year Invoices:', currentYearInvoices?.length || 0, 'rows')
-      console.log('  Previous Year Invoices:', previousYearInvoices?.length || 0, 'rows')
-      console.log('  Current Year Quotes:', currentYearQuotes?.length || 0, 'rows')
-      console.log('  Previous Year Quotes:', previousYearQuotes?.length || 0, 'rows')
+      console.log('  Current Year (2025) Invoices:', currentYearInvoices?.length || 0, 'rows')
+      console.log('  Previous Year (2024) Invoices:', previousYearInvoices?.length || 0, 'rows')
+      console.log('  Current Year (2025) Quotes:', currentYearQuotes?.length || 0, 'rows')
+      console.log('  Previous Year (2024) Quotes:', previousYearQuotes?.length || 0, 'rows')
 
       // Calculate metrics for a specific year
       const calculateMetrics = (invoices: any[], quotes: any[]) => {
@@ -266,42 +266,39 @@ export default function AnalyticsPage() {
 
         // Process invoices
         invoices?.forEach((row: any) => {
-              const docType = normalizeDocType(row.document_type)
+          const docType = normalizeDocType(row.document_type)
           const value = Number(row.net_value || 0)
           
           if (docType === 'factura' && isNotCancelled(row.anulado)) {
             faturasValue += value
             faturasCount += 1
-            if (row.customer_id) customersWithInvoices.add(row.customer_id)
-              } else if (docType === 'nota_de_credito') {
-            notasValue += Math.abs(value) // Notas are typically negative
+            if (row.customer_id) customersWithInvoices.add(String(row.customer_id))
+          } else if (docType === 'nota_de_credito') {
+            notasValue += Math.abs(value)
             notasCount += 1
           }
         })
 
         // Process quotes
         quotes?.forEach((row: any) => {
-              const docType = normalizeDocType(row.document_type)
+          const docType = normalizeDocType(row.document_type)
           const value = Number(row.total_value || 0)
-              
-              if (docType === 'orcamento') {
+          
+          if (docType === 'orcamento') {
             orcamentosValue += value
             orcamentosCount += 1
-            if (row.customer_id) customersWithQuotes.add(row.customer_id)
+            if (row.customer_id) customersWithQuotes.add(String(row.customer_id))
           }
         })
 
         const netRevenue = faturasValue - notasValue
         const avgFactura = faturasCount > 0 ? faturasValue / faturasCount : 0
         
-        // Conversion: customers who got invoices after having quotes / total customers with quotes
+        // Conversion: % of quotes that resulted in invoices (by customer)
+        const customersWithBoth = Array.from(customersWithQuotes).filter(c => customersWithInvoices.has(c))
         const conversion = customersWithQuotes.size > 0 
-          ? (Array.from(customersWithInvoices).filter(c => customersWithQuotes.has(c)).length / customersWithQuotes.size) * 100
+          ? (customersWithBoth.length / customersWithQuotes.size) * 100
           : 0
-        
-        const avgOrcamento = orcamentosCount > 0 ? orcamentosValue / orcamentosCount : 0
-        const currentMonth = new Date().getMonth() + 1
-        const orcamentosPorMes = currentMonth > 0 ? orcamentosCount / currentMonth : orcamentosCount
 
         return {
           faturasValue,
@@ -313,8 +310,6 @@ export default function AnalyticsPage() {
           orcamentosValue,
           orcamentosCount,
           conversion,
-          avgOrcamento,
-          orcamentosPorMes,
         }
       }
 
@@ -404,23 +399,9 @@ export default function AnalyticsPage() {
       const quotesCards2: MetricCard[] = [
         {
           title: `Valor Médio Orçamento ${currentYear}`,
-          currentValue: metricsCurrentYear.avgOrcamento,
-          previousValue: metricsPreviousYear.avgOrcamento,
+          currentValue: metricsCurrentYear.orcamentosValue / Math.max(metricsCurrentYear.orcamentosCount, 1),
+          previousValue: metricsPreviousYear.orcamentosValue / Math.max(metricsPreviousYear.orcamentosCount, 1),
           formatter: currency,
-          subtitle: `vs ${previousYear}`,
-        },
-        {
-          title: `Orçamentos/Mês ${currentYear}`,
-          currentValue: metricsCurrentYear.orcamentosPorMes,
-          previousValue: metricsPreviousYear.orcamentosPorMes,
-          formatter: number,
-          subtitle: `vs ${previousYear}`,
-        },
-        {
-          title: `Faturas/Orçamentos ${currentYear}`,
-          currentValue: metricsCurrentYear.conversion,
-          previousValue: metricsPreviousYear.conversion,
-          formatter: percent,
           subtitle: `vs ${previousYear}`,
         },
       ]
