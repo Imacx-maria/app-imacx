@@ -211,7 +211,7 @@ export default function AnalyticsPage() {
       console.log('  Current Year:', currentYear, '| Previous Year:', previousYear)
       console.log('  YTD Comparison Date:', previousYearSameDay.toISOString().split('T')[0])
 
-      // Fetch current year invoices (2025 YTD) from phc.ft
+      // Fetch current year invoices (2025 YTD) from phc.ft - no limit to get all rows
       const { data: currentYearInvoices, error: ftCurrentError } = await supabase
         .schema('phc')
         .from('ft')
@@ -219,7 +219,7 @@ export default function AnalyticsPage() {
         .gte('invoice_date', `${currentYear}-01-01`)
         .lte('invoice_date', today.toISOString().split('T')[0])
 
-      // Fetch previous year invoices (2024 same period) from phc.2years_ft
+      // Fetch previous year invoices (2024 same period) from phc.2years_ft - no limit to get all rows
       const { data: previousYearInvoices, error: ftPrevError } = await supabase
         .schema('phc')
         .from('2years_ft')
@@ -227,7 +227,7 @@ export default function AnalyticsPage() {
         .gte('invoice_date', `${previousYear}-01-01`)
         .lte('invoice_date', previousYearSameDay.toISOString().split('T')[0])
 
-      // Fetch current year quotes (2025 YTD) from phc.bo
+      // Fetch current year quotes (2025 YTD) from phc.bo - no limit to get all rows
       const { data: currentYearQuotes, error: boCurrentError } = await supabase
         .schema('phc')
         .from('bo')
@@ -235,7 +235,7 @@ export default function AnalyticsPage() {
         .gte('document_date', `${currentYear}-01-01`)
         .lte('document_date', today.toISOString().split('T')[0])
 
-      // Fetch previous year quotes (2024 same period) from phc.2years_bo
+      // Fetch previous year quotes (2024 same period) from phc.2years_bo - no limit to get all rows
       const { data: previousYearQuotes, error: boPrevError } = await supabase
         .schema('phc')
         .from('2years_bo')
@@ -243,7 +243,7 @@ export default function AnalyticsPage() {
         .gte('document_date', `${previousYear}-01-01`)
         .lte('document_date', previousYearSameDay.toISOString().split('T')[0])
 
-      // Fetch current year purchases (2025 YTD) from phc.fo
+      // Fetch current year purchases (2025 YTD) from phc.fo - no limit to get all rows
       const { data: currentYearPurchases, error: fiCurrentError } = await supabase
         .schema('phc')
         .from('fo')
@@ -251,7 +251,7 @@ export default function AnalyticsPage() {
         .gte('document_date', `${currentYear}-01-01`)
         .lte('document_date', today.toISOString().split('T')[0])
 
-      // Fetch previous year purchases (2024 same period) from phc.2years_fi
+      // Fetch previous year purchases (2024 same period) from phc.2years_fi - no limit to get all rows
       const { data: previousYearPurchases, error: fiPrevError } = await supabase
         .schema('phc')
         .from('2years_fi')
@@ -278,7 +278,9 @@ export default function AnalyticsPage() {
 
       // Calculate metrics for a specific year
       const calculateMetrics = (invoices: any[], quotes: any[], purchases: any[]) => {
-        let faturasValue = 0
+        // Facturação: Sum ALL (Factura + Nota de Crédito) MINUS Facturas with anulado='False'
+        let totalFacturaNotaValue = 0
+        let cancelledFacturaValue = 0
         let faturasCount = 0
         let notasValue = 0
         let notasCount = 0
@@ -291,17 +293,27 @@ export default function AnalyticsPage() {
           const docType = normalizeDocType(row.document_type)
           const value = Number(row.net_value || 0)
           
-          // Facturação: document_type = 'Factura' AND (anulado IS NULL OR anulado != true)
-          if (docType === 'factura' && isNotCancelled(row.anulado)) {
-            faturasValue += value
-            faturasCount += 1
-          }
-          // Notas Crédito: document_type = 'Nota de Crédito'
-          else if (docType === 'nota_de_credito') {
-            notasValue += value
-            notasCount += 1
+          if (docType === 'factura' || docType === 'nota_de_credito') {
+            totalFacturaNotaValue += value
+            
+            // Track cancelled facturas separately
+            if (docType === 'factura' && row.anulado === 'False') {
+              cancelledFacturaValue += value
+            }
+            // Count facturas (non-cancelled for counting purposes)
+            if (docType === 'factura' && row.anulado !== 'False') {
+              faturasCount += 1
+            }
+            // Count notas
+            if (docType === 'nota_de_credito') {
+              notasCount += 1
+              notasValue += value
+            }
           }
         })
+
+        // Facturação Value = Total (Factura + Nota) - Cancelled Facturas
+        const faturasValue = totalFacturaNotaValue - cancelledFacturaValue
 
         // Process quotes (phc.bo or phc.2years_bo)
         quotes?.forEach((row: any) => {
@@ -315,16 +327,16 @@ export default function AnalyticsPage() {
           }
         })
 
-        // Process purchases (phc.fi or phc.2years_fi)
+        // Process purchases (phc.fo or phc.2years_fi)
         purchases?.forEach((row: any) => {
           const value = Number(row.net_liquid_value || 0)
           comprasValue += value
         })
 
-        // Receita Líquida = Facturação + Notas (where Notas are negative)
+        // Receita Líquida = Facturação Value + Notas Value
         const netRevenue = faturasValue + notasValue
         
-        // Ticket Médio = Facturação / Nº Faturas
+        // Ticket Médio = Facturação Value / Nº Faturas
         const avgFactura = faturasCount > 0 ? faturasValue / faturasCount : 0
         
         // Taxa Conversão = (Nº Faturas / Nº Orçamentos) × 100
