@@ -54,7 +54,6 @@ interface MetricCard {
 
 interface AnalyticsData {
   revenueCards: MetricCard[]
-  revenueCards2: MetricCard[]
   quotesCards: MetricCard[]
   comprasCards: MetricCard[]
 }
@@ -145,13 +144,18 @@ const MetricCard = ({ card }: { card: MetricCard }) => {
 const MetricCardSet = ({
   title,
   cards,
+  legend,
 }: {
   title: string
   cards: MetricCard[]
+  legend?: string
 }) => {
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">{title}</h3>
+      <div>
+        <h3 className="text-lg font-semibold">{title}</h3>
+        {legend && <p className="text-xs text-muted-foreground mt-1">{legend}</p>}
+      </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {cards.map((card, index) => (
           <MetricCard key={index} card={card} />
@@ -408,26 +412,9 @@ export default function AnalyticsPage() {
           colorClass: 'text-emerald-600',
         },
         {
-          title: `Notas Crédito YTD ${currentYear}`,
-          currentValue: metricsCurrentYear.notasValue,
-          previousValue: metricsPreviousYear.notasValue,
-          formatter: currency,
-          subtitle: `vs ${previousYear}`,
-          colorClass: 'text-orange-600',
-        },
-      ]
-
-      const revenueCards2: MetricCard[] = [
-        {
           title: `Nº Faturas ${currentYear}`,
           currentValue: metricsCurrentYear.faturasCount,
           previousValue: metricsPreviousYear.faturasCount,
-          subtitle: `vs ${previousYear}`,
-        },
-        {
-          title: `Nº Notas Crédito ${currentYear}`,
-          currentValue: metricsCurrentYear.notasCount,
-          previousValue: metricsPreviousYear.notasCount,
           subtitle: `vs ${previousYear}`,
         },
         {
@@ -477,7 +464,6 @@ export default function AnalyticsPage() {
 
       setData({
         revenueCards,
-        revenueCards2,
         quotesCards,
         comprasCards,
       })
@@ -719,11 +705,7 @@ export default function AnalyticsPage() {
               <MetricCardSet
                 title={`💰 Facturação ${currentYear} vs ${previousYear}`}
                 cards={data.revenueCards}
-              />
-
-              <MetricCardSet
-                title={`📊 Contadores ${currentYear} vs ${previousYear}`}
-                cards={data.revenueCards2}
+                legend="Facturas - Anuladas - Notas Crédito"
               />
 
               {/* Quotes Cards */}
