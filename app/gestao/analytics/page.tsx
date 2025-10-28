@@ -183,6 +183,8 @@ export default function AnalyticsPage() {
 
   const currentYear = new Date().getFullYear()
   const previousYear = currentYear - 1
+  const today = new Date()
+  const currentMonth = today.getMonth() + 1
 
   /* ---------- Data Fetching ---------- */
 
@@ -192,7 +194,6 @@ export default function AnalyticsPage() {
     
     try {
       // Calculate YTD date range for comparison
-      const today = new Date()
       const currentDayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24))
       const previousYearSameDay = new Date(previousYear, 0, currentDayOfYear)
 
@@ -405,7 +406,6 @@ export default function AnalyticsPage() {
       const metricsPreviousYear = calculateMetrics(previousYearInvoices || [], previousYearQuotes || [], previousYearPurchases || [])
       
       // Calculate metrics for current month only
-      const currentMonth = today.getMonth() + 1
       const monthStart = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`
       const monthEnd = today.toISOString().split('T')[0]
       const previousMonthStart = `${previousYear}-${String(currentMonth).padStart(2, '0')}-01`
