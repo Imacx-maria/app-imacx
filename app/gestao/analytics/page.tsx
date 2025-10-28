@@ -211,53 +211,84 @@ export default function AnalyticsPage() {
       console.log('  Current Year:', currentYear, '| Previous Year:', previousYear)
       console.log('  YTD Comparison Date:', previousYearSameDay.toISOString().split('T')[0])
 
-      // Fetch current year invoices (2025 YTD) from phc.ft - no limit to get all rows
-      const { data: currentYearInvoices, error: ftCurrentError } = await supabase
-        .schema('phc')
-        .from('ft')
-        .select('document_type, net_value, anulado, invoice_date')
-        .gte('invoice_date', `${currentYear}-01-01`)
-        .lte('invoice_date', today.toISOString().split('T')[0])
+      // Helper to fetch all rows (pagination to get around 1000 row limit)
+      const fetchAllRows = async (table: string, schema: string, columns: string, filters: {gte?: string, lte?: string, dateColumn: string}) => {
+        let allRows: any[] = []
+        let offset = 0
+        let hasMore = true
+        
+        while (hasMore) {
+          const query = supabase
+            .schema(schema)
+            .from(table)
+            .select(columns)
+          
+          if (filters.gte) {
+            query.gte(filters.dateColumn, filters.gte)
+          }
+          if (filters.lte) {
+            query.lte(filters.dateColumn, filters.lte)
+          }
+          
+          const { data, error } = await query.range(offset, offset + 999)
+          
+          if (error) throw error
+          if (!data || data.length === 0) {
+            hasMore = false
+          } else {
+            allRows = allRows.concat(data)
+            if (data.length < 1000) {
+              hasMore = false
+            }
+            offset += 1000
+          }
+        }
+        
+        return allRows
+      }
 
-      // Fetch previous year invoices (2024 same period) from phc.2years_ft - no limit to get all rows
-      const { data: previousYearInvoices, error: ftPrevError } = await supabase
-        .schema('phc')
-        .from('2years_ft')
-        .select('document_type, net_value, anulado, invoice_date')
-        .gte('invoice_date', `${previousYear}-01-01`)
-        .lte('invoice_date', previousYearSameDay.toISOString().split('T')[0])
+      // Fetch all invoices and quotes with pagination
+      const currentYearInvoices = await fetchAllRows('ft', 'phc', 'document_type, net_value, anulado, invoice_date', {
+        gte: `${currentYear}-01-01`,
+        lte: today.toISOString().split('T')[0],
+        dateColumn: 'invoice_date'
+      })
+      const ftCurrentError = !currentYearInvoices ? new Error('Failed to fetch current year invoices') : null
 
-      // Fetch current year quotes (2025 YTD) from phc.bo - no limit to get all rows
-      const { data: currentYearQuotes, error: boCurrentError } = await supabase
-        .schema('phc')
-        .from('bo')
-        .select('document_type, total_value, document_date')
-        .gte('document_date', `${currentYear}-01-01`)
-        .lte('document_date', today.toISOString().split('T')[0])
+      const previousYearInvoices = await fetchAllRows('2years_ft', 'phc', 'document_type, net_value, anulado, invoice_date', {
+        gte: `${previousYear}-01-01`,
+        lte: previousYearSameDay.toISOString().split('T')[0],
+        dateColumn: 'invoice_date'
+      })
+      const ftPrevError = !previousYearInvoices ? new Error('Failed to fetch previous year invoices') : null
 
-      // Fetch previous year quotes (2024 same period) from phc.2years_bo - no limit to get all rows
-      const { data: previousYearQuotes, error: boPrevError } = await supabase
-        .schema('phc')
-        .from('2years_bo')
-        .select('document_type, total_value, document_date')
-        .gte('document_date', `${previousYear}-01-01`)
-        .lte('document_date', previousYearSameDay.toISOString().split('T')[0])
+      const currentYearQuotes = await fetchAllRows('bo', 'phc', 'document_type, total_value, document_date', {
+        gte: `${currentYear}-01-01`,
+        lte: today.toISOString().split('T')[0],
+        dateColumn: 'document_date'
+      })
+      const boCurrentError = !currentYearQuotes ? new Error('Failed to fetch current year quotes') : null
 
-      // Fetch current year purchases (2025 YTD) from phc.fo - no limit to get all rows
-      const { data: currentYearPurchases, error: fiCurrentError } = await supabase
-        .schema('phc')
-        .from('fo')
-        .select('net_liquid_value, document_date')
-        .gte('document_date', `${currentYear}-01-01`)
-        .lte('document_date', today.toISOString().split('T')[0])
+      const previousYearQuotes = await fetchAllRows('2years_bo', 'phc', 'document_type, total_value, document_date', {
+        gte: `${previousYear}-01-01`,
+        lte: previousYearSameDay.toISOString().split('T')[0],
+        dateColumn: 'document_date'
+      })
+      const boPrevError = !previousYearQuotes ? new Error('Failed to fetch previous year quotes') : null
 
-      // Fetch previous year purchases (2024 same period) from phc.2years_fi - no limit to get all rows
-      const { data: previousYearPurchases, error: fiPrevError } = await supabase
-        .schema('phc')
-        .from('2years_fi')
-        .select('net_liquid_value, invoice_date')
-        .gte('invoice_date', `${previousYear}-01-01`)
-        .lte('invoice_date', previousYearSameDay.toISOString().split('T')[0])
+      const currentYearPurchases = await fetchAllRows('fo', 'phc', 'net_liquid_value, document_date', {
+        gte: `${currentYear}-01-01`,
+        lte: today.toISOString().split('T')[0],
+        dateColumn: 'document_date'
+      })
+      const fiCurrentError = !currentYearPurchases ? new Error('Failed to fetch current year purchases') : null
+
+      const previousYearPurchases = await fetchAllRows('2years_fi', 'phc', 'net_liquid_value, invoice_date', {
+        gte: `${previousYear}-01-01`,
+        lte: previousYearSameDay.toISOString().split('T')[0],
+        dateColumn: 'invoice_date'
+      })
+      const fiPrevError = !previousYearPurchases ? new Error('Failed to fetch previous year purchases') : null
 
       if (ftCurrentError) throw ftCurrentError
       if (ftPrevError) throw ftPrevError
