@@ -56,6 +56,9 @@ interface AnalyticsData {
   revenueCards: MetricCard[]
   quotesCards: MetricCard[]
   comprasCards: MetricCard[]
+  monthlyRevenueCards: MetricCard[]
+  monthlyQuotesCards: MetricCard[]
+  monthlyComprasCards: MetricCard[]
 }
 
 interface DepartmentMetrics {
@@ -401,10 +404,50 @@ export default function AnalyticsPage() {
       const metricsCurrentYear = calculateMetrics(currentYearInvoices || [], currentYearQuotes || [], currentYearPurchases || [])
       const metricsPreviousYear = calculateMetrics(previousYearInvoices || [], previousYearQuotes || [], previousYearPurchases || [])
       
+      // Calculate metrics for current month only
+      const currentMonth = today.getMonth() + 1
+      const monthStart = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`
+      const monthEnd = today.toISOString().split('T')[0]
+      const previousMonthStart = `${previousYear}-${String(currentMonth).padStart(2, '0')}-01`
+      const previousMonthEnd = `${previousYear}-${String(currentMonth).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+      
+      // Filter current month data
+      const currentMonthInvoices = currentYearInvoices.filter((row: any) => {
+        const d = new Date(row.invoice_date)
+        return d >= new Date(monthStart) && d <= today
+      })
+      const currentMonthQuotes = currentYearQuotes.filter((row: any) => {
+        const d = new Date(row.document_date)
+        return d >= new Date(monthStart) && d <= today
+      })
+      const currentMonthPurchases = currentYearPurchases.filter((row: any) => {
+        const d = new Date(row.document_date)
+        return d >= new Date(monthStart) && d <= today
+      })
+      
+      // Filter previous month data
+      const previousMonthInvoices = previousYearInvoices.filter((row: any) => {
+        const d = new Date(row.invoice_date)
+        return d >= new Date(previousMonthStart) && d <= new Date(previousMonthEnd)
+      })
+      const previousMonthQuotes = previousYearQuotes.filter((row: any) => {
+        const d = new Date(row.document_date)
+        return d >= new Date(previousMonthStart) && d <= new Date(previousMonthEnd)
+      })
+      const previousMonthPurchases = previousYearPurchases.filter((row: any) => {
+        const d = new Date(row.invoice_date)
+        return d >= new Date(previousMonthStart) && d <= new Date(previousMonthEnd)
+      })
+      
+      const metricsCurrentMonth = calculateMetrics(currentMonthInvoices, currentMonthQuotes, currentMonthPurchases)
+      const metricsPreviousMonth = calculateMetrics(previousMonthInvoices, previousMonthQuotes, previousMonthPurchases)
+      
       // Debug: Log calculated metrics
       console.log('📊 Calculated Metrics:')
       console.log('  Current Year (2025):', metricsCurrentYear)
       console.log('  Previous Year (2024):', metricsPreviousYear)
+      console.log('  Current Month:', metricsCurrentMonth)
+      console.log('  Previous Month:', metricsPreviousMonth)
       console.log('✓ Verification - 2024 should use phc.2years_ft:')
       console.log('  2024 Receita Líquida (faturasValue):', metricsPreviousYear.faturasValue)
       console.log('  2024 Nº Faturas:', metricsPreviousYear.faturasCount)
@@ -471,10 +514,74 @@ export default function AnalyticsPage() {
         },
       ]
 
+      // Monthly cards
+      const monthlyRevenueCards: MetricCard[] = [
+        {
+          title: `Receita Líquida - ${String(currentMonth).padStart(2, '0')}/${currentYear}`,
+          currentValue: metricsCurrentMonth.faturasValue,
+          previousValue: metricsPreviousMonth.faturasValue,
+          formatter: currency,
+          subtitle: `vs ${String(currentMonth).padStart(2, '0')}/${previousYear}`,
+          colorClass: 'text-emerald-600',
+        },
+        {
+          title: `Nº Faturas - ${String(currentMonth).padStart(2, '0')}/${currentYear}`,
+          currentValue: metricsCurrentMonth.faturasCount,
+          previousValue: metricsPreviousMonth.faturasCount,
+          subtitle: `vs ${String(currentMonth).padStart(2, '0')}/${previousYear}`,
+        },
+        {
+          title: `Ticket Médio - ${String(currentMonth).padStart(2, '0')}/${currentYear}`,
+          currentValue: metricsCurrentMonth.avgFactura,
+          previousValue: metricsPreviousMonth.avgFactura,
+          formatter: currency,
+          subtitle: `vs ${String(currentMonth).padStart(2, '0')}/${previousYear}`,
+        },
+      ]
+
+      const monthlyQuotesCards: MetricCard[] = [
+        {
+          title: `Orçamentos Valor - ${String(currentMonth).padStart(2, '0')}/${currentYear}`,
+          currentValue: metricsCurrentMonth.orcamentosValue,
+          previousValue: metricsPreviousMonth.orcamentosValue,
+          formatter: currency,
+          subtitle: `vs ${String(currentMonth).padStart(2, '0')}/${previousYear}`,
+          colorClass: 'text-purple-600',
+        },
+        {
+          title: `Orçamentos Qtd - ${String(currentMonth).padStart(2, '0')}/${currentYear}`,
+          currentValue: metricsCurrentMonth.orcamentosCount,
+          previousValue: metricsPreviousMonth.orcamentosCount,
+          subtitle: `vs ${String(currentMonth).padStart(2, '0')}/${previousYear}`,
+        },
+        {
+          title: `Taxa Conversão - ${String(currentMonth).padStart(2, '0')}/${currentYear}`,
+          currentValue: metricsCurrentMonth.conversion,
+          previousValue: metricsPreviousMonth.conversion,
+          formatter: percent,
+          subtitle: `vs ${String(currentMonth).padStart(2, '0')}/${previousYear}`,
+          colorClass: 'text-indigo-600',
+        },
+      ]
+
+      const monthlyComprasCards: MetricCard[] = [
+        {
+          title: `Compras - ${String(currentMonth).padStart(2, '0')}/${currentYear}`,
+          currentValue: metricsCurrentMonth.comprasValue,
+          previousValue: metricsPreviousMonth.comprasValue,
+          formatter: currency,
+          subtitle: `vs ${String(currentMonth).padStart(2, '0')}/${previousYear}`,
+          colorClass: 'text-red-600',
+        },
+      ]
+
       setData({
         revenueCards,
         quotesCards,
         comprasCards,
+        monthlyRevenueCards,
+        monthlyQuotesCards,
+        monthlyComprasCards,
       })
 
       // Fetch department ranking data
@@ -698,8 +805,9 @@ export default function AnalyticsPage() {
         onValueChange={(v) => setActiveTab(v as any)}
         className="w-full"
       >
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="cards">Visão Geral</TabsTrigger>
+          <TabsTrigger value="month">Mês Atual</TabsTrigger>
           <TabsTrigger value="charts">Gráficos</TabsTrigger>
         </TabsList>
 
@@ -726,6 +834,35 @@ export default function AnalyticsPage() {
               <MetricCardSet
                 title={`💰 Compras ${currentYear} vs ${previousYear}`}
                 cards={data.comprasCards}
+              />
+            </>
+          )}
+        </TabsContent>
+
+        {/* Monthly Tab */}
+        <TabsContent
+          value="month"
+          className="space-y-6 mt-6"
+        >
+          {data && (
+            <>
+              {/* Monthly Revenue Cards */}
+              <MetricCardSet
+                title={`💰 Facturação ${String(currentMonth).padStart(2, '0')}/${currentYear} vs ${String(currentMonth).padStart(2, '0')}/${previousYear}`}
+                cards={data.monthlyRevenueCards}
+                legend="Facturas - Anuladas - Notas Crédito"
+              />
+
+              {/* Monthly Quotes Cards */}
+              <MetricCardSet
+                title={`📋 Orçamentos ${String(currentMonth).padStart(2, '0')}/${currentYear} vs ${String(currentMonth).padStart(2, '0')}/${previousYear}`}
+                cards={data.monthlyQuotesCards}
+              />
+
+              {/* Monthly Compras Cards */}
+              <MetricCardSet
+                title={`💰 Compras ${String(currentMonth).padStart(2, '0')}/${currentYear} vs ${String(currentMonth).padStart(2, '0')}/${previousYear}`}
+                cards={data.monthlyComprasCards}
               />
             </>
           )}
