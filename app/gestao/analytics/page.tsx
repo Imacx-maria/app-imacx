@@ -400,7 +400,7 @@ export default function AnalyticsPage() {
       // Build cards
       const revenueCards: MetricCard[] = [
         {
-          title: `Facturação YTD ${currentYear}`,
+          title: `Receita Líquida YTD ${currentYear}`,
           currentValue: metricsCurrentYear.faturasValue,
           previousValue: metricsPreviousYear.faturasValue,
           formatter: currency,
@@ -414,14 +414,6 @@ export default function AnalyticsPage() {
           formatter: currency,
           subtitle: `vs ${previousYear}`,
           colorClass: 'text-orange-600',
-        },
-        {
-          title: `Receita Líquida YTD ${currentYear}`,
-          currentValue: metricsCurrentYear.netRevenue,
-          previousValue: metricsPreviousYear.netRevenue,
-          formatter: currency,
-          subtitle: `vs ${previousYear}`,
-          colorClass: 'text-blue-600',
         },
       ]
 
