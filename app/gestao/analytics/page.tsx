@@ -220,6 +220,7 @@ export default function AnalyticsPage() {
         let allRows: any[] = []
         let offset = 0
         let hasMore = true
+        let batchCount = 0
         
         while (hasMore) {
           const query = supabase
@@ -240,7 +241,9 @@ export default function AnalyticsPage() {
           if (!data || data.length === 0) {
             hasMore = false
           } else {
+            batchCount++
             allRows = allRows.concat(data)
+            console.log(`  [${table}] Batch ${batchCount}: fetched ${data.length} rows (total: ${allRows.length})`)
             if (data.length < 1000) {
               hasMore = false
             }
