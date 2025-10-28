@@ -258,6 +258,7 @@ export const DashboardLogisticaTable: React.FC<
           )
         `)
 
+        // Apply database-level filters
         if (filterParams.guia?.trim()) {
           logisticsQuery = logisticsQuery.ilike(
             'guia',
@@ -265,8 +266,12 @@ export const DashboardLogisticaTable: React.FC<
           )
         }
 
+        // Note: FO number and cliente filters require joins through items_base->folhas_obras
+        // These will be applied client-side after fetching, but with reduced dataset
+        // For optimal performance, consider creating a database view or materialized view
+
         const { data: logisticsData, error: logisticsError } =
-          await logisticsQuery.order('created_at', { ascending: false }).limit(500)
+          await logisticsQuery.order('created_at', { ascending: false }).limit(200)
 
         if (logisticsError) {
           console.error('Error fetching logistics:', logisticsError)
@@ -378,10 +383,10 @@ export const DashboardLogisticaTable: React.FC<
     [supabase],
   )
 
-  // On mount, refetch data
+  // On mount and when debounced guia filter changes, refetch data
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    fetchData({ guia: debouncedFilters.guia })
+  }, [fetchData, debouncedFilters.guia])
 
   // Removed auto-refresh on focus/visibility change to prevent unwanted refreshes during editing
   // Table will only refresh when the refresh button is explicitly clicked
@@ -406,34 +411,30 @@ export const DashboardLogisticaTable: React.FC<
   // Client-side filtering logic
   const filterRecords = (recordsList: DashboardLogisticaRecord[]) => {
     return recordsList.filter((record) => {
-      // Cliente filter
+      // Cliente filter - null-safe
       const clienteMatch =
         !filters.cliente ||
-        record.cliente?.toLowerCase().includes(filters.cliente.toLowerCase())
+        (record.cliente && String(record.cliente).toLowerCase().includes(filters.cliente.toLowerCase()))
 
-      // Nome Campanha filter
+      // Nome Campanha filter - null-safe
       const campanhaMatch =
         !filters.nomeCampanha ||
-        record.nome_campanha
-          ?.toLowerCase()
-          .includes(filters.nomeCampanha.toLowerCase())
+        (record.nome_campanha && String(record.nome_campanha).toLowerCase().includes(filters.nomeCampanha.toLowerCase()))
 
-      // Item filter
+      // Item filter - null-safe
       const itemMatch =
         !filters.item ||
-        record.item_descricao
-          ?.toLowerCase()
-          .includes(filters.item.toLowerCase())
+        (record.item_descricao && String(record.item_descricao).toLowerCase().includes(filters.item.toLowerCase()))
 
-      // FO filter
+      // FO filter - null-safe
       const foMatch =
         !filters.numeroFo ||
-        record.numero_fo?.toLowerCase().includes(filters.numeroFo.toLowerCase())
+        (record.numero_fo && String(record.numero_fo).toLowerCase().includes(filters.numeroFo.toLowerCase()))
 
-      // Guia filter
+      // Guia filter - null-safe
       const guiaMatch =
         !filters.guia ||
-        record.guia?.toLowerCase().includes(filters.guia.toLowerCase())
+        (record.guia && String(record.guia).toLowerCase().includes(filters.guia.toLowerCase()))
 
       // Date filter for data_saida
       let dateMatch = true

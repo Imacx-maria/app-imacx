@@ -162,6 +162,21 @@ export default function FaturacaoPage() {
         query = query.gte('created_at', twoMonthsAgoISO)
       }
 
+      // Apply database-level filters
+      if (debouncedFoFilter) {
+        query = query.ilike('numero_fo', `%${debouncedFoFilter}%`)
+      }
+
+      // Note: ORC filter applied client-side below (numeric field)
+
+      if (debouncedCampanhaFilter) {
+        query = query.ilike('nome_campanha', `%${debouncedCampanhaFilter}%`)
+      }
+
+      if (debouncedClienteFilter) {
+        query = query.ilike('cliente', `%${debouncedClienteFilter}%`)
+      }
+
       // Filter by ORC (required for invoicing)
       query = query.not('numero_orc', 'is', null)
 
@@ -325,32 +340,14 @@ export default function FaturacaoPage() {
     setSelectedJobItems([])
   }
 
-  // Filter and sort jobs
+  // Sort and filter jobs
   const getFilteredJobs = useCallback(() => {
-    let filtered = jobs
+    let filtered = [...jobs]
 
-    // Apply text filters
-    if (debouncedFoFilter) {
-      filtered = filtered.filter((j) =>
-        j.numero_fo.toLowerCase().includes(debouncedFoFilter.toLowerCase())
-      )
-    }
-
+    // Apply client-side ORC filter (numeric field - not suitable for database .ilike())
     if (debouncedOrcFilter) {
       filtered = filtered.filter((j) =>
-        j.numero_orc?.toString().includes(debouncedOrcFilter)
-      )
-    }
-
-    if (debouncedCampanhaFilter) {
-      filtered = filtered.filter((j) =>
-        j.nome_campanha.toLowerCase().includes(debouncedCampanhaFilter.toLowerCase())
-      )
-    }
-
-    if (debouncedClienteFilter) {
-      filtered = filtered.filter((j) =>
-        j.cliente?.toLowerCase().includes(debouncedClienteFilter.toLowerCase())
+        j.numero_orc && String(j.numero_orc).includes(debouncedOrcFilter)
       )
     }
 

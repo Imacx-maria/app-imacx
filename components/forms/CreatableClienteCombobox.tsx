@@ -13,6 +13,7 @@ export interface ClienteOption {
 
 interface CreatableClienteComboboxProps {
   value: string
+  displayLabel?: string
   onChange: (value: string) => void
   options: ClienteOption[]
   onOptionsUpdate?: (newOptions: ClienteOption[]) => void
@@ -28,6 +29,7 @@ export const CreatableClienteCombobox: React.FC<
   CreatableClienteComboboxProps
 > = ({
   value,
+  displayLabel,
   onChange,
   options,
   onOptionsUpdate,
@@ -97,6 +99,7 @@ export const CreatableClienteCombobox: React.FC<
         >
           <CreatableCombobox
             value={value}
+            displayLabel={displayLabel}
             onChange={onChange}
             onCreateNew={handleCreateNew}
             options={options}

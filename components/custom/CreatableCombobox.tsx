@@ -22,6 +22,7 @@ export interface CreatableComboboxOption {
 
 interface CreatableComboboxProps {
   value: string
+  displayLabel?: string
   onChange: (value: string) => void
   onCreateNew: (inputValue: string) => Promise<CreatableComboboxOption | null>
   options: CreatableComboboxOption[]
@@ -38,6 +39,7 @@ interface CreatableComboboxProps {
 
 export const CreatableCombobox: React.FC<CreatableComboboxProps> = ({
   value,
+  displayLabel,
   onChange,
   onCreateNew,
   options,
@@ -56,6 +58,22 @@ export const CreatableCombobox: React.FC<CreatableComboboxProps> = ({
   const [isCreating, setIsCreating] = React.useState(false)
 
   const selectedOption = options.find((option) => option.value === value)
+  
+  // Debug log when value or selectedOption changes
+  React.useEffect(() => {
+    if (value && !selectedOption) {
+      console.warn('⚠️ ComboBox: value provided but no matching option found', {
+        value,
+        optionsCount: options.length,
+        sampleOptions: options.slice(0, 3).map(o => ({ value: o.value, label: o.label }))
+      })
+    }
+  }, [value, selectedOption, options.length])
+
+  // Find by matching value from options, but also support displaying a value that's not in the list
+  const findOptionByValue = React.useMemo(() => {
+    return options.find((option) => option.value === value)
+  }, [value, options])
 
   const filteredOptions = options.filter((option) =>
     option.label.toLowerCase().includes(searchValue.toLowerCase()),
@@ -112,6 +130,16 @@ export const CreatableCombobox: React.FC<CreatableComboboxProps> = ({
                   ? `${selectedOption.label.substring(0, 14)}...`
                   : selectedOption.label}
               </span>
+            ) : displayLabel ? (
+              // If displayLabel is provided, show it even if value isn't in options
+              <span className="truncate uppercase" title={displayLabel}>
+                {displayLabel.length > 14
+                  ? `${displayLabel.substring(0, 14)}...`
+                  : displayLabel}
+              </span>
+            ) : value ? (
+              // If value exists but not found in options, try to display it anyway
+              <span className="truncate uppercase text-muted-foreground">Value exists</span>
             ) : (
               placeholder
             )}

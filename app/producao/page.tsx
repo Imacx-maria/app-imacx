@@ -101,7 +101,7 @@ const ITEMS_FETCH_LIMIT = 200 // Reasonable limit for items per request
 interface Job {
   id: string
   numero_fo: string
-  numero_orc?: number | null
+  numero_orc?: string | null
   nome_campanha: string
   data_saida: string | null
   prioridade: boolean | null
@@ -113,7 +113,8 @@ interface Job {
   created_at?: string | null
   data_in?: string | null // Input/creation date
   cliente?: string | null
-  id_cliente?: string | null
+  id_cliente?: string | null // Now persisted to database as customer_id
+  customer_id?: number | null // The actual customer ID from phc.cl
   data_concluido?: string | null
   updated_at?: string | null
 }
@@ -290,6 +291,10 @@ export default function ProducaoPage() {
   const [clientes, setClientes] = useState<{ value: string; label: string }[]>(
     [],
   )
+  // Ref to access latest clientes in fetchJobs without creating dependency
+  const clientesRef = useRef<{ value: string; label: string }[]>([])
+  // Ref to track if initial load has happened
+  const initialLoadDone = useRef(false)
   const [jobsSaiuStatus, setJobsSaiuStatus] = useState<Record<string, boolean>>(
     {},
   )
@@ -422,8 +427,8 @@ export default function ProducaoPage() {
 
   // Check if ORC number already exists
   const checkOrcDuplicate = useCallback(
-    async (orcNumber: number, currentJobId: string) => {
-      if (!orcNumber || orcNumber === null) {
+    async (orcNumber: string, currentJobId: string) => {
+      if (!orcNumber || orcNumber === '') {
         return null
       }
 
@@ -562,7 +567,7 @@ export default function ProducaoPage() {
   )
 
   const fetchPhcHeaderByOrc = useCallback(
-    async (orcNumber: number): Promise<PhcFoHeader | null> => {
+    async (orcNumber: string): Promise<PhcFoHeader | null> => {
       try {
         const { data, error } = await supabase
           .schema('phc')
@@ -838,6 +843,7 @@ export default function ProducaoPage() {
         Trabalho: '',
         Nome: '',
         numero_orc: null,
+        customer_id: null,
       }
       if (header) {
         phcFolhaObraId = header.folha_obra_id
@@ -845,16 +851,17 @@ export default function ProducaoPage() {
         const campaignName = header.nome_trabalho || header.observacoes
         if (campaignName) insertData.Trabalho = campaignName
         if (header.orcamento_number) {
-          const orcNumber = Number(header.orcamento_number)
-          // Only set if it's a valid number (not NaN)
-          if (!isNaN(orcNumber)) {
-            insertData.numero_orc = orcNumber
-          }
+          // numero_orc is now TEXT - store as string
+          insertData.numero_orc = String(header.orcamento_number)
         }
         const { id_cliente, cliente } = await resolveClienteName(
           header.customer_id ?? null,
         )
         insertData.Nome = cliente
+        // Store customer_id from PHC directly
+        if (header.customer_id) {
+          insertData.customer_id = header.customer_id
+        }
       }
       console.log('💾 Insert Data:', insertData)
       const { data: newJob, error } = await supabase
@@ -903,7 +910,7 @@ export default function ProducaoPage() {
   )
 
   const prefillAndInsertFromOrc = useCallback(
-    async (orcNumber: number, tempJobId: string) => {
+    async (orcNumber: string, tempJobId: string) => {
       const header = await fetchPhcHeaderByOrc(orcNumber)
       console.log('🔍 PHC Header Response (ORC):', {
         orcNumber,
@@ -920,6 +927,7 @@ export default function ProducaoPage() {
         Trabalho: campaignName,
         Nome: '',
         numero_orc: orcNumber,
+        customer_id: null,
       }
       if (header) {
         phcFolhaObraId = header.folha_obra_id
@@ -927,6 +935,10 @@ export default function ProducaoPage() {
           header.customer_id ?? null,
         )
         insertData.Nome = cliente
+        // Store customer_id from PHC directly
+        if (header.customer_id) {
+          insertData.customer_id = header.customer_id
+        }
       }
       console.log('💾 Insert Data (ORC):', insertData)
       const { data: newJob, error } = await supabase
@@ -1003,20 +1015,13 @@ export default function ProducaoPage() {
     }
   }, [supabase])
 
-  // Backfill id_cliente on loaded jobs once clientes list is available
+  // Keep clientesRef in sync with clientes state
   useEffect(() => {
-    if (!loading.clientes && clientes.length > 0 && jobs.length > 0) {
-      setJobs((prev: Job[]) =>
-        prev.map((j: Job) => {
-          if (!j.id_cliente && j.cliente) {
-            const match = clientes.find((c) => c.label === j.cliente)
-            if (match) return { ...j, id_cliente: match.value }
-          }
-          return j
-        }),
-      )
-    }
-  }, [loading.clientes, clientes, jobs.length])
+    clientesRef.current = clientes
+  }, [clientes])
+
+  // Note: Backfill effect removed - customer_id is now stored in database,
+  // so id_cliente is properly loaded from the database query in fetchJobs
 
   // Fetch jobs with database-level filtering
   // Note: Tab filtering (em_curso vs concluidos) is now based on logistics completion status
@@ -1124,6 +1129,7 @@ export default function ProducaoPage() {
           Data_efeti,
           Observacoe,
           Nome,
+          customer_id,
           prioridade,
           pendente,
           created_at,
@@ -1225,25 +1231,66 @@ export default function ProducaoPage() {
 
         // Map database columns to Job interface
         console.log('📦 Raw jobsData length:', jobsData?.length ?? 0)
-        let filteredJobs: Job[] = (jobsData || []).map((row: any) => ({
-          id: row.id,
-          numero_fo: row.Numero_do_ ? String(row.Numero_do_) : '',
-          numero_orc: row.numero_orc ?? null,
-          nome_campanha: row.Trabalho || '',
-          data_saida: row.Data_efeti ?? null,
-          prioridade: row.prioridade ?? false,
-          pendente: row.pendente ?? false,
-          notas: row.Observacoe ?? null,
-          concluido: null,
-          saiu: null,
-          fatura: null,
-          created_at: row.created_at ?? null,
-          data_in: row.Data_efeti ?? null,
-          cliente: row.Nome || '',
-          id_cliente: null,
-          data_concluido: null,
-          updated_at: row.updated_at ?? null,
-        }))
+        console.log('📦 Clientes available in ref:', clientesRef.current.length)
+        
+        let filteredJobs: Job[] = (jobsData || []).map((row: any) => {
+          const clienteName = row.Nome || ''
+          const customerId = row.customer_id
+          
+          // Find the cliente name from the ID if not in Nome field
+          let resolvedClienteName = clienteName
+          let resolvedClienteId: string | null = null
+          
+          console.log(`📋 Processing FO ${row.Numero_do_}:`, {
+            clienteName,
+            customerId,
+            clientesRefLength: clientesRef.current.length
+          })
+          
+          if (customerId) {
+            // Use customer_id to find the cliente name and ID
+            const matchedCliente = clientesRef.current.find((c) => c.value === customerId.toString())
+            console.log(`  🔍 Searching for customer_id ${customerId} in clientes:`, matchedCliente ? `✅ FOUND ${matchedCliente.label}` : '❌ NOT FOUND')
+            if (matchedCliente) {
+              resolvedClienteName = matchedCliente.label
+              resolvedClienteId = matchedCliente.value
+              if (customerId && !clienteName) {
+                console.log(`✅ Cliente resolved from customer_id ${customerId}: "${matchedCliente.label}"`)
+              }
+            }
+          } else if (clienteName) {
+            // Fallback: if no customer_id, try to match by name
+            const matchedCliente = clientesRef.current.find((c) => c.label === clienteName)
+            if (matchedCliente) {
+              resolvedClienteId = matchedCliente.value
+              console.log(`✅ Cliente matched by name for FO ${row.Numero_do_}: "${clienteName}" -> ${matchedCliente.value}`)
+            } else if (clientesRef.current.length > 0) {
+              console.warn(`⚠️ Cliente not found for FO ${row.Numero_do_}: "${clienteName}"`)
+              console.log(`  Available clientes: ${clientesRef.current.slice(0, 3).map(c => c.label).join(', ')}`)
+            }
+          }
+          
+          return {
+            id: row.id,
+            numero_fo: row.Numero_do_ ? String(row.Numero_do_) : '',
+            numero_orc: row.numero_orc ?? null,
+            nome_campanha: row.Trabalho || '',
+            data_saida: row.Data_efeti ?? null,
+            prioridade: row.prioridade ?? false,
+            pendente: row.pendente ?? false,
+            notas: row.Observacoe ?? null,
+            concluido: null,
+            saiu: null,
+            fatura: null,
+            created_at: row.created_at ?? null,
+            data_in: row.Data_efeti ?? null,
+            cliente: resolvedClienteName,
+            id_cliente: resolvedClienteId,
+            customer_id: customerId,
+            data_concluido: null,
+            updated_at: row.updated_at ?? null,
+          }
+        })
         console.log('📊 Query result: jobs found:', filteredJobs.length)
 
         // Enrich data_in with authoritative date from PHC view when available
@@ -1821,23 +1868,40 @@ export default function ProducaoPage() {
     }
   }, [supabase])
 
-  // Initial data load
+  // Initial data load - only on mount
   useEffect(() => {
+    if (initialLoadDone.current) return
+    
     const loadInitialData = async () => {
       setError(null)
 
-      // Load clientes first (can run in parallel with jobs)
-      const clientesPromise = fetchClientes()
+      console.log('🚀 Starting initial data load...')
+      
+      // Load clientes FIRST and wait for completion
+      await fetchClientes()
+      console.log('✅ Clientes loaded:', clientesRef.current.length)
 
-      // Load first page of jobs with current tab
+      // Then load jobs - clientes will already be in the ref
       await fetchJobs(0, true, { activeTab })
-
-      // Wait for clientes to finish loading
-      await clientesPromise
+      console.log('✅ Jobs loaded')
+      
+      initialLoadDone.current = true
     }
 
     loadInitialData()
-  }, [fetchClientes, fetchJobs, activeTab])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only on mount
+
+  // Refetch when activeTab changes (after initial load)
+  useEffect(() => {
+    if (!initialLoadDone.current) return
+    
+    setJobs([])
+    setHasMoreJobs(true)
+    setCurrentPage(0)
+    fetchJobs(0, true, { activeTab })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
 
   // Trigger search when filters change
   useEffect(() => {
@@ -1887,21 +1951,23 @@ export default function ProducaoPage() {
     activeTab,
     fetchJobs,
   ])
-  // Load items and operacoes when jobs change
+  // Memoize job IDs to prevent unnecessary re-fetches
+  const jobIds = useMemo(() => {
+    return jobs
+      .map((job) => job.id)
+      .filter((id) => !id.startsWith('temp-'))
+  }, [jobs.map(j => j.id).join(',')])
+
+  // Load items and operacoes when job IDs change
   useEffect(() => {
-    if (jobs.length > 0) {
-      const jobIds = jobs
-        .map((job) => job.id)
-        .filter((id) => !id.startsWith('temp-'))
-      if (jobIds.length > 0) {
-        fetchItems(jobIds)
-        fetchOperacoes(jobIds)
-        fetchJobsSaiuStatus(jobIds)
-        fetchJobsCompletionStatus(jobIds)
-      }
+    if (jobIds.length > 0) {
+      fetchItems(jobIds)
+      fetchOperacoes(jobIds)
+      fetchJobsSaiuStatus(jobIds)
+      fetchJobsCompletionStatus(jobIds)
     }
   }, [
-    jobs,
+    jobIds.join(','), // Use stringified IDs to avoid re-fetching when order changes
     fetchItems,
     fetchOperacoes,
     fetchJobsSaiuStatus,
@@ -1911,46 +1977,54 @@ export default function ProducaoPage() {
   // Auto-complete jobs when all logistics entries are completed
   useEffect(() => {
     const checkJobCompletion = async () => {
-      for (const job of jobs) {
-        if (job.id.startsWith('temp-') || job.concluido) continue // Skip temp jobs and already completed jobs
+      const jobsToUpdate: string[] = []
+      
+      setJobs((prevJobs) => {
+        const updatedJobs = prevJobs.map((job) => {
+          if (job.id.startsWith('temp-') || job.concluido) return job // Skip temp jobs and already completed jobs
 
-        const completionStatus = jobsCompletionStatus[job.id]
+          const completionStatus = jobsCompletionStatus[job.id]
 
-        // If job has logistics entries and all are completed, mark job as completed
-        if (completionStatus && completionStatus.completed) {
-          console.log(
-            `🎯 Auto-completing job ${job.numero_fo} - all logistics entries completed`,
-          )
+          // If job has logistics entries and all are completed, mark job as completed
+          if (completionStatus && completionStatus.completed) {
+            console.log(
+              `🎯 Auto-completing job ${job.numero_fo} - all logistics entries completed`,
+            )
 
-          // Update local state
-          setJobs((prevJobs) =>
-            prevJobs.map((j) =>
-              j.id === job.id
-                ? {
-                    ...j,
-                    concluido: true,
-                    data_concluido: new Date().toISOString(),
-                  }
-                : j,
-            ),
-          )
+            jobsToUpdate.push(job.id)
 
-          // Update database
+            return {
+              ...job,
+              concluido: true,
+              data_concluido: new Date().toISOString(),
+            }
+          }
+
+          return job
+        })
+
+        // Only return new array if there were actual changes
+        return jobsToUpdate.length > 0 ? updatedJobs : prevJobs
+      })
+
+      // Update database for all completed jobs
+      if (jobsToUpdate.length > 0) {
+        for (const jobId of jobsToUpdate) {
           await supabase
             .from('folhas_obras')
             .update({
               concluido: true,
               data_concluido: new Date().toISOString(),
             })
-            .eq('id', job.id)
+            .eq('id', jobId)
         }
       }
     }
 
-    if (jobs.length > 0 && Object.keys(jobsCompletionStatus).length > 0) {
+    if (Object.keys(jobsCompletionStatus).length > 0) {
       checkJobCompletion()
     }
-  }, [jobsCompletionStatus, jobs, supabase])
+  }, [jobsCompletionStatus, supabase])
 
   // Load more jobs function
   const loadMoreJobs = useCallback(() => {
@@ -2849,7 +2923,7 @@ export default function ProducaoPage() {
                                     const value =
                                       e.target.value === ''
                                         ? null
-                                        : Number(e.target.value)
+                                        : e.target.value
                                     setJobs((prevJobs) =>
                                       prevJobs.map((j) =>
                                         j.id === job.id
@@ -2863,13 +2937,10 @@ export default function ProducaoPage() {
                                     const value =
                                       inputValue === ''
                                         ? null
-                                        : Number(inputValue)
+                                        : inputValue
 
-                                    // Skip validation for empty values or invalid numbers
-                                    if (
-                                      !inputValue ||
-                                      isNaN(Number(inputValue))
-                                    ) {
+                                    // Skip validation for empty values
+                                    if (!inputValue) {
                                       if (!job.id.startsWith('temp-')) {
                                         await supabase
                                           .from('folhas_obras')
@@ -2880,9 +2951,8 @@ export default function ProducaoPage() {
                                     }
 
                                     // Check for duplicates
-                                    const numericValue = Number(inputValue)
                                     const existingJob = await checkOrcDuplicate(
-                                      numericValue,
+                                      inputValue,
                                       job.id,
                                     )
 
@@ -2891,7 +2961,7 @@ export default function ProducaoPage() {
                                       setDuplicateDialog({
                                         isOpen: true,
                                         type: 'orc',
-                                        value: numericValue,
+                                        value: inputValue,
                                         existingJob,
                                         currentJobId: job.id,
                                         originalValue: job.numero_orc,
@@ -2901,7 +2971,7 @@ export default function ProducaoPage() {
                                             // Prefill from PHC by ORC and insert, then import lines
                                             try {
                                               await prefillAndInsertFromOrc(
-                                                numericValue,
+                                                inputValue,
                                                 job.id,
                                               )
                                             } catch (error) {
@@ -2915,7 +2985,7 @@ export default function ProducaoPage() {
                                             await supabase
                                               .from('folhas_obras')
                                               .update({
-                                                numero_orc: numericValue,
+                                                numero_orc: inputValue,
                                               })
                                               .eq('id', job.id)
                                           }
@@ -2952,7 +3022,7 @@ export default function ProducaoPage() {
                                         // Prefill from PHC by ORC and insert, then import lines
                                         try {
                                           await prefillAndInsertFromOrc(
-                                            numericValue,
+                                            inputValue,
                                             job.id,
                                           )
                                         } catch (error) {
@@ -2965,7 +3035,7 @@ export default function ProducaoPage() {
                                         // For existing jobs, update
                                         await supabase
                                           .from('folhas_obras')
-                                          .update({ numero_orc: numericValue })
+                                          .update({ numero_orc: inputValue })
                                           .eq('id', job.id)
                                       }
                                     }
@@ -3127,13 +3197,7 @@ export default function ProducaoPage() {
                               </TableCell>
                               <TableCell className="w-[200px]">
                                 <CreatableClienteCombobox
-                                  value={
-                                    job.id_cliente ||
-                                    (clientes.find(
-                                      (c) => c.label === (job.cliente || ''),
-                                    )?.value ??
-                                      '')
-                                  }
+                                  value={job.id_cliente || ''}
                                   onChange={async (selectedId: string) => {
                                     const selected = clientes.find(
                                       (c) => c.value === selectedId,
@@ -3142,6 +3206,7 @@ export default function ProducaoPage() {
                                     console.log(
                                       `Job ${job.numero_fo} - selecting cliente: ${selectedId} -> ${selected?.label}`,
                                     )
+                                    console.log(`Current job.id_cliente: ${job.id_cliente}, job.cliente: "${job.cliente}"`)
                                     setJobs((prevJobs) =>
                                       prevJobs.map((j) =>
                                         j.id === job.id
@@ -3157,10 +3222,12 @@ export default function ProducaoPage() {
                                     )
                                     // Persist to Supabase if not a temp job
                                     if (!job.id.startsWith('temp-')) {
+                                      const selectedCustomerId = selected ? parseInt(selected.value, 10) : null
                                       await supabase
                                         .from('folhas_obras')
                                         .update({
                                           Nome: selected?.label || '',
+                                          customer_id: selectedCustomerId,
                                         })
                                         .eq('id', job.id)
                                     }
@@ -3174,6 +3241,7 @@ export default function ProducaoPage() {
                                   placeholder="Cliente"
                                   disabled={loading.clientes}
                                   loading={loading.clientes}
+                                  displayLabel={job.cliente || undefined}
                                 />
                               </TableCell>
                               <TableCell className="flex-1">
@@ -3374,6 +3442,17 @@ export default function ProducaoPage() {
                                           variant="destructive"
                                           className="border border-black"
                                           onClick={async () => {
+                                            // Handle temp jobs differently (they don't exist in database yet)
+                                            if (job.id.startsWith('temp-')) {
+                                              console.log(`🗑️ Removing temp job ${job.numero_fo} from UI only`)
+                                              setJobs((prevJobs) =>
+                                                prevJobs.filter(
+                                                  (j) => j.id !== job.id,
+                                                ),
+                                              )
+                                              return
+                                            }
+
                                             if (
                                               !confirm(
                                                 `Tem certeza que deseja eliminar a Folha de Obra ${job.numero_fo}? Esta ação irá eliminar todos os itens e dados logísticos associados.`,
@@ -3383,6 +3462,8 @@ export default function ProducaoPage() {
                                             }
 
                                             try {
+                                              console.log(`🗑️ Deleting job ${job.numero_fo} (ID: ${job.id})`)
+                                              
                                               // Delete from folhas_obras - CASCADE will handle related tables:
                                               // - items_base (CASCADE)
                                               // - logistica_entregas (CASCADE via items_base)
@@ -3394,6 +3475,7 @@ export default function ProducaoPage() {
                                                 .eq('id', job.id)
 
                                               if (deleteError) {
+                                                console.error('Delete error details:', deleteError)
                                                 throw deleteError
                                               }
 
@@ -3609,7 +3691,7 @@ export default function ProducaoPage() {
                                     const value =
                                       e.target.value === ''
                                         ? null
-                                        : Number(e.target.value)
+                                        : e.target.value
                                     setJobs((prevJobs) =>
                                       prevJobs.map((j) =>
                                         j.id === job.id
@@ -3623,13 +3705,10 @@ export default function ProducaoPage() {
                                     const value =
                                       inputValue === ''
                                         ? null
-                                        : Number(inputValue)
+                                        : inputValue
 
-                                    // Skip validation for empty values or invalid numbers
-                                    if (
-                                      !inputValue ||
-                                      isNaN(Number(inputValue))
-                                    ) {
+                                    // Skip validation for empty values
+                                    if (!inputValue) {
                                       if (!job.id.startsWith('temp-')) {
                                         await supabase
                                           .from('folhas_obras')
@@ -3640,9 +3719,8 @@ export default function ProducaoPage() {
                                     }
 
                                     // Check for duplicates
-                                    const numericValue = Number(inputValue)
                                     const existingJob = await checkOrcDuplicate(
-                                      numericValue,
+                                      inputValue,
                                       job.id,
                                     )
 
@@ -3651,7 +3729,7 @@ export default function ProducaoPage() {
                                       setDuplicateDialog({
                                         isOpen: true,
                                         type: 'orc',
-                                        value: numericValue,
+                                        value: inputValue,
                                         existingJob,
                                         currentJobId: job.id,
                                         originalValue: job.numero_orc,
@@ -3661,7 +3739,7 @@ export default function ProducaoPage() {
                                             // Prefill from PHC by ORC and insert, then import lines
                                             try {
                                               await prefillAndInsertFromOrc(
-                                                numericValue,
+                                                inputValue,
                                                 job.id,
                                               )
                                             } catch (error) {
@@ -3675,7 +3753,7 @@ export default function ProducaoPage() {
                                             await supabase
                                               .from('folhas_obras')
                                               .update({
-                                                numero_orc: numericValue,
+                                                numero_orc: inputValue,
                                               })
                                               .eq('id', job.id)
                                           }
@@ -3712,7 +3790,7 @@ export default function ProducaoPage() {
                                         // Prefill from PHC by ORC and insert, then import lines
                                         try {
                                           await prefillAndInsertFromOrc(
-                                            numericValue,
+                                            inputValue,
                                             job.id,
                                           )
                                         } catch (error) {
@@ -3725,7 +3803,7 @@ export default function ProducaoPage() {
                                         // For existing jobs, update
                                         await supabase
                                           .from('folhas_obras')
-                                          .update({ numero_orc: numericValue })
+                                          .update({ numero_orc: inputValue })
                                           .eq('id', job.id)
                                       }
                                     }
@@ -3887,13 +3965,7 @@ export default function ProducaoPage() {
                               </TableCell>
                               <TableCell className="w-[200px]">
                                 <CreatableClienteCombobox
-                                  value={
-                                    job.id_cliente ||
-                                    (clientes.find(
-                                      (c) => c.label === (job.cliente || ''),
-                                    )?.value ??
-                                      '')
-                                  }
+                                  value={job.id_cliente || ''}
                                   onChange={async (selectedId: string) => {
                                     const selected = clientes.find(
                                       (c) => c.value === selectedId,
@@ -3902,6 +3974,7 @@ export default function ProducaoPage() {
                                     console.log(
                                       `Job ${job.numero_fo} - selecting cliente: ${selectedId} -> ${selected?.label}`,
                                     )
+                                    console.log(`Current job.id_cliente: ${job.id_cliente}, job.cliente: "${job.cliente}"`)
                                     setJobs((prevJobs) =>
                                       prevJobs.map((j) =>
                                         j.id === job.id
@@ -3917,10 +3990,12 @@ export default function ProducaoPage() {
                                     )
                                     // Persist to Supabase if not a temp job
                                     if (!job.id.startsWith('temp-')) {
+                                      const selectedCustomerId = selected ? parseInt(selected.value, 10) : null
                                       await supabase
                                         .from('folhas_obras')
                                         .update({
                                           Nome: selected?.label || '',
+                                          customer_id: selectedCustomerId,
                                         })
                                         .eq('id', job.id)
                                     }
@@ -3934,6 +4009,7 @@ export default function ProducaoPage() {
                                   placeholder="Cliente"
                                   disabled={loading.clientes}
                                   loading={loading.clientes}
+                                  displayLabel={job.cliente || undefined}
                                 />
                               </TableCell>
                               <TableCell className="flex-1">
@@ -4304,7 +4380,7 @@ export default function ProducaoPage() {
                                     const value =
                                       e.target.value === ''
                                         ? null
-                                        : Number(e.target.value)
+                                        : e.target.value
                                     setJobs((prevJobs) =>
                                       prevJobs.map((j) =>
                                         j.id === job.id
@@ -4318,13 +4394,10 @@ export default function ProducaoPage() {
                                     const value =
                                       inputValue === ''
                                         ? null
-                                        : Number(inputValue)
+                                        : inputValue
 
-                                    // Skip validation for empty values or invalid numbers
-                                    if (
-                                      !inputValue ||
-                                      isNaN(Number(inputValue))
-                                    ) {
+                                    // Skip validation for empty values
+                                    if (!inputValue) {
                                       if (!job.id.startsWith('temp-')) {
                                         await supabase
                                           .from('folhas_obras')
@@ -4335,9 +4408,8 @@ export default function ProducaoPage() {
                                     }
 
                                     // Check for duplicates
-                                    const numericValue = Number(inputValue)
                                     const existingJob = await checkOrcDuplicate(
-                                      numericValue,
+                                      inputValue,
                                       job.id,
                                     )
 
@@ -4346,7 +4418,7 @@ export default function ProducaoPage() {
                                       setDuplicateDialog({
                                         isOpen: true,
                                         type: 'orc',
-                                        value: numericValue,
+                                        value: inputValue,
                                         existingJob,
                                         currentJobId: job.id,
                                         originalValue: job.numero_orc,
@@ -4356,7 +4428,7 @@ export default function ProducaoPage() {
                                             // Prefill from PHC by ORC and insert, then import lines
                                             try {
                                               await prefillAndInsertFromOrc(
-                                                numericValue,
+                                                inputValue,
                                                 job.id,
                                               )
                                             } catch (error) {
@@ -4370,7 +4442,7 @@ export default function ProducaoPage() {
                                             await supabase
                                               .from('folhas_obras')
                                               .update({
-                                                numero_orc: numericValue,
+                                                numero_orc: inputValue,
                                               })
                                               .eq('id', job.id)
                                           }
@@ -4407,7 +4479,7 @@ export default function ProducaoPage() {
                                         // Prefill from PHC by ORC and insert, then import lines
                                         try {
                                           await prefillAndInsertFromOrc(
-                                            numericValue,
+                                            inputValue,
                                             job.id,
                                           )
                                         } catch (error) {
@@ -4420,7 +4492,7 @@ export default function ProducaoPage() {
                                         // For existing jobs, update
                                         await supabase
                                           .from('folhas_obras')
-                                          .update({ numero_orc: numericValue })
+                                          .update({ numero_orc: inputValue })
                                           .eq('id', job.id)
                                       }
                                     }
@@ -4582,13 +4654,7 @@ export default function ProducaoPage() {
                               </TableCell>
                               <TableCell className="w-[200px]">
                                 <CreatableClienteCombobox
-                                  value={
-                                    job.id_cliente ||
-                                    (clientes.find(
-                                      (c) => c.label === (job.cliente || ''),
-                                    )?.value ??
-                                      '')
-                                  }
+                                  value={job.id_cliente || ''}
                                   onChange={async (selectedId: string) => {
                                     const selected = clientes.find(
                                       (c) => c.value === selectedId,
@@ -4597,6 +4663,7 @@ export default function ProducaoPage() {
                                     console.log(
                                       `Job ${job.numero_fo} - selecting cliente: ${selectedId} -> ${selected?.label}`,
                                     )
+                                    console.log(`Current job.id_cliente: ${job.id_cliente}, job.cliente: "${job.cliente}"`)
                                     setJobs((prevJobs) =>
                                       prevJobs.map((j) =>
                                         j.id === job.id
@@ -4612,10 +4679,12 @@ export default function ProducaoPage() {
                                     )
                                     // Persist to Supabase if not a temp job
                                     if (!job.id.startsWith('temp-')) {
+                                      const selectedCustomerId = selected ? parseInt(selected.value, 10) : null
                                       await supabase
                                         .from('folhas_obras')
                                         .update({
                                           Nome: selected?.label || '',
+                                          customer_id: selectedCustomerId,
                                         })
                                         .eq('id', job.id)
                                     }
@@ -4629,6 +4698,7 @@ export default function ProducaoPage() {
                                   placeholder="Cliente"
                                   disabled={loading.clientes}
                                   loading={loading.clientes}
+                                  displayLabel={job.cliente || undefined}
                                 />
                               </TableCell>
                               <TableCell className="flex-1">
