@@ -402,6 +402,10 @@ export default function AnalyticsPage() {
       console.log('📊 Calculated Metrics:')
       console.log('  Current Year (2025):', metricsCurrentYear)
       console.log('  Previous Year (2024):', metricsPreviousYear)
+      console.log('✓ Verification - 2024 should use phc.2years_ft:')
+      console.log('  2024 Receita Líquida (faturasValue):', metricsPreviousYear.faturasValue)
+      console.log('  2024 Nº Faturas:', metricsPreviousYear.faturasCount)
+      console.log('  2024 Ticket Médio:', metricsPreviousYear.avgFactura)
 
       // Build cards
       const revenueCards: MetricCard[] = [
