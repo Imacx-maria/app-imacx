@@ -270,6 +270,11 @@ export default function AnalyticsPage() {
       console.log('  Previous Year (2024) Invoices:', previousYearInvoices?.length || 0, 'rows')
       console.log('  Current Year (2025) Quotes:', currentYearQuotes?.length || 0, 'rows')
       console.log('  Previous Year (2024) Quotes:', previousYearQuotes?.length || 0, 'rows')
+      console.log('  Current Year (2025) Purchases:', currentYearPurchases?.length || 0, 'rows')
+      console.log('  Previous Year (2024) Purchases:', previousYearPurchases?.length || 0, 'rows')
+      
+      console.log('📋 Raw Quotes Data (2025):', currentYearQuotes)
+      console.log('📋 Raw Quotes Data (2024):', previousYearQuotes)
 
       // Calculate metrics for a specific year
       const calculateMetrics = (invoices: any[], quotes: any[], purchases: any[]) => {

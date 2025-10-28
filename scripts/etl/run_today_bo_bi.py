@@ -40,8 +40,7 @@ def main():
                 if result.get('skipped'):
                     print(f"   {table_name.upper()}: Skipped ({result.get('description', 'No description')})")
                 else:
-                    print(f"   {table_name.upper()}: {result.get('rows', 0)} rows synced")
-            
+                    print(f"   {table_name.upper()}: {result.get('rows', 0)} rows synced"            
             # Recreate views after successful sync
             print("\n🔄 Recreating database views...")
             try:
