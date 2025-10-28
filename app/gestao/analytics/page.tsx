@@ -251,10 +251,10 @@ export default function AnalyticsPage() {
         .gte('document_date', `${currentYear}-01-01`)
         .lte('document_date', today.toISOString().split('T')[0])
 
-      // Fetch previous year purchases (2024 same period) from phc.2years_fo
+      // Fetch previous year purchases (2024 same period) from phc.2years_fi
       const { data: previousYearPurchases, error: fiPrevError } = await supabase
         .schema('phc')
-        .from('2years_fo')
+        .from('2years_fi')
         .select('net_liquid_value, document_date')
         .gte('document_date', `${previousYear}-01-01`)
         .lte('document_date', previousYearSameDay.toISOString().split('T')[0])
