@@ -255,9 +255,9 @@ export default function AnalyticsPage() {
       const { data: previousYearPurchases, error: fiPrevError } = await supabase
         .schema('phc')
         .from('2years_fi')
-        .select('net_liquid_value, document_date')
-        .gte('document_date', `${previousYear}-01-01`)
-        .lte('document_date', previousYearSameDay.toISOString().split('T')[0])
+        .select('net_liquid_value, invoice_date')
+        .gte('invoice_date', `${previousYear}-01-01`)
+        .lte('invoice_date', previousYearSameDay.toISOString().split('T')[0])
 
       if (ftCurrentError) throw ftCurrentError
       if (ftPrevError) throw ftPrevError
