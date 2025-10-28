@@ -243,21 +243,21 @@ export default function AnalyticsPage() {
         .gte('document_date', `${previousYear}-01-01`)
         .lte('document_date', previousYearSameDay.toISOString().split('T')[0])
 
-      // Fetch current year purchases (2025 YTD) from phc.fi
+      // Fetch current year purchases (2025 YTD) from phc.fo
       const { data: currentYearPurchases, error: fiCurrentError } = await supabase
         .schema('phc')
-        .from('fi')
-        .select('net_liquid_value, invoice_date')
-        .gte('invoice_date', `${currentYear}-01-01`)
-        .lte('invoice_date', today.toISOString().split('T')[0])
+        .from('fo')
+        .select('net_liquid_value, document_date')
+        .gte('document_date', `${currentYear}-01-01`)
+        .lte('document_date', today.toISOString().split('T')[0])
 
-      // Fetch previous year purchases (2024 same period) from phc.2years_fi
+      // Fetch previous year purchases (2024 same period) from phc.2years_fo
       const { data: previousYearPurchases, error: fiPrevError } = await supabase
         .schema('phc')
-        .from('2years_fi')
-        .select('net_liquid_value, invoice_date')
-        .gte('invoice_date', `${previousYear}-01-01`)
-        .lte('invoice_date', previousYearSameDay.toISOString().split('T')[0])
+        .from('2years_fo')
+        .select('net_liquid_value, document_date')
+        .gte('document_date', `${previousYear}-01-01`)
+        .lte('document_date', previousYearSameDay.toISOString().split('T')[0])
 
       if (ftCurrentError) throw ftCurrentError
       if (ftPrevError) throw ftPrevError
