@@ -56,7 +56,7 @@ interface AnalyticsData {
   revenueCards: MetricCard[]
   revenueCards2: MetricCard[]
   quotesCards: MetricCard[]
-  quotesCards2: MetricCard[]
+  comprasCards: MetricCard[]
 }
 
 interface DepartmentMetrics {
@@ -215,38 +215,56 @@ export default function AnalyticsPage() {
       const { data: currentYearInvoices, error: ftCurrentError } = await supabase
         .schema('phc')
         .from('ft')
-        .select('document_type, net_value, anulado, invoice_date, customer_id')
+        .select('document_type, net_value, anulado, invoice_date')
         .gte('invoice_date', `${currentYear}-01-01`)
-        .lte('invoice_date', today.toISOString())
+        .lte('invoice_date', today.toISOString().split('T')[0])
 
       // Fetch previous year invoices (2024 same period) from phc.2years_ft
       const { data: previousYearInvoices, error: ftPrevError } = await supabase
         .schema('phc')
         .from('2years_ft')
-        .select('document_type, net_value, anulado, invoice_date, customer_id')
+        .select('document_type, net_value, anulado, invoice_date')
         .gte('invoice_date', `${previousYear}-01-01`)
-        .lte('invoice_date', previousYearSameDay.toISOString())
+        .lte('invoice_date', previousYearSameDay.toISOString().split('T')[0])
 
       // Fetch current year quotes (2025 YTD) from phc.bo
       const { data: currentYearQuotes, error: boCurrentError } = await supabase
         .schema('phc')
         .from('bo')
-        .select('document_type, total_value, document_date, customer_id')
+        .select('document_type, total_value, document_date')
         .gte('document_date', `${currentYear}-01-01`)
-        .lte('document_date', today.toISOString())
+        .lte('document_date', today.toISOString().split('T')[0])
 
       // Fetch previous year quotes (2024 same period) from phc.2years_bo
       const { data: previousYearQuotes, error: boPrevError } = await supabase
         .schema('phc')
         .from('2years_bo')
-        .select('document_type, total_value, document_date, customer_id')
+        .select('document_type, total_value, document_date')
         .gte('document_date', `${previousYear}-01-01`)
-        .lte('document_date', previousYearSameDay.toISOString())
+        .lte('document_date', previousYearSameDay.toISOString().split('T')[0])
+
+      // Fetch current year purchases (2025 YTD) from phc.fi
+      const { data: currentYearPurchases, error: fiCurrentError } = await supabase
+        .schema('phc')
+        .from('fi')
+        .select('net_liquid_value, invoice_date')
+        .gte('invoice_date', `${currentYear}-01-01`)
+        .lte('invoice_date', today.toISOString().split('T')[0])
+
+      // Fetch previous year purchases (2024 same period) from phc.2years_fi
+      const { data: previousYearPurchases, error: fiPrevError } = await supabase
+        .schema('phc')
+        .from('2years_fi')
+        .select('net_liquid_value, invoice_date')
+        .gte('invoice_date', `${previousYear}-01-01`)
+        .lte('invoice_date', previousYearSameDay.toISOString().split('T')[0])
 
       if (ftCurrentError) throw ftCurrentError
       if (ftPrevError) throw ftPrevError
       if (boCurrentError) throw boCurrentError
       if (boPrevError) throw boPrevError
+      if (fiCurrentError) throw fiCurrentError
+      if (fiPrevError) throw fiPrevError
       
       console.log('  Current Year (2025) Invoices:', currentYearInvoices?.length || 0, 'rows')
       console.log('  Previous Year (2024) Invoices:', previousYearInvoices?.length || 0, 'rows')
@@ -254,50 +272,59 @@ export default function AnalyticsPage() {
       console.log('  Previous Year (2024) Quotes:', previousYearQuotes?.length || 0, 'rows')
 
       // Calculate metrics for a specific year
-      const calculateMetrics = (invoices: any[], quotes: any[]) => {
+      const calculateMetrics = (invoices: any[], quotes: any[], purchases: any[]) => {
         let faturasValue = 0
         let faturasCount = 0
         let notasValue = 0
         let notasCount = 0
         let orcamentosValue = 0
         let orcamentosCount = 0
-        const customersWithQuotes = new Set<string>()
-        const customersWithInvoices = new Set<string>()
+        let comprasValue = 0
 
-        // Process invoices
+        // Process invoices (phc.ft or phc.2years_ft)
         invoices?.forEach((row: any) => {
           const docType = normalizeDocType(row.document_type)
           const value = Number(row.net_value || 0)
           
+          // Facturação: document_type = 'Factura' AND (anulado IS NULL OR anulado != true)
           if (docType === 'factura' && isNotCancelled(row.anulado)) {
             faturasValue += value
             faturasCount += 1
-            if (row.customer_id) customersWithInvoices.add(String(row.customer_id))
-          } else if (docType === 'nota_de_credito') {
-            notasValue += Math.abs(value)
+          }
+          // Notas Crédito: document_type = 'Nota de Crédito'
+          else if (docType === 'nota_de_credito') {
+            notasValue += value
             notasCount += 1
           }
         })
 
-        // Process quotes
+        // Process quotes (phc.bo or phc.2years_bo)
         quotes?.forEach((row: any) => {
           const docType = normalizeDocType(row.document_type)
           const value = Number(row.total_value || 0)
           
+          // Orçamentos: document_type = 'Orçamento'
           if (docType === 'orcamento') {
             orcamentosValue += value
             orcamentosCount += 1
-            if (row.customer_id) customersWithQuotes.add(String(row.customer_id))
           }
         })
 
-        const netRevenue = faturasValue - notasValue
+        // Process purchases (phc.fi or phc.2years_fi)
+        purchases?.forEach((row: any) => {
+          const value = Number(row.net_liquid_value || 0)
+          comprasValue += value
+        })
+
+        // Receita Líquida = Facturação + Notas (where Notas are negative)
+        const netRevenue = faturasValue + notasValue
+        
+        // Ticket Médio = Facturação / Nº Faturas
         const avgFactura = faturasCount > 0 ? faturasValue / faturasCount : 0
         
-        // Conversion: % of quotes that resulted in invoices (by customer)
-        const customersWithBoth = Array.from(customersWithQuotes).filter(c => customersWithInvoices.has(c))
-        const conversion = customersWithQuotes.size > 0 
-          ? (customersWithBoth.length / customersWithQuotes.size) * 100
+        // Taxa Conversão = (Nº Faturas / Nº Orçamentos) × 100
+        const conversion = orcamentosCount > 0 
+          ? (faturasCount / orcamentosCount) * 100
           : 0
 
         return {
@@ -310,11 +337,12 @@ export default function AnalyticsPage() {
           orcamentosValue,
           orcamentosCount,
           conversion,
+          comprasValue,
         }
       }
 
-      const metricsCurrentYear = calculateMetrics(currentYearInvoices || [], currentYearQuotes || [])
-      const metricsPreviousYear = calculateMetrics(previousYearInvoices || [], previousYearQuotes || [])
+      const metricsCurrentYear = calculateMetrics(currentYearInvoices || [], currentYearQuotes || [], currentYearPurchases || [])
+      const metricsPreviousYear = calculateMetrics(previousYearInvoices || [], previousYearQuotes || [], previousYearPurchases || [])
       
       // Debug: Log calculated metrics
       console.log('📊 Calculated Metrics:')
@@ -396,13 +424,14 @@ export default function AnalyticsPage() {
         },
       ]
 
-      const quotesCards2: MetricCard[] = [
+      const comprasCards: MetricCard[] = [
         {
-          title: `Valor Médio Orçamento ${currentYear}`,
-          currentValue: metricsCurrentYear.orcamentosValue / Math.max(metricsCurrentYear.orcamentosCount, 1),
-          previousValue: metricsPreviousYear.orcamentosValue / Math.max(metricsPreviousYear.orcamentosCount, 1),
+          title: `Compras YTD ${currentYear}`,
+          currentValue: metricsCurrentYear.comprasValue,
+          previousValue: metricsPreviousYear.comprasValue,
           formatter: currency,
           subtitle: `vs ${previousYear}`,
+          colorClass: 'text-red-600',
         },
       ]
 
@@ -410,7 +439,7 @@ export default function AnalyticsPage() {
         revenueCards,
         revenueCards2,
         quotesCards,
-        quotesCards2,
+        comprasCards,
       })
 
       // Fetch department ranking data
@@ -664,8 +693,8 @@ export default function AnalyticsPage() {
               />
 
               <MetricCardSet
-                title={`🎯 Análise Orçamentos ${currentYear} vs ${previousYear}`}
-                cards={data.quotesCards2}
+                title={`💰 Compras ${currentYear} vs ${previousYear}`}
+                cards={data.comprasCards}
               />
             </>
           )}
