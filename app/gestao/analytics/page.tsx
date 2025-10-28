@@ -316,6 +316,7 @@ export default function AnalyticsPage() {
         // Facturação: Sum ALL (Factura + Nota de Crédito) MINUS Facturas with anulado='False'
         let totalFacturaNotaValue = 0
         let cancelledFacturaValue = 0
+        let nonCancelledFaturasValue = 0  // Sum of only non-cancelled Facturas (for Ticket Médio)
         let faturasCount = 0
         let notasValue = 0
         let notasCount = 0
@@ -335,9 +336,10 @@ export default function AnalyticsPage() {
             if (docType === 'factura' && row.anulado === 'False') {
               cancelledFacturaValue += value
             }
-            // Count facturas (non-cancelled for counting purposes)
+            // Count and sum non-cancelled facturas
             if (docType === 'factura' && row.anulado !== 'False') {
               faturasCount += 1
+              nonCancelledFaturasValue += value
             }
             // Count notas
             if (docType === 'nota_de_credito') {
@@ -371,8 +373,8 @@ export default function AnalyticsPage() {
         // Receita Líquida = Facturação Value + Notas Value
         const netRevenue = faturasValue + notasValue
         
-        // Ticket Médio = Facturação Value / Nº Faturas
-        const avgFactura = faturasCount > 0 ? faturasValue / faturasCount : 0
+        // Ticket Médio = Sum of non-cancelled Facturas / Nº Facturas (non-cancelled)
+        const avgFactura = faturasCount > 0 ? nonCancelledFaturasValue / faturasCount : 0
         
         // Taxa Conversão = (Nº Faturas / Nº Orçamentos) × 100
         const conversion = orcamentosCount > 0 
