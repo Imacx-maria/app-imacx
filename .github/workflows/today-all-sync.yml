@@ -37,14 +37,60 @@ jobs:
 
       - name: Run Today Clients ETL
         env:
+          # PHC SQL Server connection
           MSSQL_DIRECT_CONNECTION: ${{ secrets.MSSQL_DIRECT_CONNECTION }}
-          PG_CONNECTION_URL: ${{ secrets.PG_CONNECTION_URL }}
+          
+          # Supabase PostgreSQL credentials
+          PG_HOST: ${{ secrets.PG_HOST }}
+          PG_DB: ${{ secrets.PG_DB }}
+          PG_USER: ${{ secrets.PG_USER }}
+          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
+          PG_PORT: ${{ secrets.PG_PORT }}
+          PG_SSLMODE: ${{ secrets.PG_SSLMODE }}
         run: |
+          echo "🚀 Starting Today Clients sync..."
           python scripts/etl/run_today_clients.py
+          if [ $? -eq 0 ]; then
+            echo "✅ Clients sync completed successfully!"
+          else
+            echo "❌ Clients sync failed!"
+            exit 1
+          fi
 
       - name: Run Today BO/BI ETL
         env:
+          # PHC SQL Server connection
           MSSQL_DIRECT_CONNECTION: ${{ secrets.MSSQL_DIRECT_CONNECTION }}
-          PG_CONNECTION_URL: ${{ secrets.PG_CONNECTION_URL }}
+          
+          # Supabase PostgreSQL credentials
+          PG_HOST: ${{ secrets.PG_HOST }}
+          PG_DB: ${{ secrets.PG_DB }}
+          PG_USER: ${{ secrets.PG_USER }}
+          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
+          PG_PORT: ${{ secrets.PG_PORT }}
+          PG_SSLMODE: ${{ secrets.PG_SSLMODE }}
         run: |
+          echo "🚀 Starting Today BO/BI sync..."
           python scripts/etl/run_today_bo_bi.py
+          if [ $? -eq 0 ]; then
+            echo "✅ BO/BI sync completed successfully!"
+          else
+            echo "❌ BO/BI sync failed!"
+            exit 1
+          fi
+
+      - name: Verify sync results
+        if: success()
+        run: |
+          echo "✅ Today All sync completed successfully!"
+          echo "   - Clients table updated"
+          echo "   - BO/BI tables updated"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Today All sync failed. Check logs for details."
+          echo "Common issues:"
+          echo "1. Missing GitHub Secrets (database credentials)"
+          echo "2. Database connection timeout"
+          echo "3. Invalid SQL queries"
