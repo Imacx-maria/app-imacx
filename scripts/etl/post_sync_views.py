@@ -43,7 +43,7 @@ env_paths = [
 for env_path in env_paths:
     if env_path.exists():
         load_dotenv(dotenv_path=env_path)
-        print(f"✅ Loaded env from {env_path.name}")
+        print(f"[OK] Loaded env from {env_path.name}")
         break
 else:
     load_dotenv()
@@ -61,7 +61,7 @@ def get_supabase_connection():
         )
         return conn
     except Exception as e:
-        print(f"❌ Failed to connect to Supabase: {e}")
+        print(f"[ERROR] Failed to connect to Supabase: {e}")
         sys.exit(1)
 
 def recreate_folha_obra_with_orcamento_view(conn):
@@ -199,10 +199,10 @@ def recreate_folha_obra_with_orcamento_view(conn):
         cursor.execute(sql)
         conn.commit()
         cursor.close()
-        print("✅ View phc.folha_obra_with_orcamento recreated successfully")
+        print("[OK] View phc.folha_obra_with_orcamento recreated successfully")
         return True
     except Exception as e:
-        print(f"❌ Failed to recreate view: {e}")
+        print(f"[ERROR] Failed to recreate view: {e}")
         conn.rollback()
         return False
 
@@ -271,11 +271,11 @@ def add_fi_foreign_keys_and_indexes(conn):
 
 def main():
     """Main execution"""
-    print("🔄 Recreating post-sync database views and constraints...")
+    print("[VIEW] Recreating post-sync database views and constraints...")
     
     # Connect to Supabase
     conn = get_supabase_connection()
-    print("✅ Connected to Supabase")
+    print("[OK] Connected to Supabase")
     
     # Recreate views
     view_success = recreate_folha_obra_with_orcamento_view(conn)
@@ -289,15 +289,15 @@ def main():
     
     # Exit with appropriate code
     if view_success and fk_success:
-        print("\n✅ All post-sync tasks completed successfully")
+        print("\n[OK] All post-sync tasks completed successfully")
         print("__VIEW_RECREATION_DONE__ success=true")
         sys.exit(0)
     elif view_success:
-        print("\n⚠️ View created but FI constraints had warnings")
+        print("\n[WARN] View created but FI constraints had warnings")
         print("__VIEW_RECREATION_DONE__ success=true")
         sys.exit(0)
     else:
-        print(f"\n❌ Post-sync tasks failed")
+        print(f"\n[ERROR] Post-sync tasks failed")
         print("__VIEW_RECREATION_DONE__ success=false")
         sys.exit(1)
 

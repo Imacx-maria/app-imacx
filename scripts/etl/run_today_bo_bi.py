@@ -40,9 +40,9 @@ def main():
                 if result.get('skipped'):
                     print(f"   {table_name.upper()}: Skipped ({result.get('description', 'No description')})")
                 else:
-                    print(f"   {table_name.upper()}: {result.get('rows', 0)} rows synced"            
+                    print(f"   {table_name.upper()}: {result.get('rows', 0)} rows synced")
             # Recreate views after successful sync
-            print("\n🔄 Recreating database views...")
+            print("\n[VIEW] Recreating database views...")
             try:
                 import subprocess
                 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -56,11 +56,11 @@ def main():
                     )
                     print(result.stdout)
                     if result.returncode != 0:
-                        print(f"⚠️ View recreation failed: {result.stderr}")
+                        print(f"[WARN] View recreation failed: {result.stderr}")
                 else:
-                    print(f"⚠️ Post-sync script not found: {post_sync_script}")
+                    print(f"[WARN] Post-sync script not found: {post_sync_script}")
             except Exception as e:
-                print(f"⚠️ Error running post-sync views: {e}")
+                print(f"[WARN] Error running post-sync views: {e}")
                 # Don't fail the whole ETL if view recreation fails
                 import traceback
                 traceback.print_exc()

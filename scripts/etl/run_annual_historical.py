@@ -47,7 +47,7 @@ def get_phc_connection():
         conn = pyodbc.connect(conn_str, timeout=30)
         return conn
     except Exception as e:
-        print(f"❌ PHC connection failed: {e}")
+        print(f"[ERROR] PHC connection failed: {e}")
         sys.exit(1)
 
 def get_supabase_connection():
@@ -63,7 +63,7 @@ def get_supabase_connection():
         )
         return conn
     except Exception as e:
-        print(f"❌ Supabase connection failed: {e}")
+        print(f"[ERROR] Supabase connection failed: {e}")
         sys.exit(1)
 
 def sync_2years_bo(phc_conn, supabase_conn):
@@ -129,7 +129,7 @@ def sync_2years_bo(phc_conn, supabase_conn):
         total_rows = 0
         batch_num = 0
         
-        print(f"   📥 Fetching data from PHC...", flush=True)
+        print(f"   [FETCH] Fetching data from PHC...", flush=True)
         
         while True:
             rows = phc_cursor.fetchmany(batch_size)
@@ -242,7 +242,7 @@ def sync_2years_ft(phc_conn, supabase_conn):
         total_rows = 0
         batch_num = 0
         
-        print(f"   📥 Fetching data from PHC...", flush=True)
+        print(f"   [FETCH] Fetching data from PHC...", flush=True)
         
         while True:
             rows = phc_cursor.fetchmany(batch_size)
@@ -363,7 +363,7 @@ def sync_2years_fi(phc_conn, supabase_conn):
         total_rows = 0
         batch_num = 0
         
-        print(f"   📥 Fetching data from PHC...", flush=True)
+        print(f"   [FETCH] Fetching data from PHC...", flush=True)
         
         while True:
             rows = phc_cursor.fetchmany(batch_size)
@@ -453,7 +453,7 @@ def main():
     # Recreate view after successful sync
     all_success = all(results.values())
     if all_success:
-        print("\n🔄 Recreating database view...")
+        print("\n[VIEW] Recreating database view...")
         try:
             import subprocess
             post_sync_script = PROJECT_ROOT / "scripts" / "etl" / "post_sync_views.py"
@@ -466,9 +466,9 @@ def main():
                 )
                 print(result.stdout)
                 if result.returncode != 0:
-                    print(f"⚠️ View recreation failed: {result.stderr}")
+                    print(f"[WARN] View recreation failed: {result.stderr}")
         except Exception as e:
-            print(f"⚠️ Error running post-sync view: {e}")
+            print(f"[WARN] Error running post-sync view: {e}")
     
     # Summary
     print("\n" + "=" * 80)
