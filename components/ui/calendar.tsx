@@ -82,11 +82,34 @@ function Calendar({
     }
   }), [])
 
+  const mergedClassNames = React.useMemo(
+    () => ({
+      ...props.classNames,
+      day: cn(
+        'focus-visible:outline-none text-[var(--foreground)]',
+        props.classNames?.day,
+      ),
+      day_selected: cn(
+        'bg-[var(--orange)] text-[var(--primary-foreground)] hover:bg-[var(--orange)] focus:bg-[var(--orange)] focus-visible:bg-[var(--orange)] focus-visible:outline-none focus-visible:ring-0 border border-transparent',
+        props.classNames?.day_selected,
+      ),
+      head_row: cn(
+        'bg-[var(--primary)] text-[var(--primary-foreground)]',
+        props.classNames?.head_row,
+      ),
+      head_cell: cn('text-[var(--foreground)]', props.classNames?.head_cell),
+      caption: cn('px-4 pt-3 pb-2 text-[var(--foreground)]', props.classNames?.caption),
+      month: cn('bg-background', props.classNames?.month),
+    }),
+    [props.classNames],
+  )
+
   return (
     <div className="calendar-wrapper">
       <DayPicker
         // Default locale; can be overridden by props
         locale={pt}
+        mode={onDayClick ? 'single' : props.mode}
         modifiers={modifiers}
         formatters={formatters}
         modifiersStyles={{
@@ -96,6 +119,8 @@ function Calendar({
         className={cn('rdp', className)}
         // Spread incoming props first so we can override selectively
         {...props}
+        // Our merged class names come last so they are applied
+        classNames={mergedClassNames}
         // Map legacy onDayClick to DayPicker onSelect if not provided
         onSelect={
           props.onSelect ??

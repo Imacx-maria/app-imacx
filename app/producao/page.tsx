@@ -643,14 +643,23 @@ export default function ProducaoPage() {
       folhaObraNumber?: string | null,
     ) => {
       try {
+        // Trim the document_id to remove trailing spaces (common issue in PHC data)
+        const trimmedDocumentId = phcFolhaObraId?.trim() || phcFolhaObraId
+        console.log('🔍 Querying PHC BI with document_id:', { original: phcFolhaObraId, trimmed: trimmedDocumentId })
+        
         const { data: lines, error } = await supabase
           .schema('phc')
           .from('bi')
           .select('line_id, document_id, description, quantity, item_reference')
-          .eq('document_id', phcFolhaObraId)
+          .eq('document_id', trimmedDocumentId)
           .gt('quantity', 0)
         if (error) throw error
-        if (!lines || lines.length === 0) return
+        
+        console.log('✅ PHC BI query returned:', lines?.length || 0, 'lines')
+        if (!lines || lines.length === 0) {
+          console.warn('⚠️ No items found in PHC BI for document_id:', trimmedDocumentId)
+          return
+        }
 
         const rows = lines.map((l: any) => ({
           folha_obra_id: newJobId,

@@ -823,6 +823,16 @@ export default function DesignerFlow() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="sticky top-0 z-10 w-16 border-b text-center">P</TableHead>
+                      <TableHead className="sticky top-0 z-10 w-10 border-b text-center">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-block">B</span>
+                            </TooltipTrigger>
+                            <TooltipContent>Brindes</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </TableHead>
                       <TableHead className="sticky top-0 z-10 w-[120px] cursor-pointer border-b select-none" onClick={() => handleSort('numero_fo')}>
                         FO
                         {sortColumn === 'numero_fo' && (
@@ -854,7 +864,7 @@ export default function DesignerFlow() {
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8">
+                        <TableCell colSpan={8} className="text-center py-8">
                           <div className="flex items-center justify-center gap-2">
                             <Loader2 className="animate-spin" size={16} />
                             A carregar...
@@ -863,7 +873,7 @@ export default function DesignerFlow() {
                       </TableRow>
                     ) : paginatedJobs.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-gray-500">
+                        <TableCell colSpan={8} className="text-center text-gray-500">
                           Nenhum trabalho encontrado.
                         </TableCell>
                       </TableRow>
@@ -876,6 +886,7 @@ export default function DesignerFlow() {
                           <TableCell className="text-center">
                             <PriorityIndicator currentPriority={getPriorityColor(job)} />
                           </TableCell>
+                          <TableCell className="text-center"></TableCell>
                           <TableCell className="font-medium">{job.numero_fo}</TableCell>
                           <TableCell>{job.numero_orc}</TableCell>
                           <TableCell>{job.nome_campanha}</TableCell>

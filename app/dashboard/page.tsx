@@ -3,7 +3,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { FullYearCalendar } from '@/components/FullYearCalendar'
 import DashboardLogisticaTable from '@/components/DashboardLogisticaTable'
+import { AddDeliveryDialog } from '@/components/AddDeliveryDialog'
 import { createBrowserClient } from '@/utils/supabase'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 interface Holiday {
   id: string
@@ -11,8 +18,24 @@ interface Holiday {
   description?: string
 }
 
+interface ArmazemOption {
+  value: string
+  label: string
+  morada?: string
+  codigo_pos?: string
+}
+
+interface TransportadoraOption {
+  value: string
+  label: string
+}
+
 export default function DashboardPage() {
   const [holidays, setHolidays] = useState<Holiday[]>([])
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
+  const [armazens, setArmazens] = useState<ArmazemOption[]>([])
+  const [transportadoras, setTransportadoras] = useState<TransportadoraOption[]>([])
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const supabase = createBrowserClient()
 
@@ -45,9 +68,63 @@ export default function DashboardPage() {
     }
   }, [supabase])
 
+  const fetchArmazens = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('armazens')
+        .select('id, nome_arm, morada, codigo_pos')
+        .order('nome_arm')
+
+      if (error) {
+        console.error('Error fetching armazens:', error)
+        return
+      }
+
+      if (data) {
+        setArmazens(
+          data.map((a: any) => ({
+            value: a.id,
+            label: a.nome_arm,
+            morada: a.morada,
+            codigo_pos: a.codigo_pos,
+          }))
+        )
+      }
+    } catch (error) {
+      console.error('Error fetching armazens:', error)
+    }
+  }, [supabase])
+
+  const fetchTransportadoras = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('transportadora')
+        .select('id, name')
+        .order('name')
+
+      if (error) {
+        console.error('Error fetching transportadoras:', error)
+        return
+      }
+
+      if (data) {
+        setTransportadoras(
+          data.map((t: any) => ({
+            value: t.id,
+            label: t.name,
+          }))
+        )
+      }
+    } catch (error) {
+      console.error('Error fetching transportadoras:', error)
+    }
+  }, [supabase])
+
   useEffect(() => {
     fetchHolidays()
-  }, [fetchHolidays])
+    fetchArmazens()
+    fetchTransportadoras()
+  }, [fetchHolidays, fetchArmazens, fetchTransportadoras])
 
   return (
     <div className="w-full space-y-8 px-6">
@@ -63,12 +140,42 @@ export default function DashboardPage() {
         <FullYearCalendar 
           holidays={holidays}
           year={new Date().getFullYear()}
+          onSelect={(date) => setSelectedDate(date)}
         />
       </div>
 
       {/* Logistics Table */}
       <div className="mt-12">
-        <DashboardLogisticaTable />
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-2xl font-bold">Logística</h2>
+          <div className="flex items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <AddDeliveryDialog
+                      armazens={armazens}
+                      transportadoras={transportadoras}
+                      onArmazensUpdate={fetchArmazens}
+                      onTransportadorasUpdate={fetchTransportadoras}
+                      onSuccess={() => setRefreshKey((prev) => prev + 1)}
+                    />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>Adicionar Nova Entrega</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        </div>
+        <DashboardLogisticaTable
+          key={refreshKey}
+          selectedDate={selectedDate}
+          onClearDate={() => setSelectedDate(undefined)}
+          armazens={armazens}
+          transportadoras={transportadoras}
+          onArmazensUpdate={fetchArmazens}
+          onTransportadorasUpdate={fetchTransportadoras}
+        />
       </div>
     </div>
   )

@@ -129,6 +129,12 @@ interface Transportadora {
 
 interface DashboardLogisticaTableProps {
   onRefresh?: () => void
+  selectedDate?: Date
+  onClearDate?: () => void
+  armazens?: ArmazemOption[]
+  transportadoras?: Transportadora[]
+  onArmazensUpdate?: () => void
+  onTransportadorasUpdate?: () => void
 }
 
 // Define sortable columns type following the same pattern as main production table
@@ -146,7 +152,15 @@ type SortableLogisticaKey =
 
 export const DashboardLogisticaTable: React.FC<
   DashboardLogisticaTableProps
-> = ({ onRefresh }) => {
+> = ({ 
+  onRefresh, 
+  selectedDate, 
+  onClearDate,
+  armazens: initialArmazens,
+  transportadoras: initialTransportadoras,
+  onArmazensUpdate,
+  onTransportadorasUpdate,
+}) => {
   const [records, setRecords] = useState<DashboardLogisticaRecord[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [transportadoras, setTransportadoras] = useState<Transportadora[]>([])
@@ -240,9 +254,10 @@ export const DashboardLogisticaTable: React.FC<
       setLoading(true)
       try {
         // Fetch all logistics records (both em curso and despachados)
+        // Using left join to include standalone deliveries without item_id
         let logisticsQuery = supabase.from('logistica_entregas').select(`
           *,
-          items_base (
+          items_base!left (
             id,
             descricao,
             codigo,
@@ -253,7 +268,8 @@ export const DashboardLogisticaTable: React.FC<
               id,
               numero_orc,
               Numero_do_,
-              Nome
+              Nome,
+              Trabalho
             )
           )
         `)
@@ -309,24 +325,25 @@ export const DashboardLogisticaTable: React.FC<
           console.error('Error fetching armazens:', armazensError)
         }
 
-        // Transform the nested data into flat records (same pattern as producao drawer)
+        // Transform the nested data into flat records
+        // Prioritize direct fields (for standalone deliveries) over related fields
         const flatRecords: DashboardLogisticaRecord[] = (logisticsData || []).map((logistica: any) => {
           const item = logistica.items_base || {}
           const folhaObra = item.folhas_obras || {}
 
           return {
-            // From folhas_obras
+            // From folhas_obras OR direct fields (prioritize direct fields)
             folha_obra_id: folhaObra.id || '',
-            numero_fo: folhaObra.Numero_do_ || '',
-            numero_orc: folhaObra.numero_orc,
-            nome_campanha: '',
+            numero_fo: logistica.numero_fo || folhaObra.Numero_do_ || '',
+            numero_orc: logistica.numero_orc || folhaObra.numero_orc,
+            nome_campanha: logistica.nome_campanha || folhaObra.Trabalho || '',
             fo_data_saida: undefined,
             fo_saiu: undefined,
-            cliente: folhaObra.Nome,
+            cliente: logistica.cliente || folhaObra.Nome || '',
             id_cliente: '',
-            // From items_base
+            // From items_base OR direct descricao field (prioritize direct)
             item_id: item.id || '',
-            item_descricao: item.descricao || '',
+            item_descricao: logistica.descricao || item.descricao || '',
             codigo: item.codigo,
             quantidade: item.quantidade,
             brindes: item.brindes,
@@ -387,6 +404,19 @@ export const DashboardLogisticaTable: React.FC<
   useEffect(() => {
     fetchData({ guia: debouncedFilters.guia })
   }, [fetchData, debouncedFilters.guia])
+
+  // Sync with initial props
+  useEffect(() => {
+    if (initialArmazens) {
+      setArmazens(initialArmazens)
+    }
+  }, [initialArmazens])
+
+  useEffect(() => {
+    if (initialTransportadoras) {
+      setTransportadoras(initialTransportadoras)
+    }
+  }, [initialTransportadoras])
 
   // Removed auto-refresh on focus/visibility change to prevent unwanted refreshes during editing
   // Table will only refresh when the refresh button is explicitly clicked
@@ -449,13 +479,29 @@ export const DashboardLogisticaTable: React.FC<
         dateMatch = false
       }
 
+      // Calendar date filter - filter by selectedDate from calendar clicks
+      let calendarDateMatch = true
+      if (selectedDate && record.data_saida) {
+        // Extract date part from record.data_saida (format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)
+        const recordDateStr = record.data_saida.split('T')[0]
+        // Format selectedDate to YYYY-MM-DD (avoid timezone issues)
+        const year = selectedDate.getFullYear()
+        const month = String(selectedDate.getMonth() + 1).padStart(2, '0')
+        const day = String(selectedDate.getDate()).padStart(2, '0')
+        const selectedDateStr = `${year}-${month}-${day}`
+        calendarDateMatch = recordDateStr === selectedDateStr
+      } else if (selectedDate && !record.data_saida) {
+        calendarDateMatch = false
+      }
+
       return (
         clienteMatch &&
         campanhaMatch &&
         itemMatch &&
         foMatch &&
         guiaMatch &&
-        dateMatch
+        dateMatch &&
+        calendarDateMatch
       )
     })
   }
@@ -463,12 +509,12 @@ export const DashboardLogisticaTable: React.FC<
   // Separate records by saiu status and filter
   const filteredEmCurso = useMemo(
     () => filterRecords(records.filter((r) => !r.saiu)),
-    [records, filters, dateFilter, getTodayString, getTomorrowString],
+    [records, filters, dateFilter, selectedDate, getTodayString, getTomorrowString],
   )
 
   const filteredDespachados = useMemo(
     () => filterRecords(records.filter((r) => r.saiu)),
-    [records, filters, dateFilter, getTodayString, getTomorrowString],
+    [records, filters, dateFilter, selectedDate, getTodayString, getTomorrowString],
   )
 
   // Updated sorting logic following the same pattern as main production table
@@ -573,7 +619,10 @@ export const DashboardLogisticaTable: React.FC<
       codigo: '',
     })
     setDateFilter('all')
-  }, [])
+    if (onClearDate) {
+      onClearDate()
+    }
+  }, [onClearDate])
 
   // Handle refresh
   const handleRefresh = useCallback(() => {
@@ -925,20 +974,6 @@ export const DashboardLogisticaTable: React.FC<
 
   return (
     <div className="w-full">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Logística</h2>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" size="icon" onClick={handleRefresh}>
-                <RefreshCcw className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Atualizar</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
-
       {/* Filter Bar */}
       <div className="mb-4 flex items-center gap-2">
         <Input
@@ -1010,6 +1045,26 @@ export const DashboardLogisticaTable: React.FC<
           </Button>
         </div>
 
+        {/* Calendar date filter indicator */}
+        {selectedDate && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={onClearDate}
+                  className="h-10 px-3 text-xs bg-primary hover:bg-primary/90"
+                >
+                  📅 {selectedDate.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' })}
+                  <X className="h-3 w-3 ml-1" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Data selecionada no calendário - Clique para limpar</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -1064,7 +1119,7 @@ export const DashboardLogisticaTable: React.FC<
                 </TableHead>
                 <TableHead
                   onClick={() => toggleSort('guia')}
-                  className="sticky top-0 z-10 w-[70px] cursor-pointer border-b text-center font-bold uppercase select-none"
+                  className="sticky top-0 z-10 w-[90px] cursor-pointer border-b text-center font-bold uppercase select-none"
                 >
                   Guia{' '}
                   {sortCol === 'guia' &&
@@ -1369,7 +1424,7 @@ export const DashboardLogisticaTable: React.FC<
                 </TableHead>
                 <TableHead
                   onClick={() => toggleSort('guia')}
-                  className="sticky top-0 z-10 w-[70px] cursor-pointer border-b text-center font-bold uppercase select-none"
+                  className="sticky top-0 z-10 w-[90px] cursor-pointer border-b text-center font-bold uppercase select-none"
                 >
                   Guia
                 </TableHead>

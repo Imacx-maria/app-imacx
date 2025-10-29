@@ -331,7 +331,7 @@
   
   /* Calendar Colors */
   --secondary-background: oklch(0.8947 0.0111 95.18);
-  --orange: oklch(0.7997 0.1725 75.18);
+  --orange: oklch(84.08% 0.1725 84.2);
   --color-accent-foreground: oklch(0% 0 0);
   
   /* Chart Colors - Material Types */
@@ -360,8 +360,9 @@
 }
 
 .dark {
+  --light-text: oklch(0.85 0 0);
   --background: oklch(0.31 0 0);
-  --foreground: oklch(0.85 0 0);
+  --foreground: var(--light-text);
   --main: oklch(84.08% 0.1725 84.2);
   --border: oklch(0.50 0 0);
   
@@ -372,21 +373,21 @@
   
   /* Calendar Colors */
   --secondary-background: oklch(0.26 0 0 / 87.46%);
-  --orange: #ff8800;
-  --color-accent-foreground: oklch(0.85 0 0);
-  --card-foreground: oklch(0.85 0 0);
+  --orange: oklch(84.08% 0.1725 84.2);
+  --color-accent-foreground: var(--light-text);
+  --card-foreground: var(--light-text);
   --popover: oklch(0.31 0 0);
-  --popover-foreground: oklch(0.85 0 0);
+  --popover-foreground: var(--light-text);
   --secondary: oklch(0.26 0 0 / 87.46%);
-  --secondary-foreground: oklch(0.85 0 0);
+  --secondary-foreground: var(--light-text);
   --muted: oklch(0.26 0 0 / 87.46%);
-  --muted-foreground: oklch(0.65 0 0);
+  --muted-foreground: var(--light-text);
   --accent: oklch(0.40 0 0);
-  --accent-foreground: oklch(0.85 0 0);
+  --accent-foreground: var(--light-text);
   --destructive: oklch(0.63 0.23 25);
   --destructive-foreground: oklch(0% 0 0);
   --input: oklch(0.45 0 0);
-  --ring: oklch(0.85 0 0);
+  --ring: var(--light-text);
   --success: 0.7 0.12 145;
   --success-foreground: 0.28 0.03 145;
   --warning: 0.78 0.18 75;
@@ -478,6 +479,68 @@ input:-webkit-autofill:focus {
 
 .calendar-wrapper .rdp-nav {
   display: none;
+}
+
+.calendar-wrapper .rdp {
+  --rdp-accent-color: var(--orange);
+  --rdp-accent-text-color: var(--primary-foreground);
+  --rdp-background-color: var(--secondary-background);
+  --rdp-outline: 0;
+  --rdp-outline-selected: 0;
+  color: var(--foreground);
+}
+
+.dark .calendar-wrapper .rdp {
+  --rdp-background-color: var(--background);
+  color: var(--foreground);
+}
+
+/* Selected day and focus styles - enforce IMACX design */
+.calendar-wrapper .rdp-day[aria-selected='true'] {
+  background-color: var(--orange) !important;
+  color: var(--primary-foreground) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Ensure RDP selected class variant also matches */
+.calendar-wrapper .rdp-day_selected,
+.calendar-wrapper button[aria-selected='true'] {
+  background-color: var(--orange) !important;
+  color: var(--primary-foreground) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.calendar-wrapper .rdp-day:focus,
+.calendar-wrapper .rdp-day:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Global fallback to ensure selection styles always apply (drawer popovers etc.) */
+.rdp-day[aria-selected='true'],
+.rdp-day_selected,
+button[aria-selected='true'] {
+  background-color: var(--orange) !important;
+  color: var(--primary-foreground) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.rdp-day:focus,
+.rdp-day:focus-visible,
+button[aria-selected='true']:focus,
+button[aria-selected='true']:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove blue focus ring inside react-day-picker generically */
+.rdp button:focus,
+.rdp button:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* ============================================
