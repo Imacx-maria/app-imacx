@@ -2740,7 +2740,7 @@ export default function ProducaoPage() {
                 {/* jobs table */}
                 <div className="bg-background w-full">
                   <div className="w-full">
-                    <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+                    <Table className="w-full imx-table-compact">
                       <TableHeader>
                         <TableRow>
                           <TableHead
@@ -2918,7 +2918,7 @@ export default function ProducaoPage() {
                           return (
                             <TableRow
                               key={job.id}
-                              className="hover:bg-accent transition-colors"
+                              className="imx-row-hover"
                             >
                               <TableCell className="w-[140px] text-center text-xs">
                                 {formatDatePortuguese(job.data_in)}
@@ -3574,7 +3574,7 @@ export default function ProducaoPage() {
                 {/* jobs table - simplified without P, A, C, and Ações columns */}
                 <div className="bg-background w-full">
                   <div className="w-full">
-                    <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+                    <Table className="w-full imx-table-compact">
                       <TableHeader>
                         <TableRow>
                           <TableHead
@@ -3686,7 +3686,7 @@ export default function ProducaoPage() {
                           return (
                             <TableRow
                               key={job.id}
-                              className="hover:bg-accent transition-colors"
+                              className="imx-row-hover"
                             >
                               <TableCell className="w-[140px] text-center text-xs">
                                 {formatDatePortuguese(job.data_in)}
@@ -4197,7 +4197,7 @@ export default function ProducaoPage() {
                 {/* jobs table - same structure as em_curso but for pendentes */}
                 <div className="bg-background w-full">
                   <div className="w-full">
-                    <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+                    <Table className="w-full imx-table-compact">
                       <TableHeader>
                         <TableRow>
                           <TableHead
@@ -4375,7 +4375,7 @@ export default function ProducaoPage() {
                           return (
                             <TableRow
                               key={job.id}
-                              className="hover:bg-accent transition-colors"
+                              className="imx-row-hover"
                             >
                               <TableCell className="w-[140px] text-center text-xs">
                                 {formatDatePortuguese(job.data_in)}
@@ -5748,45 +5748,7 @@ function JobDrawerContent({
     const pendingItemsArray = jobItems.filter((item) => isPending(item.id))
     const itemIds = realItems.map((item) => item.id)
 
-    // Clean up duplicates: keep only the oldest entry per item_id
-    if (itemIds.length > 0) {
-      try {
-        const { data: allLogistics } = await supabase
-          .from('logistica_entregas')
-          .select('id, item_id, created_at')
-          .in('item_id', itemIds)
-          .order('created_at', { ascending: true })
-
-        if (allLogistics && allLogistics.length > itemIds.length) {
-          console.log('🧹 Found duplicates, cleaning up...')
-          const keepIds = new Set<string>()
-          const seenItems = new Set<string>()
-
-          // Keep only the first (oldest) entry per item_id
-          allLogistics.forEach((log: any) => {
-            if (!seenItems.has(log.item_id)) {
-              keepIds.add(log.id)
-              seenItems.add(log.item_id)
-            }
-          })
-
-          // Delete duplicates
-          const deleteIds = allLogistics
-            .filter((log: any) => !keepIds.has(log.id))
-            .map((log: any) => log.id)
-
-          if (deleteIds.length > 0) {
-            console.log('🗑️ Deleting', deleteIds.length, 'duplicate entries')
-            await supabase
-              .from('logistica_entregas')
-              .delete()
-              .in('id', deleteIds)
-          }
-        }
-      } catch (e) {
-        console.warn('⚠️ Error cleaning duplicates:', e)
-      }
-    }
+    // Preserve multiple logistics rows per item_id to support split deliveries
 
     console.log('🔍 jobItems breakdown:', {
       total: jobItems.length,
@@ -6186,7 +6148,7 @@ function JobDrawerContent({
             </div>
 
             {/* Production Items table */}
-            <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+            <Table className="w-full imx-table-compact">
                   <TableHeader>
                     <TableRow className="border-border border-b bg-transparent">
                       <TableHead
@@ -6664,28 +6626,110 @@ function JobDrawerContent({
                         }),
                       )
 
-                      alert('Informações de entrega copiadas com sucesso!')
-                    } catch (error) {
-                      console.error(
-                        'Error copying delivery information:',
-                        error,
-                      )
+                    alert('Informações de entrega copiadas com sucesso!')
+                  } catch (error) {
+                    console.error(
+                      'Error copying delivery information:',
+                      error,
+                    )
+                    alert(
+                      'Erro ao copiar informações de entrega. Tente novamente.',
+                    )
+                  }
+                }}
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                Copiar Entrega
+                {sourceRowId && (
+                  <span className="bg-primary/20 ml-2 rounded px-2 py-1 text-xs">
+                    Fonte:{' '}
+                    {logisticaRows.find((r) => r.id === sourceRowId)
+                      ?.items_base?.descricao || 'Selecionada'}
+                  </span>
+                )}
+              </Button>
+              {/* Add new logistics row */}
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={async () => {
+                  try {
+                    if (!sourceRowId) {
                       alert(
-                        'Erro ao copiar informações de entrega. Tente novamente.',
+                        'Selecione uma linha como fonte para criar uma nova entrada ligada ao mesmo item.',
                       )
+                      return
                     }
-                  }}
-                >
-                  <Copy className="mr-2 h-4 w-4" />
-                  Copiar Entrega
-                  {sourceRowId && (
-                    <span className="bg-primary/20 ml-2 rounded px-2 py-1 text-xs">
-                      Fonte:{' '}
-                      {logisticaRows.find((r) => r.id === sourceRowId)
-                        ?.items_base?.descricao || 'Selecionada'}
-                    </span>
-                  )}
-                </Button>
+                    const sourceRow = logisticaRows.find(
+                      (row) => row.id === sourceRowId,
+                    )
+                    if (!sourceRow) {
+                      alert('Linha fonte não encontrada.')
+                      return
+                    }
+                    const today = new Date().toISOString().split('T')[0]
+                    const { data, error } = await supabase
+                      .from('logistica_entregas')
+                      .insert({
+                        item_id: sourceRow.item_id,
+                        data: today,
+                        is_entrega: true,
+                        // defaults
+                        saiu: false,
+                        brindes: false,
+                        concluido: false,
+                      })
+                      .select(
+                        `
+                          *,
+                          items_base!inner (
+                            id,
+                            descricao,
+                            codigo,
+                            quantidade,
+                            brindes,
+                            folha_obra_id,
+                            folhas_obras!inner (
+                              id,
+                              numero_orc,
+                              Numero_do_,
+                              cliente:Nome
+                            )
+                          )
+                        `,
+                      )
+                      .single()
+                    if (error) throw error
+                    if (data) {
+                      // Normalize FO mapping for immediate UI consistency
+                      const mapped = {
+                        ...data,
+                        items_base: data.items_base
+                          ? {
+                              ...data.items_base,
+                              folhas_obras: data.items_base.folhas_obras
+                                ? {
+                                    ...data.items_base.folhas_obras,
+                                    numero_fo:
+                                      data.items_base.folhas_obras
+                                        .Numero_do_,
+                                  }
+                                : null,
+                            }
+                          : null,
+                      }
+                      setLogisticaRows((prev) => [...prev, mapped])
+                    }
+                  } catch (err) {
+                    console.error('Erro ao adicionar linha:', err)
+                    alert('Erro ao adicionar nova linha de logística')
+                  }
+                }}
+                className="ml-2"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Adicionar Linha
+              </Button>
               </div>
             </div>
             {logisticaLoading ? (
@@ -6699,7 +6743,7 @@ function JobDrawerContent({
                     transportadoras={logisticaTransportadoras || []}
                     armazens={logisticaArmazens || []}
                     hideColumns={['saiu', 'cliente', 'guia']}
-                    hideActions={true}
+                    hideActions={false}
                     showSourceSelection={true}
                     sourceRowId={sourceRowId}
                     onSourceRowChange={setSourceRowId}
@@ -7030,10 +7074,8 @@ function JobDrawerContent({
                                   folhas_obras!inner (
                                     id,
                                     numero_orc,
-                                    numero_fo,
-                                    cliente,
-                                    id_cliente,
-                                    saiu
+                                    Numero_do_,
+                                    cliente:Nome
                                   )
                                 )
                               `,
@@ -7125,10 +7167,8 @@ function JobDrawerContent({
                                 folhas_obras!inner (
                                   id,
                                   numero_orc,
-                                  numero_fo,
-                                  cliente,
-                                  id_cliente,
-                                  saiu
+                                  Numero_do_,
+                                  cliente:Nome
                                 )
                               )
                             `,
@@ -7596,13 +7636,11 @@ function JobDrawerContent({
                                 quantidade,
                                 brindes,
                                 folha_obra_id,
-                                folhas_obras!inner (
+                                  folhas_obras!inner (
                                   id,
                                   numero_orc,
-                                  numero_fo,
-                                  cliente,
-                                  id_cliente,
-                                  saiu
+                                  Numero_do_,
+                                  cliente:Nome
                                 )
                               )
                             `,

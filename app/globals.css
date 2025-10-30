@@ -38,7 +38,9 @@
   
   /* EXCEPTION: Calendar holidays need to be bold */
   .calendar-wrapper [data-holiday="true"],
-  .calendar-wrapper button[data-holiday="true"] {
+  .calendar-wrapper button[data-holiday="true"],
+  .rdp [data-holiday="true"],
+  .rdp button[data-holiday="true"] {
     font-weight: 700 !important;
   }
   
@@ -163,6 +165,8 @@
   .hover\:bg-accent:hover button.bg-secondary * {
     color: var(--secondary-foreground) !important;
   }
+
+  /* Orange text rule removed to avoid side effects outside Calendar */
   
   /* ============================================
      BUTTON ICONS - BLACK ON COLORED BACKGROUNDS
@@ -331,8 +335,10 @@
   
   /* Calendar Colors */
   --secondary-background: oklch(0.8947 0.0111 95.18);
-  --orange: oklch(84.08% 0.1725 84.2);
+  --orange: oklch(0.70 0.17 50);
   --color-accent-foreground: oklch(0% 0 0);
+  /* Calendar specific grays */
+  --calendar-holiday-bg: oklch(0.86 0.02 98.5); /* darker than weekend/input */
   
   /* Chart Colors - Material Types */
   --chart-cartao: oklch(0.87 0.1 95);        /* Soft pastel yellow */
@@ -360,9 +366,8 @@
 }
 
 .dark {
-  --light-text: oklch(0.85 0 0);
   --background: oklch(0.31 0 0);
-  --foreground: var(--light-text);
+  --foreground: oklch(0.85 0 0);
   --main: oklch(84.08% 0.1725 84.2);
   --border: oklch(0.50 0 0);
   
@@ -373,21 +378,23 @@
   
   /* Calendar Colors */
   --secondary-background: oklch(0.26 0 0 / 87.46%);
-  --orange: oklch(84.08% 0.1725 84.2);
-  --color-accent-foreground: var(--light-text);
-  --card-foreground: var(--light-text);
+  --orange: oklch(0.70 0.17 50);
+  --color-accent-foreground: oklch(0.85 0 0);
+  /* Calendar specific grays */
+  --calendar-holiday-bg: oklch(0.86 0.02 98.5); /* darker than weekend/input in dark */
+  --card-foreground: oklch(0.85 0 0);
   --popover: oklch(0.31 0 0);
-  --popover-foreground: var(--light-text);
+  --popover-foreground: oklch(0.85 0 0);
   --secondary: oklch(0.26 0 0 / 87.46%);
-  --secondary-foreground: var(--light-text);
+  --secondary-foreground: oklch(0.85 0 0);
   --muted: oklch(0.26 0 0 / 87.46%);
-  --muted-foreground: var(--light-text);
+  --muted-foreground: oklch(0.65 0 0);
   --accent: oklch(0.40 0 0);
-  --accent-foreground: var(--light-text);
+  --accent-foreground: oklch(0.85 0 0);
   --destructive: oklch(0.63 0.23 25);
   --destructive-foreground: oklch(0% 0 0);
   --input: oklch(0.45 0 0);
-  --ring: var(--light-text);
+  --ring: oklch(0.85 0 0);
   --success: 0.7 0.12 145;
   --success-foreground: 0.28 0.03 145;
   --warning: 0.78 0.18 75;
@@ -472,82 +479,266 @@ input:-webkit-autofill:focus {
   --rdp-day-width: 48px;
 }
 
-.calendar-wrapper .rdp-weekday {
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.calendar-wrapper .rdp-nav {
-  display: none;
-}
-
-.calendar-wrapper .rdp {
+.rdp {
+  /* Ensure consistent sizing even when not wrapped */
+  --rdp-day-height: var(--rdp-day-height, 48px);
+  --rdp-day-width: var(--rdp-day-width, 48px);
   --rdp-accent-color: var(--orange);
-  --rdp-accent-text-color: var(--primary-foreground);
-  --rdp-background-color: var(--secondary-background);
+  --rdp-accent-background-color: var(--orange);
+  --rdp-accent-foreground-color: oklch(0% 0 0);
+  --rdp-background-color: var(--background);
   --rdp-outline: 0;
   --rdp-outline-selected: 0;
-  color: var(--foreground);
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+  border: none !important;
+  font-size: 14px;
 }
 
-.dark .calendar-wrapper .rdp {
-  --rdp-background-color: var(--background);
-  color: var(--foreground);
+.rdp-months,
+.rdp-month {
+  width: auto !important;
 }
 
-/* Selected day and focus styles - enforce IMACX design */
-.calendar-wrapper .rdp-day[aria-selected='true'] {
-  background-color: var(--orange) !important;
-  color: var(--primary-foreground) !important;
+.rdp-weekday {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--foreground) !important;
+}
+
+.rdp-nav {
+  display: none !important;
+}
+
+/* Show and style navigation chevrons inside date-picker popovers */
+.calendar-popover .rdp-caption { padding-right: 36px; }
+/* Add breathing room under month caption so header row aligns cleanly */
+.calendar-popover .rdp-caption,
+.calendar-wrapper .rdp-caption,
+.rdp .rdp-caption {
+  margin-bottom: 6px !important;
+}
+
+.calendar-popover .rdp-caption_label,
+.calendar-wrapper .rdp-caption_label {
+  display: inline-block;
+  padding-bottom: 2px; /* subtle visual separation from weekdays */
+}
+
+/* Anchor nav to the month container so it stays aligned with caption */
+.calendar-popover .rdp-month { position: relative; }
+
+.calendar-popover .rdp-nav {
+  display: flex !important;
+  position: absolute;
+  right: 6px;
+  top: 10px; /* align with month caption */
+  gap: 4px;
+}
+
+.calendar-popover .rdp-nav button {
+  width: 18px;
+  height: 18px;
+  padding: 0 !important;
+  border: none !important;
+  background-color: transparent !important;
+  color: var(--foreground) !important;
+  border-radius: 0 !important;
   outline: none !important;
   box-shadow: none !important;
 }
 
-/* Ensure RDP selected class variant also matches */
-.calendar-wrapper .rdp-day_selected,
-.calendar-wrapper button[aria-selected='true'] {
-  background-color: var(--orange) !important;
-  color: var(--primary-foreground) !important;
-  outline: none !important;
-  box-shadow: none !important;
+.calendar-popover .rdp-nav button:hover,
+.calendar-popover .rdp-nav button:active,
+.calendar-popover .rdp-nav button:focus {
+  background-color: transparent !important;
+  color: var(--foreground) !important;
 }
 
-.calendar-wrapper .rdp-day:focus,
-.calendar-wrapper .rdp-day:focus-visible {
-  outline: none !important;
-  box-shadow: none !important;
+.calendar-popover .rdp-nav button svg {
+  width: 14px;
+  height: 14px;
 }
 
-/* Global fallback to ensure selection styles always apply (drawer popovers etc.) */
-.rdp-day[aria-selected='true'],
+.calendar-popover .rdp-nav button svg,
+.calendar-popover .rdp-nav button svg *,
+.calendar-popover .rdp-nav button path {
+  color: var(--foreground) !important;
+  stroke: var(--foreground) !important;
+  fill: var(--foreground) !important;
+}
+
+.rdp-day {
+  width: var(--rdp-day-width);
+  height: var(--rdp-day-height);
+  padding: 0 !important;
+  border: none !important;
+  background-color: transparent;
+}
+
+.rdp-day_button {
+  width: 100%;
+  height: 100%;
+  border: none !important;
+  background-color: transparent !important;
+  color: var(--foreground) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  font-size: 14px;
+}
+
+.rdp-day_button:hover {
+  background-color: var(--accent) !important;
+  color: var(--foreground) !important;
+}
+
+.rdp-weekend:not(.rdp-day_selected):not([data-selected='true']),
+.rdp-day_weekend:not(.rdp-day_selected):not([data-selected='true']),
+[data-weekend='true']:not([data-selected='true']) {
+  background-color: var(--input) !important;
+  color: var(--foreground) !important;
+}
+
 .rdp-day_selected,
-button[aria-selected='true'] {
+.rdp-day_selected:hover,
+.rdp-day[data-selected='true'],
+.rdp-day[data-selected='true']:hover,
+.rdp .rdp-selected,
+.rdp .rdp-selected:hover {
   background-color: var(--orange) !important;
-  color: var(--primary-foreground) !important;
-  outline: none !important;
-  box-shadow: none !important;
+  color: oklch(0% 0 0) !important;
+  border: none !important;
 }
 
-.rdp-day:focus,
-.rdp-day:focus-visible,
-button[aria-selected='true']:focus,
-button[aria-selected='true']:focus-visible {
-  outline: none !important;
-  box-shadow: none !important;
+.rdp-day_selected .rdp-day_button,
+.rdp .rdp-selected .rdp-day_button {
+  color: oklch(0% 0 0) !important;
 }
 
-/* Remove blue focus ring inside react-day-picker generically */
+.rdp-holiday:not(.rdp-day_selected):not([data-selected='true']),
+.rdp-holiday:not(.rdp-day_selected):not([data-selected='true']) .rdp-day_button,
+.rdp-day_holiday:not(.rdp-day_selected):not([data-selected='true']),
+.rdp-day_holiday:not(.rdp-day_selected):not([data-selected='true']) .rdp-day_button,
+[data-holiday='true']:not([data-selected='true']),
+[data-holiday='true']:not([data-selected='true']) .rdp-day_button {
+  background-color: var(--calendar-holiday-bg) !important;
+  color: var(--foreground) !important;
+  font-weight: 700 !important;
+}
+
+/* Ensure holiday wins when it coincides with weekend */
+.rdp-weekend.rdp-holiday:not(.rdp-day_selected):not([data-selected='true']),
+.rdp-weekend.rdp-holiday:not(.rdp-day_selected):not([data-selected='true']) .rdp-day_button,
+.rdp .rdp-holiday > .rdp-day_button,
+.rdp .rdp-weekend.rdp-holiday > .rdp-day_button,
+.rdp [data-weekend='true'][data-holiday='true']:not([data-selected='true']) {
+  background-color: var(--calendar-holiday-bg) !important;
+  color: var(--foreground) !important;
+}
+
+.rdp .rdp-today:not(.rdp-day_selected):not([data-selected='true']) {
+  background-color: var(--orange) !important;
+}
+
+.rdp .rdp-today:not(.rdp-day_selected):not([data-selected='true']) .rdp-day_button {
+  color: oklch(0% 0 0) !important;
+}
+
+/* Today via ARIA attribute on the button (covers all locales/popovers) */
+.rdp [aria-current='date']:not([data-selected='true']) {
+  background-color: var(--orange) !important;
+  color: oklch(0% 0 0) !important;
+}
+
 .rdp button:focus,
 .rdp button:focus-visible {
   outline: none !important;
   box-shadow: none !important;
 }
 
+.rdp button {
+  border-radius: 0 !important;
+  background-color: transparent !important;
+}
+
+.rdp button:hover:not([data-selected='true']) {
+  background-color: var(--accent) !important;
+}
+
 /* ============================================
    TEXT SIZES
    ============================================ */
 
+/* Keep TODAY color on hover the same as its base color */
+.rdp .rdp-today:not(.rdp-day_selected):not([data-selected='true']) .rdp-day_button:hover,
+.rdp [aria-current='date']:not([data-selected='true']):hover {
+  background-color: var(--orange) !important;
+  color: oklch(0% 0 0) !important;
+}
+
 .text-tiny {
   font-size: 13px !important;
   line-height: 1.4 !important;
+}
+
+/* ============================================
+   IMACX TABLE AND LAYOUT UTILITIES
+   ============================================ */
+
+/* Compact table density matching /producao */
+.imx-table-compact {
+  /* tailwind text-sm */
+  font-size: 0.875rem !important;
+  line-height: 1.25rem !important;
+}
+
+.imx-table-compact td,
+.imx-table-compact th {
+  /* px-3 py-2 */
+  padding: 0.5rem 0.75rem !important;
+}
+
+/* Standard row hover behavior */
+.imx-row-hover {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-duration: 150ms;
+}
+
+.imx-row-hover:hover {
+  /* tailwind bg-accent */
+  background-color: var(--accent) !important;
+}
+
+/* Ensure text color on custom hover matches accent behavior */
+.imx-row-hover:hover,
+.imx-row-hover:hover * {
+  color: var(--accent-foreground) !important;
+}
+
+/* Page and section spacing wrappers */
+.imx-page-stack {
+  width: 100% !important;
+  /* tailwind space-y-6 */
+}
+
+.imx-page-stack > * + * {
+  margin-top: 1.5rem !important;
+}
+
+.imx-section-stack > * + * {
+  /* tailwind space-y-4 */
+  margin-top: 1rem !important;
+}
+
+.imx-table-wrap {
+  width: 100% !important;
+  background-color: var(--background) !important;
+}
+
+/* Center table cells that contain checkboxes (applies globally) */
+td:has([role="checkbox"]),
+th:has([role="checkbox"]) {
+  text-align: center !important;
 }

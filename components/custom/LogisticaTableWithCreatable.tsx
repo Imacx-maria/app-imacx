@@ -18,7 +18,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { ArrowUp, ArrowDown, Trash2, Copy, ArrowLeft, ArrowRight } from 'lucide-react'
+import { ArrowUp, ArrowDown, Trash2, Copy, ArrowLeft, ArrowRight, AlertTriangle } from 'lucide-react'
 import NotasPopover from '@/components/custom/NotasPopover'
 import CreatableClienteCombobox, {
   type ClienteOption,
@@ -161,6 +161,18 @@ export const LogisticaTableWithCreatable: React.FC<
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const ITEMS_PER_PAGE = 5
+
+  // Pre-compute soma das quantidades por item (em todas as linhas, não só página)
+  const totalQuantidadePorItemId = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const r of records) {
+      const itemId = r.items_base?.id
+      if (!itemId) continue
+      const q = r.quantidade ?? 0
+      map[itemId] = (map[itemId] ?? 0) + (typeof q === 'number' ? q : 0)
+    }
+    return map
+  }, [records])
 
   // Helper functions for stable data access
   const getItemValue = useCallback(
@@ -599,11 +611,11 @@ export const LogisticaTableWithCreatable: React.FC<
       {process.env.NODE_ENV === 'development' && (
         <DataIntegrityChecker records={paginatedRecords} editRows={editRows} />
       )}
-      <Table className="w-full table-fixed uppercase [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+      <Table className="w-full table-fixed uppercase imx-table-compact">
           {tableHeader}
           <TableBody>
             {paginatedRecords.length === 0 ? (
-              <TableRow>
+              <TableRow className="imx-row-hover">
                 <TableCell colSpan={columns.length} className="p-4 text-center">
                   Nenhum registo encontrado para esta data.
                 </TableCell>
@@ -612,7 +624,7 @@ export const LogisticaTableWithCreatable: React.FC<
               paginatedRecords.map((row, index) => (
                 <TableRow
                   key={row.id || row.items_base?.id || Math.random()}
-                  className={`odd:bg-muted/50 ${sourceRowId === row.id ? 'bg-primary/10' : ''}`}
+                  className={`imx-row-hover ${sourceRowId === row.id ? 'bg-primary/10' : ''}`}
                 >
                   {/* Source Selection Checkbox */}
                   {showSourceSelection && (
@@ -728,7 +740,7 @@ export const LogisticaTableWithCreatable: React.FC<
                             value: c.value,
                             label: c.label,
                           }))}
-                          value={row.items_base?.folhas_obras?.id_cliente || ''}
+                          value={row.items_base?.folhas_obras?.id_cliente ? String(row.items_base?.folhas_obras?.id_cliente) : ''}
                           onChange={(value) => onClienteChange(row, value)}
                           placeholder="Cliente"
                           onOptionsUpdate={onClientesUpdate}
@@ -798,41 +810,70 @@ export const LogisticaTableWithCreatable: React.FC<
 
                   {/* Quantidade */}
                   <TableCell className="w-[90px] max-w-[90px] text-sm">
-                    <Input
-                      type="text"
-                      className={`${quantityFieldClass} w-full`}
-                      value={getQuantityValue(row, editRows)}
-                      onChange={(e) => {
-                        const value =
-                          e.target.value === '' ? null : Number(e.target.value)
-                        handleEdit(row.id, 'quantidade', value)
-                      }}
-                      onBlur={() => {
-                        const currentValue = getQuantityValue(row, editRows)
-                        const numericValue =
-                          currentValue === '' ? null : Number(currentValue)
-                        if (numericValue !== row.quantidade) {
-                          onQuantidadeSave(row, numericValue)
-                        }
-                      }}
-                    />
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="text"
+                        className={`${quantityFieldClass} w-full`}
+                        value={getQuantityValue(row, editRows)}
+                        onChange={(e) => {
+                          const value =
+                            e.target.value === '' ? null : Number(e.target.value)
+                          handleEdit(row.id, 'quantidade', value)
+                        }}
+                        onBlur={() => {
+                          const currentValue = getQuantityValue(row, editRows)
+                          const numericValue =
+                            currentValue === '' ? null : Number(currentValue)
+                          if (numericValue !== row.quantidade) {
+                            onQuantidadeSave(row, numericValue)
+                          }
+                        }}
+                      />
+                      {(() => {
+                        const itemId = row.items_base?.id
+                        const baseQty = row.items_base?.quantidade
+                        const sumQty = itemId ? totalQuantidadePorItemId[itemId] : undefined
+                        const hasMismatch =
+                          typeof baseQty === 'number' && typeof sumQty === 'number' && baseQty !== sumQty
+                        if (!hasMismatch) return null
+                        return (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="text-amber-600" aria-label="Aviso quantidade divergente">
+                                  <AlertTriangle size={16} />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <span>
+                                  Soma das quantidades (Logística): {sumQty} ≠ Quantidade do item: {baseQty}
+                                </span>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )
+                      })()}
+                    </div>
                   </TableCell>
 
                   {/* Local Recolha - NOW CREATABLE */}
                   <TableCell className="w-[180px] max-w-[180px] text-sm">
                     <CreatableArmazemCombobox
                       options={armazemOptions}
-                      value={row.id_local_recolha || ''}
+                      value={row.id_local_recolha ? String(row.id_local_recolha) : ''}
+                      displayLabel={row.local_recolha || ''}
                       onChange={(value) =>
                         onRecolhaChange(
                           row.id || row.items_base?.id || '',
                           value,
                         )
                       }
-                      placeholder="Armazem"
+                      placeholder="RECOLHA"
                       onOptionsUpdate={onArmazensUpdate}
                       className="max-w-[200px]"
                       buttonClassName={comboButtonClass}
+                      /* Show textual label even if value is not in options */
+                      aria-label="Local de Recolha"
                     />
                   </TableCell>
 
@@ -840,17 +881,19 @@ export const LogisticaTableWithCreatable: React.FC<
                   <TableCell className="w-[180px] max-w-[180px] text-sm">
                     <CreatableArmazemCombobox
                       options={armazemOptions}
-                      value={row.id_local_entrega || ''}
+                      value={row.id_local_entrega ? String(row.id_local_entrega) : ''}
+                      displayLabel={row.local_entrega || ''}
                       onChange={(value) =>
                         onEntregaChange(
                           row.id || row.items_base?.id || '',
                           value,
                         )
                       }
-                      placeholder="Armazem"
+                      placeholder="ENTREGA"
                       onOptionsUpdate={onArmazensUpdate}
                       className="max-w-[200px]"
                       buttonClassName={comboButtonClass}
+                      aria-label="Local de Entrega"
                     />
                   </TableCell>
 
@@ -858,7 +901,7 @@ export const LogisticaTableWithCreatable: React.FC<
                   <TableCell className="w-[180px] max-w-[180px] text-sm">
                     <CreatableTransportadoraCombobox
                       options={transportadoraOptions}
-                      value={row.transportadora || ''}
+                      value={row.transportadora ? String(row.transportadora) : ''}
                       onChange={(value) => onTransportadoraChange(row, value)}
                       placeholder="Empresa"
                       onOptionsUpdate={onTransportadorasUpdate}

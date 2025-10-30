@@ -39,13 +39,16 @@ export default function DatePicker({
           {value ? format(value, "dd/MM/yyyy") : placeholder}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-4 m-2" align="start">
+      <PopoverContent
+        className="calendar-popover w-auto p-4 m-3 border border-border bg-background shadow-md"
+        align="start"
+      >
         <Calendar
           mode="single"
           selected={value}
           onSelect={onChange}
           disabled={disabled}
-          locale={ptBR}
+          locale={{ ...ptBR, options: { ...(ptBR as any).options, weekStartsOn: 1 } }}
         />
       </PopoverContent>
     </Popover>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
@@ -35,6 +35,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { usePermissions } from '@/providers/PermissionsProvider'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface SubMenuItem {
   title: string
@@ -74,9 +75,13 @@ const menuItems: MenuItem[] = [
   },
   {
     title: 'Stocks',
-    href: '/stocks',
     icon: <Warehouse className="h-5 w-5" />,
     pageId: 'stocks',
+    submenu: [
+      { title: 'Resumo', href: '/stocks', icon: <Warehouse className="h-4 w-4" /> },
+      { title: 'Gestão de Materiais', href: '/definicoes/materiais', icon: <Package className="h-4 w-4" /> },
+      { title: 'Gestão de Máquinas', href: '/definicoes/maquinas', icon: <Factory className="h-4 w-4" /> },
+    ],
   },
   {
     title: 'Gestão',
@@ -97,8 +102,6 @@ const menuItems: MenuItem[] = [
       { title: 'Gestão de Feriados', href: '/definicoes/feriados', icon: <FileText className="h-4 w-4" /> },
       { title: 'Gestão de Armazéns', href: '/definicoes/armazens', icon: <Warehouse className="h-4 w-4" /> },
       { title: 'Gestão de Complexidade', href: '/definicoes/complexidade', icon: <Settings className="h-4 w-4" /> },
-      { title: 'Gestão de Máquinas', href: '/definicoes/maquinas', icon: <Factory className="h-4 w-4" /> },
-      { title: 'Gestão de Materiais', href: '/definicoes/materiais', icon: <Package className="h-4 w-4" /> },
       { title: 'Gestão de Transportadoras', href: '/definicoes/transportadoras', icon: <Users className="h-4 w-4" /> },
       { title: 'Mapeamento de Utilizadores', href: '/definicoes/user-name-mapping', icon: <Users className="h-4 w-4" /> },
     ],
@@ -106,6 +109,7 @@ const menuItems: MenuItem[] = [
 ]
 
 export function Navigation() {
+  const navRef = useRef<HTMLDivElement | null>(null)
   const pathname = usePathname()
   const router = useRouter()
   const { theme, setTheme } = useTheme()
@@ -139,6 +143,26 @@ export function Navigation() {
     
     checkUser()
   }, [])
+
+  // Close drawer when clicking outside
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      if (isCollapsed) return
+      const target = event.target as Node | null
+      const container = navRef.current
+      if (container && target && !container.contains(target)) {
+        setIsCollapsed(true)
+        setOpenSubmenus([])
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('touchstart', handlePointerDown)
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('touchstart', handlePointerDown)
+    }
+  }, [isCollapsed])
 
   const toggleSubmenu = (title: string) => {
     setOpenSubmenus(prev =>
@@ -199,6 +223,7 @@ export function Navigation() {
 
   return (
     <div
+      ref={navRef}
       className={cn(
         'flex h-screen flex-col border-r border-border bg-card text-foreground transition-all duration-300',
         isCollapsed ? 'w-16' : 'w-64'
@@ -230,17 +255,34 @@ export function Navigation() {
               return (
                 <li key={item.title}>
                   <Collapsible open={isOpen} onOpenChange={() => handleSubmenuClick(item.title)}>
-                    <CollapsibleTrigger asChild>
-                      <button
-                        className={cn(
-                          'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                          'hover:bg-accent hover:text-accent-foreground',
-                          hasActiveSubmenu(item.submenu) ? 'bg-primary text-primary-foreground' : 'text-muted-foreground',
-                          isCollapsed && 'justify-center'
-                        )}
-                      >
-                        {item.icon}
-                        {!isCollapsed && (
+                    {isCollapsed ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <CollapsibleTrigger
+                              className={cn(
+                                'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                                'hover:bg-accent hover:text-accent-foreground',
+                                hasActiveSubmenu(item.submenu) ? 'bg-primary text-primary-foreground' : 'text-muted-foreground',
+                                'justify-center'
+                              )}
+                            >
+                              {item.icon}
+                            </CollapsibleTrigger>
+                          </TooltipTrigger>
+                          <TooltipContent side="right">{item.title}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      <CollapsibleTrigger asChild>
+                        <button
+                          className={cn(
+                            'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                            'hover:bg-accent hover:text-accent-foreground',
+                            hasActiveSubmenu(item.submenu) ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
+                          )}
+                        >
+                          {item.icon}
                           <>
                             <span className="flex-1 text-left">{item.title}</span>
                             {isOpen ? (
@@ -249,9 +291,9 @@ export function Navigation() {
                               <ChevronRight className="h-4 w-4" />
                             )}
                           </>
-                        )}
-                      </button>
-                    </CollapsibleTrigger>
+                        </button>
+                      </CollapsibleTrigger>
+                    )}
                     {!isCollapsed && (
                       <CollapsibleContent className="ml-6 mt-1 space-y-1">
                         {item.submenu.map((subItem) => (
@@ -278,30 +320,58 @@ export function Navigation() {
 
             return (
               <li key={item.title}>
-                <Link
-                  href={item.href!}
-                  onClick={(e) => {
-                    // If sidebar is collapsed, expand it first
-                    if (isCollapsed) {
-                      e.preventDefault()
-                      setIsCollapsed(false)
-                      // Navigate after a brief delay to show the sidebar expanding
-                      setTimeout(() => {
-                        router.push(item.href!)
-                      }, 100)
-                    }
-                  }}
-                  className={cn(
-                    'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                    isActive(item.href!)
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                    isCollapsed && 'justify-center'
-                  )}
-                >
-                  {item.icon}
-                  {!isCollapsed && <span>{item.title}</span>}
-                </Link>
+                {isCollapsed ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link
+                          href={item.href!}
+                          onClick={(e) => {
+                            if (isCollapsed) {
+                              e.preventDefault()
+                              setIsCollapsed(false)
+                              setTimeout(() => {
+                                router.push(item.href!)
+                              }, 100)
+                            }
+                          }}
+                          className={cn(
+                            'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                            isActive(item.href!)
+                              ? 'bg-primary text-primary-foreground'
+                              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                            'justify-center'
+                          )}
+                        >
+                          {item.icon}
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">{item.title}</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <Link
+                    href={item.href!}
+                    onClick={(e) => {
+                      if (isCollapsed) {
+                        e.preventDefault()
+                        setIsCollapsed(false)
+                        setTimeout(() => {
+                          router.push(item.href!)
+                        }, 100)
+                      }
+                    }}
+                    className={cn(
+                      'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                      isActive(item.href!)
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                    )}
+                  >
+                    {item.icon}
+                    <span>{item.title}</span>
+                  </Link>
+                )}
               </li>
             )
           })}
@@ -319,54 +389,116 @@ export function Navigation() {
                 <span className="truncate">{user.email}</span>
               </div>
             )}
-            <Button
-              variant="ghost"
-              size={isCollapsed ? 'icon' : 'default'}
-              onClick={handleLogout}
-              className={cn(
-                'w-full justify-start gap-3 text-destructive hover:bg-destructive/10',
-                isCollapsed && 'justify-center'
-              )}
-            >
-              <LogOut className="h-5 w-5" />
-              {!isCollapsed && <span>Sair</span>}
-            </Button>
+            {isCollapsed ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleLogout}
+                      className={cn(
+                        'w-full justify-start gap-3 text-destructive hover:bg-destructive/10',
+                        'justify-center'
+                      )}
+                    >
+                      <LogOut className="h-5 w-5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Sair</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <Button
+                variant="ghost"
+                size={'default'}
+                onClick={handleLogout}
+                className={cn(
+                  'w-full justify-start gap-3 text-destructive hover:bg-destructive/10'
+                )}
+              >
+                <LogOut className="h-5 w-5" />
+                <span>Sair</span>
+              </Button>
+            )}
           </div>
         ) : (
-          <Button
-            variant="ghost"
-            size={isCollapsed ? 'icon' : 'default'}
-            onClick={() => router.push('/login')}
-            className={cn(
-              'w-full justify-start gap-3',
-              isCollapsed && 'justify-center'
-            )}
-          >
-            <LogIn className="h-5 w-5" />
-            {!isCollapsed && <span>Entrar</span>}
-          </Button>
+          isCollapsed ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size={'icon'}
+                    onClick={() => router.push('/login')}
+                    className={cn(
+                      'w-full justify-start gap-3',
+                      'justify-center'
+                    )}
+                  >
+                    <LogIn className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Entrar</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <Button
+              variant="ghost"
+              size={'default'}
+              onClick={() => router.push('/login')}
+              className={cn(
+                'w-full justify-start gap-3'
+              )}
+            >
+              <LogIn className="h-5 w-5" />
+              <span>Entrar</span>
+            </Button>
+          )
         )}
 
         {/* Theme Toggle */}
         {mounted && (
-          <Button
-            variant="ghost"
-            size={isCollapsed ? 'icon' : 'default'}
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className={cn(
-              'w-full justify-start gap-3',
-              isCollapsed && 'justify-center'
-            )}
-          >
-            {theme === 'dark' ? (
-              <Sun className="h-5 w-5" />
-            ) : (
-              <Moon className="h-5 w-5" />
-            )}
-            {!isCollapsed && (
+          isCollapsed ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size={'icon'}
+                    onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                    className={cn(
+                      'w-full justify-start gap-3',
+                      'justify-center'
+                    )}
+                  >
+                    {theme === 'dark' ? (
+                      <Sun className="h-5 w-5" />
+                    ) : (
+                      <Moon className="h-5 w-5" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">{theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <Button
+              variant="ghost"
+              size={'default'}
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className={cn(
+                'w-full justify-start gap-3'
+              )}
+            >
+              {theme === 'dark' ? (
+                <Sun className="h-5 w-5" />
+              ) : (
+                <Moon className="h-5 w-5" />
+              )}
               <span>{theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}</span>
-            )}
-          </Button>
+            </Button>
+          )
         )}
       </div>
     </div>

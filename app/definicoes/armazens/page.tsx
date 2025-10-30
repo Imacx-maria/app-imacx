@@ -244,13 +244,13 @@ export default function ArmazensPage() {
           </div>
         </div>
 
-        {/* Filter bar */}
+        {/* Filter bar - standardized */}
         <div className="mb-6 flex items-center gap-2">
           <Input
-            placeholder="Filtrar por nome ou número PHC..."
+            placeholder="FILTRAR POR NOME OU NÚMERO PHC..."
             value={nameFilter}
             onChange={(e) => setNameFilter(e.target.value)}
-            className="h-10 w-[300px]"
+            className="h-10 flex-1"
           />
           <TooltipProvider>
             <Tooltip>
@@ -258,6 +258,7 @@ export default function ArmazensPage() {
                 <Button
                   variant="outline"
                   size="icon"
+                  className="h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
                   onClick={() => setNameFilter('')}
                   aria-label="Limpar filtro"
                 >

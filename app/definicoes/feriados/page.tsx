@@ -229,13 +229,13 @@ export default function FeriadosPage() {
           </div>
         </div>
 
-        {/* Filter bar */}
+        {/* Filter bar - standardized */}
         <div className="flex items-center gap-2">
           <Input
-            placeholder="Filtrar por descrição..."
+            placeholder="FILTRAR POR DESCRIÇÃO..."
             value={descriptionFilter}
             onChange={(e) => setDescriptionFilter(e.target.value)}
-            className="h-10 w-[300px]"
+            className="h-10 flex-1"
           />
           <TooltipProvider>
             <Tooltip>
@@ -243,6 +243,7 @@ export default function FeriadosPage() {
                 <Button
                   variant="outline"
                   size="icon"
+                  className="h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
                   onClick={() => setDescriptionFilter('')}
                 >
                   <X className="h-4 w-4" />

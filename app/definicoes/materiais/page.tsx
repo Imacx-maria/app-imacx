@@ -842,56 +842,66 @@ export default function MateriaisPage() {
           </div>
         </div>
 
-        {/* Filter bar */}
-        <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-4">
-          <div className="flex items-center gap-2">
-            <Label className="min-w-[80px] text-sm">
-              Material:
-            </Label>
-            <Input
-              placeholder="Filtrar por material..."
-              value={materialFilter}
-              onChange={(e) => setMaterialFilter(e.target.value)}
-              className="flex-1"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Label className="min-w-[100px] text-sm">
-              Características:
-            </Label>
-            <Input
-              placeholder="Filtrar por características..."
-              value={caracteristicaFilter}
-              onChange={(e) => setCaracteristicaFilter(e.target.value)}
-              className="flex-1"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Label className="min-w-[60px] text-sm">Cor:</Label>
-            <Input
-              placeholder="Filtrar por cor..."
-              value={corFilter}
-              onChange={(e) => setCorFilter(e.target.value)}
-              className="flex-1"
-            />
-          </div>
-
-          {/* Clear all filters button in same row */}
-          <div className="flex justify-center">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setMaterialFilter('')
-                setCaracteristicaFilter('')
-                setCorFilter('')
-              }}
-              className="text-sm whitespace-nowrap"
-            >
-              Limpar Filtros
-            </Button>
-          </div>
+        {/* Filter bar - standardized */}
+        <div className="flex items-center gap-2">
+          <Input
+            placeholder="FILTRAR POR MATERIAL..."
+            value={materialFilter}
+            onChange={(e) => setMaterialFilter(e.target.value)}
+            className="h-10 flex-1"
+          />
+          <Input
+            placeholder="FILTRAR POR CARACTERÍSTICAS..."
+            value={caracteristicaFilter}
+            onChange={(e) => setCaracteristicaFilter(e.target.value)}
+            className="h-10 flex-1"
+          />
+          <Input
+            placeholder="FILTRAR POR COR..."
+            value={corFilter}
+            onChange={(e) => setCorFilter(e.target.value)}
+            className="h-10 flex-1"
+          />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
+                  onClick={() => {
+                    setMaterialFilter('')
+                    setCaracteristicaFilter('')
+                    setCorFilter('')
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Limpar Filtros</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10"
+                  onClick={() =>
+                    fetchMateriais({
+                      materialFilter: debouncedMaterialFilter,
+                      caracteristicaFilter: debouncedCaracteristicaFilter,
+                      corFilter: debouncedCorFilter,
+                    })
+                  }
+                >
+                  <RotateCw className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Atualizar</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
         {/* Table */}

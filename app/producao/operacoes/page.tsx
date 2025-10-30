@@ -547,7 +547,7 @@ export default function OperacoesPage() {
   }
 
   return (
-    <div className="w-full space-y-6 p-6">
+    <div className="imx-page-stack p-6">
       <h1 className="text-2xl font-bold">Operações de Produção</h1>
 
       {/* Statistics */}
@@ -557,8 +557,8 @@ export default function OperacoesPage() {
 
       {/* Filters */}
       <div className="flex items-center gap-2">
-        <Input placeholder="Filtrar FO" className="w-40" value={foFilter} onChange={(e) => setFoFilter(e.target.value)} />
-        <Input placeholder="Filtrar Item" className="flex-1" value={itemFilter} onChange={(e) => setItemFilter(e.target.value)} />
+        <Input placeholder="Filtrar FO" className="h-10 w-40" value={foFilter} onChange={(e) => setFoFilter(e.target.value)} />
+        <Input placeholder="Filtrar Item" className="h-10 flex-1" value={itemFilter} onChange={(e) => setItemFilter(e.target.value)} />
                       <Button
                         size="icon"
                         variant="outline"
@@ -575,9 +575,9 @@ export default function OperacoesPage() {
           </div>
 
       {/* Main table */}
-      <div className="bg-background w-full">
+      <div className="imx-table-wrap">
         <div className="w-full overflow-x-auto">
-          <Table className="w-full border-0 [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+          <Table className="w-full border-0 imx-table-compact">
             <TableHeader>
                 <TableRow>
                 <TableHead
@@ -636,7 +636,7 @@ export default function OperacoesPage() {
               </TableHeader>
               <TableBody>
               {sortedItems.map((item) => (
-                <TableRow key={item.id} className="hover:bg-accent transition-colors">
+                <TableRow key={item.id} className="imx-row-hover">
                   <TableCell className="w-[120px]">{item.folhas_obras?.numero_fo}</TableCell>
                   <TableCell>{item.folhas_obras?.nome_campanha}</TableCell>
                   <TableCell>{item.descricao}</TableCell>

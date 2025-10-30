@@ -19,6 +19,7 @@ interface CreatableArmazemComboboxProps {
   options: ArmazemOption[]
   onOptionsUpdate?: (newOptions: ArmazemOption[]) => void
   label?: string
+  displayLabel?: string
   placeholder?: string
   disabled?: boolean
   className?: string
@@ -35,6 +36,7 @@ export const CreatableArmazemCombobox: React.FC<
   options,
   onOptionsUpdate,
   label,
+  displayLabel,
   placeholder = 'Selecione um armazem',
   disabled = false,
   className = '',
@@ -70,14 +72,14 @@ export const CreatableArmazemCombobox: React.FC<
 
       const newArmazem = data[0]
       const newOption: CreatableComboboxOption = {
-        value: newArmazem.id,
+        value: String(newArmazem.id),
         label: newArmazem.nome_arm,
       }
 
       // Update the options list if callback is provided
       if (onOptionsUpdate) {
         const newArmazemOption: ArmazemOption = {
-          value: newArmazem.id,
+          value: String(newArmazem.id),
           label: newArmazem.nome_arm,
           morada: newArmazem.morada,
           codigo_pos: newArmazem.codigo_pos,
@@ -108,6 +110,7 @@ export const CreatableArmazemCombobox: React.FC<
         >
           <CreatableCombobox
             value={value}
+            displayLabel={displayLabel}
             onChange={onChange}
             onCreateNew={handleCreateNew}
             options={options}

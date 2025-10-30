@@ -101,10 +101,8 @@ export function useLogisticaData() {
             folhas_obras (
               id,
               numero_orc,
-              numero_fo,
-              cliente,
-              id_cliente,
-              saiu
+              Numero_do_,
+              cliente:Nome
             )
           )
         `,
@@ -140,6 +138,16 @@ export function useLogisticaData() {
                 id_cliente: '',
                 saiu: false,
               }
+            }
+            // Normalize FO number: map Numero_do_ (DB column) to numero_fo (UI field)
+            const foDb = (processedRecord.items_base.folhas_obras as any)
+              ?.Numero_do_
+            if (
+              foDb &&
+              (!processedRecord.items_base.folhas_obras.numero_fo ||
+                processedRecord.items_base.folhas_obras.numero_fo === '')
+            ) {
+              processedRecord.items_base.folhas_obras.numero_fo = String(foDb)
             }
             // Ensure descricao field is populated - prioritize direct field, then items_base
             if (
@@ -182,7 +190,7 @@ export function useLogisticaData() {
         if (clientesData) {
           setClientes(
             clientesData.map((c: any) => ({
-              value: c.id,
+              value: String(c.id),
               label: c.nome_cl,
               morada: c.morada,
               codigo_pos: c.codigo_pos,
@@ -199,7 +207,7 @@ export function useLogisticaData() {
         if (transportadorasData) {
           setTransportadoras(
             transportadorasData.map((t: any) => ({
-              value: t.id,
+              value: String(t.id),
               label: t.name,
             })),
           )
@@ -215,7 +223,7 @@ export function useLogisticaData() {
         if (armazensData) {
           setArmazens(
             armazensData.map((a: any) => ({
-              value: a.id,
+              value: String(a.id),
               label: a.nome_arm,
               morada: a.morada,
               codigo_pos: a.codigo_pos,
@@ -266,10 +274,8 @@ export function useLogisticaData() {
             folhas_obras (
               id, 
               numero_orc, 
-              numero_fo, 
-              cliente, 
-              id_cliente,
-              saiu
+              Numero_do_, 
+              cliente:Nome
             )
           )
         `,
@@ -316,6 +322,16 @@ export function useLogisticaData() {
               id_cliente: '',
               saiu: false,
             }
+          }
+
+          // Normalize FO number: map Numero_do_ (DB column) to numero_fo (UI field)
+          const foDb = (processedRow.items_base.folhas_obras as any)?.Numero_do_
+          if (
+            foDb &&
+            (!processedRow.items_base.folhas_obras.numero_fo ||
+              processedRow.items_base.folhas_obras.numero_fo === '')
+          ) {
+            processedRow.items_base.folhas_obras.numero_fo = String(foDb)
           }
 
           // Update records in state
@@ -710,10 +726,8 @@ export function useLogisticaData() {
             folhas_obras (
               id,
               numero_orc,
-              numero_fo,
-              cliente,
-              id_cliente,
-              saiu
+              Numero_do_,
+              cliente:Nome
             )
           )
         `,
@@ -745,6 +759,17 @@ export function useLogisticaData() {
               id_cliente: '',
               saiu: false,
             }
+          }
+
+          // Normalize FO number: map Numero_do_ (DB column) to numero_fo (UI field)
+          const foDb = (processedRecord.items_base.folhas_obras as any)
+            ?.Numero_do_
+          if (
+            foDb &&
+            (!processedRecord.items_base.folhas_obras.numero_fo ||
+              processedRecord.items_base.folhas_obras.numero_fo === '')
+          ) {
+            processedRecord.items_base.folhas_obras.numero_fo = String(foDb)
           }
 
           // Add to local records

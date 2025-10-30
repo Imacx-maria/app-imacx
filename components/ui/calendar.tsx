@@ -30,6 +30,14 @@ function Calendar({
   onDayClick,
   ...props
 }: CalendarProps) {
+  const {
+    classNames: propClassNames,
+    modifiers: propModifiers,
+    modifiersStyles: propModifiersStyles,
+    modifiersClassNames: propModifiersClassNames,
+    mode: propMode,
+    ...restProps
+  } = props
   const holidayDates = React.useMemo(() => {
     if (!holidays || !Array.isArray(holidays) || holidays.length === 0) {
       return []
@@ -64,14 +72,14 @@ function Calendar({
 
   const modifiers = React.useMemo(
     () => ({
-      ...props.modifiers,
+      ...propModifiers,
       weekend: (date: Date) => date.getDay() === 0 || date.getDay() === 6,
       holiday: (date: Date) => {
         const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
         return !!holidayMap[dateKey]
       },
     }),
-    [props.modifiers, holidayMap]
+    [propModifiers, holidayMap]
   )
 
   const formatters = React.useMemo(() => ({
@@ -82,48 +90,61 @@ function Calendar({
     }
   }), [])
 
-  const mergedClassNames = React.useMemo(
+  const mergedModifiersStyles = React.useMemo(
     () => ({
-      ...props.classNames,
-      day: cn(
-        'focus-visible:outline-none text-[var(--foreground)]',
-        props.classNames?.day,
-      ),
-      day_selected: cn(
-        'bg-[var(--orange)] text-[var(--primary-foreground)] hover:bg-[var(--orange)] focus:bg-[var(--orange)] focus-visible:bg-[var(--orange)] focus-visible:outline-none focus-visible:ring-0 border border-transparent',
-        props.classNames?.day_selected,
-      ),
-      head_row: cn(
-        'bg-[var(--primary)] text-[var(--primary-foreground)]',
-        props.classNames?.head_row,
-      ),
-      head_cell: cn('text-[var(--foreground)]', props.classNames?.head_cell),
-      caption: cn('px-4 pt-3 pb-2 text-[var(--foreground)]', props.classNames?.caption),
-      month: cn('bg-background', props.classNames?.month),
+      ...propModifiersStyles,
+      // Use global CSS for weekend/holiday/today to ensure consistent override order
+      weekend: { ...(propModifiersStyles?.weekend || {}) },
+      holiday: { ...(propModifiersStyles?.holiday || {}) },
+      today: { ...(propModifiersStyles?.today || {}) },
     }),
-    [props.classNames],
+    [propModifiersStyles],
   )
+
+  const mergedClassNames = React.useMemo(() => ({
+    ...propClassNames,
+    day: cn('rdp-day focus-visible:outline-none', propClassNames?.day),
+    day_selected: cn(
+      'rdp-day_selected bg-[var(--orange)] text-black hover:bg-[var(--orange)] focus:bg-[var(--orange)]',
+      propClassNames?.day_selected,
+    ),
+    day_today: cn('rdp-day_today text-foreground', propClassNames?.day_today),
+    head_row: cn('rdp-head_row bg-primary text-black', propClassNames?.head_row),
+    head_cell: cn('text-black font-semibold', propClassNames?.head_cell),
+    caption: cn('px-4 pt-3 pb-2 text-black', propClassNames?.caption),
+    month: cn('bg-background', propClassNames?.month),
+  }), [propClassNames])
+
+  const mergedModifierClassNames = React.useMemo(() => ({
+    ...propModifiersClassNames,
+    weekend: cn('rdp-weekend', propModifiersClassNames?.weekend),
+    holiday: cn('rdp-holiday', propModifiersClassNames?.holiday),
+  }), [propModifiersClassNames])
+
+  // Force week to start on Monday via locale override
+  const mondayLocale = React.useMemo(() => ({
+    ...pt,
+    options: { ...(pt as any).options, weekStartsOn: 1 },
+  }), [])
 
   return (
     <div className="calendar-wrapper">
       <DayPicker
-        // Default locale; can be overridden by props
-        locale={pt}
-        mode={onDayClick ? 'single' : props.mode}
+        // Default locale overridden to Monday start; can be overridden by props
+        locale={props.locale ?? mondayLocale}
+        mode={onDayClick ? 'single' : propMode}
         modifiers={modifiers}
         formatters={formatters}
-        modifiersStyles={{
-          weekend: { backgroundColor: 'var(--input)' },
-          holiday: { fontWeight: '700', color: 'oklch(0.63 0.23 25)' },
-        }}
+        modifiersStyles={mergedModifiersStyles}
         className={cn('rdp', className)}
         // Spread incoming props first so we can override selectively
-        {...props}
+        {...restProps}
         // Our merged class names come last so they are applied
         classNames={mergedClassNames}
+        modifiersClassNames={mergedModifierClassNames}
         // Map legacy onDayClick to DayPicker onSelect if not provided
         onSelect={
-          props.onSelect ??
+          restProps.onSelect ??
           (onDayClick
             ? (date: any) => {
                 if (!date) return

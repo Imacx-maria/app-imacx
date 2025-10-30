@@ -260,7 +260,7 @@ const TransportePopover: React.FC<TransportePopoverProps> = ({
       <PopoverTrigger asChild>
         <Button
           size="icon"
-          className="h-10 w-10 bg-orange-500 hover:bg-orange-600"
+          className="transport-popover-trigger"
           aria-label="Editar transporte"
           disabled={disabled}
         >

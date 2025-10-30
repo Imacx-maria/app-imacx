@@ -1582,8 +1582,8 @@ export default function StocksPage() {
           <h1 className="text-2xl font-bold">Gestão de Stocks</h1>
         </div>
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1">
             {activeTab === 'palettes' ? (
               <Combobox
                 value={paletesFilter}
@@ -1597,8 +1597,7 @@ export default function StocksPage() {
                 placeholder="FILTRAR PALETES..."
                 searchPlaceholder="Pesquisar paletes..."
                 emptyMessage="Nenhuma palete encontrada."
-                className="h-10 w-[200px]"
-                maxWidth="200px"
+                className="h-10 flex-1"
               />
             ) : (
               <Input
@@ -1613,7 +1612,7 @@ export default function StocksPage() {
                     setCurrentStockFilter(e.target.value)
                   }
                 }}
-                className="h-10 w-[200px] rounded-none"
+                className="h-10 flex-1 rounded-none"
               />
             )}
             <Input
@@ -1634,7 +1633,7 @@ export default function StocksPage() {
                   setPaletesReferenciaFilter(e.target.value)
                 }
               }}
-              className="h-10 w-[150px] rounded-none"
+              className="h-10 flex-1 rounded-none"
             />
 
             {activeTab === 'palettes' && (
@@ -1704,7 +1703,7 @@ export default function StocksPage() {
                   <Button
                     variant="outline"
                     size="icon"
-                    className="h-10 w-10"
+                    className="h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
                     onClick={() => {
                       if (activeTab === 'entries') {
                         setMaterialFilter('')

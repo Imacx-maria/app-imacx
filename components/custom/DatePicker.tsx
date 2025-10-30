@@ -8,7 +8,6 @@ import {
 import { Calendar } from '@/components/ui/calendar'
 import { Calendar as CalendarIcon } from 'lucide-react'
 import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 
 export interface DatePickerProps {
@@ -20,8 +19,6 @@ export interface DatePickerProps {
   onClear?: () => void
   buttonClassName?: string
   disabled?: boolean
-  /** Optional className overrides for the popover content */
-  contentClassName?: string
   // ...other props for Calendar
   [key: string]: any
 }
@@ -35,7 +32,6 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   onClear,
   buttonClassName = '',
   disabled = false,
-  contentClassName = '',
   ...calendarProps
 }) => {
   const descriptionId = React.useId()
@@ -80,9 +76,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
       </PopoverTrigger>
       <PopoverContent
         ref={contentRef}
-        align="start"
-        sideOffset={8}
-        className={cn('w-auto p-4 m-2', contentClassName)}
+        className="calendar-popover bg-background z-[10000] w-auto p-4 m-3 border border-border shadow-md"
         data-no-aria-hidden="true"
       >
         <div id={calendarDescriptionId} className="sr-only">
@@ -99,7 +93,6 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             selected={selected}
             onSelect={handleDateSelect}
             initialFocus
-            locale={calendarProps.locale ?? ptBR}
             {...calendarProps}
           />
           {clearable && selected && (

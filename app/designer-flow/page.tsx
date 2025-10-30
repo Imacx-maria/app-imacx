@@ -728,35 +728,36 @@ export default function DesignerFlow() {
         {(['aberto', 'paginados'] as const).map((tab) => (
           <TabsContent key={tab} value={tab} className="space-y-6">
             {/* Filters */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-1">
                 <Input
                   placeholder="FILTRAR POR FO..."
                   value={foFilter}
                   onChange={(e) => setFoFilter(e.target.value)}
                   disabled={loading}
-                  className="h-10 w-[150px] rounded-none"
+                  className="h-10 w-[110px] rounded-none"
+                  maxLength={6}
                 />
                 <Input
                   placeholder="FILTRAR POR CAMPANHA..."
                   value={campaignFilter}
                   onChange={(e) => setCampaignFilter(e.target.value)}
                   disabled={loading}
-                  className="h-10 w-[200px] rounded-none"
+                  className="h-10 flex-1 rounded-none"
                 />
                 <Input
                   placeholder="FILTRAR POR ITEM..."
                   value={itemFilter}
                   onChange={(e) => setItemFilter(e.target.value)}
                   disabled={loading}
-                  className="h-10 w-[180px] rounded-none"
+                  className="h-10 flex-1 rounded-none"
                 />
                 <Input
                   placeholder="FILTRAR POR CÓDIGO..."
                   value={codigoFilter}
                   onChange={(e) => setCodigoFilter(e.target.value)}
                   disabled={loading}
-                  className="h-10 w-[180px] rounded-none"
+                  className="h-10 flex-1 rounded-none"
                 />
 
                 <TooltipProvider>
@@ -819,7 +820,7 @@ export default function DesignerFlow() {
             {/* Jobs Table */}
             <div className="w-full">
               <div className="w-full">
-                <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+                <Table className="w-full imx-table-compact">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="sticky top-0 z-10 w-16 border-b text-center">P</TableHead>
@@ -881,7 +882,7 @@ export default function DesignerFlow() {
                       paginatedJobs.map((job) => (
                         <TableRow
                           key={job.id}
-                          className={selectedJob?.id === job.id ? 'bg-accent' : 'hover:bg-accent'}
+                          className={`${selectedJob?.id === job.id ? 'bg-accent' : ''} imx-row-hover`}
                         >
                           <TableCell className="text-center">
                             <PriorityIndicator currentPriority={getPriorityColor(job)} />

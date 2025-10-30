@@ -871,34 +871,6 @@ export const DashboardLogisticaTable: React.FC<
     }
   }, [supabase])
 
-  // Update saiu status - now updates logistica_entregas instead of items_base
-  const handleSaiuUpdate = useCallback(
-    async (record: DashboardLogisticaRecord, value: boolean) => {
-      try {
-        if (!record.logistica_id) {
-          console.error('Cannot update saiu: missing logistica_id', record)
-          return
-        }
-
-        // Update logistica_entregas saiu field
-        await supabase
-          .from('logistica_entregas')
-          .update({ saiu: value })
-          .eq('id', record.logistica_id)
-
-        // Update local state instead of full refresh
-        setRecords((prevRecords) =>
-          prevRecords.map((r) =>
-            r.logistica_id === record.logistica_id ? { ...r, saiu: value } : r,
-          ),
-        )
-      } catch (error) {
-        console.error('Error updating saiu status:', error)
-      }
-    },
-    [supabase, setRecords],
-  )
-
   // Update data_saida status - now updates logistica_entregas.data_saida field
   const handleDataSaidaUpdate = useCallback(
     async (record: DashboardLogisticaRecord, date: Date | null) => {
@@ -932,6 +904,39 @@ export const DashboardLogisticaTable: React.FC<
     [supabase, formatDateForDB, setRecords],
   )
 
+  // Update saiu status - now updates logistica_entregas instead of items_base
+  const handleSaiuUpdate = useCallback(
+    async (record: DashboardLogisticaRecord, value: boolean) => {
+      try {
+        if (!record.logistica_id) {
+          console.error('Cannot update saiu: missing logistica_id', record)
+          return
+        }
+
+        // Update logistica_entregas saiu field
+        await supabase
+          .from('logistica_entregas')
+          .update({ saiu: value })
+          .eq('id', record.logistica_id)
+
+        // Update local state instead of full refresh
+        setRecords((prevRecords) =>
+          prevRecords.map((r) =>
+            r.logistica_id === record.logistica_id ? { ...r, saiu: value } : r,
+          ),
+        )
+
+        // If marking as saiu, set data_saida to today
+        if (value) {
+          await handleDataSaidaUpdate(record, new Date())
+        }
+      } catch (error) {
+        console.error('Error updating saiu status:', error)
+      }
+    },
+    [supabase, setRecords, handleDataSaidaUpdate],
+  )
+
   // Update concluido status - updates logistica_entregas.concluido field
   const handleConcluidoUpdate = useCallback(
     async (record: DashboardLogisticaRecord, value: boolean) => {
@@ -954,11 +959,16 @@ export const DashboardLogisticaTable: React.FC<
               : r,
           ),
         )
+
+        // If marking as concluido, set data_saida to today
+        if (value) {
+          await handleDataSaidaUpdate(record, new Date())
+        }
       } catch (error) {
         console.error('Error updating concluido status:', error)
       }
     },
-    [supabase, setRecords],
+    [supabase, setRecords, handleDataSaidaUpdate],
   )
 
   if (loading) {
@@ -1090,7 +1100,7 @@ export const DashboardLogisticaTable: React.FC<
 
         <TabsContent value="em_curso" className="w-full">
           <div className="w-full">
-            <Table className="w-full table-fixed uppercase [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+            <Table className="w-full table-fixed uppercase imx-table-compact">
             <TableHeader>
               <TableRow>
                 <TableHead
@@ -1167,18 +1177,20 @@ export const DashboardLogisticaTable: React.FC<
                 </TableHead>
                 <TableHead
                   onClick={() => toggleSort('quantidade')}
-                  className="sticky top-0 z-10 w-[60px] cursor-pointer border-b text-center font-bold uppercase select-none"
+                  className="sticky top-0 z-10 w-[60px] cursor-pointer border-b text-center font-bold uppercase select-none align-middle"
                 >
-                  Qt{' '}
-                  {sortCol === 'quantidade' &&
-                    (sortDir === 'asc' ? (
-                      <ArrowUp className="ml-1 inline h-3 w-3" />
-                    ) : (
-                      <ArrowDown className="ml-1 inline h-3 w-3" />
-                    ))}
+                  <span className="flex items-center justify-center gap-1">
+                    Qt
+                    {sortCol === 'quantidade' &&
+                      (sortDir === 'asc' ? (
+                        <ArrowUp className="h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3" />
+                      ))}
+                  </span>
                 </TableHead>
-                <TableHead className="sticky top-0 z-10 w-[100px] border-b text-center font-bold uppercase">
-                  Transporte
+                <TableHead className="sticky top-0 z-10 w-[100px] border-b text-center font-bold uppercase align-middle">
+                  Trans.
                 </TableHead>
                 <TableHead
                   onClick={() => toggleSort('data_saida')}
@@ -1242,7 +1254,7 @@ export const DashboardLogisticaTable: React.FC<
                 const currentEditValues = editValues[recordId] || {}
 
                 return (
-                  <TableRow key={recordId}>
+                  <TableRow key={recordId} className="imx-row-hover">
                     {/* FO - Not editable */}
                     <TableCell>{record.numero_fo || '-'}</TableCell>
 
@@ -1250,7 +1262,7 @@ export const DashboardLogisticaTable: React.FC<
                     <TableCell className="text-center">{record.numero_orc || '-'}</TableCell>
 
                     {/* Guia - Always Editable */}
-                    <TableCell className="text-center">
+                    <TableCell className="text-center align-middle">
                       <Input
                         className="h-8 text-sm text-center"
                         value={currentEditValues.guia ?? record.guia ?? ''}
@@ -1290,7 +1302,7 @@ export const DashboardLogisticaTable: React.FC<
                     <TableCell>{record.item_descricao || '-'}</TableCell>
 
                     {/* Quantidade - Always Editable */}
-                    <TableCell className="text-center">
+                    <TableCell className="text-center align-middle">
                       <Input
                         type="number"
                         className="h-8 w-16 text-center text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -1317,7 +1329,7 @@ export const DashboardLogisticaTable: React.FC<
                     </TableCell>
 
                     {/* Transporte - Popover with Local Recolha, Local Entrega, Transportadora, Notas, etc */}
-                    <TableCell className="text-center">
+                    <TableCell className="text-center align-middle">
                       <div className="flex items-center justify-center">
                         <TransportePopover
                           localRecolha={record.local_recolha || ''}
@@ -1407,7 +1419,7 @@ export const DashboardLogisticaTable: React.FC<
 
         <TabsContent value="despachados" className="w-full">
           <div className="w-full">
-            <Table className="w-full table-fixed uppercase [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+            <Table className="w-full table-fixed uppercase imx-table-compact">
             <TableHeader>
               <TableRow>
                 <TableHead
@@ -1481,7 +1493,7 @@ export const DashboardLogisticaTable: React.FC<
                 const currentEditValues = editValues[recordId] || {}
 
                 return (
-                  <TableRow key={recordId}>
+                  <TableRow key={recordId} className="imx-row-hover">
                     <TableCell>{record.numero_fo || '-'}</TableCell>
                     <TableCell className="text-center">{record.numero_orc || '-'}</TableCell>
                     <TableCell className="text-center">

@@ -146,7 +146,7 @@ export default function UsersList({ users, roles, onEdit, onDelete, onRefresh }:
     <>
       <div className="bg-background w-full">
         <div className="w-full overflow-x-auto">
-          <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+          <Table className="w-full imx-table-compact">
               <TableHeader className="sticky top-0 z-10 border-b text-center uppercase">
                 <TableRow>
                   <TableHead 
@@ -175,7 +175,7 @@ export default function UsersList({ users, roles, onEdit, onDelete, onRefresh }:
               </TableHeader>
               <TableBody>
                 {sortedUsers.map((user) => (
-                  <TableRow key={user.id} className="hover:bg-accent transition-colors">
+                  <TableRow key={user.id} className="imx-row-hover">
                     <TableCell>{user.first_name || '-'}</TableCell>
                     <TableCell>{user.last_name || '-'}</TableCell>
                     <TableCell>{user.email || '-'}</TableCell>
