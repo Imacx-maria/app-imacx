@@ -19,35 +19,31 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import type { ManagedUser } from '@/app/definicoes/utilizadores/page'
 
-interface User {
-  id: string
-  user_id: string
-  first_name: string
-  last_name: string
-  email: string | null
-  phone: string | null
-  notes: string | null
-  role_id: string | null
-  created_at: string
-  updated_at: string | null
-  active: boolean | null
-}
+// Use ManagedUser as User for consistency with the page
+type User = ManagedUser
 
 interface Role {
   id: string
   name: string
 }
 
+interface Departamento {
+  id: string
+  nome: string
+}
+
 interface UsersListProps {
   users: User[]
   roles: Role[]
+  departamentos: Departamento[]
   onEdit: (user: User) => void
   onDelete: (userId: string) => void
   onRefresh: () => void
 }
 
-export default function UsersList({ users, roles, onEdit, onDelete, onRefresh }: UsersListProps) {
+export default function UsersList({ users, roles, departamentos, onEdit, onDelete, onRefresh }: UsersListProps) {
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<User | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [sortBy, setSortBy] = useState<'first_name' | 'last_name' | 'role_id' | null>(null)
@@ -59,6 +55,13 @@ export default function UsersList({ users, roles, onEdit, onDelete, onRefresh }:
       return acc
     }, {})
   }, [roles])
+
+  const departamentoNameById = useMemo(() => {
+    return departamentos.reduce<Record<string, string>>((acc, dept) => {
+      acc[dept.id] = dept.nome
+      return acc
+    }, {})
+  }, [departamentos])
 
   const toggleSort = (column: 'first_name' | 'last_name' | 'role_id') => {
     if (sortBy === column) {
@@ -149,25 +152,27 @@ export default function UsersList({ users, roles, onEdit, onDelete, onRefresh }:
           <Table className="w-full imx-table-compact">
               <TableHeader className="sticky top-0 z-10 border-b text-center uppercase">
                 <TableRow>
-                  <TableHead 
+                  <TableHead
                     className="text-center cursor-pointer hover:bg-accent transition-colors select-none"
                     onClick={() => toggleSort('first_name')}
                   >
                     NOME{getSortIcon('first_name')}
                   </TableHead>
-                  <TableHead 
+                  <TableHead
                     className="text-center cursor-pointer hover:bg-accent transition-colors select-none"
                     onClick={() => toggleSort('last_name')}
                   >
                     APELIDO{getSortIcon('last_name')}
                   </TableHead>
                   <TableHead className="text-center">EMAIL</TableHead>
-                  <TableHead 
+                  <TableHead
                     className="text-center cursor-pointer hover:bg-accent transition-colors select-none"
                     onClick={() => toggleSort('role_id')}
                   >
                     FUNÇÃO{getSortIcon('role_id')}
                   </TableHead>
+                  <TableHead className="text-center">DEPARTAMENTO</TableHead>
+                  <TableHead className="text-center">SIGLAS</TableHead>
                   <TableHead className="text-center">ESTADO</TableHead>
                   <TableHead className="text-center">DATA CRIAÇÃO</TableHead>
                   <TableHead className="text-center">AÇÕES</TableHead>
@@ -180,6 +185,23 @@ export default function UsersList({ users, roles, onEdit, onDelete, onRefresh }:
                     <TableCell>{user.last_name || '-'}</TableCell>
                     <TableCell>{user.email || '-'}</TableCell>
                     <TableCell>{(user.role_id && roleNameById[user.role_id]) || '-'}</TableCell>
+                    <TableCell>{(user.departamento_id && departamentoNameById[user.departamento_id]) || '-'}</TableCell>
+                    <TableCell>
+                      {user.siglas && user.siglas.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 justify-center">
+                          {user.siglas.map((sigla) => (
+                            <span
+                              key={sigla}
+                              className="inline-block px-1.5 py-0.5 bg-primary/10 text-primary rounded text-xs font-mono font-semibold"
+                            >
+                              {sigla}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
                     <TableCell>{user.active === false ? 'Inativo' : 'Ativo'}</TableCell>
                     <TableCell>{formatDate(user.created_at)}</TableCell>
                     <TableCell>
