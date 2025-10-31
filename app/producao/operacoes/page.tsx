@@ -43,17 +43,31 @@ import {
   DrawerTitle,
   DrawerDescription,
 } from '@/components/ui/drawer'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Tabs, TabsList, TabsContent, TabsTrigger } from '@/components/ui/tabs'
+import { Badge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
 import { createBrowserClient } from '@/utils/supabase'
 import DatePicker from '@/components/custom/DatePicker'
 import SimpleNotasPopover from '@/components/custom/SimpleNotasPopover'
+import ProductionAnalyticsCharts from '@/components/ProductionAnalyticsCharts'
 import { useTableData } from '@/hooks/useTableData'
 import { useMaterialsCascading } from '@/hooks/useMaterialsCascading'
 import {
   logOperationCreation,
   logFieldUpdate,
   logOperationDeletion,
+  fetchEnhancedAuditLogs,
+  resolveOperatorName,
 } from '@/utils/auditLogging'
+import { CorteLoosePlatesTable } from './components/CorteLoosePlatesTable'
 import {
   Plus,
   X,
@@ -68,6 +82,8 @@ import {
   RefreshCcw,
   Trash2,
   Copy,
+  Edit3,
+  Check,
   XSquare,
 } from 'lucide-react'
 
@@ -129,6 +145,7 @@ interface ProductionOperation {
   updated_at?: string
   N_Pal?: string | null
   tem_corte?: boolean | null
+  source_impressao_id?: string | null // Links Corte operations to source Impressão operation
 }
 
 type SortKey = 'numero_fo' | 'nome_campanha' | 'descricao' | 'quantidade' | 'prioridade'
@@ -143,6 +160,13 @@ export default function OperacoesPage() {
   const [openItemId, setOpenItemId] = useState<string | null>(null)
   const [showDebug, setShowDebug] = useState(false)
   const [debugInfo, setDebugInfo] = useState<any>(null)
+
+  // Tabs state
+  const [currentTab, setCurrentTab] = useState<string>('operacoes')
+
+  // Audit logs state
+  const [auditLogs, setAuditLogs] = useState<any[]>([])
+  const [logsLoading, setLogsLoading] = useState(false)
 
   // Filters
   const [foFilter, setFoFilter] = useState('')
@@ -385,6 +409,58 @@ export default function OperacoesPage() {
     fetchData()
   }, [fetchData])
 
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const total = items.length
+    const logs = auditLogs.length
+
+    return {
+      total,
+      logs,
+    }
+  }, [items, auditLogs])
+
+  // Fetch audit logs
+  const fetchAuditLogs = useCallback(async () => {
+    setLogsLoading(true)
+    setError(null)
+
+    try {
+      console.log('🔍 Fetching audit logs...')
+      const enhancedLogs = await fetchEnhancedAuditLogs(supabase)
+      console.log('✅ Enhanced audit logs fetched:', enhancedLogs.length)
+      setAuditLogs(enhancedLogs)
+    } catch (error: any) {
+      console.error('Error fetching audit logs:', error)
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred'
+      setError(`Failed to load audit logs: ${errorMessage}`)
+    } finally {
+      setLogsLoading(false)
+    }
+  }, [supabase])
+
+  // Toggle item completion
+  const handleItemCompletion = async (itemId: string, currentValue: boolean) => {
+    try {
+      const newValue = !currentValue
+
+      const { error } = await supabase
+        .from('items_base')
+        .update({ concluido: newValue })
+        .eq('id', itemId)
+
+      if (error) throw error
+
+      // Update local state
+      setItems(items.map(item =>
+        item.id === itemId ? { ...item, concluido: newValue } : item
+      ))
+    } catch (err) {
+      console.error('Error updating item completion:', err)
+      alert('Erro ao atualizar conclusão do item')
+    }
+  }
+
   // Filter items
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
@@ -451,12 +527,12 @@ export default function OperacoesPage() {
   if (error && items.length === 0) {
     return (
       <div className="w-full space-y-6">
-        <h1 className="text-2xl font-bold">Operações de Produção</h1>
+        <h1 className="text-2xl uppercase">Operações de Produção</h1>
         <div className="border border-destructive bg-destructive/10 p-6">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-destructive">Erro ao carregar dados</h3>
+                <h3 className="text-lg uppercase text-destructive">Erro ao carregar dados</h3>
                 <p className="mt-1 text-destructive">{error}</p>
               </div>
               <Button variant="outline" size="sm" onClick={fetchData}>
@@ -470,7 +546,7 @@ export default function OperacoesPage() {
             </Button>
             {showDebug && debugInfo && (
               <div className="mt-4 border border-border bg-muted p-4">
-                <h4 className="mb-2 font-semibold text-foreground">Informação de Diagnóstico:</h4>
+                <h4 className="mb-2 uppercase text-foreground">Informação de Diagnóstico:</h4>
                 <pre className="max-h-60 overflow-auto text-xs text-muted-foreground">{JSON.stringify(debugInfo, null, 2)}</pre>
                 <Button variant="ghost" size="sm" onClick={() => setShowDebug(false)} className="mt-2">
                   Fechar Diagnóstico
@@ -486,7 +562,7 @@ export default function OperacoesPage() {
   if (!loading && items.length === 0 && !error) {
   return (
       <div className="w-full space-y-6">
-        <h1 className="text-2xl font-bold">Operações de Produção</h1>
+        <h1 className="text-2xl uppercase">Operações de Produção</h1>
         <div className="flex gap-4 text-sm">
           <span>Total: 0</span>
         </div>
@@ -496,7 +572,7 @@ export default function OperacoesPage() {
               <AlertCircle className="h-12 w-12 text-muted-foreground" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-foreground">Nenhum item pronto para produção</h3>
+              <h3 className="text-lg uppercase text-foreground">Nenhum item pronto para produção</h3>
               <p className="mt-2 text-muted-foreground">Não foram encontrados itens que atendam aos critérios necessários.</p>
             </div>
             <div className="space-y-2 text-sm text-muted-foreground">
@@ -552,7 +628,7 @@ export default function OperacoesPage() {
 
       {/* Statistics */}
       <div className="flex gap-4 text-sm">
-        <span>Total: {items.length}</span>
+        <span>Total: {stats.total}</span>
               </div>
 
       {/* Filters */}
@@ -574,8 +650,27 @@ export default function OperacoesPage() {
         </Button>
           </div>
 
-      {/* Main table */}
-      <div className="imx-table-wrap">
+      {/* Tabs for Operations, Analytics, and Logs */}
+      <Tabs
+        defaultValue="operacoes"
+        className="w-full"
+        onValueChange={async (value) => {
+          setCurrentTab(value)
+          if (value === 'logs' && auditLogs.length === 0) {
+            // Fetch audit logs when switching to logs tab for the first time
+            await fetchAuditLogs()
+          }
+        }}
+      >
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="operacoes">Operações ({stats.total})</TabsTrigger>
+          <TabsTrigger value="analytics">Análises & Gráficos</TabsTrigger>
+          <TabsTrigger value="logs">Logs ({stats.logs})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="operacoes">
+          {/* Main table */}
+          <div className="imx-table-wrap">
         <div className="w-full overflow-x-auto">
           <Table className="w-full border-0 imx-table-compact">
             <TableHeader>
@@ -629,6 +724,16 @@ export default function OperacoesPage() {
                             </Tooltip>
                           </TooltipProvider>
                 </TableHead>
+                <TableHead className="w-[60px] border-b text-center uppercase">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-help">C</span>
+                      </TooltipTrigger>
+                      <TooltipContent>Concluído</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </TableHead>
                 <TableHead className="w-[100px] border-b p-2 text-sm uppercase">
                   Ações
                 </TableHead>
@@ -643,10 +748,16 @@ export default function OperacoesPage() {
                   <TableCell className="w-[100px] text-right">{item.quantidade}</TableCell>
                   <TableCell className="w-[36px] min-w-[36px] text-center">
                     <div
-                      className={`mx-auto flex h-3 w-3 items-center justify-center rounded-full ${getPColor(item)}`}
+                      className={`mx-auto flex h-3 w-3 items-center justify-center ${getPColor(item)}`}
                       title={item.prioridade ? 'Prioritário' : 'Normal'}
                     />
                     </TableCell>
+                  <TableCell className="w-[60px] text-center">
+                    <Checkbox
+                      checked={item.concluido || false}
+                      onCheckedChange={() => handleItemCompletion(item.id, item.concluido || false)}
+                    />
+                  </TableCell>
                   <TableCell className="w-[100px]">
                     <Button size="icon" variant="default" onClick={() => setOpenItemId(item.id)}>
                                   <Eye className="h-4 w-4" />
@@ -656,7 +767,7 @@ export default function OperacoesPage() {
               ))}
               {sortedItems.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center">
+                  <TableCell colSpan={7} className="py-8 text-center">
                     Nenhum item encontrado.
                   </TableCell>
                 </TableRow>
@@ -664,11 +775,268 @@ export default function OperacoesPage() {
               </TableBody>
             </Table>
           </div>
-      </div>
+        </div>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="mb-8">
+          <ProductionAnalyticsCharts
+            supabase={supabase}
+            onRefresh={fetchData}
+          />
+        </TabsContent>
+
+        <TabsContent value="logs">
+          {/* Audit logs controls */}
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-lg uppercase">Logs de Auditoria</h3>
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={fetchAuditLogs}
+              title="Atualizar logs"
+              disabled={logsLoading}
+            >
+              {logsLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCcw className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+
+          {/* Audit logs table */}
+          <div className="imx-table-wrap">
+            <div className="w-full overflow-x-auto">
+              {logsLoading ? (
+                <div className="flex h-64 items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                  <span className="ml-2">A carregar logs de auditoria...</span>
+                </div>
+              ) : (
+                <Table className="w-full border-0 imx-table-compact">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="sticky top-0 z-10 w-[120px] border-b uppercase">
+                        Ação
+                      </TableHead>
+                      <TableHead className="sticky top-0 z-10 w-[150px] border-b uppercase">
+                        Operação
+                      </TableHead>
+                      <TableHead className="sticky top-0 z-10 w-[120px] border-b uppercase">
+                        Campo
+                      </TableHead>
+                      <TableHead className="sticky top-0 z-10 w-[150px] border-b uppercase">
+                        Operador Antigo
+                      </TableHead>
+                      <TableHead className="sticky top-0 z-10 w-[150px] border-b uppercase">
+                        Operador Novo
+                      </TableHead>
+                      <TableHead className="sticky top-0 z-10 w-[100px] border-b uppercase">
+                        Qtd Antiga
+                      </TableHead>
+                      <TableHead className="sticky top-0 z-10 w-[100px] border-b uppercase">
+                        Qtd Nova
+                      </TableHead>
+                      <TableHead className="sticky top-0 z-10 w-[120px] border-b uppercase">
+                        Valor Antigo
+                      </TableHead>
+                      <TableHead className="sticky top-0 z-10 w-[120px] border-b uppercase">
+                        Valor Novo
+                      </TableHead>
+                      <TableHead className="sticky top-0 z-10 w-[120px] border-b uppercase">
+                        Alterado Por
+                      </TableHead>
+                      <TableHead className="sticky top-0 z-10 w-[160px] border-b uppercase">
+                        Data/Hora
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {auditLogs.map((log: any) => (
+                      <TableRow key={log.id} className="hover:bg-accent">
+                        {/* Action Type */}
+                        <TableCell className="w-[120px]">
+                          <Badge
+                            variant={
+                              log.action_type === 'INSERT'
+                                ? 'default'
+                                : log.action_type === 'DELETE'
+                                  ? 'destructive'
+                                  : 'secondary'
+                            }
+                          >
+                            {log.action_type === 'INSERT' && 'CRIADO'}
+                            {log.action_type === 'UPDATE' && 'ALTERADO'}
+                            {log.action_type === 'DELETE' && 'ELIMINADO'}
+                          </Badge>
+                        </TableCell>
+
+                        {/* Operation Info */}
+                        <TableCell className="w-[150px] font-mono text-sm">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="block truncate">
+                                  {log.producao_operacoes?.no_interno || 'N/A'}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <div className="space-y-1">
+                                  <div>ID: {log.operacao_id}</div>
+                                  {log.producao_operacoes?.items_base && (
+                                    <div>
+                                      Item: {log.producao_operacoes.items_base.descricao}
+                                    </div>
+                                  )}
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </TableCell>
+
+                        {/* Field Name */}
+                        <TableCell className="w-[120px]">
+                          {log.field_name ? (
+                            (() => {
+                              const fieldNameMap: { [key: string]: string } = {
+                                operador_id: 'Operador',
+                                num_placas_print: 'Placas Impressão',
+                                num_placas_corte: 'Placas Corte',
+                                material_id: 'Material',
+                                maquina: 'Máquina',
+                                data_operacao: 'Data',
+                                notas: 'Notas',
+                                notas_imp: 'Notas Impressão',
+                                N_Pal: 'Palete',
+                                QT_print: 'QT Print',
+                                concluido: 'Concluído',
+                                created: 'Criação',
+                                deleted: 'Eliminação',
+                              }
+                              return fieldNameMap[log.field_name] || log.field_name
+                            })()
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+
+                        {/* Operador Antigo */}
+                        <TableCell className="w-[150px]">
+                          {log.operador_antigo_nome ? (
+                            <span className="block truncate" title={log.operador_antigo_nome}>
+                              {log.operador_antigo_nome}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+
+                        {/* Operador Novo */}
+                        <TableCell className="w-[150px]">
+                          {log.operador_novo_nome ? (
+                            <span className="block truncate" title={log.operador_novo_nome}>
+                              {log.operador_novo_nome}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+
+                        {/* Quantidade Antiga */}
+                        <TableCell className="w-[100px] text-right">
+                          {log.quantidade_antiga !== null && log.quantidade_antiga !== undefined
+                            ? log.quantidade_antiga
+                            : '-'}
+                        </TableCell>
+
+                        {/* Quantidade Nova */}
+                        <TableCell className="w-[100px] text-right">
+                          {log.quantidade_nova !== null && log.quantidade_nova !== undefined
+                            ? log.quantidade_nova
+                            : '-'}
+                        </TableCell>
+
+                        {/* Valor Antigo */}
+                        <TableCell className="w-[120px]">
+                          <span className="block truncate" title={log.old_value_display || log.old_value}>
+                            {log.old_value_display || log.old_value || '-'}
+                          </span>
+                        </TableCell>
+
+                        {/* Valor Novo */}
+                        <TableCell className="w-[120px]">
+                          <span className="block truncate" title={log.new_value_display || log.new_value}>
+                            {log.new_value_display || log.new_value || '-'}
+                          </span>
+                        </TableCell>
+
+                        {/* Changed By */}
+                        <TableCell className="w-[120px]">
+                          {log.profiles
+                            ? `${log.profiles.first_name} ${log.profiles.last_name}`
+                            : 'Sistema'}
+                        </TableCell>
+
+                        {/* Changed At */}
+                        <TableCell className="w-[160px]">
+                          {log.changed_at
+                            ? format(new Date(log.changed_at), 'dd/MM/yyyy HH:mm:ss', { locale: pt })
+                            : '-'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {auditLogs.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={11} className="py-8 text-center">
+                          Nenhum log de auditoria encontrado.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          </div>
+
+          {/* Summary Statistics */}
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
+            <Card className="border p-4">
+              <h4 className="text-sm uppercase text-muted-foreground">
+                Total de Alterações
+              </h4>
+              <p className="text-2xl font-bold">{auditLogs.length}</p>
+            </Card>
+            <Card className="border p-4">
+              <h4 className="text-sm uppercase text-muted-foreground">
+                Operações Criadas
+              </h4>
+              <p className="text-2xl font-bold text-success">
+                {auditLogs.filter((log: any) => log.action_type === 'INSERT').length}
+              </p>
+            </Card>
+            <Card className="border p-4">
+              <h4 className="text-sm uppercase text-muted-foreground">
+                Campos Alterados
+              </h4>
+              <p className="text-2xl font-bold text-info">
+                {auditLogs.filter((log: any) => log.action_type === 'UPDATE').length}
+              </p>
+            </Card>
+            <Card className="border p-4">
+              <h4 className="text-sm uppercase text-muted-foreground">
+                Operações Eliminadas
+              </h4>
+              <p className="text-2xl font-bold text-destructive">
+                {auditLogs.filter((log: any) => log.action_type === 'DELETE').length}
+              </p>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Drawer - Will add operations management here */}
       <Drawer open={!!openItemId} onOpenChange={(open) => !open && setOpenItemId(null)} shouldScaleBackground={false}>
-        <DrawerContent className="!top-0 h-[98vh] max-h-[98vh] min-h-[98vh] !transform-none overflow-y-auto">
+        <DrawerContent className="!top-0 h-screen max-h-none min-h-0 !transform-none overflow-y-auto">
           <DrawerHeader className="sr-only">
             <DrawerTitle>Operações de Produção</DrawerTitle>
             <DrawerDescription>Gestão de operações de impressão e corte</DrawerDescription>
@@ -740,7 +1108,7 @@ function ItemDrawerContent({ itemId, items, onClose, supabase, onMainRefresh }: 
       {/* Close button and Quantity */}
       <div className="absolute top-6 right-6 z-10 flex items-center gap-4">
         <div className="text-right">
-          <div className="text-xs font-bold uppercase">Quantidade</div>
+          <div className="text-xs uppercase">Quantidade</div>
           <div className="font-mono text-lg">{item.quantidade}</div>
               </div>
         <Button size="icon" variant="outline" onClick={onClose}>
@@ -752,16 +1120,16 @@ function ItemDrawerContent({ itemId, items, onClose, supabase, onMainRefresh }: 
       <div className="mb-6 p-4 uppercase">
         <div className="mb-2 flex items-center gap-8">
           <div>
-            <div className="text-xs font-bold">FO</div>
+            <div className="text-xs uppercase">FO</div>
             <div className="font-mono">{item.folhas_obras?.numero_fo}</div>
               </div>
           <div className="flex-1">
-            <div className="text-xs font-bold">Campanha</div>
+            <div className="text-xs uppercase">Campanha</div>
             <div className="truncate font-mono">{item.folhas_obras?.nome_campanha}</div>
               </div>
             </div>
         <div>
-          <div className="text-xs font-bold">Item</div>
+          <div className="text-xs uppercase">Item</div>
           <div className="font-mono">{item.descricao}</div>
           </div>
                         </div>
@@ -801,26 +1169,48 @@ function ItemDrawerContent({ itemId, items, onClose, supabase, onMainRefresh }: 
         </TabsContent>
 
         <TabsContent value="corte">
-          <OperationsTable
-            operations={corteOperations}
-            type="Corte"
-            itemId={item.id}
-            folhaObraId={item.folha_obra_id}
-            item={item}
-            supabase={supabase}
-            onRefresh={fetchOperations}
-            onMainRefresh={onMainRefresh}
-          />
+          <div className="space-y-8">
+            {/* Section 1: From Print Jobs */}
+            <div className="border p-4">
+              <h4 className="text-lg mb-4">
+                Corte de Impressões (Linked to Print Jobs)
+              </h4>
+              <CorteFromPrintTable
+                operations={corteOperations.filter(op => op.source_impressao_id)}
+                itemId={item.id}
+                folhaObraId={item.folha_obra_id}
+                supabase={supabase}
+                onRefresh={fetchOperations}
+                onMainRefresh={onMainRefresh}
+              />
+            </div>
+
+            {/* Section 2: Loose Plates */}
+            <div className="border p-4">
+              <h4 className="text-lg mb-4">
+                Chapas Soltas (Standalone Cutting)
+              </h4>
+              <CorteLoosePlatesTable
+                operations={corteOperations.filter(op => !op.source_impressao_id)}
+                itemId={item.id}
+                folhaObraId={item.folha_obra_id}
+                item={item}
+                supabase={supabase}
+                onRefresh={fetchOperations}
+                onMainRefresh={onMainRefresh}
+              />
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
               </div>
   )
 }
 
-// Operations Table Component
+// Operations Table Component (Impressão and Impressão Flexíveis ONLY - Corte has separate components)
 interface OperationsTableProps {
   operations: ProductionOperation[]
-  type: 'Impressao' | 'Impressao_Flexiveis' | 'Corte'
+  type: 'Impressao' | 'Impressao_Flexiveis'
   itemId: string
   folhaObraId: string
   item: ProductionItem
@@ -850,6 +1240,10 @@ function OperationsTable({
   }>({})
   const [paletes, setPaletes] = useState<any[]>([])
   const [paletesLoading, setPaletesLoading] = useState(false)
+
+  // Edit mode state
+  const [editingRowIds, setEditingRowIds] = useState<Set<string>>(new Set())
+  const [editDrafts, setEditDrafts] = useState<Record<string, Record<string, any>>>({})
 
   // Fetch paletes
   useEffect(() => {
@@ -928,22 +1322,230 @@ function OperationsTable({
     initSelections()
   }, [operations, materialsData, paletes])
 
-  const handleFieldChange = async (operationId: string, field: string, value: any) => {
-                        try {
-                          // Get old value first for audit
-                          const operation = operations.find(op => op.id === operationId)
-                          const oldValue = operation ? (operation as any)[field] : null
-                          
-                          const { error } = await supabase
+  // Edit mode functions
+  const startEdit = (opId: string) => {
+    const op = operations.find((o) => o.id === opId)
+    if (!op) return
+
+    setEditingRowIds((prev) => new Set(prev).add(opId))
+    setEditDrafts((prev) => ({
+      ...prev,
+      [opId]: {
+        data_operacao: op.data_operacao || '',
+        operador_id: op.operador_id || '',
+        maquina: op.maquina || '',
+        num_placas_print: op.num_placas_print ?? '',
+        num_placas_corte: op.num_placas_corte ?? '',
+        observacoes: op.observacoes || '',
+        notas: op.notas || '',
+        notas_imp: op.notas_imp || '',
+        material_id: op.material_id || null,
+        N_Pal: op.N_Pal || '',
+      },
+    }))
+  }
+
+  const cancelEdit = (opId: string) => {
+    setEditingRowIds((prev) => {
+      const newSet = new Set(prev)
+      newSet.delete(opId)
+      return newSet
+    })
+    setEditDrafts((prev) => {
+      const newDrafts = { ...prev }
+      delete newDrafts[opId]
+      return newDrafts
+    })
+  }
+
+  const acceptEdit = async (opId: string) => {
+    const draft = editDrafts[opId]
+    if (!draft) return
+
+    try {
+      const operation = operations.find(op => op.id === opId)
+      if (!operation) return
+
+      // Normalize fields
+      const normalizedDraft = { ...draft }
+
+      // Normalize numeric fields
+      if (normalizedDraft.num_placas_print !== undefined) {
+        const n = parseInt(String(normalizedDraft.num_placas_print))
+        normalizedDraft.num_placas_print = Number.isFinite(n) ? n : 0
+      }
+      if (normalizedDraft.num_placas_corte !== undefined) {
+        const n = parseInt(String(normalizedDraft.num_placas_corte))
+        normalizedDraft.num_placas_corte = Number.isFinite(n) ? n : 0
+      }
+
+      // Convert empty strings to null for UUID fields
+      const uuidFields = ['operador_id', 'material_id', 'maquina']
+      uuidFields.forEach(field => {
+        if (normalizedDraft[field] === '') {
+          normalizedDraft[field] = null
+        }
+      })
+
+      // VALIDATION: Check required fields before saving
+      const finalOperador = normalizedDraft.operador_id ?? operation.operador_id
+      const finalMaquina = normalizedDraft.maquina ?? operation.maquina
+      const finalPalete = normalizedDraft.N_Pal ?? operation.N_Pal
+      const finalMaterialId = normalizedDraft.material_id ?? operation.material_id
+
+      if (!finalOperador) {
+        alert('Por favor, selecione o Operador antes de guardar.')
+        return
+      }
+
+      if (!finalMaquina) {
+        alert('Por favor, selecione a Máquina antes de guardar.')
+        return
+      }
+
+      // Must have EITHER palette OR material
+      if (!finalPalete && !finalMaterialId) {
+        alert('Por favor, selecione um Palete OU preencha Material/Características/Cor antes de guardar.')
+        return
+      }
+
+      // Update database
+      const { error } = await supabase
         .from('producao_operacoes')
-        .update({ [field]: value })
+        .update(normalizedDraft)
+        .eq('id', opId)
+
+      if (error) throw error
+
+      // Log audit for changed fields
+      for (const [field, newValue] of Object.entries(normalizedDraft)) {
+        const oldValue = (operation as any)[field]
+        if (oldValue !== newValue) {
+          await logFieldUpdate(supabase, opId, field, oldValue, newValue)
+        }
+      }
+
+      // Sync Impressao -> Corte when relevant fields change
+      if (operation.Tipo_Op === 'Impressao') {
+        const changedFields = Object.keys(normalizedDraft).filter(
+          field => (operation as any)[field] !== normalizedDraft[field]
+        )
+        const syncFields = changedFields.filter(f =>
+          ['material_id', 'num_placas_print', 'notas_imp', 'N_Pal', 'data_operacao'].includes(f)
+        )
+
+        if (syncFields.length > 0) {
+          // Find ALL linked Corte operations using source_impressao_id
+          const { data: linkedCorteOps } = await supabase
+            .from('producao_operacoes')
+            .select('id')
+            .eq('source_impressao_id', opId)
+
+          if (linkedCorteOps && linkedCorteOps.length > 0) {
+            // Update fields for ALL linked corte operations
+            const corteUpdate: Record<string, any> = {}
+            if (syncFields.includes('material_id')) corteUpdate.material_id = normalizedDraft.material_id
+            if (syncFields.includes('num_placas_print')) corteUpdate.QT_print = normalizedDraft.num_placas_print
+            if (syncFields.includes('notas_imp')) corteUpdate.notas = normalizedDraft.notas_imp
+            if (syncFields.includes('N_Pal')) corteUpdate.N_Pal = normalizedDraft.N_Pal
+            if (syncFields.includes('data_operacao')) corteUpdate.data_operacao = normalizedDraft.data_operacao
+
+            if (Object.keys(corteUpdate).length > 0) {
+              for (const corteOp of linkedCorteOps) {
+                await supabase
+                  .from('producao_operacoes')
+                  .update(corteUpdate)
+                  .eq('id', corteOp.id)
+
+                // Log audit for synced fields
+                for (const [field, value] of Object.entries(corteUpdate)) {
+                  await logFieldUpdate(supabase, corteOp.id, field, null, value)
+                }
+              }
+            }
+          }
+        }
+      }
+
+      cancelEdit(opId)
+      onRefresh()
+      onMainRefresh()
+    } catch (err) {
+      console.error('Error accepting edit:', err)
+      alert('Erro ao guardar alterações')
+    }
+  }
+
+  const changeField = (opId: string, field: string, value: any) => {
+    setEditDrafts((prev) => ({
+      ...prev,
+      [opId]: {
+        ...(prev[opId] || {}),
+        [field]: value,
+      },
+    }))
+  }
+
+  const handleFieldChange = async (operationId: string, field: string, value: any) => {
+    try {
+      // Normalize numeric fields
+      let normalizedValue = value
+      if (field === 'num_placas_print' || field === 'num_placas_corte') {
+        const n = parseInt(String(value))
+        normalizedValue = Number.isFinite(n) ? n : 0
+      }
+
+      // Get old value first for audit
+      const operation = operations.find(op => op.id === operationId)
+      const oldValue = operation ? (operation as any)[field] : null
+
+      const { error } = await supabase
+        .from('producao_operacoes')
+        .update({ [field]: normalizedValue })
         .eq('id', operationId)
-                          
-                          if (error) throw error
-                          
-                          // LOG AUDIT: Field change
-                          await logFieldUpdate(supabase, operationId, field, oldValue, value)
-                          
+
+      if (error) throw error
+
+      // LOG AUDIT: Field change
+      await logFieldUpdate(supabase, operationId, field, oldValue, normalizedValue)
+
+      // Sync Impressao -> Corte when relevant fields change
+      const sourceOp = operation
+      if (sourceOp?.Tipo_Op === 'Impressao' && ['material_id', 'num_placas_print', 'notas_imp', 'N_Pal', 'data_operacao'].includes(field)) {
+        // Find ALL linked Corte operations using source_impressao_id
+        const { data: linkedCorteOps } = await supabase
+          .from('producao_operacoes')
+          .select('id')
+          .eq('source_impressao_id', operationId)
+
+        if (linkedCorteOps && linkedCorteOps.length > 0) {
+          // Update fields for ALL linked corte operations
+          const corteUpdate: Record<string, any> = {}
+          if (field === 'material_id') corteUpdate.material_id = normalizedValue
+          if (field === 'num_placas_print') corteUpdate.QT_print = normalizedValue
+          if (field === 'notas_imp') corteUpdate.notas = normalizedValue
+          if (field === 'N_Pal') corteUpdate.N_Pal = normalizedValue
+          if (field === 'data_operacao') corteUpdate.data_operacao = normalizedValue
+
+          if (Object.keys(corteUpdate).length > 0) {
+            for (const corteOp of linkedCorteOps) {
+              const { error: syncErr } = await supabase
+                .from('producao_operacoes')
+                .update(corteUpdate)
+                .eq('id', corteOp.id)
+
+              if (!syncErr) {
+                // log each synced field update
+                for (const [k, v] of Object.entries(corteUpdate)) {
+                  // eslint-disable-next-line no-await-in-loop
+                  await logFieldUpdate(supabase, corteOp.id, k, undefined, v)
+                }
+              }
+            }
+          }
+        }
+      }
+
       onRefresh()
     } catch (err) {
       console.error('Error updating operation:', err)
@@ -960,7 +1562,7 @@ function OperationsTable({
       const foShort = item.folhas_obras?.numero_fo?.substring(0, 6) || 'FO'
       const typePrefix = type === 'Impressao' ? 'IMP' : type === 'Impressao_Flexiveis' ? 'FLX' : 'CRT'
       const no_interno = `${foShort}-${dateStr}-${typePrefix}-${timeStr}`
-      
+
       const operationData = {
         item_id: itemId,
         folha_obra_id: folhaObraId,
@@ -971,7 +1573,7 @@ function OperationsTable({
         num_placas_corte: 0,
         concluido: false,
       }
-      
+
       const { data: savedOperation, error } = await supabase
         .from('producao_operacoes')
         .insert([operationData])
@@ -983,7 +1585,35 @@ function OperationsTable({
       // LOG AUDIT: Operation creation
       await logOperationCreation(supabase, savedOperation.id, operationData)
 
+      // NEW: For Impressão, auto-create linked Corte operation
+      if (type === 'Impressao') {
+        const corteNoInterno = `${no_interno}-CORTE`
+
+        const corteData = {
+          Tipo_Op: 'Corte',
+          item_id: itemId,
+          folha_obra_id: folhaObraId,
+          data_operacao: new Date().toISOString().split('T')[0],
+          no_interno: corteNoInterno,
+          num_placas_corte: 0,
+          QT_print: 0, // Will be updated when Print field is filled
+          source_impressao_id: savedOperation.id, // LINK TO SOURCE PRINT
+          concluido: false,
+        }
+
+        const { data: corteOp, error: corteError } = await supabase
+          .from('producao_operacoes')
+          .insert([corteData])
+          .select()
+          .single()
+
+        if (!corteError && corteOp) {
+          await logOperationCreation(supabase, corteOp.id, corteData)
+        }
+      }
+
       onRefresh()
+      onMainRefresh()
     } catch (err) {
       console.error('Error adding operation:', err)
       alert('Erro ao adicionar operação')
@@ -1103,27 +1733,47 @@ function OperationsTable({
   }
 
   const handleMaterialChange = (operationId: string, field: 'material' | 'carateristica' | 'cor', value: string) => {
+    const isEditing = editingRowIds.has(operationId)
+
     setMaterialSelections((prev) => {
       const current = prev[operationId] || {}
 
       if (field === 'material') {
         const newSelection = { material: value, carateristica: undefined, cor: undefined }
         const materialId = getMaterialId(value)
-        handleFieldChange(operationId, 'material_id', materialId)
+
+        if (isEditing) {
+          changeField(operationId, 'material_id', materialId || null)
+        } else {
+          handleFieldChange(operationId, 'material_id', materialId || null)
+        }
+
         return { ...prev, [operationId]: newSelection }
       }
 
       if (field === 'carateristica') {
         const newSelection = { ...current, carateristica: value, cor: undefined }
         const materialId = getMaterialId(current.material, value)
-        handleFieldChange(operationId, 'material_id', materialId)
+
+        if (isEditing) {
+          changeField(operationId, 'material_id', materialId || null)
+        } else {
+          handleFieldChange(operationId, 'material_id', materialId || null)
+        }
+
         return { ...prev, [operationId]: newSelection }
       }
 
       if (field === 'cor') {
         const newSelection = { ...current, cor: value }
         const materialId = getMaterialId(current.material, current.carateristica, value)
-        handleFieldChange(operationId, 'material_id', materialId)
+
+        if (isEditing) {
+          changeField(operationId, 'material_id', materialId || null)
+        } else {
+          handleFieldChange(operationId, 'material_id', materialId || null)
+        }
+
         return { ...prev, [operationId]: newSelection }
       }
 
@@ -1134,12 +1784,12 @@ function OperationsTable({
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="font-semibold text-lg">Operações de {type.replace('_', ' ')}</h3>
+        <h3 className="text-lg uppercase">Operações de {type.replace('_', ' ')}</h3>
         <Button size="sm" variant="default" onClick={handleAddOperation}>
           <Plus className="h-4 w-4 mr-2" />
           Adicionar
         </Button>
-                </div>
+      </div>
 
       <div className="overflow-x-auto">
         <Table>
@@ -1153,7 +1803,6 @@ function OperationsTable({
               <TableHead className="w-[120px]">Características</TableHead>
               <TableHead className="w-[120px]">Cor</TableHead>
               <TableHead className="w-[80px]">Print</TableHead>
-              <TableHead className="w-[80px]">Corte</TableHead>
               <TableHead className="w-[50px]">Notas</TableHead>
               <TableHead className="w-[80px]">
                 <TooltipProvider>
@@ -1165,54 +1814,625 @@ function OperationsTable({
                   </Tooltip>
                 </TooltipProvider>
               </TableHead>
-              <TableHead className="w-[100px]">Ações</TableHead>
+              <TableHead className="w-[130px]">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {operations.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={12} className="text-center text-muted-foreground">
-                  Nenhuma operação. Clique em &quot;Adicionar&quot; para criar.
-                </TableCell>
-              </TableRow>
-            ) : (
-              operations.map((op) => {
-                const selection = materialSelections[op.id] || {}
-                return (
-                  <TableRow key={op.id}>
-                    <TableCell>
-                      <DatePicker
-                        selected={op.data_operacao ? new Date(op.data_operacao) : undefined}
-                        onSelect={(date) => {
-                          if (date) {
-                            handleFieldChange(op.id, 'data_operacao', format(date, 'yyyy-MM-dd'))
-                          }
-                        }}
-                        placeholder="Data"
-                        buttonClassName="w-full"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Select value={op.operador_id || ''} onValueChange={(v) => handleFieldChange(op.id, 'operador_id', v)}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Operador" />
-                  </SelectTrigger>
-                  <SelectContent>
-                          {operators.map((opt) => (
+            {operations.map((op) => {
+              const isEditing = editingRowIds.has(op.id)
+
+              return (
+                <TableRow key={op.id} className={isEditing ? 'bg-accent' : ''}>
+                  {/* Data */}
+                  <TableCell>
+                    <DatePicker
+                      selected={
+                        isEditing && editDrafts[op.id]?.data_operacao
+                          ? new Date(editDrafts[op.id].data_operacao)
+                          : op.data_operacao
+                          ? new Date(op.data_operacao)
+                          : undefined
+                      }
+                      onSelect={(date: Date | undefined) => {
+                        if (isEditing) {
+                          changeField(op.id, 'data_operacao', date ? date.toISOString() : null)
+                        }
+                      }}
+                      disabled={!isEditing}
+                    />
+                  </TableCell>
+
+                  {/* Operador */}
+                  <TableCell>
+                    <Select
+                      value={isEditing ? (editDrafts[op.id]?.operador_id || '') : (op.operador_id || '')}
+                      onValueChange={(v) => {
+                        if (isEditing) {
+                          changeField(op.id, 'operador_id', v)
+                        }
+                      }}
+                      disabled={!isEditing}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Operador" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {operators.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+
+                  {/* Máquina (filtered by tipo) */}
+                  <TableCell>
+                    <Select
+                      value={isEditing ? (editDrafts[op.id]?.maquina || '') : (op.maquina || '')}
+                      onValueChange={(v) => {
+                        if (isEditing) {
+                          changeField(op.id, 'maquina', v)
+                        }
+                      }}
+                      disabled={!isEditing}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Máquina" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {machines
+                          .filter((m) =>
+                            type === 'Impressao' ? m.tipo === 'Impressao' : m.tipo === 'Impressao_vinil'
+                          )
+                          .map((opt) => (
                             <SelectItem key={opt.value} value={opt.value}>
                               {opt.label}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-                    </TableCell>
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+
+                  {/* Palete */}
+                  <TableCell>
+                    <Combobox
+                      options={[
+                        { value: '', label: 'Sem palete' },
+                        ...paletes.map((palete) => ({ value: palete.id, label: palete.no_palete })),
+                      ]}
+                      value={paletteSelections[op.id] || op.N_Pal || ''}
+                      onChange={(v) => {
+                        if (isEditing) {
+                          handlePaletteSelection(op.id, v)
+                          changeField(op.id, 'N_Pal', v)
+                        }
+                      }}
+                      disabled={!isEditing}
+                    />
+                  </TableCell>
+
+                  {/* Material */}
+                  <TableCell>
+                    <Combobox
+                      options={materialOptions}
+                      value={materialSelections[op.id]?.material || ''}
+                      onChange={(v) => {
+                        if (isEditing) {
+                          handleMaterialChange(op.id, 'material', v)
+                        }
+                      }}
+                      disabled={!isEditing || isMaterialFromPalette(op.id)}
+                    />
+                  </TableCell>
+
+                  {/* Características */}
+                  <TableCell>
+                    <Combobox
+                      options={getCaracteristicaOptions(materialSelections[op.id]?.material)}
+                      value={materialSelections[op.id]?.carateristica || ''}
+                      onChange={(v) => {
+                        if (isEditing) {
+                          handleMaterialChange(op.id, 'carateristica', v)
+                        }
+                      }}
+                      disabled={!isEditing || isMaterialFromPalette(op.id)}
+                    />
+                  </TableCell>
+
+                  {/* Cor */}
+                  <TableCell>
+                    <Combobox
+                      options={getCorOptions(materialSelections[op.id]?.material, materialSelections[op.id]?.carateristica)}
+                      value={materialSelections[op.id]?.cor || ''}
+                      onChange={(v) => {
+                        if (isEditing) {
+                          handleMaterialChange(op.id, 'cor', v)
+                        }
+                      }}
+                      disabled={!isEditing || isMaterialFromPalette(op.id)}
+                    />
+                  </TableCell>
+
+                  {/* Quantidades - Num Placas Print */}
+                  <TableCell>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={isEditing && editDrafts[op.id]?.num_placas_print !== undefined
+                        ? String(editDrafts[op.id]?.num_placas_print ?? '')
+                        : String(op.num_placas_print ?? '')}
+                      onChange={(e) => {
+                        if (isEditing) {
+                          changeField(op.id, 'num_placas_print', e.target.value)
+                        }
+                      }}
+                      disabled={!isEditing}
+                      className="w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                  </TableCell>
+
+                  {/* Notas */}
+                  <TableCell>
+                    <SimpleNotasPopover
+                      value={isEditing ? (editDrafts[op.id]?.observacoes || '') : (op.observacoes || '')}
+                      onSave={(value) => {
+                        if (isEditing) {
+                          changeField(op.id, 'observacoes', value)
+                        }
+                      }}
+                      placeholder="Notas..."
+                      label="Notas"
+                      buttonSize="icon"
+                      disabled={!isEditing}
+                    />
+                  </TableCell>
+
+                  {/* Concluído */}
+                  <TableCell>
+                    <Checkbox
+                      checked={op.concluido || false}
+                      onCheckedChange={(checked) => handleFieldChange(op.id, 'concluido', checked)}
+                    />
+                  </TableCell>
+
+                  {/* Ações */}
+                  <TableCell>
+                    <div className="flex gap-1">
+                      {!isEditing ? (
+                        <>
+                          <Button size="icon" variant="outline" onClick={() => startEdit(op.id)}>
+                            <Edit3 className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="destructive" onClick={() => handleDeleteOperation(op.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button size="icon" variant="default" onClick={() => acceptEdit(op.id)}>
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="destructive" onClick={() => cancelEdit(op.id)}>
+                            <XSquare className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  )
+}
+
+// Corte From Print Table Component - For operations linked to print jobs
+interface CorteFromPrintTableProps {
+  operations: ProductionOperation[]
+  itemId: string
+  folhaObraId: string
+  supabase: any
+  onRefresh: () => void
+  onMainRefresh: () => void
+}
+
+function CorteFromPrintTable({
+  operations,
+  itemId,
+  folhaObraId,
+  supabase,
+  onRefresh,
+  onMainRefresh,
+}: CorteFromPrintTableProps) {
+  const { operators, machines } = useTableData()
+  const { materialsData } = useMaterialsCascading()
+
+  // Edit mode state
+  const [editingRowIds, setEditingRowIds] = useState<Set<string>>(new Set())
+  const [editDrafts, setEditDrafts] = useState<Record<string, Record<string, any>>>({})
+
+  // Group operations by source_impressao_id for aggregation
+  const groupedOps = useMemo(() => {
+    const groups: Record<string, {
+      sourceId: string
+      operations: ProductionOperation[]
+      totalCut: number
+      qtPrint: number
+      material: string
+      carateristica: string
+      cor: string
+      nPal: string
+    }> = {}
+
+    operations.forEach((op) => {
+      if (!op.source_impressao_id) return
+
+      if (!groups[op.source_impressao_id]) {
+        groups[op.source_impressao_id] = {
+          sourceId: op.source_impressao_id,
+          operations: [],
+          totalCut: 0,
+          qtPrint: op.QT_print || 0,
+          material: '',
+          carateristica: '',
+          cor: '',
+          nPal: op.N_Pal || '',
+        }
+
+        // Get material info
+        if (op.material_id && materialsData.length > 0) {
+          const mat = materialsData.find(m => m.id === op.material_id)
+          if (mat) {
+            groups[op.source_impressao_id].material = mat.material || ''
+            groups[op.source_impressao_id].carateristica = mat.carateristica || ''
+            groups[op.source_impressao_id].cor = mat.cor || ''
+          }
+        }
+      }
+
+      groups[op.source_impressao_id].operations.push(op)
+      groups[op.source_impressao_id].totalCut += op.num_placas_corte || 0
+    })
+
+    return Object.values(groups)
+  }, [operations, materialsData])
+
+  // Edit mode functions
+  const startEdit = (opId: string) => {
+    const op = operations.find((o) => o.id === opId)
+    if (!op) return
+
+    setEditingRowIds((prev) => new Set(prev).add(opId))
+    setEditDrafts((prev) => ({
+      ...prev,
+      [opId]: {
+        data_operacao: op.data_operacao || '',
+        operador_id: op.operador_id || '',
+        maquina: op.maquina || '',
+        num_placas_corte: op.num_placas_corte ?? '',
+        observacoes: op.observacoes || '',
+      },
+    }))
+  }
+
+  const cancelEdit = (opId: string) => {
+    setEditingRowIds((prev) => {
+      const newSet = new Set(prev)
+      newSet.delete(opId)
+      return newSet
+    })
+    setEditDrafts((prev) => {
+      const newDrafts = { ...prev }
+      delete newDrafts[opId]
+      return newDrafts
+    })
+  }
+
+  const acceptEdit = async (opId: string) => {
+    const draft = editDrafts[opId]
+    if (!draft) return
+
+    try {
+      const operation = operations.find(op => op.id === opId)
+      if (!operation) return
+
+      // Normalize fields
+      const normalizedDraft = { ...draft }
+
+      // Normalize numeric fields
+      if (normalizedDraft.num_placas_corte !== undefined) {
+        const n = parseInt(String(normalizedDraft.num_placas_corte))
+        normalizedDraft.num_placas_corte = Number.isFinite(n) ? n : 0
+      }
+
+      // Convert empty strings to null for UUID fields
+      const uuidFields = ['operador_id', 'maquina']
+      uuidFields.forEach(field => {
+        if (normalizedDraft[field] === '') {
+          normalizedDraft[field] = null
+        }
+      })
+
+      // VALIDATION: Check required fields before saving
+      const finalOperador = normalizedDraft.operador_id ?? operation.operador_id
+      const finalMaquina = normalizedDraft.maquina ?? operation.maquina
+
+      if (!finalOperador) {
+        alert('Por favor, selecione o Operador antes de guardar.')
+        return
+      }
+
+      if (!finalMaquina) {
+        alert('Por favor, selecione a Máquina antes de guardar.')
+        return
+      }
+
+      // Validate: check if total cut would exceed QT_print
+      const group = groupedOps.find(g => g.sourceId === operation.source_impressao_id)
+      if (group && normalizedDraft.num_placas_corte !== undefined) {
+        const newTotal = group.totalCut - (operation.num_placas_corte || 0) + normalizedDraft.num_placas_corte
+        if (newTotal > group.qtPrint) {
+          alert(`Total de corte (${newTotal}) não pode exceder QT Print (${group.qtPrint})`)
+          return
+        }
+      }
+
+      // Update database
+      const { error } = await supabase
+        .from('producao_operacoes')
+        .update(normalizedDraft)
+        .eq('id', opId)
+
+      if (error) throw error
+
+      // Log audit for changed fields
+      for (const [field, newValue] of Object.entries(normalizedDraft)) {
+        const oldValue = (operation as any)[field]
+        if (oldValue !== newValue) {
+          await logFieldUpdate(supabase, opId, field, oldValue, newValue)
+        }
+      }
+
+      cancelEdit(opId)
+      onRefresh()
+      onMainRefresh()
+    } catch (err) {
+      console.error('Error accepting edit:', err)
+      alert('Erro ao guardar alterações')
+    }
+  }
+
+  const changeField = (opId: string, field: string, value: any) => {
+    setEditDrafts((prev) => ({
+      ...prev,
+      [opId]: {
+        ...(prev[opId] || {}),
+        [field]: value,
+      },
+    }))
+  }
+
+  const handleFieldChange = async (operationId: string, field: string, value: any) => {
+    try {
+      // Normalize numeric fields
+      let normalizedValue = value
+      if (field === 'num_placas_corte') {
+        const n = parseInt(String(value))
+        normalizedValue = Number.isFinite(n) ? n : 0
+
+        // Validation: Don't allow totalCut > QT_print
+        const op = operations.find(o => o.id === operationId)
+        if (op && op.source_impressao_id) {
+          const group = groupedOps.find(g => g.sourceId === op.source_impressao_id)
+          if (group) {
+            const newTotal = group.totalCut - (op.num_placas_corte || 0) + normalizedValue
+            if (newTotal > group.qtPrint) {
+              alert(`Total de corte (${newTotal}) não pode exceder QT Print (${group.qtPrint})`)
+              return
+            }
+          }
+        }
+      }
+
+      const operation = operations.find(op => op.id === operationId)
+      const oldValue = operation ? (operation as any)[field] : null
+
+      const { error } = await supabase
+        .from('producao_operacoes')
+        .update({ [field]: normalizedValue })
+        .eq('id', operationId)
+
+      if (error) throw error
+
+      await logFieldUpdate(supabase, operationId, field, oldValue, normalizedValue)
+      onRefresh()
+    } catch (err) {
+      console.error('Error updating operation:', err)
+      alert('Erro ao atualizar operação')
+    }
+  }
+
+  const handleDuplicate = async (sourceOperationId: string) => {
+    try {
+      const sourceOp = operations.find(op => op.id === sourceOperationId)
+      if (!sourceOp) return
+
+      const now = new Date()
+      const dateStr = format(now, 'yyyyMMdd')
+      const timeStr = format(now, 'HHmmss')
+      const no_interno = `DUP-${dateStr}-${timeStr}`
+
+      const duplicateData = {
+        Tipo_Op: 'Corte',
+        item_id: itemId,
+        folha_obra_id: folhaObraId,
+        data_operacao: new Date().toISOString().split('T')[0],
+        no_interno,
+        num_placas_corte: 0,
+        QT_print: sourceOp.QT_print,
+        source_impressao_id: sourceOp.source_impressao_id,
+        material_id: sourceOp.material_id,
+        N_Pal: sourceOp.N_Pal,
+        notas: sourceOp.notas,
+        concluido: false,
+      }
+
+      const { data, error } = await supabase
+        .from('producao_operacoes')
+        .insert([duplicateData])
+        .select()
+        .single()
+
+      if (error) throw error
+
+      await logOperationCreation(supabase, data.id, duplicateData)
+      onRefresh()
+      onMainRefresh()
+    } catch (err) {
+      console.error('Error duplicating operation:', err)
+      alert('Erro ao duplicar operação')
+    }
+  }
+
+  const handleDeleteOperation = async (operationId: string) => {
+    if (!window.confirm('Tem certeza que deseja eliminar esta operação?')) return
+
+    try {
+      const operation = operations.find(op => op.id === operationId)
+
+      const { error } = await supabase
+        .from('producao_operacoes')
+        .delete()
+        .eq('id', operationId)
+
+      if (error) throw error
+
+      if (operation) {
+        await logOperationDeletion(supabase, operationId, operation)
+      }
+
+      onRefresh()
+      onMainRefresh()
+    } catch (err) {
+      console.error('Error deleting operation:', err)
+      alert('Erro ao eliminar operação')
+    }
+  }
+
+  const getProgressClass = (totalCut: number, qtPrint: number) => {
+    // Use design-system variables: primary for normal/progress, destructive when exceeding
+    if (totalCut <= qtPrint) return 'bg-primary'
+    return 'bg-destructive'
+  }
+
+  return (
+    <div className="space-y-6">
+      {groupedOps.map((group) => (
+        <div key={group.sourceId} className="border p-4 space-y-4 bg-background">
+          {/* Progress Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div>
+                <div className="text-xs uppercase text-muted-foreground">QT PRINT</div>
+                <div className="text-lg font-mono">{group.qtPrint}</div>
+              </div>
+              <div>
+                <div className="text-xs uppercase text-muted-foreground">TOTAL CORTE</div>
+                <div className="text-lg font-mono">{group.totalCut}</div>
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="flex-1 mx-4">
+              <div className="w-full bg-accent h-4">
+                <div
+                  className={`h-4 transition-all ${getProgressClass(group.totalCut, group.qtPrint)}`}
+                  style={{ width: `${Math.min(100, (group.totalCut / (group.qtPrint || 1)) * 100)}%` }}
+                />
+              </div>
+              <div className="text-xs text-center mt-1">
+                {group.qtPrint > 0 ? `${((group.totalCut / group.qtPrint) * 100).toFixed(0)}%` : '0%'}
+              </div>
+            </div>
+          </div>
+
+          {/* Material Info (Read-Only) */}
+          <div className="grid grid-cols-4 gap-2 bg-muted p-2">
+            <div>
+              <div className="text-xs uppercase">Palete</div>
+              <div className="text-sm">{group.nPal || '-'}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase">Material</div>
+              <div className="text-sm">{group.material || '-'}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase">Características</div>
+              <div className="text-sm">{group.carateristica || '-'}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase">Cor</div>
+              <div className="text-sm">{group.cor || '-'}</div>
+            </div>
+          </div>
+
+          {/* Operations Table */}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[120px]">Data</TableHead>
+                <TableHead className="w-[150px]">Operador</TableHead>
+                <TableHead className="w-[150px]">Máquina</TableHead>
+                <TableHead className="w-[100px]">Placas Cortadas</TableHead>
+                <TableHead className="w-[50px]">Notas</TableHead>
+                <TableHead className="w-[60px]">C</TableHead>
+                <TableHead className="w-[130px]">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {group.operations.map((op) => {
+                const isEditing = editingRowIds.has(op.id)
+
+                return (
+                  <TableRow key={op.id} className={isEditing ? 'bg-accent' : ''}>
                     <TableCell>
-                      <Select value={op.maquina || ''} onValueChange={(v) => handleFieldChange(op.id, 'maquina', v)}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Máquina" />
+                      <DatePicker
+                        selected={
+                          isEditing && editDrafts[op.id]?.data_operacao
+                            ? new Date(editDrafts[op.id].data_operacao)
+                            : op.data_operacao
+                            ? new Date(op.data_operacao)
+                            : undefined
+                        }
+                        onSelect={(date: Date | undefined) => {
+                          if (isEditing) {
+                            changeField(op.id, 'data_operacao', date ? date.toISOString() : null)
+                          }
+                        }}
+                        disabled={!isEditing}
+                      />
+                    </TableCell>
+
+                    <TableCell>
+                      <Select
+                        value={isEditing ? (editDrafts[op.id]?.operador_id || '') : (op.operador_id || '')}
+                        onValueChange={(v) => {
+                          if (isEditing) {
+                            changeField(op.id, 'operador_id', v)
+                          }
+                        }}
+                        disabled={!isEditing}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Operador" />
                         </SelectTrigger>
                         <SelectContent>
-                          {machines.map((opt) => (
+                          {operators.map((opt) => (
                             <SelectItem key={opt.value} value={opt.value}>
                               {opt.label}
                             </SelectItem>
@@ -1220,135 +2440,121 @@ function OperationsTable({
                         </SelectContent>
                       </Select>
                     </TableCell>
+
                     <TableCell>
-                      <Combobox
-                        options={[
-                          { value: '', label: 'Sem palete' },
-                          ...paletes.map((palete) => ({
-                            value: palete.id,
-                            label: palete.no_palete,
-                          })),
-                        ]}
-                        value={paletteSelections[op.id] || ''}
-                        onChange={(value: string) => handlePaletteSelection(op.id, value)}
-                        placeholder="Selecionar palete"
-                        emptyMessage="Nenhum palete encontrado"
-                        searchPlaceholder="Procurar palete..."
-                        disabled={paletesLoading}
-                        className="h-10 w-full"
-                        buttonClassName="uppercase truncate"
+                      <Select
+                        value={isEditing ? (editDrafts[op.id]?.maquina || '') : (op.maquina || '')}
+                        onValueChange={(v) => {
+                          if (isEditing) {
+                            changeField(op.id, 'maquina', v)
+                          }
+                        }}
+                        disabled={!isEditing}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Máquina" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {machines
+                            .filter((m) => m.tipo === 'Corte')
+                            .map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+
+                    <TableCell>
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        value={isEditing && editDrafts[op.id]?.num_placas_corte !== undefined
+                          ? String(editDrafts[op.id]?.num_placas_corte ?? '')
+                          : String(op.num_placas_corte ?? '')}
+                        onChange={(e) => {
+                          if (isEditing) {
+                            changeField(op.id, 'num_placas_corte', e.target.value)
+                          }
+                        }}
+                        disabled={!isEditing}
+                        className="w-full"
                       />
                     </TableCell>
-                    <TableCell>
-                <Select
-                        value={selection.material || ''}
-                        onValueChange={(v) => handleMaterialChange(op.id, 'material', v)}
-                        disabled={isMaterialFromPalette(op.id)}
-                >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Material" />
-                  </SelectTrigger>
-                  <SelectContent>
-                          {materialOptions.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                    </TableCell>
-                    <TableCell>
-                <Select
-                        value={selection.carateristica || ''}
-                        onValueChange={(v) => handleMaterialChange(op.id, 'carateristica', v)}
-                        disabled={!selection.material || isMaterialFromPalette(op.id)}
-                >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Car." />
-                  </SelectTrigger>
-                  <SelectContent>
-                          {getCaracteristicaOptions(selection.material).map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                    </TableCell>
-                    <TableCell>
-                <Select
-                        value={selection.cor || ''}
-                        onValueChange={(v) => handleMaterialChange(op.id, 'cor', v)}
-                        disabled={!selection.material || isMaterialFromPalette(op.id)}
-                >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Cor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                          {getCorOptions(selection.material, selection.carateristica).map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                    </TableCell>
-                    <TableCell>
-                  <Input
-                    type="number"
-                        value={op.num_placas_print || 0}
-                        onChange={(e) => handleFieldChange(op.id, 'num_placas_print', parseInt(e.target.value) || 0)}
-                        className="w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                    </TableCell>
-                    <TableCell>
-                  <Input
-                    type="number"
-                        value={op.num_placas_corte || 0}
-                        onChange={(e) => handleFieldChange(op.id, 'num_placas_corte', parseInt(e.target.value) || 0)}
-                        className="w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                    </TableCell>
+
                     <TableCell>
                       <SimpleNotasPopover
-                        value={op.observacoes || ''}
-                        onSave={(value) => handleFieldChange(op.id, 'observacoes', value)}
+                        value={isEditing ? (editDrafts[op.id]?.observacoes || '') : (op.notas || '')}
+                        onSave={(value) => {
+                          if (isEditing) {
+                            changeField(op.id, 'observacoes', value)
+                          }
+                        }}
                         placeholder="Notas..."
                         label="Notas"
                         buttonSize="icon"
+                        disabled={!isEditing}
                       />
                     </TableCell>
+
                     <TableCell>
-                  <Checkbox
+                      <Checkbox
                         checked={op.concluido || false}
-                        onCheckedChange={() => handleComplete(op.id, op.concluido || false)}
+                        onCheckedChange={(checked) =>
+                          handleFieldChange(op.id, 'concluido', checked)
+                        }
                       />
                     </TableCell>
+
                     <TableCell>
                       <div className="flex gap-1">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                onClick={() => handleDeleteOperation(op.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Eliminar</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                </div>
+                        {!isEditing ? (
+                          <>
+                            <Button size="icon" variant="outline" onClick={() => startEdit(op.id)}>
+                              <Edit3 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              onClick={() => handleDuplicate(op.id)}
+                              title="Duplicar para outro turno"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="destructive"
+                              onClick={() => handleDeleteOperation(op.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button size="icon" variant="default" onClick={() => acceptEdit(op.id)}>
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button size="icon" variant="destructive" onClick={() => cancelEdit(op.id)}>
+                              <XSquare className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 )
-              })
-            )}
-          </TableBody>
-        </Table>
-                </div>
-              </div>
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      ))}
+
+      {groupedOps.length === 0 && (
+        <div className="text-center py-8 text-muted-foreground">
+          Nenhuma operação de corte linkada a impressões.
+        </div>
+      )}
+    </div>
   )
 }

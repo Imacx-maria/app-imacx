@@ -137,6 +137,7 @@ export interface ProductionOperation {
   qualidade?: string
   observacoes?: string
   status?: 'pendente' | 'em_progresso' | 'concluida' | 'cancelada'
+  source_impressao_id?: string | null  // Links Corte operations to source Impressão operation
   created_at: string
   updated_at: string
 }
