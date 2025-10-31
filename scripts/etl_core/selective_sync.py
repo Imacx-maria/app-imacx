@@ -411,17 +411,14 @@ class SelectiveSync:
         '''
 
         cursor = self.supabase_conn.cursor()
-        cursor.execute(create_sql)
-        self.supabase_conn.commit()
-
-        if primary_key:
-            try:
-                cursor.execute(
-                    f'ALTER TABLE phc."{table_name}" ADD PRIMARY KEY ("{primary_key}")'
-                )
-                self.supabase_conn.commit()
-            except Exception:
-                self.supabase_conn.rollback()
+        try:
+            cursor.execute(create_sql)
+            self.supabase_conn.commit()
+            logger.info(f"   [OK] Table phc.{table_name} ready with PK constraint")
+        except Exception as e:
+            self.supabase_conn.rollback()
+            logger.error(f"   [ERROR] Failed to create table phc.{table_name}: {e}")
+            raise
 
     def _build_incremental_query(
         self,
@@ -1049,7 +1046,12 @@ class SelectiveSync:
             for col, col_type in columns.items():
                 final_col_name = column_mappings.get(col, col)
                 column_defs.append(f'"{final_col_name}" {col_type}')
-            
+
+            # Add primary key constraint if defined
+            primary_key = config.get('primary_key')
+            if primary_key:
+                column_defs.append(f'PRIMARY KEY ("{primary_key}")')
+
             create_sql = f'''
                 CREATE TABLE IF NOT EXISTS phc."{table_name}" (
                     {", ".join(column_defs)}
@@ -1136,14 +1138,55 @@ class SelectiveSync:
                                     clean_row.append(str_val)
                     
                     clean_rows.append(tuple(clean_row))
-                
-                # Insert batch
+
+                # Validate for duplicate primary keys in batch
+                if clean_rows:
+                    primary_key = config.get('primary_key')
+                    if primary_key:
+                        # Find PK column index
+                        pk_index = None
+                        for i, col in enumerate(column_names):
+                            final_col = column_mappings.get(col, col)
+                            if final_col == primary_key:
+                                pk_index = i
+                                break
+
+                        if pk_index is not None:
+                            # Check for duplicates in batch
+                            pk_values = [row[pk_index] for row in clean_rows]
+                            unique_pk_values = set(pk_values)
+                            if len(pk_values) != len(unique_pk_values):
+                                duplicate_count = len(pk_values) - len(unique_pk_values)
+                                logger.warning(f"   ⚠️  Batch {batch_num}: {duplicate_count} duplicate PK values detected in source data")
+
+                # Insert batch with conflict handling
                 if clean_rows:
                     placeholders = ','.join(['%s'] * len(column_names))
                     final_column_names = [column_mappings.get(col, col) for col in column_names]
                     column_list_pg = ','.join([f'"{col}"' for col in final_column_names])
-                    insert_sql = f'INSERT INTO phc."{table_name}" ({column_list_pg}) VALUES ({placeholders})'
-                    
+
+                    # Build INSERT with ON CONFLICT if primary key exists
+                    primary_key = config.get('primary_key')
+                    if primary_key:
+                        # Build update clause for all columns except primary key
+                        update_cols = [f'"{col}" = EXCLUDED."{col}"' for col in final_column_names if col != primary_key]
+                        if update_cols:
+                            update_clause = ', '.join(update_cols)
+                            insert_sql = (
+                                f'INSERT INTO phc."{table_name}" ({column_list_pg}) VALUES ({placeholders}) '
+                                f'ON CONFLICT ("{primary_key}") DO UPDATE SET {update_clause}'
+                            )
+                        else:
+                            # No updatable columns - just ignore conflicts
+                            insert_sql = (
+                                f'INSERT INTO phc."{table_name}" ({column_list_pg}) VALUES ({placeholders}) '
+                                f'ON CONFLICT ("{primary_key}") DO NOTHING'
+                            )
+                    else:
+                        # No primary key - use plain INSERT (may cause duplicates)
+                        logger.warning(f"   ⚠️  No primary key defined for {table_name} - duplicates may occur")
+                        insert_sql = f'INSERT INTO phc."{table_name}" ({column_list_pg}) VALUES ({placeholders})'
+
                     supabase_cursor.executemany(insert_sql, clean_rows)
                     self.supabase_conn.commit()
                     
