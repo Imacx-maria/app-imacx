@@ -92,6 +92,19 @@ import { LogisticaRecord, Cliente } from '@/types/logistica'
 import { useLogisticaData } from '@/utils/useLogisticaData'
 import { exportProducaoToExcel } from '@/utils/exportProducaoToExcel'
 import { Suspense } from 'react'
+import type { Job, Item, LoadingState } from '@/types/producao'
+import { useDebounce } from '@/hooks/useDebounce'
+import {
+  parseDateFromYYYYMMDD,
+  formatDatePortuguese,
+} from '@/utils/producao/dateHelpers'
+import { parseNumericField } from '@/utils/producao/sortHelpers'
+import {
+  dotColor,
+  getPColor,
+  getAColor,
+  getCColor,
+} from '@/utils/producao/statusColors'
 
 /* ---------- lazy loaded components ---------- */
 const JobDrawerContent = lazy(() =>
@@ -104,158 +117,8 @@ const JobDrawerContent = lazy(() =>
 const JOBS_PER_PAGE = 50 // Pagination limit for better performance
 const ITEMS_FETCH_LIMIT = 200 // Reasonable limit for items per request
 
-/* ---------- types ---------- */
-interface Job {
-  id: string
-  numero_fo: string
-  numero_orc?: string | null
-  nome_campanha: string
-  data_saida: string | null
-  prioridade: boolean | null
-  notas: string | null
-  concluido?: boolean | null // C
-  saiu?: boolean | null // S
-  fatura?: boolean | null // F
-  pendente?: boolean | null // SB - Pending status
-  created_at?: string | null
-  data_in?: string | null // Input/creation date
-  cliente?: string | null
-  id_cliente?: string | null // Now persisted to database as customer_id
-  customer_id?: number | null // The actual customer ID from phc.cl
-  data_concluido?: string | null
-  updated_at?: string | null
-}
-
-interface Item {
-  id: string
-  folha_obra_id: string
-  descricao: string
-  codigo?: string | null
-  quantidade?: number | null
-  brindes?: boolean | null
-  concluido?: boolean | null
-  paginacao?: boolean | null
-}
-
-interface LoadingState {
-  jobs: boolean
-  items: boolean
-  operacoes: boolean
-  clientes: boolean
-}
-
-/* ---------- helpers ---------- */
-const dotColor = (v?: boolean | null, warn = false) =>
-  v ? 'bg-success' : warn ? 'bg-warning' : 'bg-destructive'
-
-// Utility function to parse a date string as a local date
-function parseDateFromYYYYMMDD(dateString: string): Date {
-  const [year, month, day] = dateString.split('-').map(Number)
-  return new Date(year, month - 1, day)
-}
-
-/**
- * Format date to Portuguese short format (DD/MM/YY)
- */
-function formatDatePortuguese(dateString: string | null | undefined): string {
-  if (!dateString) return ''
-  try {
-    const date = new Date(dateString)
-    if (isNaN(date.getTime())) return ''
-    return format(date, 'dd/MM/yy')
-  } catch {
-    return ''
-  }
-}
-
-// Helper to get the latest completion date for a job - now moved to logistica_entregas
-// This will be handled by the logistics data fetching
-
-/* ---------- Performance optimizations ---------- */
-// Debounce hook for filter inputs
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value)
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value)
-    }, delay)
-
-    return () => {
-      clearTimeout(handler)
-    }
-  }, [value, delay])
-
-  return debouncedValue
-}
-
-// Helper function for smart numeric sorting (handles mixed text/number fields)
-const parseNumericField = (
-  value: string | number | null | undefined,
-): number => {
-  if (value === null || value === undefined) return 0
-  if (typeof value === 'number') return value
-
-  const strValue = String(value).trim()
-  if (strValue === '') return 0
-
-  // Try to parse as number
-  const numValue = Number(strValue)
-  if (!isNaN(numValue)) return numValue
-
-  // For non-numeric values (letters), sort them after all numbers
-  // Use a high number + character code for consistent ordering
-  return 999999 + strValue.charCodeAt(0)
-}
-
-// Simple helper functions for performance (moved out of component to avoid SSR issues)
-const getPColor = (job: Job): string => {
-  if (job.prioridade) return 'bg-destructive'
-  if (job.data_in) {
-    const days =
-      (Date.now() - new Date(job.data_in).getTime()) / (1000 * 60 * 60 * 24)
-    if (days > 3) return 'bg-info'
-  }
-  return 'bg-success'
-}
-
-const getAColor = (
-  jobId: string,
-  items: Item[],
-  designerItems: any[],
-): string => {
-  // Get all items for this job
-  const jobItems = items.filter((item) => item.folha_obra_id === jobId)
-  if (jobItems.length === 0) return 'bg-destructive' // No items = red
-
-  // Get designer items for these job items
-  const jobItemIds = jobItems.map((item) => item.id)
-  const jobDesignerItems = designerItems.filter((designer) =>
-    jobItemIds.includes(designer.item_id),
-  )
-
-  if (jobDesignerItems.length === 0) return 'bg-destructive' // No designer items = red
-
-  // Check paginacao status
-  const completedCount = jobDesignerItems.filter(
-    (designer) => designer.paginacao === true,
-  ).length
-  const totalCount = jobDesignerItems.length
-
-  if (completedCount === 0) return 'bg-destructive' // None completed = red
-  if (completedCount === totalCount) return 'bg-success' // All completed = green
-  return 'bg-warning' // Some completed = orange
-}
-
-const getCColor = (jobId: string, operacoes: any[]): string => {
-  const jobOperacoes = operacoes.filter((op) => op.folha_obra_id === jobId)
-  if (jobOperacoes.length === 0) return 'bg-destructive'
-  return jobOperacoes.some((op) => op.concluido)
-    ? 'bg-success'
-    : 'bg-destructive'
-}
-
 /* ---------- Loading Components ---------- */
+// Types and helpers now imported from centralized locations
 const JobsTableSkeleton = () => (
   <div className="space-y-2">
     <div className="h-10 animate-pulse bg-muted opacity-80" /> {/* Header */}

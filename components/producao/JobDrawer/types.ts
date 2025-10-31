@@ -3,37 +3,10 @@
  * Type definitions for the Job Drawer component
  */
 
-export interface Job {
-  id: string
-  numero_fo: string
-  numero_orc?: string | null
-  nome_campanha: string
-  data_saida: string | null
-  prioridade: boolean | null
-  notas: string | null
-  concluido?: boolean | null
-  saiu?: boolean | null
-  fatura?: boolean | null
-  pendente?: boolean | null
-  created_at?: string | null
-  data_in?: string | null
-  cliente?: string | null
-  id_cliente?: string | null
-  customer_id?: number | null
-  data_concluido?: string | null
-  updated_at?: string | null
-}
+import type { Job, Item } from '@/types/producao'
 
-export interface Item {
-  id: string
-  folha_obra_id: string
-  descricao: string
-  codigo?: string | null
-  quantidade?: number | null
-  brindes?: boolean | null
-  concluido?: boolean | null
-  paginacao?: boolean | null
-}
+// Re-export centralized types for convenience
+export type { Job, Item }
 
 export interface JobDrawerProps {
   jobId: string
