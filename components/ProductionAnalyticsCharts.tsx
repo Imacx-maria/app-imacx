@@ -29,23 +29,39 @@ interface OperationData {
   num_placas_print?: number | null
   num_placas_corte?: number | null
   Tipo_Op?: string
+  material_id?: string | null
+  maquina?: string | null
+  source_impressao_id?: string | null
   profiles?: {
     first_name?: string
     last_name?: string
     role_id?: string
   }
+  materiais?: {
+    material?: string
+  } | null
 }
 
 interface MonthlyData {
   month: string
   total_print: number
-  total_print_vinil: number
-  total_corte: number
+  total_corte_impressao: number
+  total_corte_chapas: number
 }
 
 interface OperatorMonthlyData {
   month: string
   [key: string]: string | number // Dynamic operator names as keys
+}
+
+interface MachineMonthlyData {
+  month: string
+  [key: string]: string | number // Dynamic machine names as keys
+}
+
+interface MaterialMonthlyData {
+  month: string
+  [key: string]: string | number // Dynamic material types as keys
 }
 
 interface ProductionAnalyticsChartsProps {
@@ -57,8 +73,9 @@ interface ProductionAnalyticsChartsProps {
 // Colors are defined in globals.css and adapt to light/dark mode
 const CHART_COLORS = {
   print: MATERIAL_COLORS.RIGIDOS(), // Muted teal blue - for regular print operations
-  printVinil: MATERIAL_COLORS.FLEXIVEIS(), // Earthy green - for vinyl print operations
   corte: MATERIAL_COLORS.CARTAO(), // Soft pastel yellow - for corte operations
+  corteImpressao: MATERIAL_COLORS.FLEXIVEIS(), // Earthy green - for corte with source
+  corteChapas: MATERIAL_COLORS.WARNING(), // Warm beige - for standalone corte
   neutral: MATERIAL_COLORS.WARNING(), // Warm beige - for neutral states
   warning: MATERIAL_COLORS.WARNING(), // Warm beige - for warnings
   critical: MATERIAL_COLORS.CRITICAL(), // Dark charcoal brown - for critical states
@@ -97,10 +114,16 @@ export default function ProductionAnalyticsCharts({
           num_placas_print,
           num_placas_corte,
           Tipo_Op,
+          material_id,
+          maquina,
+          source_impressao_id,
           profiles!operador_id (
-            first_name, 
+            first_name,
             last_name,
             role_id
+          ),
+          materiais!material_id (
+            material
           )
         `,
         )
@@ -162,50 +185,6 @@ export default function ProductionAnalyticsCharts({
 
   // Process data for monthly totals
   const monthlyTotals = useMemo(() => {
-    console.log(
-      '🔍 Processing monthly totals - total operations:',
-      operations.length,
-    )
-
-    // Debug: Show all operation types
-    const operationTypes = operations.map((op) => op.Tipo_Op).filter(Boolean)
-    console.log(
-      '📊 Operation types found:',
-      Array.from(new Set(operationTypes)),
-    )
-
-    // Debug: Count operations by type
-    const typeCounts = operationTypes.reduce(
-      (acc, type) => {
-        if (type) {
-          acc[type] = (acc[type] || 0) + 1
-        }
-        return acc
-      },
-      {} as Record<string, number>,
-    )
-    console.log('📈 Operation counts by type:', typeCounts)
-
-    // Debug: Show Impressao_Flexiveis operations specifically
-    const impressaoVinilOps = operations.filter(
-      (op) => op.Tipo_Op === 'Impressao_Flexiveis',
-    )
-    console.log(
-      '🎨 Impressao_Flexiveis operations found:',
-      impressaoVinilOps.length,
-    )
-    if (impressaoVinilOps.length > 0) {
-      console.log(
-        '🎨 Impressao_Flexiveis operations details:',
-        impressaoVinilOps.map((op) => ({
-          id: op.id,
-          data_operacao: op.data_operacao,
-          num_placas_print: op.num_placas_print,
-          operador_id: op.operador_id,
-        })),
-      )
-    }
-
     const monthlyData: { [key: string]: MonthlyData } = {}
 
     operations.forEach((operation) => {
@@ -219,42 +198,38 @@ export default function ProductionAnalyticsCharts({
         monthlyData[monthKey] = {
           month: monthLabel,
           total_print: 0,
-          total_print_vinil: 0,
-          total_corte: 0,
+          total_corte_impressao: 0,
+          total_corte_chapas: 0,
         }
       }
 
+      // Impressão
       if (operation.Tipo_Op === 'Impressao' && operation.num_placas_print) {
         monthlyData[monthKey].total_print += operation.num_placas_print
-        console.log(
-          `➕ Added ${operation.num_placas_print} to Impressao for ${monthLabel}`,
-        )
       }
 
+      // Corte de Impressões (with source_impressao_id)
       if (
-        operation.Tipo_Op === 'Impressao_Flexiveis' &&
-        operation.num_placas_print
+        operation.Tipo_Op === 'Corte' &&
+        operation.num_placas_corte &&
+        operation.source_impressao_id
       ) {
-        monthlyData[monthKey].total_print_vinil += operation.num_placas_print
-        console.log(
-          `🎨 Added ${operation.num_placas_print} to Impressao_Flexiveis for ${monthLabel}`,
-        )
+        monthlyData[monthKey].total_corte_impressao += operation.num_placas_corte
       }
 
-      if (operation.Tipo_Op === 'Corte' && operation.num_placas_corte) {
-        monthlyData[monthKey].total_corte += operation.num_placas_corte
-        console.log(
-          `✂️ Added ${operation.num_placas_corte} to Corte for ${monthLabel}`,
-        )
+      // Operações de Corte - Chapas Soltas (without source_impressao_id)
+      if (
+        operation.Tipo_Op === 'Corte' &&
+        operation.num_placas_corte &&
+        !operation.source_impressao_id
+      ) {
+        monthlyData[monthKey].total_corte_chapas += operation.num_placas_corte
       }
     })
 
-    const result = Object.values(monthlyData).sort((a, b) =>
+    return Object.values(monthlyData).sort((a, b) =>
       a.month.localeCompare(b.month),
     )
-
-    console.log('📊 Final monthly totals:', result)
-    return result
   }, [operations])
 
   // Process data for operator print operations (Impressao only)
@@ -315,118 +290,6 @@ export default function ProductionAnalyticsCharts({
     }
   }, [operations])
 
-  // Process data for operator vinyl print operations (Impressao_Flexiveis)
-  const operatorPrintVinilData = useMemo(() => {
-    console.log('🎨 Processing Impressao_Flexiveis operator data...')
-
-    const operatorData: { [key: string]: OperatorMonthlyData } = {}
-    const operatorNames: { [key: string]: string } = {}
-
-    // Debug: Find all Impressao_Flexiveis operations
-    const vinilOps = operations.filter(
-      (op) => op.Tipo_Op === 'Impressao_Flexiveis',
-    )
-    console.log('🎨 Total Impressao_Flexiveis operations:', vinilOps.length)
-
-    // Debug: Check which have operators
-    const vinilOpsWithOperators = vinilOps.filter((op) => op.operador_id)
-    console.log(
-      '🎨 Impressao_Flexiveis operations with operador_id:',
-      vinilOpsWithOperators.length,
-    )
-
-    // Debug: Check which have profiles
-    const vinilOpsWithProfiles = vinilOpsWithOperators.filter(
-      (op) => op.profiles,
-    )
-    console.log(
-      '🎨 Impressao_Flexiveis operations with profiles:',
-      vinilOpsWithProfiles.length,
-    )
-
-    if (vinilOpsWithProfiles.length > 0) {
-      console.log('🎨 Sample Impressao_Flexiveis operation with profile:', {
-        id: vinilOpsWithProfiles[0].id,
-        operador_id: vinilOpsWithProfiles[0].operador_id,
-        profiles: vinilOpsWithProfiles[0].profiles,
-        role_id: (vinilOpsWithProfiles[0].profiles as any)?.role_id,
-      })
-    }
-
-    // First pass: collect operator names and initialize data structure
-    // Only include operators with Impressão role (2e18fb9d-52ef-4216-90ea-699372cd5a87)
-    const validOps = operations.filter(
-      (op) =>
-        op.Tipo_Op === 'Impressao_Flexiveis' &&
-        op.operador_id &&
-        op.profiles &&
-        (op.profiles as any).role_id === '2e18fb9d-52ef-4216-90ea-699372cd5a87',
-    )
-
-    console.log(
-      '🎨 Impressao_Flexiveis operations with correct role:',
-      validOps.length,
-    )
-
-    validOps.forEach((operation) => {
-      const operatorName = `${operation.profiles!.first_name} ${operation.profiles!.last_name}`
-      operatorNames[operation.operador_id!] = operatorName
-      console.log('🎨 Added Impressao_Flexiveis operator:', operatorName)
-    })
-
-    console.log(
-      '🎨 Total Impressao_Flexiveis operators found:',
-      Object.keys(operatorNames).length,
-    )
-
-    // Second pass: aggregate data by month and operator
-    operations
-      .filter(
-        (op) =>
-          op.Tipo_Op === 'Impressao_Flexiveis' &&
-          op.operador_id &&
-          op.num_placas_print,
-      )
-      .forEach((operation) => {
-        if (!operation.data_operacao) return
-
-        const date = new Date(operation.data_operacao)
-        const monthKey = format(date, 'yyyy-MM')
-        const monthLabel = format(date, 'MMM', { locale: pt })
-        const operatorName = operatorNames[operation.operador_id!]
-
-        console.log(
-          `🎨 Processing Impressao_Flexiveis operation: ${monthLabel}, operator: ${operatorName}, quantity: ${operation.num_placas_print}`,
-        )
-
-        if (!operatorData[monthKey]) {
-          operatorData[monthKey] = { month: monthLabel }
-          // Initialize all operators to 0 for this month
-          Object.values(operatorNames).forEach((name) => {
-            operatorData[monthKey][name] = 0
-          })
-        }
-
-        if (operatorName) {
-          operatorData[monthKey][operatorName] =
-            ((operatorData[monthKey][operatorName] as number) || 0) +
-            operation.num_placas_print!
-          console.log(
-            `🎨 Updated operator ${operatorName} total for ${monthLabel}: ${operatorData[monthKey][operatorName]}`,
-          )
-        }
-      })
-
-    const result = {
-      data: Object.values(operatorData).sort((a, b) =>
-        a.month.localeCompare(b.month),
-      ),
-      operators: Object.values(operatorNames),
-    }
-
-    console.log('🎨 Final Impressao_Flexiveis operator data:', result)
-    return result
-  }, [operations])
 
   // Process data for operator corte operations
   const operatorCorteData = useMemo(() => {
@@ -487,48 +350,28 @@ export default function ProductionAnalyticsCharts({
 
   // Calculate overview totals
   const overviewTotals = useMemo(() => {
-    console.log('📊 Calculating overview totals...')
-
     const impressaoOps = operations.filter((op) => op.Tipo_Op === 'Impressao')
-    const impressaoVinilOps = operations.filter(
-      (op) => op.Tipo_Op === 'Impressao_Flexiveis',
+    const corteImpressaoOps = operations.filter(
+      (op) => op.Tipo_Op === 'Corte' && op.source_impressao_id,
     )
-    const corteOps = operations.filter((op) => op.Tipo_Op === 'Corte')
-
-    console.log(
-      `📊 Operations found - Impressao: ${impressaoOps.length}, Impressao_Flexiveis: ${impressaoVinilOps.length}, Corte: ${corteOps.length}`,
+    const corteChapasOps = operations.filter(
+      (op) => op.Tipo_Op === 'Corte' && !op.source_impressao_id,
     )
 
     const totalPrint = impressaoOps.reduce(
       (sum, op) => sum + (op.num_placas_print || 0),
       0,
     )
-    const totalPrintVinil = impressaoVinilOps.reduce(
-      (sum, op) => sum + (op.num_placas_print || 0),
+    const totalCorteImpressao = corteImpressaoOps.reduce(
+      (sum, op) => sum + (op.num_placas_corte || 0),
       0,
     )
-    const totalCorte = corteOps.reduce(
+    const totalCorteChapas = corteChapasOps.reduce(
       (sum, op) => sum + (op.num_placas_corte || 0),
       0,
     )
 
-    console.log(
-      `📊 Totals calculated - Impressao: ${totalPrint}, Impressao_Vinil: ${totalPrintVinil}, Corte: ${totalCorte}`,
-    )
-
-    if (impressaoVinilOps.length > 0) {
-      console.log(
-        '📊 Sample Impressao_Vinil operations:',
-        impressaoVinilOps.slice(0, 3).map((op) => ({
-          id: op.id,
-          Tipo_Op: op.Tipo_Op,
-          num_placas_print: op.num_placas_print,
-          data_operacao: op.data_operacao,
-        })),
-      )
-    }
-
-    return { totalPrint, totalPrintVinil, totalCorte }
+    return { totalPrint, totalCorteImpressao, totalCorteChapas }
   }, [operations])
 
   if (loading) {
@@ -582,9 +425,6 @@ export default function ProductionAnalyticsCharts({
   const printOperatorColors = generateOperatorColors(
     operatorPrintData.operators.length,
   )
-  const printVinilOperatorColors = generateOperatorColors(
-    operatorPrintVinilData.operators.length,
-  )
   const corteOperatorColors = generateOperatorColors(
     operatorCorteData.operators.length,
   )
@@ -608,9 +448,9 @@ export default function ProductionAnalyticsCharts({
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-          <TabsTrigger value="print">Impressão</TabsTrigger>
-          <TabsTrigger value="print-vinil">Impressão Flexíveis</TabsTrigger>
-          <TabsTrigger value="corte">Corte</TabsTrigger>
+          <TabsTrigger value="impressao">Impressão</TabsTrigger>
+          <TabsTrigger value="corte_impressao">Corte de Impressões</TabsTrigger>
+          <TabsTrigger value="corte_chapas">Operações Corte (Chapas)</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -627,19 +467,19 @@ export default function ProductionAnalyticsCharts({
 
             <Card className="border p-4">
               <h3 className="text-sm font-medium">
-                Total Impressão Flexíveis
+                Total Corte de Impressões
               </h3>
               <p className="text-2xl font-bold">
-                {overviewTotals.totalPrintVinil.toLocaleString()}
+                {overviewTotals.totalCorteImpressao.toLocaleString()}
               </p>
             </Card>
 
             <Card className="border p-4">
               <h3 className="text-sm font-medium">
-                Total Corte
+                Total Corte Chapas Soltas
               </h3>
               <p className="text-2xl font-bold">
-                {overviewTotals.totalCorte.toLocaleString()}
+                {overviewTotals.totalCorteChapas.toLocaleString()}
               </p>
             </Card>
 
@@ -650,15 +490,15 @@ export default function ProductionAnalyticsCharts({
               <p className="text-2xl font-bold">
                 {(
                   overviewTotals.totalPrint +
-                  overviewTotals.totalPrintVinil +
-                  overviewTotals.totalCorte
+                  overviewTotals.totalCorteImpressao +
+                  overviewTotals.totalCorteChapas
                 ).toLocaleString()}
               </p>
             </Card>
           </div>
 
           {/* Monthly totals charts */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Card className="border p-4">
               <div className="mb-4">
                 <h3 className="text-lg leading-tight font-semibold">
@@ -689,45 +529,7 @@ export default function ProductionAnalyticsCharts({
                       border: '1px solid #ccc',
                     }}
                   />
-                  <Bar dataKey="total_print" fill={CHART_COLORS.print} />
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-
-            <Card className="border p-4">
-              <div className="mb-4">
-                <h3 className="text-lg leading-tight font-semibold">
-                  Total Impressão Flexíveis por Mês
-                </h3>
-                <p className="text-sm leading-tight">
-                  Número de metros lineares
-                </p>
-              </div>
-              <ResponsiveContainer width="100%" height={450}>
-                <BarChart
-                  data={monthlyTotals}
-                  margin={{ top: 40, right: 40, left: 40, bottom: 40 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  {/* @ts-ignore */}
-                  <XAxis dataKey="month" />
-                  {/* @ts-ignore */}
-                  <YAxis />
-                  <Tooltip
-                    formatter={(value: number) => [
-                      value.toLocaleString(),
-                      'Metros',
-                    ]}
-                    labelStyle={{ color: '#333' }}
-                    contentStyle={{
-                      backgroundColor: '#fff',
-                      border: '1px solid #ccc',
-                    }}
-                  />
-                  <Bar
-                    dataKey="total_print_vinil"
-                    fill={CHART_COLORS.printVinil}
-                  />
+                  <Bar dataKey="total_print" name="Impressão" fill={CHART_COLORS.print} />
                 </BarChart>
               </ResponsiveContainer>
             </Card>
@@ -752,9 +554,9 @@ export default function ProductionAnalyticsCharts({
                   {/* @ts-ignore */}
                   <YAxis />
                   <Tooltip
-                    formatter={(value: number) => [
+                    formatter={(value: number, name: string) => [
                       value.toLocaleString(),
-                      'Placas',
+                      name,
                     ]}
                     labelStyle={{ color: '#333' }}
                     contentStyle={{
@@ -762,14 +564,15 @@ export default function ProductionAnalyticsCharts({
                       border: '1px solid #ccc',
                     }}
                   />
-                  <Bar dataKey="total_corte" fill={CHART_COLORS.corte} />
+                  <Bar dataKey="total_corte_impressao" name="Corte de Impressões" fill={CHART_COLORS.corteImpressao} />
+                  <Bar dataKey="total_corte_chapas" name="Corte Chapas Soltas" fill={CHART_COLORS.corteChapas} />
                 </BarChart>
               </ResponsiveContainer>
             </Card>
           </div>
         </TabsContent>
 
-        <TabsContent value="print" className="space-y-4">
+        <TabsContent value="impressao" className="space-y-4">
           <Card className="border p-4">
             <div className="mb-4">
               <h3 className="text-lg leading-tight font-semibold">
@@ -824,63 +627,29 @@ export default function ProductionAnalyticsCharts({
           </Card>
         </TabsContent>
 
-        <TabsContent value="print-vinil" className="space-y-4">
+        <TabsContent value="corte_impressao" className="space-y-4">
           <Card className="border p-4">
             <div className="mb-4">
               <h3 className="text-lg leading-tight font-semibold">
-                Impressão Flexíveis por Operador
+                Corte de Impressões por Operador
               </h3>
               <p className="text-sm leading-tight">
-                Número de metros lineares
+                Número de placas
               </p>
             </div>
-            {operatorPrintVinilData.operators.length > 0 ? (
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart
-                  data={operatorPrintVinilData.data}
-                  margin={{ top: 20, right: 30, left: 30, bottom: 80 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  {/* @ts-ignore */}
-                  <XAxis dataKey="month" />
-                  {/* @ts-ignore */}
-                  <YAxis />
-                  <Tooltip
-                    formatter={(value: number, name: string) => [
-                      value.toLocaleString(),
-                      name,
-                    ]}
-                    labelStyle={{ color: '#333' }}
-                    contentStyle={{
-                      backgroundColor: '#fff',
-                      border: '1px solid #ccc',
-                    }}
-                  />
-                  {operatorPrintVinilData.operators.map((operator, index) => (
-                    <Bar
-                      key={operator}
-                      dataKey={operator}
-                      fill={printVinilOperatorColors[index]}
-                    />
-                  ))}
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex h-64 flex-col items-center justify-center text-center">
-                <Package className="mb-4 h-12 w-12" />
-                <h3 className="text-lg font-semibold">
-                  Nenhum Dado de Impressão Flexíveis
-                </h3>
-                <p>
-                  Não existem operações de impressão flexíveis com operadores
-                  definidos.
-                </p>
-              </div>
-            )}
+            <div className="flex h-64 flex-col items-center justify-center text-center">
+              <Package className="mb-4 h-12 w-12" />
+              <h3 className="text-lg font-semibold">
+                Em Desenvolvimento
+              </h3>
+              <p>
+                Gráficos de Corte de Impressões serão adicionados em breve.
+              </p>
+            </div>
           </Card>
         </TabsContent>
 
-        <TabsContent value="corte" className="space-y-4">
+        <TabsContent value="corte_chapas" className="space-y-4">
           <Card className="border p-4">
             <div className="mb-4">
               <h3 className="text-lg leading-tight font-semibold">
