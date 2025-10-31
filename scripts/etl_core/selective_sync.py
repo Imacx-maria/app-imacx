@@ -144,7 +144,7 @@ TABLE_CONFIGS = {
             'obs': 'TEXT',                    # PHC: obs - Work name/description (mislabeled in PHC)
             'origem': 'TEXT',                 # PHC: origem - Document origin (BO = from budget)
             'ebo_2tvall': 'NUMERIC',          # PHC: ebo_2tvall - Total value
-            'ultfact': 'DATE'                 # PHC: ultfact - Last invoice/delivery date (for matching)
+            'marca': 'DATE'                   # PHC: marca - Delivery date (stored as VARCHAR "DD.MM.YYYY", converted to DATE)
         },
         'column_mappings': {
             'bostamp': 'document_id',         # Clearer: bostamp → document_id
@@ -156,7 +156,7 @@ TABLE_CONFIGS = {
             'obs': 'nome_trabalho',           # Fixed: obs → nome_trabalho (PHC naming is wrong)
             'origem': 'origin',               # Clearer: origem → origin
             'ebo_2tvall': 'total_value',      # Clearer: ebo_2tvall → total_value
-            'ultfact': 'last_delivery_date'   # Clearer: ultfact → last_delivery_date
+            'marca': 'last_delivery_date'     # PHC: marca → last_delivery_date (delivery date, stored as "DD.MM.YYYY" in VARCHAR)
         },
         'filter': get_one_year_ago_filter(),  # Last 1 year from today (dynamic)
         'description': 'Work Orders/Budgets (Last 1 Year)',
@@ -469,6 +469,28 @@ class SelectiveSync:
 
         return f"SELECT {base_select} FROM [{table_name}]", None, None
 
+    def _parse_marca_date(self, value) -> date | None:
+        """Parse marca field which stores dates as 'DD.MM.YYYY' string format"""
+        if value is None:
+            return None
+        if isinstance(value, date):
+            return value
+        if isinstance(value, datetime):
+            return value.date()
+        text_value = str(value).strip()
+        # Try DD.MM.YYYY format (PHC marca field format)
+        try:
+            return datetime.strptime(text_value, "%d.%m.%Y").date()
+        except ValueError:
+            pass
+        # Fall back to standard formats
+        for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f", "%d/%m/%Y", "%d-%m-%Y"):
+            try:
+                return datetime.strptime(text_value, fmt).date()
+            except ValueError:
+                continue
+        return None
+
     def _coerce_to_date(self, value) -> date | None:
         if value is None:
             return None
@@ -524,6 +546,15 @@ class SelectiveSync:
                         clean_row.append(None)
                 elif 'BOOLEAN' in col_type:
                     clean_row.append(bool(val))
+                elif 'DATE' in col_type:
+                    # Special handling for marca field (stored as VARCHAR "DD.MM.YYYY")
+                    if table_name == 'bo' and col_name == 'marca':
+                        parsed_date = self._parse_marca_date(val)
+                        clean_row.append(parsed_date)
+                    else:
+                        # Regular date handling
+                        parsed_date = self._coerce_to_date(val)
+                        clean_row.append(parsed_date)
                 else:
                     str_val = str(val).strip()
                     if table_name == 'cl' and col_name == 'vendnm' and not str_val:
@@ -637,6 +668,7 @@ class SelectiveSync:
                         f'ON CONFLICT ("{primary_key}") DO UPDATE SET {update_clause}'
                     )
                 else:
+                    # No special handling needed - all tables use PK for DO NOTHING
                     insert_sql = (
                         f'INSERT INTO phc."{table_name}" ({column_list_pg}) '
                         f'VALUES ({placeholders}) '
@@ -924,6 +956,7 @@ class SelectiveSync:
                         f'ON CONFLICT ("{primary_key}") DO UPDATE SET {update_clause}'
                     )
                 else:
+                    # No special handling needed - all tables use PK for DO NOTHING
                     insert_sql = (
                         f'INSERT INTO phc."{table_name}" ({column_list_pg}) '
                         f'VALUES ({placeholders}) '
@@ -961,7 +994,15 @@ class SelectiveSync:
                             else:
                                 processed_row.append(None)
                         else:
-                            processed_row.append(value)
+                            # Special handling for marca field (stored as VARCHAR "DD.MM.YYYY")
+                            if table_name == 'bo' and i < len(column_names) and column_names[i] == 'marca':
+                                if value:
+                                    parsed_date = self._parse_marca_date(value)
+                                    processed_row.append(parsed_date.strftime('%Y-%m-%d') if parsed_date else None)
+                                else:
+                                    processed_row.append(None)
+                            else:
+                                processed_row.append(value)
                     batch.append(tuple(processed_row))
 
                 if batch:
