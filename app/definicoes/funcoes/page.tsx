@@ -4,15 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createBrowserClient } from '@/utils/supabase'
 import { Button } from '@/components/ui/button'
 import { Plus, Save, Trash2 } from 'lucide-react'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
+import { PagePermissionGuard } from '@/components/PagePermissionGuard'
 import {
   Dialog,
   DialogContent,
@@ -22,6 +14,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -40,23 +41,41 @@ type Role = {
 
 // Available pages in the system
 const AVAILABLE_PAGES = [
-  { id: '*', name: 'Todas as páginas (Admin)', description: 'Acesso completo' },
-  { id: 'dashboard', name: 'Painel de Controlo', description: '/dashboard' },
-  { id: 'designer-flow', name: 'Fluxo de Design', description: '/designer-flow' },
-  { id: 'producao', name: 'Produção', description: '/producao/*' },
-  { id: 'stocks', name: 'Stocks', description: '/stocks' },
-  { id: 'gestao', name: 'Gestão', description: '/gestao/*' },
-  { id: 'definicoes', name: 'Definições', description: '/definicoes/*' },
+  { id: '*', name: 'Todas as páginas (Admin)', description: 'Acesso completo', category: null },
+  { id: 'dashboard', name: 'Painel de Controlo', description: '/dashboard', category: null },
+  { id: 'designer-flow', name: 'Fluxo de Design', description: '/designer-flow', category: null },
+
+  // Produção (parent and subpages)
+  { id: 'producao', name: 'Produção (Todas)', description: '/producao/* (concede todos os subpáginas)', category: 'producao' },
+  { id: 'producao/operacoes', name: '  → Operações', description: '/producao/operacoes', category: 'producao' },
+
+  // Stocks (parent and subpages)
+  { id: 'stocks', name: 'Stocks (Todas)', description: '/stocks', category: 'stocks' },
+
+  // Gestão (parent and subpages)
+  { id: 'gestao', name: 'Gestão (Todas)', description: '/gestao/* (concede todos os subpáginas)', category: 'gestao' },
+  { id: 'gestao/faturacao', name: '  → Faturação', description: '/gestao/faturacao', category: 'gestao' },
+  { id: 'gestao/analytics', name: '  → Análises', description: '/gestao/analytics', category: 'gestao' },
+
+  // Definições (parent and subpages)
+  { id: 'definicoes', name: 'Definições (Todas)', description: '/definicoes/* (concede todos os subpáginas)', category: 'definicoes' },
+  { id: 'definicoes/utilizadores', name: '  → Gestão de Utilizadores', description: '/definicoes/utilizadores', category: 'definicoes' },
+  { id: 'definicoes/funcoes', name: '  → Gestão de Funções', description: '/definicoes/funcoes', category: 'definicoes' },
+  { id: 'definicoes/feriados', name: '  → Gestão de Feriados', description: '/definicoes/feriados', category: 'definicoes' },
+  { id: 'definicoes/maquinas', name: '  → Gestão de Máquinas', description: '/definicoes/maquinas', category: 'definicoes' },
+  { id: 'definicoes/materiais', name: '  → Gestão de Materiais', description: '/definicoes/materiais', category: 'definicoes' },
+  { id: 'definicoes/armazens', name: '  → Gestão de Armazéns', description: '/definicoes/armazens', category: 'definicoes' },
+  { id: 'definicoes/complexidade', name: '  → Gestão de Complexidade', description: '/definicoes/complexidade', category: 'definicoes' },
+  { id: 'definicoes/transportadoras', name: '  → Gestão de Transportadoras', description: '/definicoes/transportadoras', category: 'definicoes' },
+  { id: 'definicoes/user-name-mapping', name: '  → Mapeamento de Utilizadores', description: '/definicoes/user-name-mapping', category: 'definicoes' },
 ]
 
 export default function FuncoesPage() {
   const [roles, setRoles] = useState<Role[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loadingRoles, setLoadingRoles] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState<string | null>(null)
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
-  
-  // Create role form
+  const [isCreateRoleDialogOpen, setIsCreateRoleDialogOpen] = useState(false)
   const [newRoleName, setNewRoleName] = useState('')
   const [newRoleDescription, setNewRoleDescription] = useState('')
   const [creating, setCreating] = useState(false)
@@ -65,7 +84,7 @@ export default function FuncoesPage() {
 
   const loadRoles = useCallback(async () => {
     try {
-      setLoading(true)
+      setLoadingRoles(true)
       const { data, error } = await supabase
         .from('roles')
         .select('id, name, description, page_permissions')
@@ -73,12 +92,11 @@ export default function FuncoesPage() {
 
       if (error) throw error
       setRoles((data as Role[]) || [])
-      setError(null)
     } catch (err) {
       console.error('Error loading roles:', err)
       setError('Erro ao carregar funções')
     } finally {
-      setLoading(false)
+      setLoadingRoles(false)
     }
   }, [supabase])
 
@@ -125,8 +143,8 @@ export default function FuncoesPage() {
         .eq('id', roleId)
 
       if (error) throw error
-      
-      // Success feedback (could add a toast here)
+
+      // Success feedback
       setTimeout(() => setSaving(null), 1000)
     } catch (err) {
       console.error('Error saving permissions:', err)
@@ -154,9 +172,9 @@ export default function FuncoesPage() {
 
       // Add to list
       setRoles([...roles, data as Role])
-      
+
       // Close dialog and reset
-      setIsCreateDialogOpen(false)
+      setIsCreateRoleDialogOpen(false)
       setNewRoleName('')
       setNewRoleDescription('')
     } catch (err: any) {
@@ -177,7 +195,7 @@ export default function FuncoesPage() {
         .eq('id', roleId)
 
       if (error) throw error
-      
+
       setRoles(roles.filter((r) => r.id !== roleId))
     } catch (err: any) {
       console.error('Error deleting role:', err)
@@ -192,13 +210,15 @@ export default function FuncoesPage() {
   }
 
   return (
-    <div className="w-full space-y-6">
-      <div className="flex items-center justify-between">
+    <PagePermissionGuard pageId="definicoes/funcoes">
+      <div className="w-full space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">GESTÃO DE FUNÇÕES E PERMISSÕES</h1>
-          <p className="text-muted-foreground mt-2">Configure que páginas cada função pode aceder</p>
+          <p className="text-muted-foreground mt-2">Configure quais funções têm acesso a cada página do sistema</p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+
+      <div className="flex items-center justify-end">
+        <Dialog open={isCreateRoleDialogOpen} onOpenChange={setIsCreateRoleDialogOpen}>
           <DialogTrigger asChild>
             <TooltipProvider>
               <Tooltip>
@@ -218,7 +238,7 @@ export default function FuncoesPage() {
                 Adicione uma nova função ao sistema
               </DialogDescription>
             </DialogHeader>
-            
+
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="create-role-name">Nome da Função *</Label>
@@ -230,7 +250,7 @@ export default function FuncoesPage() {
                   disabled={creating}
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="create-role-description">Descrição</Label>
                 <Textarea
@@ -248,7 +268,7 @@ export default function FuncoesPage() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  setIsCreateDialogOpen(false)
+                  setIsCreateRoleDialogOpen(false)
                   setNewRoleName('')
                   setNewRoleDescription('')
                 }}
@@ -273,7 +293,7 @@ export default function FuncoesPage() {
         </div>
       )}
 
-      {loading ? (
+      {loadingRoles ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground">Carregando funções...</p>
         </div>
@@ -345,5 +365,6 @@ export default function FuncoesPage() {
         </div>
       )}
     </div>
+    </PagePermissionGuard>
   )
 }

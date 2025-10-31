@@ -41,6 +41,7 @@ interface SubMenuItem {
   title: string
   href: string
   icon?: React.ReactNode
+  pageId?: string // For permission checking
 }
 
 interface MenuItem {
@@ -69,8 +70,8 @@ const menuItems: MenuItem[] = [
     icon: <Factory className="h-5 w-5" />,
     pageId: 'producao',
     submenu: [
-      { title: 'Gestão', href: '/producao', icon: <Factory className="h-4 w-4" /> },
-      { title: 'Operações', href: '/producao/operacoes', icon: <Settings className="h-4 w-4" /> },
+      { title: 'Gestão', href: '/producao', icon: <Factory className="h-4 w-4" />, pageId: 'producao' },
+      { title: 'Operações', href: '/producao/operacoes', icon: <Settings className="h-4 w-4" />, pageId: 'producao/operacoes' },
     ],
   },
   {
@@ -78,9 +79,9 @@ const menuItems: MenuItem[] = [
     icon: <Warehouse className="h-5 w-5" />,
     pageId: 'stocks',
     submenu: [
-      { title: 'Resumo', href: '/stocks', icon: <Warehouse className="h-4 w-4" /> },
-      { title: 'Gestão de Materiais', href: '/definicoes/materiais', icon: <Package className="h-4 w-4" /> },
-      { title: 'Gestão de Máquinas', href: '/definicoes/maquinas', icon: <Factory className="h-4 w-4" /> },
+      { title: 'Resumo', href: '/stocks', icon: <Warehouse className="h-4 w-4" />, pageId: 'stocks' },
+      { title: 'Gestão de Materiais', href: '/definicoes/materiais', icon: <Package className="h-4 w-4" />, pageId: 'definicoes/materiais' },
+      { title: 'Gestão de Máquinas', href: '/definicoes/maquinas', icon: <Factory className="h-4 w-4" />, pageId: 'definicoes/maquinas' },
     ],
   },
   {
@@ -88,8 +89,8 @@ const menuItems: MenuItem[] = [
     icon: <FileText className="h-5 w-5" />,
     pageId: 'gestao',
     submenu: [
-      { title: 'Faturação', href: '/gestao/faturacao', icon: <DollarSign className="h-4 w-4" /> },
-      { title: 'Análises', href: '/gestao/analytics', icon: <LayoutDashboard className="h-4 w-4" /> },
+      { title: 'Faturação', href: '/gestao/faturacao', icon: <DollarSign className="h-4 w-4" />, pageId: 'gestao/faturacao' },
+      { title: 'Análises', href: '/gestao/analytics', icon: <LayoutDashboard className="h-4 w-4" />, pageId: 'gestao/analytics' },
     ],
   },
   {
@@ -97,13 +98,13 @@ const menuItems: MenuItem[] = [
     icon: <Settings className="h-5 w-5" />,
     pageId: 'definicoes',
     submenu: [
-      { title: 'Gestão de Utilizadores', href: '/definicoes/utilizadores', icon: <Users className="h-4 w-4" /> },
-      { title: 'Gestão de Funções', href: '/definicoes/funcoes', icon: <Settings className="h-4 w-4" /> },
-      { title: 'Gestão de Feriados', href: '/definicoes/feriados', icon: <FileText className="h-4 w-4" /> },
-      { title: 'Gestão de Armazéns', href: '/definicoes/armazens', icon: <Warehouse className="h-4 w-4" /> },
-      { title: 'Gestão de Complexidade', href: '/definicoes/complexidade', icon: <Settings className="h-4 w-4" /> },
-      { title: 'Gestão de Transportadoras', href: '/definicoes/transportadoras', icon: <Users className="h-4 w-4" /> },
-      { title: 'Mapeamento de Utilizadores', href: '/definicoes/user-name-mapping', icon: <Users className="h-4 w-4" /> },
+      { title: 'Gestão de Utilizadores', href: '/definicoes/utilizadores', icon: <Users className="h-4 w-4" />, pageId: 'definicoes/utilizadores' },
+      { title: 'Gestão de Funções', href: '/definicoes/funcoes', icon: <Settings className="h-4 w-4" />, pageId: 'definicoes/funcoes' },
+      { title: 'Gestão de Feriados', href: '/definicoes/feriados', icon: <FileText className="h-4 w-4" />, pageId: 'definicoes/feriados' },
+      { title: 'Gestão de Armazéns', href: '/definicoes/armazens', icon: <Warehouse className="h-4 w-4" />, pageId: 'definicoes/armazens' },
+      { title: 'Gestão de Complexidade', href: '/definicoes/complexidade', icon: <Settings className="h-4 w-4" />, pageId: 'definicoes/complexidade' },
+      { title: 'Gestão de Transportadoras', href: '/definicoes/transportadoras', icon: <Users className="h-4 w-4" />, pageId: 'definicoes/transportadoras' },
+      { title: 'Mapeamento de Utilizadores', href: '/definicoes/user-name-mapping', icon: <Users className="h-4 w-4" />, pageId: 'definicoes/user-name-mapping' },
     ],
   },
 ]
@@ -202,22 +203,23 @@ export function Navigation() {
 
   // Filter menu items based on permissions
   const filteredMenuItems = useMemo(() => {
-    // If still loading or no permissions, show all items (admin fallback during setup)
-    if (permissionsLoading || pagePermissions.length === 0) {
-      console.log('Permissions loading or empty, showing all menu items')
-      return menuItems
+    // If still loading, show nothing to prevent flashing unauthorized content
+    if (permissionsLoading) {
+      console.log('Permissions loading, showing no menu items yet')
+      return []
     }
-    
+
+    // Filter based on actual permissions (empty permissions = only show items without pageId requirement)
     const filtered = menuItems.filter(item => {
       // If no pageId specified, show by default
       if (!item.pageId) return true
-      
+
       // Check if user has permission for this page
       const hasAccess = canAccessPage(item.pageId)
       console.log(`Page "${item.pageId}": ${hasAccess ? '✓ allowed' : '✗ denied'}`)
       return hasAccess
     })
-    
+
     return filtered
   }, [canAccessPage, permissionsLoading, pagePermissions])
 
@@ -296,7 +298,14 @@ export function Navigation() {
                     )}
                     {!isCollapsed && (
                       <CollapsibleContent className="ml-6 mt-1 space-y-1">
-                        {item.submenu.map((subItem) => (
+                        {item.submenu.filter((subItem) => {
+                          // If submenu item has pageId, check permission
+                          if (subItem.pageId) {
+                            return canAccessPage(subItem.pageId)
+                          }
+                          // Otherwise show by default
+                          return true
+                        }).map((subItem) => (
                           <Link
                             key={subItem.href}
                             href={subItem.href}

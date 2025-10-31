@@ -99,6 +99,7 @@ import {
   formatDatePortuguese,
 } from '@/utils/producao/dateHelpers'
 import { parseNumericField } from '@/utils/producao/sortHelpers'
+import { PagePermissionGuard } from '@/components/PagePermissionGuard'
 import {
   dotColor,
   getPColor,
@@ -2072,6 +2073,7 @@ export default function ProducaoPage() {
 
   /* ---------- render ---------- */
   return (
+    <PagePermissionGuard pageId="producao">
       <div className="w-full space-y-6">
         {/* filter bar */}
         <div className="space-y-4">
@@ -5005,5 +5007,6 @@ export default function ProducaoPage() {
           </DialogContent>
         </Dialog>
       </div>
+    </PagePermissionGuard>
   )
 }

@@ -65,9 +65,8 @@ export function PermissionsProvider({
 
         if (profileError) {
           console.warn('Profile fetch error (likely RLS policy):', profileError)
-          // If we can't get profile, give dashboard access at minimum
-          // The user can still navigate to admin pages if their session is valid
-          setPagePermissions(['*']) // Allow admin access to try to fix permissions
+          // If we can't get profile, give dashboard access only
+          setPagePermissions(['dashboard'])
           setLoading(false)
           return
         }
@@ -94,20 +93,9 @@ export function PermissionsProvider({
             console.log(`Loaded page_permissions for ${roleData.name}:`, roleData.page_permissions)
             setPagePermissions(roleData.page_permissions as string[])
           } else {
-            // No permissions set yet in database - use role-based fallback
-            const roleName = roleData?.name?.toLowerCase() || ''
-            let fallbackPermissions = ['dashboard']
-            
-            if (roleName === 'admin' || roleName === 'administrador') {
-              fallbackPermissions = ['*']
-            } else if (roleName.includes('designer')) {
-              fallbackPermissions = ['dashboard', 'designer-flow']
-            } else if (roleName.includes('gestor') || roleName.includes('manager')) {
-              fallbackPermissions = ['dashboard', 'gestao']
-            }
-            
-            console.warn(`No page_permissions set, using fallback:`, fallbackPermissions)
-            setPagePermissions(fallbackPermissions)
+            // No permissions set in database - respect empty array (empty = no access except dashboard)
+            console.warn(`Role ${roleData?.name} has no page_permissions set. User will only have dashboard access.`)
+            setPagePermissions(['dashboard'])
           }
         } else {
           // User has no role assigned
