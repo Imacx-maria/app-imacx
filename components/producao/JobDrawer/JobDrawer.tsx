@@ -2573,14 +2573,17 @@ function JobDrawerContentComponent({
 
 /**
  * Memoized JobDrawer Component
- * Only re-renders when jobId changes, preventing unnecessary re-renders
+ * Only re-renders when jobId, items, or jobs change, preventing unnecessary re-renders
  * from parent component state updates
  */
 export const JobDrawerContent = memo(
   JobDrawerContentComponent,
   (prevProps, nextProps) => {
-    // Only re-render if jobId changes
-    // This prevents unnecessary re-renders when parent state updates
-    return prevProps.jobId === nextProps.jobId
+    // Re-render if jobId changes OR if items/jobs arrays change
+    if (prevProps.jobId !== nextProps.jobId) return false
+    if (prevProps.items !== nextProps.items) return false
+    if (prevProps.jobs !== nextProps.jobs) return false
+    // Skip re-render if nothing changed
+    return true
   },
 )
