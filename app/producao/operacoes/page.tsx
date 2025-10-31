@@ -168,6 +168,14 @@ export default function OperacoesPage() {
   const [auditLogs, setAuditLogs] = useState<any[]>([])
   const [logsLoading, setLogsLoading] = useState(false)
 
+  // Audit log filters (persisted)
+  const [logDateFrom, setLogDateFrom] = useState<Date | undefined>(undefined)
+  const [logDateTo, setLogDateTo] = useState<Date | undefined>(undefined)
+  const [logOperatorFilter, setLogOperatorFilter] = useState<string>('')
+  const [logOpTypeFilter, setLogOpTypeFilter] = useState<string>('')
+  const [logActionTypeFilter, setLogActionTypeFilter] = useState<string>('')
+  const [logChangedByFilter, setLogChangedByFilter] = useState<string>('')
+
   // Filters
   const [foFilter, setFoFilter] = useState('')
   const [itemFilter, setItemFilter] = useState('')
@@ -336,14 +344,14 @@ export default function OperacoesPage() {
 
       console.log('After filtering:', filteredItems.length)
 
-      // Filter out items that have completed operations (Corte or Impressao_Flexiveis)
+      // Filter out items that have completed operations (Corte)
       const itemsWithoutCompleted = []
       for (const item of filteredItems) {
         const { data: operations, error: opError } = await supabase
           .from('producao_operacoes')
           .select('concluido')
           .eq('item_id', item.id)
-          .in('Tipo_Op', ['Corte', 'Impressao_Flexiveis'])
+          .in('Tipo_Op', ['Corte'])
 
         if (!opError && operations) {
           const hasCompletedOperation = operations.some((op: any) => op.concluido === true)
@@ -438,6 +446,84 @@ export default function OperacoesPage() {
       setLogsLoading(false)
     }
   }, [supabase])
+
+  // Filtered & enhanced audit logs
+  const {filteredLogs, enhancedStats} = useMemo(() => {
+    let filtered = [...auditLogs]
+
+    // Apply filters
+    if (logDateFrom) {
+      filtered = filtered.filter(log =>
+        log.changed_at && new Date(log.changed_at) >= logDateFrom
+      )
+    }
+    if (logDateTo) {
+      const endOfDay = new Date(logDateTo)
+      endOfDay.setHours(23, 59, 59, 999)
+      filtered = filtered.filter(log =>
+        log.changed_at && new Date(log.changed_at) <= endOfDay
+      )
+    }
+    if (logOperatorFilter) {
+      filtered = filtered.filter(log =>
+        log.operador_antigo_nome?.includes(logOperatorFilter) ||
+        log.operador_novo_nome?.includes(logOperatorFilter)
+      )
+    }
+    if (logOpTypeFilter) {
+      filtered = filtered.filter(log =>
+        log.producao_operacoes?.Tipo_Op === logOpTypeFilter
+      )
+    }
+    if (logActionTypeFilter) {
+      filtered = filtered.filter(log => log.action_type === logActionTypeFilter)
+    }
+    if (logChangedByFilter) {
+      filtered = filtered.filter(log => {
+        const changedBy = log.profiles
+          ? `${log.profiles.first_name} ${log.profiles.last_name}`
+          : 'Sistema'
+        return changedBy.includes(logChangedByFilter)
+      })
+    }
+
+    // Calculate enhanced stats
+    const suspicious = filtered.filter(log => {
+      // Suspicious if changed_by differs from operation's operador_id
+      if (!log.changed_by || !log.producao_operacoes?.operador_id) return false
+      return log.changed_by !== log.producao_operacoes.operador_id
+    }).length
+
+    const quantityIncreases = filtered.filter(log => {
+      if (log.quantidade_antiga === null || log.quantidade_nova === null) return false
+      const increase = ((log.quantidade_nova - log.quantidade_antiga) / log.quantidade_antiga) * 100
+      return increase >= 30 // 30% threshold
+    }).length
+
+    const selfEdits = filtered.filter(log => {
+      if (!log.changed_by || !log.producao_operacoes?.operador_id) return false
+      return log.changed_by === log.producao_operacoes.operador_id
+    }).length
+
+    const otherEdits = filtered.filter(log => {
+      if (!log.changed_by || !log.producao_operacoes?.operador_id) return false
+      return log.changed_by !== log.producao_operacoes.operador_id
+    }).length
+
+    return {
+      filteredLogs: filtered,
+      enhancedStats: {
+        total: filtered.length,
+        inserts: filtered.filter((log: any) => log.action_type === 'INSERT').length,
+        updates: filtered.filter((log: any) => log.action_type === 'UPDATE').length,
+        deletes: filtered.filter((log: any) => log.action_type === 'DELETE').length,
+        suspicious,
+        quantityIncreases,
+        selfEdits,
+        otherEdits,
+      }
+    }
+  }, [auditLogs, logDateFrom, logDateTo, logOperatorFilter, logOpTypeFilter, logActionTypeFilter, logChangedByFilter])
 
   // Toggle item completion
   const handleItemCompletion = async (itemId: string, currentValue: boolean) => {
@@ -804,6 +890,91 @@ export default function OperacoesPage() {
             </Button>
           </div>
 
+          {/* Filters */}
+          <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-6">
+            <div>
+              <label className="mb-1 block text-xs uppercase text-muted-foreground">Data De</label>
+              <input
+                type="date"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={logDateFrom ? logDateFrom.toISOString().split('T')[0] : ''}
+                onChange={(e) => setLogDateFrom(e.target.value ? new Date(e.target.value) : undefined)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs uppercase text-muted-foreground">Data Até</label>
+              <input
+                type="date"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={logDateTo ? logDateTo.toISOString().split('T')[0] : ''}
+                onChange={(e) => setLogDateTo(e.target.value ? new Date(e.target.value) : undefined)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs uppercase text-muted-foreground">Operador</label>
+              <input
+                type="text"
+                placeholder="Filtrar..."
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={logOperatorFilter}
+                onChange={(e) => setLogOperatorFilter(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs uppercase text-muted-foreground">Tipo Op</label>
+              <select
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={logOpTypeFilter}
+                onChange={(e) => setLogOpTypeFilter(e.target.value)}
+              >
+                <option value="">Todos</option>
+                <option value="Impressao">Impressão</option>
+                <option value="Corte">Corte</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs uppercase text-muted-foreground">Ação</label>
+              <select
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={logActionTypeFilter}
+                onChange={(e) => setLogActionTypeFilter(e.target.value)}
+              >
+                <option value="">Todas</option>
+                <option value="INSERT">Criado</option>
+                <option value="UPDATE">Alterado</option>
+                <option value="DELETE">Eliminado</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs uppercase text-muted-foreground">Alterado Por</label>
+              <input
+                type="text"
+                placeholder="Filtrar..."
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={logChangedByFilter}
+                onChange={(e) => setLogChangedByFilter(e.target.value)}
+              />
+            </div>
+          </div>
+          {(logDateFrom || logDateTo || logOperatorFilter || logOpTypeFilter || logActionTypeFilter || logChangedByFilter) && (
+            <div className="mb-4">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setLogDateFrom(undefined)
+                  setLogDateTo(undefined)
+                  setLogOperatorFilter('')
+                  setLogOpTypeFilter('')
+                  setLogActionTypeFilter('')
+                  setLogChangedByFilter('')
+                }}
+              >
+                Limpar Filtros
+              </Button>
+            </div>
+          )}
+
           {/* Audit logs table */}
           <div className="imx-table-wrap">
             <div className="w-full overflow-x-auto">
@@ -852,8 +1023,20 @@ export default function OperacoesPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {auditLogs.map((log: any) => (
-                      <TableRow key={log.id} className="hover:bg-accent">
+                    {filteredLogs.map((log: any) => {
+                      // Check for suspicious activity
+                      const isSuspicious = log.changed_by && log.producao_operacoes?.operador_id &&
+                        log.changed_by !== log.producao_operacoes.operador_id
+
+                      // Check for significant quantity increase
+                      const hasQuantityIncrease = log.quantidade_antiga !== null && log.quantidade_nova !== null &&
+                        ((log.quantidade_nova - log.quantidade_antiga) / log.quantidade_antiga) * 100 >= 30
+
+                      return (
+                      <TableRow
+                        key={log.id}
+                        className={`hover:bg-accent ${isSuspicious ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''}`}
+                      >
                         {/* Action Type */}
                         <TableCell className="w-[120px]">
                           <Badge
@@ -951,9 +1134,16 @@ export default function OperacoesPage() {
 
                         {/* Quantidade Nova */}
                         <TableCell className="w-[100px] text-right">
-                          {log.quantidade_nova !== null && log.quantidade_nova !== undefined
-                            ? log.quantidade_nova
-                            : '-'}
+                          <div className="flex items-center justify-end gap-1">
+                            {log.quantidade_nova !== null && log.quantidade_nova !== undefined
+                              ? log.quantidade_nova
+                              : '-'}
+                            {hasQuantityIncrease && (
+                              <Badge variant="destructive" className="ml-1 text-xs">
+                                +{Math.round(((log.quantidade_nova - log.quantidade_antiga) / log.quantidade_antiga) * 100)}%
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
 
                         {/* Valor Antigo */}
@@ -984,8 +1174,9 @@ export default function OperacoesPage() {
                             : '-'}
                         </TableCell>
                       </TableRow>
-                    ))}
-                    {auditLogs.length === 0 && (
+                      )
+                    })}
+                    {filteredLogs.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={11} className="py-8 text-center">
                           Nenhum log de auditoria encontrado.
@@ -999,36 +1190,34 @@ export default function OperacoesPage() {
           </div>
 
           {/* Summary Statistics */}
-          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
             <Card className="border p-4">
-              <h4 className="text-sm uppercase text-muted-foreground">
-                Total de Alterações
-              </h4>
-              <p className="text-2xl font-bold">{auditLogs.length}</p>
+              <h4 className="text-xs uppercase text-muted-foreground">Total</h4>
+              <p className="text-2xl font-bold">{enhancedStats.total}</p>
             </Card>
             <Card className="border p-4">
-              <h4 className="text-sm uppercase text-muted-foreground">
-                Operações Criadas
-              </h4>
-              <p className="text-2xl font-bold text-success">
-                {auditLogs.filter((log: any) => log.action_type === 'INSERT').length}
-              </p>
+              <h4 className="text-xs uppercase text-muted-foreground">Criadas</h4>
+              <p className="text-2xl font-bold text-green-600">{enhancedStats.inserts}</p>
             </Card>
             <Card className="border p-4">
-              <h4 className="text-sm uppercase text-muted-foreground">
-                Campos Alterados
-              </h4>
-              <p className="text-2xl font-bold text-info">
-                {auditLogs.filter((log: any) => log.action_type === 'UPDATE').length}
-              </p>
+              <h4 className="text-xs uppercase text-muted-foreground">Alteradas</h4>
+              <p className="text-2xl font-bold text-blue-600">{enhancedStats.updates}</p>
             </Card>
             <Card className="border p-4">
-              <h4 className="text-sm uppercase text-muted-foreground">
-                Operações Eliminadas
-              </h4>
-              <p className="text-2xl font-bold text-destructive">
-                {auditLogs.filter((log: any) => log.action_type === 'DELETE').length}
-              </p>
+              <h4 className="text-xs uppercase text-muted-foreground">Eliminadas</h4>
+              <p className="text-2xl font-bold text-red-600">{enhancedStats.deletes}</p>
+            </Card>
+            <Card className="border p-4 bg-yellow-50 dark:bg-yellow-950/20">
+              <h4 className="text-xs uppercase text-muted-foreground">Suspeitas</h4>
+              <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-400">{enhancedStats.suspicious}</p>
+            </Card>
+            <Card className="border p-4">
+              <h4 className="text-xs uppercase text-muted-foreground">Auto-Edição</h4>
+              <p className="text-2xl font-bold">{enhancedStats.selfEdits}</p>
+            </Card>
+            <Card className="border p-4">
+              <h4 className="text-xs uppercase text-muted-foreground">Aumentos 30%+</h4>
+              <p className="text-2xl font-bold text-orange-600">{enhancedStats.quantityIncreases}</p>
             </Card>
           </div>
         </TabsContent>
@@ -1100,7 +1289,6 @@ function ItemDrawerContent({ itemId, items, onClose, supabase, onMainRefresh }: 
   if (!item) return null
 
   const impressaoOperations = operations.filter((op) => op.Tipo_Op === 'Impressao')
-  const impressaoFlexiveisOperations = operations.filter((op) => op.Tipo_Op === 'Impressao_Flexiveis')
   const corteOperations = operations.filter((op) => op.Tipo_Op === 'Corte')
 
   return (
@@ -1138,8 +1326,8 @@ function ItemDrawerContent({ itemId, items, onClose, supabase, onMainRefresh }: 
       <Tabs defaultValue="impressao" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="impressao">Impressão ({impressaoOperations.length})</TabsTrigger>
-          <TabsTrigger value="impressao_flexiveis">Impressão Flexíveis ({impressaoFlexiveisOperations.length})</TabsTrigger>
-          <TabsTrigger value="corte">Corte ({corteOperations.length})</TabsTrigger>
+          <TabsTrigger value="corte_impressao">Corte de Impressões ({corteOperations.filter(op => op.source_impressao_id).length})</TabsTrigger>
+          <TabsTrigger value="corte_chapas">Operações de Corte (Chapas Soltas) ({corteOperations.filter(op => !op.source_impressao_id).length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="impressao">
@@ -1155,10 +1343,20 @@ function ItemDrawerContent({ itemId, items, onClose, supabase, onMainRefresh }: 
           />
         </TabsContent>
 
-        <TabsContent value="impressao_flexiveis">
-          <OperationsTable
-            operations={impressaoFlexiveisOperations}
-            type="Impressao_Flexiveis"
+        <TabsContent value="corte_impressao">
+          <CorteFromPrintTable
+            operations={corteOperations.filter(op => op.source_impressao_id)}
+            itemId={item.id}
+            folhaObraId={item.folha_obra_id}
+            supabase={supabase}
+            onRefresh={fetchOperations}
+            onMainRefresh={onMainRefresh}
+          />
+        </TabsContent>
+
+        <TabsContent value="corte_chapas">
+          <CorteLoosePlatesTable
+            operations={corteOperations.filter(op => !op.source_impressao_id)}
             itemId={item.id}
             folhaObraId={item.folha_obra_id}
             item={item}
@@ -1167,50 +1365,15 @@ function ItemDrawerContent({ itemId, items, onClose, supabase, onMainRefresh }: 
             onMainRefresh={onMainRefresh}
           />
         </TabsContent>
-
-        <TabsContent value="corte">
-          <div className="space-y-8">
-            {/* Section 1: From Print Jobs */}
-            <div className="border p-4">
-              <h4 className="text-lg mb-4">
-                Corte de Impressões (Linked to Print Jobs)
-              </h4>
-              <CorteFromPrintTable
-                operations={corteOperations.filter(op => op.source_impressao_id)}
-                itemId={item.id}
-                folhaObraId={item.folha_obra_id}
-                supabase={supabase}
-                onRefresh={fetchOperations}
-                onMainRefresh={onMainRefresh}
-              />
-            </div>
-
-            {/* Section 2: Loose Plates */}
-            <div className="border p-4">
-              <h4 className="text-lg mb-4">
-                Chapas Soltas (Standalone Cutting)
-              </h4>
-              <CorteLoosePlatesTable
-                operations={corteOperations.filter(op => !op.source_impressao_id)}
-                itemId={item.id}
-                folhaObraId={item.folha_obra_id}
-                item={item}
-                supabase={supabase}
-                onRefresh={fetchOperations}
-                onMainRefresh={onMainRefresh}
-              />
-            </div>
-          </div>
-        </TabsContent>
       </Tabs>
               </div>
   )
 }
 
-// Operations Table Component (Impressão and Impressão Flexíveis ONLY - Corte has separate components)
+// Operations Table Component (Impressão ONLY - Corte has separate components)
 interface OperationsTableProps {
   operations: ProductionOperation[]
-  type: 'Impressao' | 'Impressao_Flexiveis'
+  type: 'Impressao'
   itemId: string
   folhaObraId: string
   item: ProductionItem
