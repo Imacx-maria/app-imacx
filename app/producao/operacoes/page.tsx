@@ -336,14 +336,14 @@ export default function OperacoesPage() {
 
       console.log('After filtering:', filteredItems.length)
 
-      // Filter out items that have completed operations (Corte or Impressao_Flexiveis)
+      // Filter out items that have completed operations (Corte)
       const itemsWithoutCompleted = []
       for (const item of filteredItems) {
         const { data: operations, error: opError } = await supabase
           .from('producao_operacoes')
           .select('concluido')
           .eq('item_id', item.id)
-          .in('Tipo_Op', ['Corte', 'Impressao_Flexiveis'])
+          .in('Tipo_Op', ['Corte'])
 
         if (!opError && operations) {
           const hasCompletedOperation = operations.some((op: any) => op.concluido === true)
@@ -1100,7 +1100,6 @@ function ItemDrawerContent({ itemId, items, onClose, supabase, onMainRefresh }: 
   if (!item) return null
 
   const impressaoOperations = operations.filter((op) => op.Tipo_Op === 'Impressao')
-  const impressaoFlexiveisOperations = operations.filter((op) => op.Tipo_Op === 'Impressao_Flexiveis')
   const corteOperations = operations.filter((op) => op.Tipo_Op === 'Corte')
 
   return (
@@ -1138,8 +1137,8 @@ function ItemDrawerContent({ itemId, items, onClose, supabase, onMainRefresh }: 
       <Tabs defaultValue="impressao" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="impressao">Impressão ({impressaoOperations.length})</TabsTrigger>
-          <TabsTrigger value="impressao_flexiveis">Impressão Flexíveis ({impressaoFlexiveisOperations.length})</TabsTrigger>
-          <TabsTrigger value="corte">Corte ({corteOperations.length})</TabsTrigger>
+          <TabsTrigger value="corte_impressao">Corte de Impressões ({corteOperations.filter(op => op.source_impressao_id).length})</TabsTrigger>
+          <TabsTrigger value="corte_chapas">Operações de Corte (Chapas Soltas) ({corteOperations.filter(op => !op.source_impressao_id).length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="impressao">
@@ -1155,10 +1154,20 @@ function ItemDrawerContent({ itemId, items, onClose, supabase, onMainRefresh }: 
           />
         </TabsContent>
 
-        <TabsContent value="impressao_flexiveis">
-          <OperationsTable
-            operations={impressaoFlexiveisOperations}
-            type="Impressao_Flexiveis"
+        <TabsContent value="corte_impressao">
+          <CorteFromPrintTable
+            operations={corteOperations.filter(op => op.source_impressao_id)}
+            itemId={item.id}
+            folhaObraId={item.folha_obra_id}
+            supabase={supabase}
+            onRefresh={fetchOperations}
+            onMainRefresh={onMainRefresh}
+          />
+        </TabsContent>
+
+        <TabsContent value="corte_chapas">
+          <CorteLoosePlatesTable
+            operations={corteOperations.filter(op => !op.source_impressao_id)}
             itemId={item.id}
             folhaObraId={item.folha_obra_id}
             item={item}
@@ -1167,50 +1176,15 @@ function ItemDrawerContent({ itemId, items, onClose, supabase, onMainRefresh }: 
             onMainRefresh={onMainRefresh}
           />
         </TabsContent>
-
-        <TabsContent value="corte">
-          <div className="space-y-8">
-            {/* Section 1: From Print Jobs */}
-            <div className="border p-4">
-              <h4 className="text-lg mb-4">
-                Corte de Impressões (Linked to Print Jobs)
-              </h4>
-              <CorteFromPrintTable
-                operations={corteOperations.filter(op => op.source_impressao_id)}
-                itemId={item.id}
-                folhaObraId={item.folha_obra_id}
-                supabase={supabase}
-                onRefresh={fetchOperations}
-                onMainRefresh={onMainRefresh}
-              />
-            </div>
-
-            {/* Section 2: Loose Plates */}
-            <div className="border p-4">
-              <h4 className="text-lg mb-4">
-                Chapas Soltas (Standalone Cutting)
-              </h4>
-              <CorteLoosePlatesTable
-                operations={corteOperations.filter(op => !op.source_impressao_id)}
-                itemId={item.id}
-                folhaObraId={item.folha_obra_id}
-                item={item}
-                supabase={supabase}
-                onRefresh={fetchOperations}
-                onMainRefresh={onMainRefresh}
-              />
-            </div>
-          </div>
-        </TabsContent>
       </Tabs>
               </div>
   )
 }
 
-// Operations Table Component (Impressão and Impressão Flexíveis ONLY - Corte has separate components)
+// Operations Table Component (Impressão ONLY - Corte has separate components)
 interface OperationsTableProps {
   operations: ProductionOperation[]
-  type: 'Impressao' | 'Impressao_Flexiveis'
+  type: 'Impressao'
   itemId: string
   folhaObraId: string
   item: ProductionItem

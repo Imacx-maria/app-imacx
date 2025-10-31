@@ -290,32 +290,99 @@ export default function ProductionAnalyticsCharts({
     }
   }, [operations])
 
+  // Machine data for Impressão
+  const machinePrintData = useMemo(() => {
+    const machineData: { [key: string]: MachineMonthlyData } = {}
+    const machines = new Set<string>()
 
-  // Process data for operator corte operations
-  const operatorCorteData = useMemo(() => {
+    operations
+      .filter((op) => op.Tipo_Op === 'Impressao' && op.maquina)
+      .forEach((op) => machines.add(op.maquina!))
+
+    operations
+      .filter((op) => op.Tipo_Op === 'Impressao' && op.maquina && op.num_placas_print)
+      .forEach((operation) => {
+        if (!operation.data_operacao) return
+        const date = new Date(operation.data_operacao)
+        const monthKey = format(date, 'yyyy-MM')
+        const monthLabel = format(date, 'MMM', { locale: pt })
+
+        if (!machineData[monthKey]) {
+          machineData[monthKey] = { month: monthLabel }
+          machines.forEach((m) => {
+            machineData[monthKey][m] = 0
+          })
+        }
+
+        machineData[monthKey][operation.maquina!] =
+          ((machineData[monthKey][operation.maquina!] as number) || 0) +
+          operation.num_placas_print!
+      })
+
+    return {
+      data: Object.values(machineData).sort((a, b) => a.month.localeCompare(b.month)),
+      machines: Array.from(machines),
+    }
+  }, [operations])
+
+  // Material data for Impressão
+  const materialPrintData = useMemo(() => {
+    const materialData: { [key: string]: MaterialMonthlyData } = {}
+    const materials = new Set<string>()
+
+    operations
+      .filter((op) => op.Tipo_Op === 'Impressao' && op.materiais?.material)
+      .forEach((op) => materials.add(op.materiais!.material!))
+
+    operations
+      .filter((op) => op.Tipo_Op === 'Impressao' && op.materiais?.material && op.num_placas_print)
+      .forEach((operation) => {
+        if (!operation.data_operacao) return
+        const date = new Date(operation.data_operacao)
+        const monthKey = format(date, 'yyyy-MM')
+        const monthLabel = format(date, 'MMM', { locale: pt })
+        const material = operation.materiais!.material!
+
+        if (!materialData[monthKey]) {
+          materialData[monthKey] = { month: monthLabel }
+          materials.forEach((m) => {
+            materialData[monthKey][m] = 0
+          })
+        }
+
+        materialData[monthKey][material] =
+          ((materialData[monthKey][material] as number) || 0) +
+          operation.num_placas_print!
+      })
+
+    return {
+      data: Object.values(materialData).sort((a, b) => a.month.localeCompare(b.month)),
+      materials: Array.from(materials),
+    }
+  }, [operations])
+
+  // CORTE CHAPAS (without source_impressao_id) - Keep this for now, will create filtered version
+  const operatorCorteChapasData = useMemo(() => {
     const operatorData: { [key: string]: OperatorMonthlyData } = {}
     const operatorNames: { [key: string]: string } = {}
 
-    // First pass: collect operator names and initialize data structure
-    // Only include operators with Corte role (968afe0b-0b14-46b2-9269-4fc9f120bbfa)
     operations
       .filter(
         (op) =>
           op.Tipo_Op === 'Corte' &&
+          !op.source_impressao_id &&
           op.operador_id &&
           op.profiles &&
-          (op.profiles as any).role_id ===
-            '968afe0b-0b14-46b2-9269-4fc9f120bbfa',
+          (op.profiles as any).role_id === '968afe0b-0b14-46b2-9269-4fc9f120bbfa',
       )
       .forEach((operation) => {
         const operatorName = `${operation.profiles!.first_name} ${operation.profiles!.last_name}`
         operatorNames[operation.operador_id!] = operatorName
       })
 
-    // Second pass: aggregate data by month and operator
     operations
       .filter(
-        (op) => op.Tipo_Op === 'Corte' && op.operador_id && op.num_placas_corte,
+        (op) => op.Tipo_Op === 'Corte' && !op.source_impressao_id && op.operador_id && op.num_placas_corte,
       )
       .forEach((operation) => {
         if (!operation.data_operacao) return
@@ -327,7 +394,6 @@ export default function ProductionAnalyticsCharts({
 
         if (!operatorData[monthKey]) {
           operatorData[monthKey] = { month: monthLabel }
-          // Initialize all operators to 0 for this month
           Object.values(operatorNames).forEach((name) => {
             operatorData[monthKey][name] = 0
           })
@@ -425,8 +491,8 @@ export default function ProductionAnalyticsCharts({
   const printOperatorColors = generateOperatorColors(
     operatorPrintData.operators.length,
   )
-  const corteOperatorColors = generateOperatorColors(
-    operatorCorteData.operators.length,
+  const corteChapasOperatorColors = generateOperatorColors(
+    operatorCorteChapasData.operators.length,
   )
 
   return (
@@ -653,16 +719,16 @@ export default function ProductionAnalyticsCharts({
           <Card className="border p-4">
             <div className="mb-4">
               <h3 className="text-lg leading-tight font-semibold">
-                Corte por Operador
+                Corte Chapas Soltas por Operador
               </h3>
               <p className="text-sm leading-tight">
                 Número de placas
               </p>
             </div>
-            {operatorCorteData.operators.length > 0 ? (
+            {operatorCorteChapasData.operators.length > 0 ? (
               <ResponsiveContainer width="100%" height={400}>
                 <BarChart
-                  data={operatorCorteData.data}
+                  data={operatorCorteChapasData.data}
                   margin={{ top: 20, right: 30, left: 30, bottom: 80 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
@@ -681,11 +747,11 @@ export default function ProductionAnalyticsCharts({
                       border: '1px solid #ccc',
                     }}
                   />
-                  {operatorCorteData.operators.map((operator, index) => (
+                  {operatorCorteChapasData.operators.map((operator, index) => (
                     <Bar
                       key={operator}
                       dataKey={operator}
-                      fill={corteOperatorColors[index]}
+                      fill={corteChapasOperatorColors[index]}
                     />
                   ))}
                 </BarChart>
@@ -694,7 +760,7 @@ export default function ProductionAnalyticsCharts({
               <div className="flex h-64 flex-col items-center justify-center text-center">
                 <Package className="mb-4 h-12 w-12" />
                 <h3 className="text-lg font-semibold">
-                  Nenhum Dado de Corte
+                  Nenhum Dado de Corte Chapas Soltas
                 </h3>
                 <p>
                   Não existem operações de corte com operadores definidos.
