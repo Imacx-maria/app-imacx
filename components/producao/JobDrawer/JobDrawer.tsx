@@ -191,6 +191,8 @@ function JobDrawerContentComponent({
           quantidade: baseData.quantidade || null,
           data: new Date().toISOString().split('T')[0],
           is_entrega: true,
+          id_local_recolha: null,  // Explicitly null to avoid FK constraint violation
+          id_local_entrega: null,  // Explicitly null to avoid FK constraint violation
         })
         .select('*')
         .single()
@@ -366,6 +368,8 @@ function JobDrawerContentComponent({
             quantidade: finalData.quantidade,
             data: new Date().toISOString().split('T')[0],
             is_entrega: true,
+            id_local_recolha: null,  // Explicitly null to avoid FK constraint violation
+            id_local_entrega: null,  // Explicitly null to avoid FK constraint violation
           })
 
         if (createError) {
@@ -732,90 +736,9 @@ function JobDrawerContentComponent({
     // 3. Create rows: show all logistics records + items without logistics records
     const mergedRows: any[] = [...logisticsData]
 
-    // Create logistics entries for real job items that don't have them yet (exclude temp items)
-    const itemsWithoutLogistics = realItems.filter(
-      (item) => !logisticsData.some((l) => l.item_id === item.id),
-    )
-
-    if (itemsWithoutLogistics.length > 0) {
-      console.log(
-        '📦 Creating logistics entries for items without them:',
-        itemsWithoutLogistics.length,
-      )
-      // Create logistics entries for all items without them
-      const newLogisticsEntries = itemsWithoutLogistics.map((item) => {
-        const description = item.descricao || 'Novo Item'
-        const quantidade = item.quantidade || null
-        console.log('📦 Creating logistics entry for item:', {
-          itemId: item.id,
-          description,
-          quantidade,
-        })
-        return {
-          item_id: item.id,
-          descricao: description, // Store item description directly
-          quantidade: quantidade, // Copy quantity from item
-          data: new Date().toISOString().split('T')[0],
-          is_entrega: true,
-        }
-      })
-
-      const { data: newLogisticsData, error: logisticsInsertError } =
-        await supabase.from('logistica_entregas').insert(newLogisticsEntries)
-          .select(`
-            *,
-            items_base (
-              id,
-              descricao,
-              codigo,
-              quantidade,
-              brindes,
-              folha_obra_id,
-              folhas_obras (
-                id,
-                numero_orc,
-                Numero_do_,
-                Nome
-              )
-            )
-          `)
-
-      if (logisticsInsertError) {
-        console.error(
-          '❌ Error creating logistics entries:',
-          logisticsInsertError,
-        )
-        console.error('❌ Error details:', {
-          message: logisticsInsertError.message,
-          code: logisticsInsertError.code,
-          details: logisticsInsertError.details,
-          hint: logisticsInsertError.hint,
-        })
-        alert(
-          `Erro ao criar entradas de logística: ${logisticsInsertError.message}`,
-        )
-      } else if (newLogisticsData) {
-        console.log('Created logistics entries:', newLogisticsData)
-        // Map Numero_do_ to numero_fo for consistency
-        const mappedData = newLogisticsData.map((l: any) => ({
-          ...l,
-          items_base: l.items_base
-            ? {
-                ...l.items_base,
-                folhas_obras: l.items_base.folhas_obras
-                  ? {
-                      ...l.items_base.folhas_obras,
-                      numero_fo: l.items_base.folhas_obras.Numero_do_,
-                      cliente: l.items_base.folhas_obras.Nome,
-                    }
-                  : null,
-              }
-            : null,
-        }))
-        // Add the newly created logistics entries to merged rows
-        mergedRows.push(...mappedData)
-      }
-    }
+    // Note: Logistics entries are now created by importPhcLinesForFo (for PHC imports) 
+    // and acceptItem (for manual additions), so we don't need to auto-create them here.
+    // This prevents duplication issues.
 
     console.log('📊 Final merged rows:', mergedRows.length)
     console.log(
@@ -1604,6 +1527,8 @@ function JobDrawerContentComponent({
                         saiu: false,
                         brindes: false,
                         concluido: false,
+                        id_local_recolha: null,  // Explicitly null to avoid FK constraint violation
+                        id_local_entrega: null,  // Explicitly null to avoid FK constraint violation
                       })
                       .select(
                         `

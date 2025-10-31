@@ -165,6 +165,8 @@ export default function ProducaoPage() {
   const clientesRef = useRef<{ value: string; label: string }[]>([])
   // Ref to track if initial load has happened
   const initialLoadDone = useRef(false)
+  // Ref to track FO imports in progress to prevent duplicate imports from multiple tabs
+  const foImportsInProgress = useRef<Set<string>>(new Set())
   const [jobsSaiuStatus, setJobsSaiuStatus] = useState<Record<string, boolean>>(
     {},
   )
@@ -598,6 +600,8 @@ export default function ProducaoPage() {
             quantidade: item.quantidade || null,
             data: new Date().toISOString().split('T')[0],
             is_entrega: true,
+            id_local_recolha: null,  // Explicitly null to avoid FK constraint violation
+            id_local_entrega: null,  // Explicitly null to avoid FK constraint violation
           }))
 
           const { data: logisticaInserted, error: logisticaErr } =
@@ -707,7 +711,16 @@ export default function ProducaoPage() {
 
   const prefillAndInsertFromFo = useCallback(
     async (foNumber: string, tempJobId: string) => {
-      const header = await fetchPhcHeaderByFo(foNumber)
+      // Prevent duplicate imports from multiple tabs
+      const importKey = `${foNumber}-${tempJobId}`
+      if (foImportsInProgress.current.has(importKey)) {
+        console.log('⚠️ Import already in progress for FO:', foNumber, 'job:', tempJobId)
+        return
+      }
+      foImportsInProgress.current.add(importKey)
+      
+      try {
+        const header = await fetchPhcHeaderByFo(foNumber)
       console.log('🔍 PHC Header Response:', {
         foNumber,
         header,
@@ -778,6 +791,10 @@ export default function ProducaoPage() {
           setOpenId((newJob as any).id)
         }
       }
+      } finally {
+        // Always remove the import key from the set
+        foImportsInProgress.current.delete(importKey)
+      }
     },
     [
       fetchPhcHeaderByFo,
@@ -790,7 +807,16 @@ export default function ProducaoPage() {
 
   const prefillAndInsertFromOrc = useCallback(
     async (orcNumber: string, tempJobId: string) => {
-      const header = await fetchPhcHeaderByOrc(orcNumber)
+      // Prevent duplicate imports from multiple tabs
+      const importKey = `orc-${orcNumber}-${tempJobId}`
+      if (foImportsInProgress.current.has(importKey)) {
+        console.log('⚠️ Import already in progress for ORC:', orcNumber, 'job:', tempJobId)
+        return
+      }
+      foImportsInProgress.current.add(importKey)
+      
+      try {
+        const header = await fetchPhcHeaderByOrc(orcNumber)
       console.log('🔍 PHC Header Response (ORC):', {
         orcNumber,
         header,
@@ -854,6 +880,10 @@ export default function ProducaoPage() {
           )
           setOpenId((newJob as any).id)
         }
+      }
+      } finally {
+        // Always remove the import key from the set
+        foImportsInProgress.current.delete(importKey)
       }
     },
     [
