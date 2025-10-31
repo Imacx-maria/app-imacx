@@ -30,6 +30,7 @@ import {
   Loader2,
   ArrowLeft,
   ArrowRight,
+  RefreshCw,
 } from 'lucide-react'
 import {
   Tooltip,
@@ -1414,6 +1415,19 @@ function JobDrawerContentComponent({
                 </p>
               </div>
               <div className="flex items-center gap-2">
+                {/* Refresh logistics data button */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    logisticaFetchedRef.current = false // Force re-fetch
+                    await fetchLogisticaRows()
+                  }}
+                  disabled={logisticaLoading}
+                >
+                  <RefreshCw className={`mr-2 h-4 w-4 ${logisticaLoading ? 'animate-spin' : ''}`} />
+                  Atualizar
+                </Button>
                 <Button
                   size="sm"
                   variant="default"
