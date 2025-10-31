@@ -137,6 +137,7 @@ export interface ProductionOperation {
   qualidade?: string
   observacoes?: string
   status?: 'pendente' | 'em_progresso' | 'concluida' | 'cancelada'
+  source_impressao_id?: string | null  // Links Corte operations to source Impressão operation
   created_at: string
   updated_at: string
 }
@@ -172,4 +173,55 @@ export interface ProductionOperationInput {
   qualidade?: string
   observacoes?: string
   status?: 'pendente' | 'em_progresso' | 'concluida' | 'cancelada'
+}
+
+/**
+ * Job (Folha de Obra) interface for the main producao page
+ * Represents a production work order
+ */
+export interface Job {
+  id: string
+  numero_fo: string
+  numero_orc?: string | null
+  nome_campanha: string
+  data_saida: string | null
+  prioridade: boolean | null
+  notas: string | null
+  concluido?: boolean | null
+  saiu?: boolean | null
+  fatura?: boolean | null
+  pendente?: boolean | null
+  created_at?: string | null
+  data_in?: string | null
+  cliente?: string | null
+  id_cliente?: string | null
+  customer_id?: number | null
+  data_concluido?: string | null
+  updated_at?: string | null
+}
+
+/**
+ * Item interface for production items within a job
+ * Represents individual items that need to be produced
+ */
+export interface Item {
+  id: string
+  folha_obra_id: string
+  descricao: string
+  codigo?: string | null
+  quantidade?: number | null
+  brindes?: boolean | null
+  concluido?: boolean | null
+  paginacao?: boolean | null
+}
+
+/**
+ * Loading state interface for tracking async operations
+ * Used to show loading indicators for different data fetching operations
+ */
+export interface LoadingState {
+  jobs: boolean
+  items: boolean
+  operacoes: boolean
+  clientes: boolean
 }

@@ -9,6 +9,7 @@ export interface OperatorOption {
 export interface MachineOption {
   value: string
   label: string
+  tipo: string
 }
 
 export const useTableData = () => {
@@ -60,7 +61,7 @@ export const useTableData = () => {
     try {
       const { data, error } = await supabase
         .from('maquinas_operacao')
-        .select('id, nome_maquina')
+        .select('id, nome_maquina, tipo')
         .eq('ativa', true)
         .order('nome_maquina', { ascending: true })
 
@@ -70,6 +71,7 @@ export const useTableData = () => {
         const machineOptions = data.map((machine) => ({
           value: machine.id,
           label: machine.nome_maquina,
+          tipo: machine.tipo,
         }))
         setMachines(machineOptions)
       }

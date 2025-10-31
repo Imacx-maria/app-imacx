@@ -74,3 +74,6 @@ requirements_txt.txt
 
 # OS
 Thumbs.db
+
+# AI Context Documentation
+CLAUDE_CONTEXT.md
