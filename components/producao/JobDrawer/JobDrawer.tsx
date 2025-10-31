@@ -6,7 +6,7 @@
  * Handles the production and logistics details for a single job
  */
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, memo, useCallback } from 'react'
 import {
   Table,
   TableBody,
@@ -43,7 +43,11 @@ import { Cliente } from '@/types/logistica'
 import { useLogisticaData } from '@/utils/useLogisticaData'
 import type { Job, Item, JobDrawerProps } from './types'
 
-export function JobDrawerContent({
+/**
+ * JobDrawerContent Component (Internal)
+ * Handles the production and logistics details for a single job
+ */
+function JobDrawerContentComponent({
   jobId,
   jobs,
   items,
@@ -2641,3 +2645,17 @@ export function JobDrawerContent({
     </div>
   )
 }
+
+/**
+ * Memoized JobDrawer Component
+ * Only re-renders when jobId changes, preventing unnecessary re-renders
+ * from parent component state updates
+ */
+export const JobDrawerContent = memo(
+  JobDrawerContentComponent,
+  (prevProps, nextProps) => {
+    // Only re-render if jobId changes
+    // This prevents unnecessary re-renders when parent state updates
+    return prevProps.jobId === nextProps.jobId
+  },
+)
