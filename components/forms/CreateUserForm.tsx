@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import CreatableRoleCombobox from '@/components/forms/CreatableRoleCombobox'
+import SiglasInput from '@/components/forms/SiglasInput'
 
 interface EditingUser {
   user_id: string
@@ -16,11 +17,18 @@ interface EditingUser {
   role_id: string | null
   phone: string | null
   notes: string | null
+  departamento_id: string | null
+  siglas?: string[]
 }
 
 interface RoleOption {
   id: string
   name: string
+}
+
+interface Departamento {
+  id: string
+  nome: string
 }
 
 interface CreateUserFormProps {
@@ -38,10 +46,14 @@ export default function CreateUserForm({ editingUser, roles: providedRoles = [],
     role_id: '',
     phone: '',
     notes: '',
+    departamento_id: '',
   })
+  const [siglas, setSiglas] = useState<string[]>([])
   const [roles, setRoles] = useState<RoleOption[]>(providedRoles)
+  const [departamentos, setDepartamentos] = useState<Departamento[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingRoles, setLoadingRoles] = useState(providedRoles.length === 0)
+  const [loadingDepartamentos, setLoadingDepartamentos] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [password, setPassword] = useState('')
 
@@ -71,8 +83,27 @@ export default function CreateUserForm({ editingUser, roles: providedRoles = [],
     }
   }, [providedRoles, supabase])
 
+  const loadDepartamentos = useCallback(async () => {
+    try {
+      setLoadingDepartamentos(true)
+      const { data, error } = await supabase
+        .from('departamentos')
+        .select('id, nome')
+        .order('nome', { ascending: true })
+
+      if (error) throw error
+      setDepartamentos((data as Departamento[]) || [])
+    } catch (err) {
+      console.error('Error loading departamentos:', err)
+      setError('Erro ao carregar departamentos')
+    } finally {
+      setLoadingDepartamentos(false)
+    }
+  }, [supabase])
+
   useEffect(() => {
     loadRoles()
+    loadDepartamentos()
     setPassword('')
     if (editingUser) {
       setFormData({
@@ -82,7 +113,9 @@ export default function CreateUserForm({ editingUser, roles: providedRoles = [],
         role_id: editingUser.role_id || '',
         phone: editingUser.phone || '',
         notes: editingUser.notes || '',
+        departamento_id: editingUser.departamento_id || '',
       })
+      setSiglas(editingUser.siglas || [])
     } else {
       setFormData({
         email: '',
@@ -91,9 +124,11 @@ export default function CreateUserForm({ editingUser, roles: providedRoles = [],
         role_id: '',
         phone: '',
         notes: '',
+        departamento_id: '',
       })
+      setSiglas([])
     }
-  }, [editingUser, loadRoles])
+  }, [editingUser, loadRoles, loadDepartamentos])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -120,6 +155,8 @@ export default function CreateUserForm({ editingUser, roles: providedRoles = [],
             role_id: formData.role_id,
             phone: formData.phone,
             notes: formData.notes,
+            departamento_id: formData.departamento_id || null,
+            siglas: siglas,
           }),
         })
 
@@ -147,6 +184,8 @@ export default function CreateUserForm({ editingUser, roles: providedRoles = [],
             role_id: formData.role_id,
             phone: formData.phone,
             notes: formData.notes,
+            departamento_id: formData.departamento_id || null,
+            siglas: siglas,
           }),
         })
 
@@ -204,12 +243,23 @@ export default function CreateUserForm({ editingUser, roles: providedRoles = [],
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder={editingUser ? "Deixe em branco para manter a atual" : "Mínimo 6 caracteres"}
+          autoComplete="new-password"
         />
         {editingUser && (
           <p className="text-xs text-muted-foreground">
             Preencha apenas se desejar alterar a palavra-passe
           </p>
         )}
+      </div>
+
+      <div className="space-y-2">
+        <Label>TELEFONE</Label>
+        <Input
+          type="tel"
+          value={formData.phone}
+          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+          placeholder="+351 123 456 789"
+        />
       </div>
 
       <CreatableRoleCombobox
@@ -220,6 +270,31 @@ export default function CreateUserForm({ editingUser, roles: providedRoles = [],
         label="FUNÇÃO *"
         placeholder="Selecione uma função"
         disabled={loadingRoles}
+      />
+
+      <div className="space-y-2">
+        <Label>DEPARTAMENTO</Label>
+        <select
+          value={formData.departamento_id}
+          onChange={(e) => setFormData({ ...formData, departamento_id: e.target.value })}
+          disabled={loadingDepartamentos}
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <option value="">Selecione um departamento</option>
+          {departamentos.map((dept) => (
+            <option key={dept.id} value={dept.id}>
+              {dept.nome}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <SiglasInput
+        value={siglas}
+        onChange={setSiglas}
+        label="SIGLAS"
+        placeholder="Digite siglas (máx 3 caracteres)"
+        disabled={loading}
       />
 
       <div className="space-y-2">

@@ -51,7 +51,6 @@ export function PermissionsProvider({
         } = await supabase.auth.getSession()
 
         if (!session) {
-          console.log('No session found')
           setLoading(false)
           return
         }
@@ -64,7 +63,10 @@ export function PermissionsProvider({
           .single()
 
         if (profileError) {
-          console.warn('Profile fetch error (likely RLS policy):', profileError)
+          console.error('❌ [PERMISSIONS PROVIDER] Profile fetch error:', profileError)
+          console.error('❌ [PERMISSIONS PROVIDER] Error details:', JSON.stringify(profileError, null, 2))
+          console.error('❌ [PERMISSIONS PROVIDER] User ID:', session.user.id)
+          console.error('❌ [PERMISSIONS PROVIDER] This is likely an RLS policy issue')
           // If we can't get profile, give dashboard access only
           setPagePermissions(['dashboard'])
           setLoading(false)
@@ -73,7 +75,6 @@ export function PermissionsProvider({
 
         if (profile?.role_id) {
           setRole(profile.role_id)
-          console.log('User role_id:', profile.role_id)
 
           // Fetch role with page_permissions AND role name for fallback
           const { data: roleData, error: roleError } = await supabase
@@ -82,25 +83,28 @@ export function PermissionsProvider({
             .eq('id', profile.role_id)
             .single()
 
-          console.log('Role data:', roleData)
-          console.log('Role error:', roleError)
-
           if (roleError) {
-            console.warn('Error fetching role:', roleError.message)
+            console.error('❌ [PERMISSIONS PROVIDER] Role fetch error:', roleError)
+            console.error('❌ [PERMISSIONS PROVIDER] Role ID:', profile.role_id)
+            console.error('❌ [PERMISSIONS PROVIDER] Error details:', JSON.stringify(roleError, null, 2))
             // When there's an error, just give dashboard access
             setPagePermissions(['dashboard'])
           } else if (roleData?.page_permissions && Array.isArray(roleData.page_permissions) && roleData.page_permissions.length > 0) {
-            console.log(`Loaded page_permissions for ${roleData.name}:`, roleData.page_permissions)
-            setPagePermissions(roleData.page_permissions as string[])
+            // Normalize permissions to lowercase for case-insensitive matching
+            const normalizedPermissions = roleData.page_permissions.map((p: string) => p.toLowerCase())
+            setPagePermissions(normalizedPermissions)
           } else {
             // No permissions set in database - respect empty array (empty = no access except dashboard)
-            console.warn(`Role ${roleData?.name} has no page_permissions set. User will only have dashboard access.`)
+            console.error('❌ [PERMISSIONS PROVIDER] Role has no page_permissions')
+            console.error('❌ [PERMISSIONS PROVIDER] Role name:', roleData?.name)
+            console.error('❌ [PERMISSIONS PROVIDER] Role data:', JSON.stringify(roleData, null, 2))
             setPagePermissions(['dashboard'])
           }
         } else {
-          // User has no role assigned
-          console.warn('User has no role_id')
-          setPagePermissions(['dashboard']) // Default limited access
+          // User has no role assigned - give dashboard access only
+          console.error('❌ [PERMISSIONS PROVIDER] User has no role_id')
+          console.error('❌ [PERMISSIONS PROVIDER] Profile data:', JSON.stringify(profile, null, 2))
+          setPagePermissions(['dashboard'])
         }
       } catch (error) {
         console.error('Error fetching permissions:', error)
@@ -119,11 +123,15 @@ export function PermissionsProvider({
   
   // Check if user can access a page based on page_permissions
   const canAccessPage = (page: string): boolean => {
+    // Normalize for case-insensitive comparison
+    const normalizedPage = page.toLowerCase()
+
     if (pagePermissions.includes('*')) return true // Admin has access to all
-    if (pagePermissions.includes(page)) return true
-    
-    // Check parent paths (e.g., 'definicoes' allows 'definicoes/utilizadores')
-    return pagePermissions.some(perm => page.startsWith(perm + '/'))
+
+    const directMatch = pagePermissions.includes(normalizedPage)
+    const parentMatch = pagePermissions.some(perm => normalizedPage.startsWith(perm + '/'))
+
+    return directMatch || parentMatch
   }
 
   const value: PermissionsContextType = {

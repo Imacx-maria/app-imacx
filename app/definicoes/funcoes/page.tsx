@@ -137,9 +137,12 @@ export default function FuncoesPage() {
       const role = roles.find((r) => r.id === roleId)
       if (!role) return
 
+      // Normalize all permissions to lowercase for consistency
+      const normalizedPermissions = role.page_permissions.map(p => p.toLowerCase())
+
       const { error } = await supabase
         .from('roles')
-        .update({ page_permissions: role.page_permissions })
+        .update({ page_permissions: normalizedPermissions })
         .eq('id', roleId)
 
       if (error) throw error

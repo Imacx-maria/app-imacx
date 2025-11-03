@@ -38,6 +38,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 type Role = {
   id: string
@@ -52,8 +60,9 @@ type Departamento = {
 }
 
 export type ManagedUser = {
-  id: string
+  id: string | null // Can be null for orphaned users
   user_id: string
+  auth_user_id: string // Auth user ID for repair operations
   first_name: string
   last_name: string
   email: string | null
@@ -65,6 +74,7 @@ export type ManagedUser = {
   created_at: string
   updated_at: string | null
   active: boolean | null
+  has_profile?: boolean // Flag to indicate if profile exists
 }
 
 export default function UtilizadoresPage() {
@@ -114,35 +124,76 @@ export default function UtilizadoresPage() {
   const loadUsers = useCallback(async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
-        .from('profiles')
-        .select(
-          `id, user_id, first_name, last_name, email, phone, notes, role_id, departamento_id, active, created_at, updated_at`,
-        )
-        .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error('Error loading users:', error)
-        throw error
+      // First, get all auth users
+      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers()
+
+      if (authError) {
+        console.error('Error loading auth users:', authError)
+        throw authError
       }
 
-      // Fetch siglas for each user
-      const usersWithSiglas = await Promise.all(
-        (data || []).map(async (user: any) => {
-          const { data: siglasData } = await supabase
-            .from('user_siglas')
-            .select('sigla')
-            .eq('profile_id', user.id)
+      // Then get all profiles
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
 
-          return {
-            ...user,
-            siglas: siglasData?.map((s: any) => s.sigla) || []
+      if (profilesError) {
+        console.error('Error loading profiles:', profilesError)
+        throw profilesError
+      }
+
+      // Match auth users with their profiles
+      const combinedUsers = await Promise.all(
+        (authUsers.users || []).map(async (authUser: any) => {
+          // Find matching profile
+          const profile = profiles?.find((p: any) => p.user_id === authUser.id)
+
+          if (profile) {
+            // User has profile - fetch siglas
+            const { data: siglasData } = await supabase
+              .from('user_siglas')
+              .select('sigla')
+              .eq('profile_id', profile.id)
+
+            return {
+              ...profile,
+              siglas: siglasData?.map((s: any) => s.sigla) || [],
+              auth_user_id: authUser.id,
+              has_profile: true,
+            }
+          } else {
+            // User missing profile - create minimal object
+            return {
+              id: null,
+              user_id: authUser.id,
+              auth_user_id: authUser.id,
+              email: authUser.email,
+              first_name: authUser.raw_user_meta_data?.first_name || authUser.email?.split('@')[0] || '',
+              last_name: authUser.raw_user_meta_data?.last_name || '',
+              phone: null,
+              notes: null,
+              role_id: null,
+              departamento_id: null,
+              active: null,
+              created_at: authUser.created_at,
+              updated_at: null,
+              siglas: [],
+              has_profile: false,
+            }
           }
         })
       )
 
-      console.log('Loaded users:', usersWithSiglas)
-      setUsers(usersWithSiglas as ManagedUser[])
+      // Sort by created_at desc
+      combinedUsers.sort((a, b) => {
+        const dateA = new Date(a.created_at || 0).getTime()
+        const dateB = new Date(b.created_at || 0).getTime()
+        return dateB - dateA
+      })
+
+      console.log('Loaded users (with orphan detection):', combinedUsers)
+      setUsers(combinedUsers as ManagedUser[])
       setError(null)
     } catch (err: any) {
       console.error('Error loading users:', err)
@@ -194,6 +245,53 @@ export default function UtilizadoresPage() {
     setRefreshing(true)
     await loadUsers()
     setRefreshing(false)
+  }
+
+  const [repairUser, setRepairUser] = useState<ManagedUser | null>(null)
+  const [selectedRoleForRepair, setSelectedRoleForRepair] = useState<string>('')
+  const [repairing, setRepairing] = useState(false)
+
+  const handleRepair = (user: ManagedUser) => {
+    setRepairUser(user)
+    setSelectedRoleForRepair('')
+  }
+
+  const executeRepair = async () => {
+    if (!repairUser || !selectedRoleForRepair) {
+      alert('Por favor selecione uma função')
+      return
+    }
+
+    try {
+      setRepairing(true)
+
+      const response = await fetch('/api/users/repair-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          auth_user_id: repairUser.auth_user_id,
+          email: repairUser.email,
+          first_name: repairUser.first_name,
+          last_name: repairUser.last_name,
+          role_id: selectedRoleForRepair,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Erro ao criar perfil')
+      }
+
+      alert(`Perfil criado com sucesso! Função: ${result.role}`)
+      setRepairUser(null)
+      await loadUsers()
+    } catch (err: any) {
+      console.error('Error repairing profile:', err)
+      alert(`Erro ao criar perfil: ${err.message}`)
+    } finally {
+      setRepairing(false)
+    }
   }
 
   return (
@@ -278,6 +376,7 @@ export default function UtilizadoresPage() {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onRefresh={loadUsers}
+              onRepair={handleRepair}
             />
           )}
         </TabsContent>
@@ -296,6 +395,53 @@ export default function UtilizadoresPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Repair Profile Dialog */}
+      <Dialog open={!!repairUser} onOpenChange={(open) => !open && setRepairUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>CRIAR PERFIL PARA UTILIZADOR</DialogTitle>
+            <DialogDescription>
+              Este utilizador existe no sistema de autenticação mas não tem um perfil completo.
+              Selecione uma função para criar o perfil.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Email</Label>
+              <p className="text-sm font-semibold">{repairUser?.email}</p>
+            </div>
+            <div>
+              <Label>Nome</Label>
+              <p className="text-sm font-semibold">{repairUser?.first_name} {repairUser?.last_name}</p>
+            </div>
+            <div>
+              <Label htmlFor="repair-role">Função *</Label>
+              <select
+                id="repair-role"
+                value={selectedRoleForRepair}
+                onChange={(e) => setSelectedRoleForRepair(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+              >
+                <option value="">Selecione uma função...</option>
+                {roles.map((role) => (
+                  <option key={role.id} value={role.id}>
+                    {role.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRepairUser(null)} disabled={repairing}>
+              Cancelar
+            </Button>
+            <Button onClick={executeRepair} disabled={repairing || !selectedRoleForRepair}>
+              {repairing ? 'A criar perfil...' : 'Criar Perfil'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
     </PagePermissionGuard>
   )

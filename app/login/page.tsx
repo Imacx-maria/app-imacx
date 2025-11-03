@@ -25,6 +25,21 @@ export default function LoginPage() {
     try {
       console.log('🔐 Iniciando login...')
       
+      // Clear any existing Supabase storage that might cause issues
+      if (typeof window !== 'undefined') {
+        try {
+          const keys = Object.keys(window.localStorage)
+          keys.forEach(key => {
+            if (key.startsWith('sb-') || key.includes('supabase')) {
+              window.localStorage.removeItem(key)
+            }
+          })
+          console.log('🧹 Cleared Supabase storage')
+        } catch (e) {
+          console.warn('Could not clear storage:', e)
+        }
+      }
+      
       const supabase = createBrowserClient()
       console.log('✅ Supabase client criado')
       
@@ -33,11 +48,30 @@ export default function LoginPage() {
         password,
       })
 
-      console.log('Response:', { user: data?.user?.email, error })
+      console.log('Response:', { 
+        user: data?.user?.email, 
+        userId: data?.user?.id,
+        emailConfirmed: data?.user?.email_confirmed_at,
+        session: data?.session ? 'Present' : 'Missing',
+        error 
+      })
 
       if (error) {
         console.error('❌ Auth error:', error)
-        setError(error.message)
+        console.error('Error details:', {
+          message: error.message,
+          status: error.status,
+          code: error.code,
+        })
+        
+        // Provide user-friendly error messages
+        if (error.message.includes('Email logins are disabled')) {
+          setError('Email/password authentication is disabled. Please contact your administrator.')
+        } else if (error.message.includes('Invalid login credentials')) {
+          setError('Email ou palavra-passe incorretos. Verifique se o email está correto, a palavra-passe está correta e a conta existe e está ativa.')
+        } else {
+          setError(error.message)
+        }
       } else {
         console.log('✅ Login bem-sucedido! Aguardando sessão...')
         

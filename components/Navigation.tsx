@@ -120,12 +120,6 @@ export function Navigation() {
   const [openSubmenus, setOpenSubmenus] = useState<string[]>([])
   const [user, setUser] = useState<any>(null)
 
-  // Debug: Log permissions state
-  useEffect(() => {
-    if (!permissionsLoading) {
-      console.log('Navigation - Page Permissions:', pagePermissions)
-    }
-  }, [pagePermissions, permissionsLoading])
 
   useEffect(() => {
     setMounted(true)
@@ -205,7 +199,6 @@ export function Navigation() {
   const filteredMenuItems = useMemo(() => {
     // If still loading, show nothing to prevent flashing unauthorized content
     if (permissionsLoading) {
-      console.log('Permissions loading, showing no menu items yet')
       return []
     }
 
@@ -214,10 +207,18 @@ export function Navigation() {
       // If no pageId specified, show by default
       if (!item.pageId) return true
 
-      // Check if user has permission for this page
-      const hasAccess = canAccessPage(item.pageId)
-      console.log(`Page "${item.pageId}": ${hasAccess ? '✓ allowed' : '✗ denied'}`)
-      return hasAccess
+      // Check if user has direct permission for this page
+      if (canAccessPage(item.pageId)) return true
+
+      // If item has submenu, check if user has access to ANY child page
+      // This ensures parent menus are visible if user has child permissions
+      if (item.submenu && item.submenu.length > 0) {
+        return item.submenu.some(subItem =>
+          subItem.pageId ? canAccessPage(subItem.pageId) : false
+        )
+      }
+
+      return false
     })
 
     return filtered

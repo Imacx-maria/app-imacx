@@ -106,6 +106,7 @@ def sync_2years_bo(phc_conn, supabase_conn):
         supabase_conn.commit()
         
         # Query PHC - match the exact columns from the bo table config
+        # Note: marca is used instead of ultfact for delivery date
         query = f"""
         SELECT 
             [bostamp],
@@ -117,7 +118,7 @@ def sync_2years_bo(phc_conn, supabase_conn):
             [obs],
             [origem],
             [ebo_2tvall],
-            [ultfact]
+            [marca]
         FROM [bo]
         WHERE YEAR(dataobra) IN ({year1}, {year2})
         ORDER BY dataobra DESC
@@ -150,12 +151,37 @@ def sync_2years_bo(phc_conn, supabase_conn):
                             clean_row.append(int(float(val)) if val is not None else None)
                         except (ValueError, TypeError):
                             clean_row.append(None)
+                    elif i == 4:  # dataobra (document_date) - DATE
+                        if val:
+                            if isinstance(val, datetime):
+                                clean_row.append(val.strftime('%Y-%m-%d'))
+                            elif isinstance(val, date):
+                                clean_row.append(val.strftime('%Y-%m-%d'))
+                            else:
+                                clean_row.append(str(val).strip() if val else None)
+                        else:
+                            clean_row.append(None)
                     elif i == 8:  # ebo_2tvall (total_value) - NUMERIC
                         try:
                             clean_row.append(float(val) if val is not None else None)
                         except (ValueError, TypeError):
                             clean_row.append(None)
-                    else:  # TEXT or DATE fields
+                    elif i == 9:  # marca (last_delivery_date) - DATE stored as VARCHAR "DD.MM.YYYY"
+                        if val:
+                            try:
+                                # Parse DD.MM.YYYY format
+                                if isinstance(val, (datetime, date)):
+                                    parsed_date = val if isinstance(val, date) else val.date()
+                                else:
+                                    date_str = str(val).strip()
+                                    parsed_date = datetime.strptime(date_str, "%d.%m.%Y").date()
+                                clean_row.append(parsed_date.strftime('%Y-%m-%d'))
+                            except (ValueError, TypeError):
+                                # If parsing fails, store as NULL
+                                clean_row.append(None)
+                        else:
+                            clean_row.append(None)
+                    else:  # TEXT fields
                         clean_row.append(str(val).strip() if val else None)
                 
                 clean_rows.append(tuple(clean_row))

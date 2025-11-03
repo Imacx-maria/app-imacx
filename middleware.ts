@@ -17,7 +17,9 @@ function canAccessPath(path: string, userPermissions: string[]): boolean {
   // Admin wildcard grants access to everything
   if (userPermissions.includes('*')) return true
 
-  const pageId = getPageIdFromPath(path)
+  // Normalize for case-insensitive comparison
+  const pageId = getPageIdFromPath(path).toLowerCase()
+  const normalizedPerms = userPermissions.map(p => p.toLowerCase())
 
   // Empty path (root) or public paths require no permissions
   if (!pageId) return true
@@ -26,10 +28,10 @@ function canAccessPath(path: string, userPermissions: string[]): boolean {
   if (pageId === 'dashboard') return true
 
   // Direct match
-  if (userPermissions.includes(pageId)) return true
+  if (normalizedPerms.includes(pageId)) return true
 
   // Check parent paths (e.g., 'definicoes' allows 'definicoes/utilizadores')
-  return userPermissions.some(perm => pageId.startsWith(perm + '/'))
+  return normalizedPerms.some(perm => pageId.startsWith(perm + '/'))
 }
 
 export async function middleware(request: NextRequest) {
@@ -43,8 +45,6 @@ export async function middleware(request: NextRequest) {
 
     const url = request.nextUrl.clone()
     const pathname = url.pathname
-
-    console.log(`[Middleware] Path: ${pathname}, Session: ${session ? 'YES' : 'NO'}, Error: ${error ? error.message : 'NONE'}`)
 
     const publicRoutes = ['/login', '/reset-password', '/update-password']
     const isPublicRoute = publicRoutes.includes(pathname)
@@ -64,23 +64,18 @@ export async function middleware(request: NextRequest) {
     if (error) {
       console.error('[Middleware] Session error:', error)
       if (isProtectedRoute) {
-        console.log('[Middleware] Redirecting to login (protected route, session error)')
         url.pathname = '/login'
         return NextResponse.redirect(url)
       }
     }
 
     if (!session) {
-      console.log(`[Middleware] No session, isProtectedRoute: ${isProtectedRoute}`)
       if (isProtectedRoute) {
-        console.log('[Middleware] Redirecting to login (no session)')
         url.pathname = '/login'
         return NextResponse.redirect(url)
       }
     } else {
-      console.log('[Middleware] Session found')
       if (pathname === '/login') {
-        console.log('[Middleware] Redirecting to dashboard (on login page with session)')
         url.pathname = '/dashboard'
         return NextResponse.redirect(url)
       }
@@ -98,11 +93,8 @@ export async function middleware(request: NextRequest) {
 
         if (cachedPermissions && cacheValid) {
           userPermissions = JSON.parse(cachedPermissions)
-          console.log('[Middleware] Using cached permissions:', userPermissions)
         } else {
           // Fetch from database
-          console.log('[Middleware] Fetching permissions from database')
-
           const { data: profile } = await supabase
             .from('profiles')
             .select('role_id')
@@ -130,15 +122,12 @@ export async function middleware(request: NextRequest) {
           // Cache permissions in response header
           response.headers.set('x-user-permissions', JSON.stringify(userPermissions))
           response.headers.set('x-permissions-timestamp', now.toString())
-          console.log('[Middleware] Cached permissions:', userPermissions)
         }
 
         // Check if user has access to this path
         const hasAccess = canAccessPath(pathname, userPermissions)
-        console.log(`[Middleware] Permission check for ${pathname}: ${hasAccess ? 'GRANTED' : 'DENIED'}`)
 
         if (!hasAccess) {
-          console.log('[Middleware] Access denied, redirecting to dashboard')
           url.pathname = '/dashboard'
           return NextResponse.redirect(url)
         }
@@ -162,7 +151,6 @@ export async function middleware(request: NextRequest) {
     )
 
     if (isProtectedRoute) {
-      console.log('[Middleware] Exception - redirecting to login')
       url.pathname = '/login'
       return NextResponse.redirect(url)
     }

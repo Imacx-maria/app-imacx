@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     // Get request body
     const body = await request.json()
-    const { email, password, first_name, last_name, role_id, phone, notes } = body
+    const { email, password, first_name, last_name, role_id, phone, notes, departamento_id, siglas } = body
 
     // Validate required fields
     if (!email || !password || !first_name || !last_name || !role_id) {
@@ -58,53 +58,54 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Wait for trigger to create profile (with retries)
-    let profile: any = null
-    for (let i = 0; i < 10; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 100))
-      const { data } = await adminClient
-        .from('profiles')
-        .select('*')
-        .eq('user_id', authData.user.id)
-        .single()
-
-      if (data) {
-        profile = data
-        break
-      }
-    }
-
-    if (!profile) {
-      // Trigger didn't create the profile in time; clean up auth user
-      await adminClient.auth.admin.deleteUser(authData.user.id)
-      return NextResponse.json(
-        { error: 'Profile creation timed out' },
-        { status: 500 }
-      )
-    }
-
-    // Update profile with additional fields
-    const { error: profileUpdateError } = await adminClient
+    // Create profile explicitly (don't rely on trigger)
+    // This is more robust and ensures profile exists immediately
+    const { data: profile, error: profileCreateError } = await adminClient
       .from('profiles')
-      .update({
-        email,
-        first_name,
-        last_name,
-        role_id,
+      .insert({
+        user_id: authData.user.id,
+        email: email.toLowerCase().trim(),
+        first_name: first_name.trim(),
+        last_name: last_name.trim(),
+        role_id: role_id,
         phone: phone || null,
         notes: notes || null,
+        departamento_id: departamento_id || null,
         active: true,
+        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq('user_id', authData.user.id)
+      .select()
+      .single()
 
-    if (profileUpdateError) {
-      console.error('Profile update error:', profileUpdateError)
+    if (profileCreateError || !profile) {
+      console.error('Profile create error:', profileCreateError)
+      // Clean up auth user since profile creation failed
       await adminClient.auth.admin.deleteUser(authData.user.id)
       return NextResponse.json(
-        { error: `Failed to update profile: ${profileUpdateError.message}` },
+        {
+          error: `Failed to create profile: ${profileCreateError?.message || 'Unknown error'}`,
+          details: profileCreateError,
+        },
         { status: 500 }
       )
+    }
+
+    // Insert siglas if provided
+    if (siglas && Array.isArray(siglas) && siglas.length > 0) {
+      const siglasData = siglas.map((sigla: string) => ({
+        profile_id: profile.id,
+        sigla: sigla.toUpperCase()
+      }))
+
+      const { error: siglasError } = await adminClient
+        .from('user_siglas')
+        .insert(siglasData)
+
+      if (siglasError) {
+        console.error('Siglas insert error:', siglasError)
+        // Don't fail the whole operation, just log the error
+      }
     }
 
     return NextResponse.json({

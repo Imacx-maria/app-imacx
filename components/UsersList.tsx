@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Edit2, Trash2, RefreshCw, ArrowUpDown } from 'lucide-react'
+import { Edit2, Trash2, RefreshCw, ArrowUpDown, Wrench, AlertTriangle } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -41,9 +41,10 @@ interface UsersListProps {
   onEdit: (user: User) => void
   onDelete: (userId: string) => void
   onRefresh: () => void
+  onRepair?: (user: User) => void
 }
 
-export default function UsersList({ users, roles, departamentos, onEdit, onDelete, onRefresh }: UsersListProps) {
+export default function UsersList({ users, roles, departamentos, onEdit, onDelete, onRefresh, onRepair }: UsersListProps) {
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<User | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [sortBy, setSortBy] = useState<'first_name' | 'last_name' | 'role_id' | null>(null)
@@ -180,11 +181,24 @@ export default function UsersList({ users, roles, departamentos, onEdit, onDelet
               </TableHeader>
               <TableBody>
                 {sortedUsers.map((user) => (
-                  <TableRow key={user.id} className="imx-row-hover">
-                    <TableCell>{user.first_name || '-'}</TableCell>
+                  <TableRow key={user.id || user.auth_user_id} className="imx-row-hover">
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {user.has_profile === false && (
+                          <AlertTriangle className="h-4 w-4 text-yellow-600" title="Perfil não criado" />
+                        )}
+                        {user.first_name || '-'}
+                      </div>
+                    </TableCell>
                     <TableCell>{user.last_name || '-'}</TableCell>
                     <TableCell>{user.email || '-'}</TableCell>
-                    <TableCell>{(user.role_id && roleNameById[user.role_id]) || '-'}</TableCell>
+                    <TableCell>
+                      {user.has_profile === false ? (
+                        <span className="text-yellow-600 font-semibold">⚠️ PRECISA CONFIGURAÇÃO</span>
+                      ) : (
+                        (user.role_id && roleNameById[user.role_id]) || '-'
+                      )}
+                    </TableCell>
                     <TableCell>{(user.departamento_id && departamentoNameById[user.departamento_id]) || '-'}</TableCell>
                     <TableCell>
                       {user.siglas && user.siglas.length > 0 ? (
@@ -206,22 +220,48 @@ export default function UsersList({ users, roles, departamentos, onEdit, onDelet
                     <TableCell>{formatDate(user.created_at)}</TableCell>
                     <TableCell>
                       <div className="flex items-center justify-center gap-2">
-                        <Button
-                          variant="default"
-                          size="icon"
-                          onClick={() => onEdit(user)}
-                          title="Editar utilizador"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          onClick={() => setDeleteConfirmUser(user)}
-                          title="Eliminar utilizador"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {user.has_profile === false ? (
+                          <>
+                            {onRepair && (
+                              <Button
+                                variant="default"
+                                size="icon"
+                                onClick={() => onRepair(user)}
+                                title="Criar perfil"
+                                className="bg-yellow-600 hover:bg-yellow-700"
+                              >
+                                <Wrench className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="destructive"
+                              size="icon"
+                              onClick={() => setDeleteConfirmUser(user)}
+                              title="Eliminar utilizador"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              variant="default"
+                              size="icon"
+                              onClick={() => onEdit(user)}
+                              title="Editar utilizador"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="icon"
+                              onClick={() => setDeleteConfirmUser(user)}
+                              title="Eliminar utilizador"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
