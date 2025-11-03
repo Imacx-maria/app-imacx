@@ -11,8 +11,6 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 
-const DESIGNER_ROLE_ID = '3132fced-ae83-4f56-9d15-c92c3ef6b6ae'
-
 export interface DesignerOption {
   value: string
   label: string
@@ -45,10 +43,32 @@ export default function CreatableDesignerCombobox({
     const fetchDesigners = async () => {
       try {
         const supabase = createBrowserClient()
+        
+        // First, get the Designer role ID by name
+        const { data: roleDataArray, error: roleError } = await supabase
+          .from('roles')
+          .select('id')
+          .eq('name', 'DESIGNER')
+          .limit(1)
+
+        if (roleError) {
+          console.error('Error fetching designer role:', roleError)
+          setLoading(false)
+          return
+        }
+
+        const roleData = roleDataArray?.[0]
+        if (!roleData?.id) {
+          console.error('Designer role not found')
+          setLoading(false)
+          return
+        }
+
+        // Now fetch all profiles with that role_id
         const { data, error } = await supabase
           .from('profiles')
           .select('user_id, first_name')
-          .eq('role_id', DESIGNER_ROLE_ID)
+          .eq('role_id', roleData.id)
           .order('first_name', { ascending: true })
 
         if (error) {

@@ -116,20 +116,21 @@ export function Navigation() {
   const { theme, setTheme } = useTheme()
   const { canAccessPage, pagePermissions, loading: permissionsLoading } = usePermissions()
   const [mounted, setMounted] = useState(false)
-  const [isCollapsed, setIsCollapsed] = useState(() => {
-    // Check localStorage for saved preference, default to expanded (false) for better visibility
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('sidebar-collapsed')
-      return saved === 'true'
-    }
-    return false // Default to expanded for better visibility
-  })
+  const [isCollapsed, setIsCollapsed] = useState(false) // Always start expanded on SSR
   const [openSubmenus, setOpenSubmenus] = useState<string[]>([])
   const [user, setUser] = useState<any>(null)
 
 
   useEffect(() => {
     setMounted(true)
+
+    // Load localStorage preference after mount to avoid hydration mismatch
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebar-collapsed')
+      if (saved === 'true') {
+        setIsCollapsed(true)
+      }
+    }
     
     // Check if user is logged in
     const checkUser = async () => {
@@ -230,6 +231,15 @@ export function Navigation() {
 
     return filtered
   }, [canAccessPage, permissionsLoading, pagePermissions])
+
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return (
+      <div className="flex h-screen w-64 flex-col border-r border-border bg-card">
+        <div className="p-4">Loading...</div>
+      </div>
+    )
+  }
 
   return (
     <div

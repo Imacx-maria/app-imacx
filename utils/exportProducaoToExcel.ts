@@ -54,15 +54,13 @@ export const exportProducaoToExcel = ({
     { header: 'ORC', key: 'numero_orc' },
     { header: 'FO', key: 'numero_fo' },
     { header: 'CLIENTE', key: 'cliente_nome' },
-    { header: 'DATA ENTRADA', key: 'data_in' },
     { header: 'QTD', key: 'quantidade' },
     { header: 'ITEM', key: 'descricao' },
+    { header: 'DATA ENTRADA', key: 'data_in' },
     { header: 'DATA SAÍDA', key: 'data_saida' },
     { header: 'NOTAS', key: 'notas' },
     { header: 'GT', key: 'guia' },
-    { header: 'TRANSPORTADORA', key: 'transportadora' },
-    { header: 'ENTREGA', key: 'local_entrega' },
-    { header: 'CONTACTO ENTREGA', key: 'contacto_entrega' },
+    { header: 'LOGÍSTICA', key: 'logistica' },
   ]
 
   // 1. Title row
@@ -181,7 +179,9 @@ export const exportProducaoToExcel = ({
           value = row.numero_fo || ''
           break
         case 'cliente_nome':
-          value = clienteNome
+          // Truncate to 15 characters and add (...)
+          const fullName = clienteNome
+          value = fullName.length > 15 ? fullName.substring(0, 15) + '...' : fullName
           break
         case 'data_in':
           value = row.data_in
@@ -205,17 +205,32 @@ export const exportProducaoToExcel = ({
         case 'guia':
           value = row.guia || ''
           break
-        case 'transportadora':
-          value = row.transportadora || ''
-          break
-        case 'local_entrega':
-          // Try UUID lookup first, fallback to text field
-          value = row.id_local_entrega
+        case 'logistica':
+          // Concatenate logistics information
+          const logisticaParts: string[] = []
+
+          // LOC.RECOLHA
+          const localRecolha = row.id_local_recolha
+            ? getLocationName(row.id_local_recolha)
+            : row.local_recolha || ''
+          if (localRecolha) {
+            logisticaParts.push(`LOC.RECOLHA: ${localRecolha}`)
+          }
+
+          // LOC.ENTREGA
+          const localEntrega = row.id_local_entrega
             ? getLocationName(row.id_local_entrega)
             : row.local_entrega || ''
-          break
-        case 'contacto_entrega':
-          value = row.contacto_entrega || ''
+          if (localEntrega) {
+            logisticaParts.push(`LOC.ENTREGA: ${localEntrega}`)
+          }
+
+          // TRANSPORTADORA
+          if (row.transportadora) {
+            logisticaParts.push(`TRANSPORTADORA: ${row.transportadora}`)
+          }
+
+          value = logisticaParts.join('. ')
           break
         default:
           value = ''
@@ -253,43 +268,27 @@ export const exportProducaoToExcel = ({
     })
 
     // Wrap text for longer text columns
-    const campaignColIdx =
-      columns.findIndex((col) => col.key === 'nome_campanha') + 1
     const itemColIdx = columns.findIndex((col) => col.key === 'descricao') + 1
-    const clienteColIdx =
-      columns.findIndex((col) => col.key === 'cliente_nome') + 1
-    const recolhaColIdx =
-      columns.findIndex((col) => col.key === 'local_recolha') + 1
-    const entregaColIdx =
-      columns.findIndex((col) => col.key === 'local_entrega') + 1
+    const logisticaColIdx =
+      columns.findIndex((col) => col.key === 'logistica') + 1
+    const notasColIdx =
+      columns.findIndex((col) => col.key === 'notas') + 1
 
-    if (campaignColIdx > 0)
-      excelRow.getCell(campaignColIdx).alignment = {
-        ...excelRow.getCell(campaignColIdx).alignment,
-        wrapText: true,
-        vertical: 'top',
-      }
     if (itemColIdx > 0)
       excelRow.getCell(itemColIdx).alignment = {
         ...excelRow.getCell(itemColIdx).alignment,
         wrapText: true,
         vertical: 'top',
       }
-    if (clienteColIdx > 0)
-      excelRow.getCell(clienteColIdx).alignment = {
-        ...excelRow.getCell(clienteColIdx).alignment,
+    if (logisticaColIdx > 0)
+      excelRow.getCell(logisticaColIdx).alignment = {
+        ...excelRow.getCell(logisticaColIdx).alignment,
         wrapText: true,
         vertical: 'top',
       }
-    if (recolhaColIdx > 0)
-      excelRow.getCell(recolhaColIdx).alignment = {
-        ...excelRow.getCell(recolhaColIdx).alignment,
-        wrapText: true,
-        vertical: 'top',
-      }
-    if (entregaColIdx > 0)
-      excelRow.getCell(entregaColIdx).alignment = {
-        ...excelRow.getCell(entregaColIdx).alignment,
+    if (notasColIdx > 0)
+      excelRow.getCell(notasColIdx).alignment = {
+        ...excelRow.getCell(notasColIdx).alignment,
         wrapText: true,
         vertical: 'top',
       }
@@ -335,19 +334,18 @@ export const exportProducaoToExcel = ({
       case 'quantidade':
         return { key: String(i), width: 10 }
       case 'cliente_nome':
-        return { key: String(i), width: 25 }
-      case 'nome_campanha':
-        return { key: String(i), width: 35 }
+        return { key: String(i), width: 18 }
       case 'descricao':
         return { key: String(i), width: 40 }
       case 'data_in':
-      case 'data_concluido':
+      case 'data_saida':
         return { key: String(i), width: 15 }
-      case 'transportadora':
-        return { key: String(i), width: 20 }
-      case 'local_recolha':
-      case 'local_entrega':
-        return { key: String(i), width: 30 }
+      case 'notas':
+        return { key: String(i), width: 25 }
+      case 'guia':
+        return { key: String(i), width: 12 }
+      case 'logistica':
+        return { key: String(i), width: 50 }
       default:
         return { key: String(i), width: 15 }
     }

@@ -404,10 +404,9 @@ const DesignerSelector = ({ jobId, supabase }: DesignerSelectorProps) => {
           .select('designer, items_base!inner(folha_obra_id)')
           .eq('items_base.folha_obra_id', jobId)
           .limit(1)
-          .single()
 
-        if (!error && data?.designer) {
-          setDesignerId(data.designer)
+        if (!error && data && data.length > 0 && data[0]?.designer) {
+          setDesignerId(data[0].designer)
         }
       } catch (error) {
         // No designer assigned yet, that's ok
