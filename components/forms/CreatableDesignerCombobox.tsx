@@ -94,10 +94,19 @@ export default function CreatableDesignerCombobox({
     fetchDesigners()
   }, [])
 
+  const handleValueChange = (newValue: string) => {
+    // If user selects the "unselect" option, pass empty string to parent
+    if (newValue === '__unselect__') {
+      onChange('')
+    } else {
+      onChange(newValue)
+    }
+  }
+
   return (
     <div className={className}>
       {showLabel && label && <Label className="mb-2 block">{label}</Label>}
-      <Select value={value || ''} onValueChange={onChange} disabled={disabled || loading}>
+      <Select value={value || '__unselect__'} onValueChange={handleValueChange} disabled={disabled || loading}>
         <SelectTrigger>
           <SelectValue placeholder={loading ? 'Loading...' : placeholder} />
         </SelectTrigger>
@@ -107,11 +116,16 @@ export default function CreatableDesignerCombobox({
               No designers found
             </SelectItem>
           ) : (
-            designers.map((designer) => (
-              <SelectItem key={designer.id} value={designer.id}>
-                {designer.label}
+            <>
+              <SelectItem value="__unselect__">
+                <span className="text-muted-foreground italic">Designer</span>
               </SelectItem>
-            ))
+              {designers.map((designer) => (
+                <SelectItem key={designer.id} value={designer.id}>
+                  {designer.label}
+                </SelectItem>
+              ))}
+            </>
           )}
         </SelectContent>
       </Select>

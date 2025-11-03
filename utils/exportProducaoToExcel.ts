@@ -25,6 +25,7 @@ interface ExportProducaoRow {
 
 interface ExportProducaoOptions {
   filteredRecords: ExportProducaoRow[]
+  pendentesRecords?: ExportProducaoRow[]  // Optional pendentes data for second sheet
   activeTab: 'em_curso' | 'concluidos' | 'pendentes'
   clientes?: {
     value: string
@@ -34,23 +35,20 @@ interface ExportProducaoOptions {
   }[]
 }
 
-export const exportProducaoToExcel = ({
-  filteredRecords,
-  activeTab,
-  clientes = [],
-}: ExportProducaoOptions): void => {
-  // Debug: Log received arguments
-  console.log('exportProducaoToExcel called with:', {
-    filteredRecords,
-    activeTab,
-    clientes,
-  })
-
-  const workbook = new ExcelJS.Workbook()
-  const worksheet = workbook.addWorksheet('Producao')
+// Helper function to create a worksheet with data
+const createWorksheet = (
+  workbook: ExcelJS.Workbook,
+  sheetName: string,
+  sheetTitle: string,
+  records: ExportProducaoRow[],
+  clientes: { value: string; label: string; morada?: string; codigo_pos?: string }[],
+  useBandedRows: boolean = false, // New parameter for client-friendly version
+) => {
+  const worksheet = workbook.addWorksheet(sheetName)
 
   // Column definitions (as requested by user)
   const columns = [
+    { header: 'CLIENTE', key: 'cliente' },
     { header: 'ORC', key: 'numero_orc' },
     { header: 'FO', key: 'numero_fo' },
     { header: 'QTD', key: 'quantidade' },
@@ -64,8 +62,7 @@ export const exportProducaoToExcel = ({
   // 1. Title row
   worksheet.mergeCells(1, 1, 1, columns.length)
   const titleCell = worksheet.getCell(1, 1)
-  const tabTitle = activeTab === 'em_curso' ? 'EM CURSO' : activeTab === 'pendentes' ? 'PENDENTES' : 'CONCLUÍDOS'
-  titleCell.value = `RELATÓRIO DE PRODUÇÃO - ${tabTitle}`
+  titleCell.value = `RELATÓRIO DE PRODUÇÃO - ${sheetTitle}`
   titleCell.font = { size: 18, bold: true }
   titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
 
@@ -125,7 +122,7 @@ export const exportProducaoToExcel = ({
   }
 
   // Sort records by cliente name, then by FO number
-  const sortedRecords = [...filteredRecords].sort((a, b) => {
+  const sortedRecords = [...records].sort((a, b) => {
     const clienteA = (a.cliente_nome || getClienteName(a.id_cliente) || '').toUpperCase()
     const clienteB = (b.cliente_nome || getClienteName(b.id_cliente) || '').toUpperCase()
 
@@ -149,34 +146,44 @@ export const exportProducaoToExcel = ({
     clienteGroups.get(clienteName)!.push(record)
   })
 
+  // Helper function to truncate client name to 20 characters
+  const truncateClientName = (name: string): string => {
+    if (name.length <= 20) return name
+    return name.substring(0, 20) + '(...)'
+  }
+
   // 5. Data rows (start at row 5) - grouped by cliente
   let currentRow = 5 // Track current Excel row number
+  let previousCliente: string | null = null
+  let isFirstClientGroup = true
 
   clienteGroups.forEach((clienteRecords, clienteName) => {
-    // Add cliente header row (merged across all columns)
-    worksheet.mergeCells(currentRow, 1, currentRow, columns.length)
-    const clienteHeaderCell = worksheet.getCell(currentRow, 1)
-    clienteHeaderCell.value = clienteName
-    clienteHeaderCell.font = { bold: true, size: 11 }
-    clienteHeaderCell.alignment = { horizontal: 'left', vertical: 'middle' }
-    clienteHeaderCell.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFD3D3D3' }, // Light grey
+    // Add blank row before each client group (except the first one)
+    if (!isFirstClientGroup) {
+      worksheet.addRow([]) // Add blank row
+      currentRow++
     }
-    clienteHeaderCell.border = {
-      top: { style: 'thin' },
-      bottom: { style: 'thin' },
-      left: { style: 'thin' },
-      right: { style: 'thin' },
-    }
-    currentRow++
+    isFirstClientGroup = false
+
+    // Track FO for banded rows
+    let previousFO: string | null = null
+    let useLightGrey = false
 
     // Add data rows for this cliente
-    clienteRecords.forEach((row) => {
+    clienteRecords.forEach((row, index) => {
+      // For banded rows: toggle color when FO changes
+      if (useBandedRows && row.numero_fo !== previousFO) {
+        if (previousFO !== null) {
+          useLightGrey = !useLightGrey
+        }
+        previousFO = row.numero_fo || null
+      }
       const values = columns.map((col) => {
         let value: any
         switch (col.key) {
+          case 'cliente':
+            value = truncateClientName(clienteName)
+            break
           case 'numero_orc':
             value = row.numero_orc || ''
             break
@@ -240,23 +247,33 @@ export const exportProducaoToExcel = ({
 
       const excelRow = worksheet.addRow(values)
 
+      // Add thicker top border for first row of new cliente group (separator line)
+      const isFirstRowOfClient = previousCliente !== null && previousCliente !== clienteName && index === 0
+
       excelRow.eachCell((cell, colNumber) => {
-        // No fill color for data rows
-        // Only vertical borders
+        // Apply banded row fill color if enabled and useLightGrey is true
+        if (useBandedRows && useLightGrey) {
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFF5F5F5' }, // Very light grey
+          }
+        }
+
+        // Border styling
         cell.border = {
           left: { style: 'thin' },
           right: { style: 'thin' },
+          bottom: { style: 'thin' },
+          // Add thick top border for client separator
+          top: isFirstRowOfClient ? { style: 'medium' } : undefined,
         }
         // Align all cells to top
         cell.alignment = { vertical: 'top' }
 
         // Center-align specific columns
-        if (['numero_orc', 'numero_fo', 'data_in', 'data_saida', 'guia'].includes(columns[colNumber - 1]?.key)) {
+        if (['numero_orc', 'numero_fo', 'data_in', 'data_saida', 'guia', 'quantidade'].includes(columns[colNumber - 1]?.key)) {
           cell.alignment = { ...cell.alignment, horizontal: 'center' }
-        }
-        // Right-align numeric columns
-        else if (['quantidade'].includes(columns[colNumber - 1]?.key)) {
-          cell.alignment = { ...cell.alignment, horizontal: 'right' }
         }
       })
 
@@ -277,19 +294,11 @@ export const exportProducaoToExcel = ({
         }
       }
 
-      // Add bottom border to each item row
-      excelRow.eachCell((cell) => {
-        cell.border = {
-          ...cell.border,
-          bottom: { style: 'thin' },
-        }
-      })
-
       currentRow++
     })
 
-    // Add empty line after each cliente group
-    currentRow++
+    // Update previous cliente for next iteration
+    previousCliente = clienteName
   })
 
   // 6. Add border around the entire table (header row gets borders)
@@ -310,6 +319,8 @@ export const exportProducaoToExcel = ({
   // 7. Set column widths (pixels converted to Excel units: ~7 pixels per unit)
   worksheet.columns = columns.map((col, i) => {
     switch (col.key) {
+      case 'cliente':
+        return { key: String(i), width: 30 } // Client name column
       case 'numero_orc':
       case 'numero_fo':
       case 'guia':
@@ -328,7 +339,67 @@ export const exportProducaoToExcel = ({
     }
   })
 
-  // 8. Download the file
+  // 8. Configure print settings
+  worksheet.pageSetup = {
+    paperSize: 9, // A4 paper size (9 = A4)
+    orientation: 'landscape', // Landscape orientation
+    fitToPage: true, // Enable fit to page
+    fitToWidth: 1, // Fit all columns to 1 page width
+    fitToHeight: 0, // Don't limit height (allow multiple pages vertically)
+    horizontalCentered: true, // Center horizontally on page
+    printTitlesRow: '4:4', // Repeat row 4 (header row) on each page
+    margins: {
+      left: 0.25,
+      right: 0.25,
+      top: 0.75,
+      bottom: 0.75,
+      header: 0.3,
+      footer: 0.3,
+    },
+  }
+
+  // Set print area to include all data
+  worksheet.pageSetup.printArea = `A1:${String.fromCharCode(64 + columns.length)}${currentRow}`
+
+  return worksheet
+}
+
+export const exportProducaoToExcel = ({
+  filteredRecords,
+  pendentesRecords,
+  activeTab,
+  clientes = [],
+}: ExportProducaoOptions): void => {
+  // Debug: Log received arguments
+  console.log('exportProducaoToExcel called with:', {
+    filteredRecords,
+    pendentesRecords,
+    activeTab,
+    clientes,
+  })
+
+  const workbook = new ExcelJS.Workbook()
+
+  // Determine main sheet title based on active tab
+  // Note: activeTab can be 'em_curso', 'concluidos', or 'pendentes'
+  // But the main filtered data is always "EM CURSO" (non-completed, non-pendentes jobs)
+  const mainSheetTitle = 'EM CURSO' // Main data is always in-progress jobs (pendente = false, concluido = false)
+
+  // ALWAYS create all 4 sheets (even if data is empty)
+
+  // Sheet 1: EM CURSO data (internal version)
+  createWorksheet(workbook, 'EM CURSO', 'EM CURSO', filteredRecords, clientes, false)
+
+  // Sheet 2: PENDENTES data (internal version)
+  createWorksheet(workbook, 'PENDENTES', 'PENDENTES', pendentesRecords || [], clientes, false)
+
+  // Sheet 3: EM CURSO CLIENT version (with banded rows per FO)
+  createWorksheet(workbook, 'Cliente - EM CURSO', 'EM CURSO', filteredRecords, clientes, true)
+
+  // Sheet 4: PENDENTES CLIENT version (with banded rows per FO)
+  createWorksheet(workbook, 'Cliente - PENDENTES', 'PENDENTES', pendentesRecords || [], clientes, true)
+
+  // Download the file
   workbook.xlsx.writeBuffer().then((buffer) => {
     const fileName = `PRODUCAO_${activeTab.toUpperCase()}_${new Date().toISOString().slice(0, 10)}.xlsx`
     saveAs(new Blob([buffer]), fileName)

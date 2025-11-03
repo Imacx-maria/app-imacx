@@ -45,6 +45,7 @@ import DesignerItemCard from '@/components/DesignerItemCard'
 import { ComplexidadeCombobox } from '@/components/ui/ComplexidadeCombobox'
 import { useComplexidades } from '@/hooks/useComplexidades'
 import type { Job, Item, Designer, UpdateItemParams } from './types'
+import { getAColor } from '@/utils/producao/statusColors'
 
 // Priority color mapping
 const PRIORITY_COLORS = {
@@ -467,8 +468,11 @@ export default function DesignerFlow() {
   const [codigoFilter, setCodigoFilter] = useState('')
   const [jobs, setJobs] = useState<Job[]>([])
   const [allItems, setAllItems] = useState<Item[]>([])
+  const [allDesignerItems, setAllDesignerItems] = useState<any[]>([])
+  const [jobDesigners, setJobDesigners] = useState<Record<string, string>>({}) // jobId -> designerId mapping
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
-  const [sortColumn, setSortColumn] = useState<string>('prioridade')
+  type SortColumn = 'prioridade' | 'artwork' | 'numero_fo' | 'numero_orc' | 'nome_campanha' | 'designer' | 'created_at'
+  const [sortColumn, setSortColumn] = useState<SortColumn>('prioridade')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
   const [loading, setLoading] = useState(false)
   const [openItemId, setOpenItemId] = useState<string | null>(null)
@@ -506,17 +510,47 @@ export default function DesignerFlow() {
     loadJobs()
   }, [debouncedFoFilter, debouncedCampaignFilter, debouncedItemFilter, debouncedCodigoFilter, activeTab, supabase])
 
-  // Load items when job is selected
+  // Load all items and designer items for A column calculation
   useEffect(() => {
-    const loadItems = async () => {
-      if (selectedJob) {
-        const itemsData = await fetchItems(supabase, [selectedJob.id])
-        setAllItems(itemsData)
+    const loadAllData = async () => {
+      if (jobs.length === 0) return
+
+      const jobIds = jobs.map(job => job.id)
+
+      // Fetch all items
+      const itemsData = await fetchItems(supabase, jobIds)
+      setAllItems(itemsData)
+
+      // Fetch all designer items with designer info
+      try {
+        const { data: designerData, error } = await supabase
+          .from('designer_items')
+          .select('id, item_id, paginacao, designer, items_base!inner(folha_obra_id)')
+          .in('item_id', itemsData.map(item => item.id))
+
+        if (!error && designerData) {
+          setAllDesignerItems(designerData)
+
+          // Build jobDesigners mapping
+          const designersMap: Record<string, string> = {}
+          designerData.forEach((item: any) => {
+            const base = Array.isArray(item.items_base) ? item.items_base[0] : item.items_base
+            if (base?.folha_obra_id && item.designer) {
+              designersMap[base.folha_obra_id] = item.designer
+            }
+          })
+          setJobDesigners(designersMap)
+        }
+      } catch (error) {
+        console.error('Error fetching designer items:', error)
       }
     }
 
-    loadItems()
-  }, [selectedJob, supabase])
+    loadAllData()
+  }, [jobs, supabase])
+
+  // No longer needed - items are loaded in the main useEffect above
+  // This is kept for reference but can be removed if desired
 
   // Get items for selected job
   const jobItems = useMemo(() => {
@@ -536,7 +570,25 @@ export default function DesignerFlow() {
         return sortDirection === 'desc' ? bPriority - aPriority : aPriority - bPriority
       }
 
-      if (sortColumn === 'numero_fo' || sortColumn === 'numero_orc') {
+      if (sortColumn === 'artwork') {
+        // Sort by artwork completion status
+        // Get color which represents completion: destructive (0), warning (1), success (2)
+        const getArtworkValue = (jobId: string) => {
+          const color = getAColor(jobId, allItems, allDesignerItems)
+          if (color.includes('success')) return 2
+          if (color.includes('warning')) return 1
+          return 0 // destructive
+        }
+        aVal = getArtworkValue(a.id)
+        bVal = getArtworkValue(b.id)
+        return sortDirection === 'desc' ? bVal - aVal : aVal - bVal
+      }
+
+      if (sortColumn === 'designer') {
+        // Sort by designer name
+        aVal = jobDesigners[a.id] || ''
+        bVal = jobDesigners[b.id] || ''
+      } else if (sortColumn === 'numero_fo' || sortColumn === 'numero_orc') {
         aVal = parseNumericField(aVal)
         bVal = parseNumericField(bVal)
       } else if (sortColumn === 'created_at') {
@@ -552,7 +604,7 @@ export default function DesignerFlow() {
     })
 
     return sorted
-  }, [jobs, sortColumn, sortDirection])
+  }, [jobs, sortColumn, sortDirection, allItems, allDesignerItems, jobDesigners])
 
   // Pagination calculations for main jobs table
   const totalPages = Math.ceil(sortedJobs.length / ITEMS_PER_PAGE)
@@ -568,7 +620,7 @@ export default function DesignerFlow() {
   }, [sortedJobs.length])
 
   // Handle sort click
-  const handleSort = (column: string) => {
+  const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
     } else {
@@ -822,14 +874,30 @@ export default function DesignerFlow() {
                 <Table className="w-full imx-table-compact">
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="sticky top-0 z-10 w-16 border-b text-center">P</TableHead>
-                      <TableHead className="sticky top-0 z-10 w-10 border-b text-center">
+                      <TableHead
+                        className="sticky top-0 z-10 w-16 border-b text-center cursor-pointer select-none"
+                        onClick={() => handleSort('prioridade')}
+                      >
+                        P
+                        {sortColumn === 'prioridade' && (
+                          sortDirection === 'asc' ? <ArrowUp className="ml-1 inline h-3 w-3" /> : <ArrowDown className="ml-1 inline h-3 w-3" />
+                        )}
+                      </TableHead>
+                      <TableHead
+                        className="sticky top-0 z-10 w-10 border-b text-center cursor-pointer select-none"
+                        onClick={() => handleSort('artwork')}
+                      >
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span className="inline-block">B</span>
+                              <span className="inline-block">
+                                A
+                                {sortColumn === 'artwork' && (
+                                  sortDirection === 'asc' ? <ArrowUp className="ml-1 inline h-3 w-3" /> : <ArrowDown className="ml-1 inline h-3 w-3" />
+                                )}
+                              </span>
                             </TooltipTrigger>
-                            <TooltipContent>Brindes</TooltipContent>
+                            <TooltipContent>Artes Finais</TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                       </TableHead>
@@ -851,7 +919,15 @@ export default function DesignerFlow() {
                           sortDirection === 'asc' ? <ArrowUp className="ml-1 inline h-3 w-3" /> : <ArrowDown className="ml-1 inline h-3 w-3" />
                         )}
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 min-w-[200px] border-b">Designer</TableHead>
+                      <TableHead
+                        className="sticky top-0 z-10 min-w-[200px] border-b cursor-pointer select-none"
+                        onClick={() => handleSort('designer')}
+                      >
+                        Designer
+                        {sortColumn === 'designer' && (
+                          sortDirection === 'asc' ? <ArrowUp className="ml-1 inline h-3 w-3" /> : <ArrowDown className="ml-1 inline h-3 w-3" />
+                        )}
+                      </TableHead>
                       <TableHead className="sticky top-0 z-10 w-[120px] cursor-pointer border-b select-none" onClick={() => handleSort('created_at')}>
                         Criado
                         {sortColumn === 'created_at' && (
@@ -883,10 +959,81 @@ export default function DesignerFlow() {
                           key={job.id}
                           className={`${selectedJob?.id === job.id ? 'bg-accent' : ''} imx-row-hover`}
                         >
-                          <TableCell className="text-center">
-                            <PriorityIndicator currentPriority={getPriorityColor(job)} />
+                          <TableCell className="text-center p-0">
+                            <button
+                              className={`mx-auto flex h-3 w-3 items-center justify-center transition-colors cursor-pointer ${getPriorityColor(job) === 'red' ? 'bg-destructive' : getPriorityColor(job) === 'blue' ? 'bg-info' : 'bg-success'}`}
+                              title={
+                                job.prioridade
+                                  ? 'Prioritário'
+                                  : job.created_at &&
+                                      (Date.now() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24) > 3
+                                    ? 'Aguardando há mais de 3 dias'
+                                    : 'Normal'
+                              }
+                              onClick={async () => {
+                                const newPrioridade = !job.prioridade
+                                setJobs((prevJobs) =>
+                                  prevJobs.map((j) =>
+                                    j.id === job.id ? { ...j, prioridade: newPrioridade } : j,
+                                  ),
+                                )
+                                // Persist to Supabase
+                                await supabase
+                                  .from('folhas_obras_with_dias')
+                                  .update({ prioridade: newPrioridade })
+                                  .eq('id', job.id)
+                              }}
+                            />
                           </TableCell>
-                          <TableCell className="text-center"></TableCell>
+                          <TableCell className="text-center p-0">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    className={`mx-auto flex h-3 w-3 items-center justify-center transition-colors cursor-pointer ${getAColor(job.id, allItems, allDesignerItems)}`}
+                                    title="Artes Finais - Click to toggle all items"
+                                    onClick={async () => {
+                                      // Get all designer items for this job
+                                      const jobItems = allItems.filter((item) => item.folha_obra_id === job.id)
+                                      const jobItemIds = jobItems.map((item) => item.id)
+                                      const jobDesignerItems = allDesignerItems.filter((designer) =>
+                                        jobItemIds.includes(designer.item_id),
+                                      )
+
+                                      if (jobDesignerItems.length === 0) return
+
+                                      // Determine new state: if all are true, set to false, otherwise set all to true
+                                      const allCompleted = jobDesignerItems.every((d) => d.paginacao === true)
+                                      const newPaginacao = !allCompleted
+
+                                      // Update all designer items
+                                      const updatePromises = jobDesignerItems.map((designer) =>
+                                        supabase
+                                          .from('designer_items')
+                                          .update({
+                                            paginacao: newPaginacao,
+                                            data_paginacao: newPaginacao ? new Date().toISOString() : null,
+                                          })
+                                          .eq('id', designer.id),
+                                      )
+
+                                      await Promise.all(updatePromises)
+
+                                      // Update local state
+                                      setAllDesignerItems((prev) =>
+                                        prev.map((d) =>
+                                          jobDesignerItems.find((jd) => jd.id === d.id)
+                                            ? { ...d, paginacao: newPaginacao }
+                                            : d,
+                                        ),
+                                      )
+                                    }}
+                                  />
+                                </TooltipTrigger>
+                                <TooltipContent>Artes Finais</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableCell>
                           <TableCell className="font-medium">{job.numero_fo}</TableCell>
                           <TableCell>{job.numero_orc}</TableCell>
                           <TableCell>{job.nome_campanha}</TableCell>
@@ -898,14 +1045,16 @@ export default function DesignerFlow() {
                           </TableCell>
                           <TableCell>{formatDate(job.created_at)}</TableCell>
                           <TableCell className="text-center">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <ViewButton onClick={() => setSelectedJob(job)} />
-                                </TooltipTrigger>
-                                <TooltipContent>Ver Itens</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                            <div className="flex items-center justify-center">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <ViewButton onClick={() => setSelectedJob(job)} />
+                                  </TooltipTrigger>
+                                  <TooltipContent>Ver Itens</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))

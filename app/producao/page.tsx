@@ -2591,7 +2591,7 @@ export default function ProducaoPage() {
                         const { data: folhasData, error: folhasError } =
                           await supabase
                             .from('folhas_obras')
-                            .select('id, numero_orc, Numero_do_, Trabalho, Data_do_do, Nome')
+                            .select('id, numero_orc, Numero_do_, Trabalho, Data_do_do, Nome, data_in, created_at')
                             .in('id', jobIds)
 
                         if (folhasError) {
@@ -2641,7 +2641,7 @@ export default function ProducaoPage() {
                             quantidade: item.quantidade || null,
                             nome_campanha: folhaObra.Trabalho || '',
                             descricao: item.descricao || '',
-                            data_in: folhaObra.Data_do_do || null,
+                            data_in: folhaObra.data_in || folhaObra.created_at || null,
                             data_saida: log.data_saida || null,
                             data_concluido: log.data_concluido || null,
                             transportadora: transportadoraName,
@@ -2655,9 +2655,183 @@ export default function ProducaoPage() {
                           })
                         })
 
-                        // Call the export function
+                        // ALWAYS fetch both EM CURSO and PENDENTES data for export
+                        // This ensures all 4 sheets can be created regardless of active tab
+
+                        // Determine which dataset to use for EM CURSO sheet
+                        let emCursoRows: any[] = []
+                        let pendentesRows: any[] = []
+
+                        if (activeTab === 'pendentes') {
+                          // If on PENDENTES tab, current exportRows is PENDENTES data
+                          // Need to fetch EM CURSO data
+                          pendentesRows = exportRows
+
+                          try {
+                            // Fetch em_curso jobs (pendente = false, concluido = false)
+                            const { data: emCursoJobsData, error: emCursoJobsError } =
+                              await supabase
+                                .from('folhas_obras')
+                                .select('id, numero_orc, Numero_do_, Trabalho, Data_do_do, Nome, data_in, created_at')
+                                .eq('pendente', false)
+                                .eq('concluido', false)
+                                .order('Numero_do_', { ascending: false })
+
+                            if (!emCursoJobsError && emCursoJobsData && emCursoJobsData.length > 0) {
+                              const emCursoJobIds = emCursoJobsData.map((j: any) => j.id)
+
+                              // Fetch items for em_curso jobs
+                              const { data: emCursoItemsData, error: emCursoItemsError } =
+                                await supabase
+                                  .from('items_base')
+                                  .select('id, folha_obra_id, descricao, quantidade')
+                                  .in('folha_obra_id', emCursoJobIds)
+
+                              if (!emCursoItemsError && emCursoItemsData) {
+                                const emCursoItemIds = emCursoItemsData.map((i: any) => i.id)
+
+                                // Fetch logistica for em_curso items
+                                const { data: emCursoLogisticaData, error: emCursoLogisticaError } =
+                                  await supabase
+                                    .from('logistica_entregas')
+                                    .select(
+                                      'item_id, data_saida, data_concluido, transportadora, local_entrega, local_recolha, id_local_entrega, id_local_recolha, notas, guia, contacto_entrega',
+                                    )
+                                    .in('item_id', emCursoItemIds)
+                                    .eq('concluido', false)
+
+                                if (!emCursoLogisticaError && emCursoLogisticaData && emCursoLogisticaData.length > 0) {
+                                  const emCursoItemsMap = new Map(
+                                    emCursoItemsData.map((i: any) => [i.id, i]),
+                                  )
+                                  const emCursoFolhasMap = new Map(
+                                    emCursoJobsData.map((f: any) => [f.id, f]),
+                                  )
+
+                                  emCursoLogisticaData.forEach((log: any) => {
+                                    const item = emCursoItemsMap.get(log.item_id)
+                                    if (!item) return
+
+                                    const folhaObra = emCursoFolhasMap.get(item.folha_obra_id)
+                                    if (!folhaObra) return
+
+                                    const transportadoraName = log.transportadora
+                                      ? transportadorasMap.get(log.transportadora) || log.transportadora
+                                      : ''
+
+                                    emCursoRows.push({
+                                      numero_orc: folhaObra.numero_orc || null,
+                                      numero_fo: folhaObra.Numero_do_ ? String(folhaObra.Numero_do_) : '',
+                                      cliente_nome: folhaObra.Nome || '',
+                                      quantidade: item.quantidade || null,
+                                      nome_campanha: folhaObra.Trabalho || '',
+                                      descricao: item.descricao || '',
+                                      data_in: folhaObra.data_in || folhaObra.created_at || null,
+                                      data_saida: log.data_saida || null,
+                                      data_concluido: log.data_concluido || null,
+                                      transportadora: transportadoraName,
+                                      local_entrega: log.local_entrega || '',
+                                      local_recolha: log.local_recolha || '',
+                                      id_local_entrega: log.id_local_entrega || '',
+                                      id_local_recolha: log.id_local_recolha || '',
+                                      notas: log.notas || '',
+                                      guia: log.guia || '',
+                                      contacto_entrega: log.contacto_entrega || '',
+                                    })
+                                  })
+                                }
+                              }
+                            }
+                          } catch (error) {
+                            console.error('Error fetching em_curso data:', error)
+                          }
+                        } else {
+                          // If on EM CURSO or CONCLUIDOS tab, current exportRows is EM CURSO data
+                          // Need to fetch PENDENTES data
+                          emCursoRows = exportRows
+
+                          try {
+                            // Fetch pendentes jobs
+                            const { data: pendentesJobsData, error: pendentesJobsError } =
+                              await supabase
+                                .from('folhas_obras')
+                                .select('id, numero_orc, Numero_do_, Trabalho, Data_do_do, Nome, data_in, created_at')
+                                .eq('pendente', true)
+                                .order('Numero_do_', { ascending: false })
+
+                            if (!pendentesJobsError && pendentesJobsData && pendentesJobsData.length > 0) {
+                              const pendentesJobIds = pendentesJobsData.map((j: any) => j.id)
+
+                              // Fetch items for pendentes jobs
+                              const { data: pendentesItemsData, error: pendentesItemsError } =
+                                await supabase
+                                  .from('items_base')
+                                  .select('id, folha_obra_id, descricao, quantidade')
+                                  .in('folha_obra_id', pendentesJobIds)
+
+                              if (!pendentesItemsError && pendentesItemsData && pendentesItemsData.length > 0) {
+                                const pendentesItemIds = pendentesItemsData.map((i: any) => i.id)
+
+                                // Fetch logistica for pendentes items (from logistica_entregas table)
+                                const { data: pendentesLogisticaData, error: pendentesLogisticaError } =
+                                  await supabase
+                                    .from('logistica_entregas')
+                                    .select(
+                                      'item_id, data_saida, data_concluido, transportadora, local_entrega, local_recolha, id_local_entrega, id_local_recolha, notas, guia, contacto_entrega',
+                                    )
+                                    .in('item_id', pendentesItemIds)
+
+                                if (!pendentesLogisticaError && pendentesLogisticaData) {
+                                  const pendentesItemsMap = new Map(
+                                    pendentesItemsData.map((i: any) => [i.id, i]),
+                                  )
+                                  const pendentesFolhasMap = new Map(
+                                    pendentesJobsData.map((f: any) => [f.id, f]),
+                                  )
+
+                                  pendentesLogisticaData.forEach((log: any) => {
+                                    const item = pendentesItemsMap.get(log.item_id)
+                                    if (!item) return
+
+                                    const folhaObra = pendentesFolhasMap.get(item.folha_obra_id)
+                                    if (!folhaObra) return
+
+                                    const transportadoraName = log.transportadora
+                                      ? transportadorasMap.get(log.transportadora) || log.transportadora
+                                      : ''
+
+                                    pendentesRows.push({
+                                      numero_orc: folhaObra.numero_orc || null,
+                                      numero_fo: folhaObra.Numero_do_ ? String(folhaObra.Numero_do_) : '',
+                                      cliente_nome: folhaObra.Nome || '',
+                                      quantidade: item.quantidade || null,
+                                      nome_campanha: folhaObra.Trabalho || '',
+                                      descricao: item.descricao || '',
+                                      data_in: folhaObra.data_in || folhaObra.created_at || null,
+                                      data_saida: log.data_saida || null,
+                                      data_concluido: log.data_concluido || null,
+                                      transportadora: transportadoraName,
+                                      local_entrega: log.local_entrega || '',
+                                      local_recolha: log.local_recolha || '',
+                                      id_local_entrega: log.id_local_entrega || '',
+                                      id_local_recolha: log.id_local_recolha || '',
+                                      notas: log.notas || '',
+                                      guia: log.guia || '',
+                                      contacto_entrega: log.contacto_entrega || '',
+                                    })
+                                  })
+                                }
+                              }
+                            }
+                          } catch (error) {
+                            console.error('Error fetching pendentes data:', error)
+                          }
+                        }
+
+                        // Call the export function with both datasets
                         exportProducaoToExcel({
-                          filteredRecords: exportRows,
+                          filteredRecords: emCursoRows,
+                          pendentesRecords: pendentesRows,
                           activeTab,
                           clientes: clientesForExport,
                         })
@@ -2925,11 +3099,22 @@ export default function ProducaoPage() {
                             </TooltipProvider>
                           </TableHead>
 
-                          <TableHead className="border-border sticky top-0 z-10 w-[40px] cursor-pointer border-b bg-primary text-center  text-primary-foreground uppercase select-none">
+                          <TableHead
+                            onClick={() => toggleSort('pendente')}
+                            className="border-border sticky top-0 z-10 w-[40px] cursor-pointer border-b bg-primary text-center  text-primary-foreground uppercase select-none"
+                          >
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span>SB</span>
+                                  <span>
+                                    SB{' '}
+                                    {sortCol === 'pendente' &&
+                                      (sortDir === 'asc' ? (
+                                        <ArrowUp className="ml-1 inline h-3 w-3" />
+                                      ) : (
+                                        <ArrowDown className="ml-1 inline h-3 w-3" />
+                                      ))}
+                                  </span>
                                 </TooltipTrigger>
                                 <TooltipContent>Stand By</TooltipContent>
                               </Tooltip>
@@ -4382,11 +4567,22 @@ export default function ProducaoPage() {
                             </TooltipProvider>
                           </TableHead>
 
-                          <TableHead className="border-border sticky top-0 z-10 w-[40px] cursor-pointer border-b bg-primary text-center  text-primary-foreground uppercase select-none">
+                          <TableHead
+                            onClick={() => toggleSort('pendente')}
+                            className="border-border sticky top-0 z-10 w-[40px] cursor-pointer border-b bg-primary text-center  text-primary-foreground uppercase select-none"
+                          >
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span>SB</span>
+                                  <span>
+                                    SB{' '}
+                                    {sortCol === 'pendente' &&
+                                      (sortDir === 'asc' ? (
+                                        <ArrowUp className="ml-1 inline h-3 w-3" />
+                                      ) : (
+                                        <ArrowDown className="ml-1 inline h-3 w-3" />
+                                      ))}
+                                  </span>
                                 </TooltipTrigger>
                                 <TooltipContent>Stand By</TooltipContent>
                               </Tooltip>
