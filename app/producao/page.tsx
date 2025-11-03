@@ -46,6 +46,7 @@ import {
 import DatePicker from '@/components/custom/DatePicker'
 import { createBrowserClient } from '@/utils/supabase'
 import { format } from 'date-fns'
+import { FullYearCalendar } from '@/components/FullYearCalendar'
 import {
   ArrowUp,
   ArrowDown,
@@ -149,6 +150,13 @@ const ErrorMessage = ({
 
 /* ---------- Performance optimizations complete ---------- */
 
+/* ---------- Holiday interface ---------- */
+interface Holiday {
+  id: string
+  holiday_date: string
+  description?: string
+}
+
 /* ---------- main page ---------- */
 export default function ProducaoPage() {
   const supabase = useMemo(() => createBrowserClient(), [])
@@ -162,6 +170,8 @@ export default function ProducaoPage() {
   const [clientes, setClientes] = useState<{ value: string; label: string }[]>(
     [],
   )
+  const [holidays, setHolidays] = useState<Holiday[]>([])
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   // Ref to access latest clientes in fetchJobs without creating dependency
   const clientesRef = useRef<{ value: string; label: string }[]>([])
   // Ref to track if initial load has happened
@@ -922,6 +932,35 @@ export default function ProducaoPage() {
       setError('Failed to load client data')
     } finally {
       setLoading((prev) => ({ ...prev, clientes: false }))
+    }
+  }, [supabase])
+
+  const fetchHolidays = useCallback(async () => {
+    try {
+      const today = new Date()
+      const startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+      const endDate = new Date(today.getFullYear(), today.getMonth() + 2, 0)
+
+      const startDateStr = startDate.toISOString().split('T')[0]
+      const endDateStr = endDate.toISOString().split('T')[0]
+
+      const { data, error } = await supabase
+        .from('feriados')
+        .select('id, holiday_date, description')
+        .gte('holiday_date', startDateStr)
+        .lte('holiday_date', endDateStr)
+        .order('holiday_date', { ascending: true })
+
+      if (error) {
+        console.error('Error fetching holidays:', error)
+        return
+      }
+
+      if (data) {
+        setHolidays(data)
+      }
+    } catch (error) {
+      console.error('Error fetching holidays:', error)
     }
   }, [supabase])
 
@@ -1786,10 +1825,13 @@ export default function ProducaoPage() {
       setError(null)
 
       console.log('🚀 Starting initial data load...')
-      
+
       // Load clientes FIRST and wait for completion
       await fetchClientes()
       console.log('✅ Clientes loaded:', clientesRef.current.length)
+
+      // Load holidays
+      fetchHolidays()
 
       // Then load jobs - clientes will already be in the ref
       await fetchJobs(0, true, { activeTab })
@@ -1970,8 +2012,74 @@ export default function ProducaoPage() {
     fetchClientes()
   }, [fetchJobs, fetchClientes, activeTab])
 
-  /* jobs are now pre-filtered by database, so we just use them directly */
-  const filtered = jobs
+  /* State to track filtered job IDs by date */
+  const [dateFilteredJobIds, setDateFilteredJobIds] = useState<string[] | null>(null)
+
+  /* Apply date filter when selectedDate changes */
+  useEffect(() => {
+    if (!selectedDate) {
+      setDateFilteredJobIds(null)
+      return
+    }
+
+    const filterByDate = async () => {
+      try {
+        const selectedDateStr = format(selectedDate, 'yyyy-MM-dd')
+        console.log('📅 Filtering by data_saida:', selectedDateStr)
+
+        // Get all logistics entries matching the selected date
+        const { data: logisticsData, error: logisticsError } = await supabase
+          .from('logistica_entregas')
+          .select('item_id')
+          .eq('data_saida', selectedDateStr)
+
+        if (logisticsError) {
+          console.error('Error fetching logistics for date filter:', logisticsError)
+          return
+        }
+
+        if (!logisticsData || logisticsData.length === 0) {
+          console.log('📅 No logistics entries found for date:', selectedDateStr)
+          setDateFilteredJobIds([]) // Empty array means no matches
+          return
+        }
+
+        const itemIds = logisticsData.map((log: any) => log.item_id)
+        console.log('📅 Found item IDs:', itemIds.length)
+
+        // Get folha_obra_ids from these items
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('items_base')
+          .select('folha_obra_id')
+          .in('id', itemIds)
+
+        if (itemsError) {
+          console.error('Error fetching items for date filter:', itemsError)
+          return
+        }
+
+        const jobIds = Array.from(new Set(itemsData?.map((item: any) => item.folha_obra_id) || []))
+        console.log('📅 Filtered to job IDs:', jobIds.length)
+        setDateFilteredJobIds(jobIds as string[])
+      } catch (error) {
+        console.error('Error in date filter:', error)
+      }
+    }
+
+    filterByDate()
+  }, [selectedDate, supabase])
+
+  /* jobs are now pre-filtered by database, apply date filter if selected */
+  const filtered = useMemo(() => {
+    // If date filter is active, only show matching jobs
+    if (dateFilteredJobIds !== null) {
+      if (dateFilteredJobIds.length === 0) {
+        return [] // No matches
+      }
+      return jobs.filter((job) => dateFilteredJobIds.includes(job.id))
+    }
+    return jobs
+  }, [jobs, dateFilteredJobIds])
 
   /* sort */
   const sorted = useMemo(() => {
@@ -2611,6 +2719,29 @@ export default function ProducaoPage() {
 
         {/* Error handling */}
         {error && <ErrorMessage message={error} onRetry={retryFetch} />}
+
+        {/* Calendar Section */}
+        <div className="mt-8">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-2xl font-bold">Calendário - Filtrar por Data de Saída</h2>
+            {selectedDate && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="border border-black"
+                onClick={() => setSelectedDate(undefined)}
+              >
+                <X className="mr-2 h-4 w-4" />
+                Limpar Filtro ({format(selectedDate, 'dd/MM/yyyy')})
+              </Button>
+            )}
+          </div>
+          <FullYearCalendar
+            holidays={holidays}
+            year={new Date().getFullYear()}
+            onSelect={(date) => setSelectedDate(date)}
+          />
+        </div>
 
         {/* Main Tabs */}
         <Tabs

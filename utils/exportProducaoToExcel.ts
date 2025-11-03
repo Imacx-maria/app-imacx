@@ -53,12 +53,10 @@ export const exportProducaoToExcel = ({
   const columns = [
     { header: 'ORC', key: 'numero_orc' },
     { header: 'FO', key: 'numero_fo' },
-    { header: 'CLIENTE', key: 'cliente_nome' },
     { header: 'QTD', key: 'quantidade' },
     { header: 'ITEM', key: 'descricao' },
     { header: 'DATA ENTRADA', key: 'data_in' },
     { header: 'DATA SAÍDA', key: 'data_saida' },
-    { header: 'NOTAS', key: 'notas' },
     { header: 'GT', key: 'guia' },
     { header: 'LOGÍSTICA', key: 'logistica' },
   ]
@@ -112,8 +110,8 @@ export const exportProducaoToExcel = ({
   }
 
   // Helper function to get location name from UUID with address
-  const getLocationName = (locationId: string | undefined) => {
-    if (!locationId || !clientes.length) return ''
+  const getLocationName = (locationId: string | undefined, fallbackText: string = '') => {
+    if (!locationId || !clientes.length) return fallbackText
     const location = clientes.find((c) => c.value === locationId)
     if (location) {
       // Include address information if available
@@ -123,229 +121,208 @@ export const exportProducaoToExcel = ({
       const addressLine = addressParts.join(' ')
       return location.label + (addressLine ? ` - ${addressLine}` : '')
     }
-    return ''
+    return fallbackText
   }
 
-  // Sort records by FO number
+  // Sort records by cliente name, then by FO number
   const sortedRecords = [...filteredRecords].sort((a, b) => {
+    const clienteA = (a.cliente_nome || getClienteName(a.id_cliente) || '').toUpperCase()
+    const clienteB = (b.cliente_nome || getClienteName(b.id_cliente) || '').toUpperCase()
+
+    // First sort by cliente
+    const clienteCompare = clienteA.localeCompare(clienteB)
+    if (clienteCompare !== 0) return clienteCompare
+
+    // Then sort by FO within same cliente
     const foA = a.numero_fo || ''
     const foB = b.numero_fo || ''
     return foA.localeCompare(foB)
   })
 
-  // Generate a light random color for FO grouping
-  function generateLightColor(index: number): string {
-    const colors = [
-      'FFFCE7F3', // light pink
-      'FFE0E7FF', // light blue
-      'FFDBEAFE', // light purple
-      'FFFCE8D5', // light orange
-      'FFFEF9C3', // light yellow
-      'FFD1FAE5', // light green
-      'FFE0F2FE', // light sky
-      'FFFECDD3', // light rose
-      'FFE9D5FF', // light lavender
-      'FFFECACA', // light red
-      'FFDDD6FE', // light violet
-      'FFE0F2F1', // light teal
-      'FFFEF3C7', // light amber
-      'FFCCFBF1', // light cyan
-      'FFF5D0FE', // light magenta
-    ]
-    return colors[index % colors.length]
-  }
-
-  // Group records by FO to assign colors
-  const foGroups = new Map<string, number>()
-  let colorIndex = 0
+  // Group records by cliente
+  const clienteGroups = new Map<string, ExportProducaoRow[]>()
   sortedRecords.forEach((record) => {
-    const fo = record.numero_fo || 'N/A'
-    if (!foGroups.has(fo)) {
-      foGroups.set(fo, colorIndex++)
+    const clienteName = (record.cliente_nome || getClienteName(record.id_cliente) || 'SEM CLIENTE').toUpperCase()
+    if (!clienteGroups.has(clienteName)) {
+      clienteGroups.set(clienteName, [])
     }
+    clienteGroups.get(clienteName)!.push(record)
   })
 
-  // 5. Data rows (start at row 5)
-  sortedRecords.forEach((row) => {
-    const clienteNome = row.cliente_nome || getClienteName(row.id_cliente)
+  // 5. Data rows (start at row 5) - grouped by cliente
+  let currentRow = 5 // Track current Excel row number
 
-    const values = columns.map((col) => {
-      let value: any
-      switch (col.key) {
-        case 'numero_orc':
-          value = row.numero_orc || ''
-          break
-        case 'numero_fo':
-          value = row.numero_fo || ''
-          break
-        case 'cliente_nome':
-          // Truncate to 15 characters and add (...)
-          const fullName = clienteNome
-          value = fullName.length > 15 ? fullName.substring(0, 15) + '...' : fullName
-          break
-        case 'data_in':
-          value = row.data_in
-            ? new Date(row.data_in).toLocaleDateString('pt-PT')
-            : ''
-          break
-        case 'quantidade':
-          value = row.quantidade || ''
-          break
-        case 'descricao':
-          value = row.descricao || ''
-          break
-        case 'data_saida':
-          value = row.data_saida
-            ? new Date(row.data_saida).toLocaleDateString('pt-PT')
-            : ''
-          break
-        case 'notas':
-          value = row.notas || ''
-          break
-        case 'guia':
-          value = row.guia || ''
-          break
-        case 'logistica':
-          // Concatenate logistics information
-          const logisticaParts: string[] = []
+  clienteGroups.forEach((clienteRecords, clienteName) => {
+    // Add cliente header row (merged across all columns)
+    worksheet.mergeCells(currentRow, 1, currentRow, columns.length)
+    const clienteHeaderCell = worksheet.getCell(currentRow, 1)
+    clienteHeaderCell.value = clienteName
+    clienteHeaderCell.font = { bold: true, size: 11 }
+    clienteHeaderCell.alignment = { horizontal: 'left', vertical: 'middle' }
+    clienteHeaderCell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD3D3D3' }, // Light grey
+    }
+    clienteHeaderCell.border = {
+      top: { style: 'thin' },
+      bottom: { style: 'thin' },
+      left: { style: 'thin' },
+      right: { style: 'thin' },
+    }
+    currentRow++
 
-          // LOC.RECOLHA
-          const localRecolha = row.id_local_recolha
-            ? getLocationName(row.id_local_recolha)
-            : row.local_recolha || ''
-          if (localRecolha) {
-            logisticaParts.push(`LOC.RECOLHA: ${localRecolha}`)
-          }
+    // Add data rows for this cliente
+    clienteRecords.forEach((row) => {
+      const values = columns.map((col) => {
+        let value: any
+        switch (col.key) {
+          case 'numero_orc':
+            value = row.numero_orc || ''
+            break
+          case 'numero_fo':
+            value = row.numero_fo || ''
+            break
+          case 'data_in':
+            value = row.data_in
+              ? new Date(row.data_in).toLocaleDateString('pt-PT')
+              : ''
+            break
+          case 'quantidade':
+            value = row.quantidade || ''
+            break
+          case 'descricao':
+            value = row.descricao || ''
+            break
+          case 'data_saida':
+            value = row.data_saida
+              ? new Date(row.data_saida).toLocaleDateString('pt-PT')
+              : ''
+            break
+          case 'guia':
+            value = row.guia || ''
+            break
+          case 'logistica':
+            // Concatenate logistics information
+            const logisticaParts: string[] = []
 
-          // LOC.ENTREGA
-          const localEntrega = row.id_local_entrega
-            ? getLocationName(row.id_local_entrega)
-            : row.local_entrega || ''
-          if (localEntrega) {
-            logisticaParts.push(`LOC.ENTREGA: ${localEntrega}`)
-          }
+            // LOC.RECOLHA - check ID first, then fallback to text field
+            const localRecolhaValue = getLocationName(row.id_local_recolha, row.local_recolha || '')
+            if (localRecolhaValue) {
+              logisticaParts.push(`LOC.RECOLHA: ${localRecolhaValue}`)
+            }
 
-          // TRANSPORTADORA
-          if (row.transportadora) {
-            logisticaParts.push(`TRANSPORTADORA: ${row.transportadora}`)
-          }
+            // LOC.ENTREGA - check ID first, then fallback to text field
+            const localEntregaValue = getLocationName(row.id_local_entrega, row.local_entrega || '')
+            if (localEntregaValue) {
+              logisticaParts.push(`LOC.ENTREGA: ${localEntregaValue}`)
+            }
 
-          value = logisticaParts.join('. ')
-          break
-        default:
-          value = ''
+            // TRANSPORTADORA
+            if (row.transportadora) {
+              logisticaParts.push(`TRANSPORTADORA: ${row.transportadora}`)
+            }
+
+            // NOTAS - add at the end
+            if (row.notas) {
+              logisticaParts.push(`NOTAS: ${row.notas}`)
+            }
+
+            value = logisticaParts.join('. ')
+            break
+          default:
+            value = ''
+        }
+
+        // Convert all text values to uppercase
+        return typeof value === 'string' ? value.toUpperCase() : value
+      })
+
+      const excelRow = worksheet.addRow(values)
+
+      excelRow.eachCell((cell, colNumber) => {
+        // No fill color for data rows
+        // Only vertical borders
+        cell.border = {
+          left: { style: 'thin' },
+          right: { style: 'thin' },
+        }
+        // Align all cells to top
+        cell.alignment = { vertical: 'top' }
+
+        // Center-align specific columns
+        if (['numero_orc', 'numero_fo', 'data_in', 'data_saida', 'guia'].includes(columns[colNumber - 1]?.key)) {
+          cell.alignment = { ...cell.alignment, horizontal: 'center' }
+        }
+        // Right-align numeric columns
+        else if (['quantidade'].includes(columns[colNumber - 1]?.key)) {
+          cell.alignment = { ...cell.alignment, horizontal: 'right' }
+        }
+      })
+
+      // Wrap text for longer text columns
+      const itemColIdx = columns.findIndex((col) => col.key === 'descricao') + 1
+      const logisticaColIdx = columns.findIndex((col) => col.key === 'logistica') + 1
+
+      if (itemColIdx > 0) {
+        excelRow.getCell(itemColIdx).alignment = {
+          ...excelRow.getCell(itemColIdx).alignment,
+          wrapText: true,
+        }
+      }
+      if (logisticaColIdx > 0) {
+        excelRow.getCell(logisticaColIdx).alignment = {
+          ...excelRow.getCell(logisticaColIdx).alignment,
+          wrapText: true,
+        }
       }
 
-      // Convert all text values to uppercase
-      return typeof value === 'string' ? value.toUpperCase() : value
+      // Add bottom border to each item row
+      excelRow.eachCell((cell) => {
+        cell.border = {
+          ...cell.border,
+          bottom: { style: 'thin' },
+        }
+      })
+
+      currentRow++
     })
 
-    const excelRow = worksheet.addRow(values)
-    
-    // Get color for this FO group
-    const fo = row.numero_fo || 'N/A'
-    const foColorIndex = foGroups.get(fo) || 0
-    const fillColor = generateLightColor(foColorIndex)
-
-    excelRow.eachCell((cell, colNumber) => {
-      cell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: fillColor },
-      }
-      // Only vertical borders
-      cell.border = {
-        left: { style: 'thin' },
-        right: { style: 'thin' },
-      }
-      // Align all cells to top
-      cell.alignment = { ...cell.alignment, vertical: 'top' }
-
-      // Right-align numeric columns
-      if (['numero_orc', 'quantidade'].includes(columns[colNumber - 1]?.key)) {
-        cell.alignment = { ...cell.alignment, horizontal: 'right' }
-      }
-    })
-
-    // Wrap text for longer text columns
-    const itemColIdx = columns.findIndex((col) => col.key === 'descricao') + 1
-    const logisticaColIdx =
-      columns.findIndex((col) => col.key === 'logistica') + 1
-    const notasColIdx =
-      columns.findIndex((col) => col.key === 'notas') + 1
-
-    if (itemColIdx > 0)
-      excelRow.getCell(itemColIdx).alignment = {
-        ...excelRow.getCell(itemColIdx).alignment,
-        wrapText: true,
-        vertical: 'top',
-      }
-    if (logisticaColIdx > 0)
-      excelRow.getCell(logisticaColIdx).alignment = {
-        ...excelRow.getCell(logisticaColIdx).alignment,
-        wrapText: true,
-        vertical: 'top',
-      }
-    if (notasColIdx > 0)
-      excelRow.getCell(notasColIdx).alignment = {
-        ...excelRow.getCell(notasColIdx).alignment,
-        wrapText: true,
-        vertical: 'top',
-      }
+    // Add empty line after each cliente group
+    currentRow++
   })
 
-  // 6. Add border around the entire table
-  const dataStartRow = 4
-  const dataEndRow = 4 + sortedRecords.length
+  // 6. Add border around the entire table (header row gets borders)
+  const dataStartRow = 4 // Header row
 
-  if (sortedRecords.length > 0) {
-    for (let col = 1; col <= columns.length; col++) {
-      // Top border
-      worksheet.getCell(dataStartRow, col).border = {
-        ...worksheet.getCell(dataStartRow, col).border,
-        top: { style: 'thin' },
-      }
-      // Bottom border
-      worksheet.getCell(dataEndRow, col).border = {
-        ...worksheet.getCell(dataEndRow, col).border,
-        bottom: { style: 'thin' },
-      }
-    }
-
-    // Left and right borders for the whole table
-    for (let row = dataStartRow; row <= dataEndRow; row++) {
-      worksheet.getCell(row, 1).border = {
-        ...worksheet.getCell(row, 1).border,
-        left: { style: 'thin' },
-      }
-      worksheet.getCell(row, columns.length).border = {
-        ...worksheet.getCell(row, columns.length).border,
-        right: { style: 'thin' },
-      }
+  // Add borders to header row
+  for (let col = 1; col <= columns.length; col++) {
+    const headerCell = worksheet.getCell(dataStartRow, col)
+    headerCell.border = {
+      ...headerCell.border,
+      top: { style: 'thin' },
+      bottom: { style: 'thin' },
+      left: { style: 'thin' },
+      right: { style: 'thin' },
     }
   }
 
-  // 7. Set column widths
+  // 7. Set column widths (pixels converted to Excel units: ~7 pixels per unit)
   worksheet.columns = columns.map((col, i) => {
     switch (col.key) {
       case 'numero_orc':
       case 'numero_fo':
-        return { key: String(i), width: 12 }
+      case 'guia':
+        return { key: String(i), width: 8 } // 55px ≈ 8 units
       case 'quantidade':
-        return { key: String(i), width: 10 }
-      case 'cliente_nome':
-        return { key: String(i), width: 18 }
+        return { key: String(i), width: 10 } // 70px ≈ 10 units
       case 'descricao':
         return { key: String(i), width: 40 }
       case 'data_in':
       case 'data_saida':
         return { key: String(i), width: 15 }
-      case 'notas':
-        return { key: String(i), width: 25 }
-      case 'guia':
-        return { key: String(i), width: 12 }
       case 'logistica':
-        return { key: String(i), width: 50 }
+        return { key: String(i), width: 55 }
       default:
         return { key: String(i), width: 15 }
     }

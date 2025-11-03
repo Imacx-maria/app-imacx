@@ -381,7 +381,7 @@
   --orange: oklch(0.70 0.17 50);
   --color-accent-foreground: oklch(0.85 0 0);
   /* Calendar specific grays */
-  --calendar-holiday-bg: oklch(0.86 0.02 98.5); /* darker than weekend/input in dark */
+  --calendar-holiday-bg: oklch(0.72 0.02 98.5); /* darker than weekend/input in dark */
   --card-foreground: oklch(0.85 0 0);
   --popover: oklch(0.31 0 0);
   --popover-foreground: oklch(0.85 0 0);
@@ -503,7 +503,7 @@ input:-webkit-autofill:focus {
 .rdp-weekday {
   font-size: 14px;
   font-weight: 700;
-  color: var(--foreground) !important;
+  color: oklch(0% 0 0) !important;
 }
 
 .rdp-nav {
@@ -628,6 +628,16 @@ input:-webkit-autofill:focus {
   font-weight: 700 !important;
 }
 
+/* Dark mode: Holiday text should be black */
+.dark .rdp-holiday:not(.rdp-day_selected):not([data-selected='true']),
+.dark .rdp-holiday:not(.rdp-day_selected):not([data-selected='true']) .rdp-day_button,
+.dark .rdp-day_holiday:not(.rdp-day_selected):not([data-selected='true']),
+.dark .rdp-day_holiday:not(.rdp-day_selected):not([data-selected='true']) .rdp-day_button,
+.dark [data-holiday='true']:not([data-selected='true']),
+.dark [data-holiday='true']:not([data-selected='true']) .rdp-day_button {
+  color: oklch(0% 0 0) !important;
+}
+
 /* Ensure holiday wins when it coincides with weekend */
 .rdp-weekend.rdp-holiday:not(.rdp-day_selected):not([data-selected='true']),
 .rdp-weekend.rdp-holiday:not(.rdp-day_selected):not([data-selected='true']) .rdp-day_button,
@@ -636,6 +646,15 @@ input:-webkit-autofill:focus {
 .rdp [data-weekend='true'][data-holiday='true']:not([data-selected='true']) {
   background-color: var(--calendar-holiday-bg) !important;
   color: var(--foreground) !important;
+}
+
+/* Dark mode: Holiday text should be black even when coinciding with weekend */
+.dark .rdp-weekend.rdp-holiday:not(.rdp-day_selected):not([data-selected='true']),
+.dark .rdp-weekend.rdp-holiday:not(.rdp-day_selected):not([data-selected='true']) .rdp-day_button,
+.dark .rdp .rdp-holiday > .rdp-day_button,
+.dark .rdp .rdp-weekend.rdp-holiday > .rdp-day_button,
+.dark .rdp [data-weekend='true'][data-holiday='true']:not([data-selected='true']) {
+  color: oklch(0% 0 0) !important;
 }
 
 .rdp .rdp-today:not(.rdp-day_selected):not([data-selected='true']) {

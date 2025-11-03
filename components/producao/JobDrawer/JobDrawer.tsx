@@ -1635,7 +1635,7 @@ function JobDrawerContentComponent({
                         const phcRow = phcData || null
                         if (!phcRow) {
                           console.warn('⚠️ No PHC data for FO:', foValue)
-                          // still persist FO
+                          // still persist FO to both logistica (deprecated) and logistica_entregas
                           const updatedItemsBase = {
                             ...row.items_base,
                             folhas_obras: {
@@ -1643,14 +1643,22 @@ function JobDrawerContentComponent({
                               numero_fo: foValue.trim(),
                             },
                           }
+                          // Update deprecated logistica table
                           await supabase
                             .from('logistica')
                             .update({ items_base: updatedItemsBase })
                             .eq('id', row.id)
+
+                          // Update logistica_entregas with numero_fo
+                          await supabase
+                            .from('logistica_entregas')
+                            .update({ numero_fo: foValue.trim() })
+                            .eq('id', row.id)
+
                           setLogisticaRows((prev) =>
                             prev.map((r) =>
                               r.id === row.id
-                                ? { ...r, items_base: updatedItemsBase }
+                                ? { ...r, items_base: updatedItemsBase, numero_fo: foValue.trim() }
                                 : r,
                             ),
                           )
@@ -1687,7 +1695,7 @@ function JobDrawerContentComponent({
                         const updatedFolhaObraWithOrc = {
                           numero_orc: phcRow.orcamento_number,
                         }
-                        // Persist
+                        // Persist to deprecated logistica table
                         const { error } = await supabase
                           .from('logistica')
                           .update({
@@ -1698,6 +1706,16 @@ function JobDrawerContentComponent({
                         if (error) {
                           console.error('❌ Update failed:', error)
                         }
+
+                        // Update logistica_entregas with numero_fo and numero_orc
+                        await supabase
+                          .from('logistica_entregas')
+                          .update({
+                            numero_fo: foValue.trim(),
+                            numero_orc: phcRow.orcamento_number
+                          })
+                          .eq('id', row.id)
+
                         if (deliveryDate) {
                           try {
                             await supabase

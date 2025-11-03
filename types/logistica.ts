@@ -31,6 +31,10 @@ export interface LogisticaRecord {
   concluido?: boolean
   data_concluido?: string
   data_saida?: string // Added field for departure date
+  numero_fo?: string // Direct FO number (for standalone entries)
+  numero_orc?: number // Direct ORC number (for standalone entries)
+  cliente?: string // Direct cliente name (for standalone entries)
+  nome_campanha?: string // Direct campaign name (for standalone entries)
   folha_obra_with_orcamento?: {
     numero_orc?: string
   }
