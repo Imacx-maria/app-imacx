@@ -134,12 +134,12 @@ const fetchJobs = async (
     // Check if any filters are active
     const hasActiveFilters = foFilter?.trim() || campaignFilter?.trim() || hasItemFilters
 
-    // If no filters are active, only show last 4 months
+    // If no filters are active, only show last 12 months (extended from 4 months)
     if (!hasActiveFilters) {
-      const fourMonthsAgo = new Date()
-      fourMonthsAgo.setMonth(fourMonthsAgo.getMonth() - 4)
-      const fourMonthsAgoISO = fourMonthsAgo.toISOString()
-      query = query.gte('created_at', fourMonthsAgoISO)
+      const twelveMonthsAgo = new Date()
+      twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12)
+      const twelveMonthsAgoISO = twelveMonthsAgo.toISOString()
+      query = query.gte('created_at', twelveMonthsAgoISO)
     }
 
     if (jobIds) {

@@ -274,7 +274,7 @@ export const DashboardLogisticaTable: React.FC<
           )
         `)
 
-        // Apply database-level filters
+        // Apply database-level filters for ALL filter inputs
         if (filterParams.guia?.trim()) {
           logisticsQuery = logisticsQuery.ilike(
             'guia',
@@ -282,12 +282,42 @@ export const DashboardLogisticaTable: React.FC<
           )
         }
 
-        // Note: FO number and cliente filters require joins through items_base->folhas_obras
-        // These will be applied client-side after fetching, but with reduced dataset
-        // For optimal performance, consider creating a database view or materialized view
+        // Apply FO filter at database level (direct field in logistica_entregas)
+        if (filterParams.numeroFo?.trim()) {
+          logisticsQuery = logisticsQuery.ilike(
+            'numero_fo',
+            `%${filterParams.numeroFo.trim()}%`,
+          )
+        }
 
+        // Apply Cliente filter at database level (direct field in logistica_entregas)
+        if (filterParams.cliente?.trim()) {
+          logisticsQuery = logisticsQuery.ilike(
+            'cliente',
+            `%${filterParams.cliente.trim()}%`,
+          )
+        }
+
+        // Apply Nome Campanha filter at database level (direct field in logistica_entregas)
+        if (filterParams.nomeCampanha?.trim()) {
+          logisticsQuery = logisticsQuery.ilike(
+            'nome_campanha',
+            `%${filterParams.nomeCampanha.trim()}%`,
+          )
+        }
+
+        // Apply Item filter at database level (direct field in logistica_entregas)
+        if (filterParams.item?.trim()) {
+          logisticsQuery = logisticsQuery.ilike(
+            'descricao',
+            `%${filterParams.item.trim()}%`,
+          )
+        }
+
+        // Removed hard limit of 200 - now fetches up to 1000 matching records
+        // If more comprehensive searches needed, this can be increased or pagination added
         const { data: logisticsData, error: logisticsError } =
-          await logisticsQuery.order('created_at', { ascending: false }).limit(200)
+          await logisticsQuery.order('created_at', { ascending: false }).limit(1000)
 
         if (logisticsError) {
           console.error('Error fetching logistics:', logisticsError)
@@ -400,10 +430,23 @@ export const DashboardLogisticaTable: React.FC<
     [supabase],
   )
 
-  // On mount and when debounced guia filter changes, refetch data
+  // On mount and when any debounced filter changes, refetch data from database
   useEffect(() => {
-    fetchData({ guia: debouncedFilters.guia })
-  }, [fetchData, debouncedFilters.guia])
+    fetchData({
+      guia: debouncedFilters.guia,
+      numeroFo: debouncedFilters.numeroFo,
+      cliente: debouncedFilters.cliente,
+      nomeCampanha: debouncedFilters.nomeCampanha,
+      item: debouncedFilters.item,
+    })
+  }, [
+    fetchData,
+    debouncedFilters.guia,
+    debouncedFilters.numeroFo,
+    debouncedFilters.cliente,
+    debouncedFilters.nomeCampanha,
+    debouncedFilters.item,
+  ])
 
   // Sync with initial props
   useEffect(() => {
@@ -438,35 +481,10 @@ export const DashboardLogisticaTable: React.FC<
     return lookup
   }, [transportadoras])
 
-  // Client-side filtering logic
+  // Client-side filtering logic - now only for date filters since text filters are at database level
   const filterRecords = (recordsList: DashboardLogisticaRecord[]) => {
     return recordsList.filter((record) => {
-      // Cliente filter - null-safe
-      const clienteMatch =
-        !filters.cliente ||
-        (record.cliente && String(record.cliente).toLowerCase().includes(filters.cliente.toLowerCase()))
-
-      // Nome Campanha filter - null-safe
-      const campanhaMatch =
-        !filters.nomeCampanha ||
-        (record.nome_campanha && String(record.nome_campanha).toLowerCase().includes(filters.nomeCampanha.toLowerCase()))
-
-      // Item filter - null-safe
-      const itemMatch =
-        !filters.item ||
-        (record.item_descricao && String(record.item_descricao).toLowerCase().includes(filters.item.toLowerCase()))
-
-      // FO filter - null-safe
-      const foMatch =
-        !filters.numeroFo ||
-        (record.numero_fo && String(record.numero_fo).toLowerCase().includes(filters.numeroFo.toLowerCase()))
-
-      // Guia filter - null-safe
-      const guiaMatch =
-        !filters.guia ||
-        (record.guia && String(record.guia).toLowerCase().includes(filters.guia.toLowerCase()))
-
-      // Date filter for data_saida
+      // Date filter for data_saida (client-side only)
       let dateMatch = true
       if (dateFilter !== 'all' && record.data_saida) {
         const recordDate = record.data_saida.split('T')[0]
@@ -479,7 +497,7 @@ export const DashboardLogisticaTable: React.FC<
         dateMatch = false
       }
 
-      // Calendar date filter - filter by selectedDate from calendar clicks
+      // Calendar date filter - filter by selectedDate from calendar clicks (client-side only)
       let calendarDateMatch = true
       if (selectedDate && record.data_saida) {
         // Extract date part from record.data_saida (format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)
@@ -494,15 +512,8 @@ export const DashboardLogisticaTable: React.FC<
         calendarDateMatch = false
       }
 
-      return (
-        clienteMatch &&
-        campanhaMatch &&
-        itemMatch &&
-        foMatch &&
-        guiaMatch &&
-        dateMatch &&
-        calendarDateMatch
-      )
+      // All text filters (FO, Guia, Cliente, Campanha, Item) are now applied at database level
+      return dateMatch && calendarDateMatch
     })
   }
 

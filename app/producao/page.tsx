@@ -957,10 +957,10 @@ export default function ProducaoPage() {
         const startRange = page * JOBS_PER_PAGE
         const endRange = startRange + JOBS_PER_PAGE - 1
 
-        // Calculate 2 months ago date for completed jobs filter
-        const twoMonthsAgo = new Date()
-        twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2)
-        const twoMonthsAgoString = twoMonthsAgo.toISOString()
+        // Calculate 12 months ago date for completed jobs filter (extended from 2 months)
+        const twelveMonthsAgo = new Date()
+        twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12)
+        const twelveMonthsAgoString = twelveMonthsAgo.toISOString()
 
         // STEP 1: Handle item/codigo filters FIRST (search globally)
         let jobIds: string[] | null = null
@@ -1075,23 +1075,23 @@ export default function ProducaoPage() {
           if (filters.activeTab === 'concluidos') {
             console.log(
               '🔄 Applying date filter for concluidos tab:',
-              twoMonthsAgoString,
+              twelveMonthsAgoString,
             )
-            // For completed jobs, filter by last 2 months
+            // For completed jobs, filter by last 12 months (extended from 2 months)
             // Note: data_concluido is in logistica_entregas, not in folhas_obras
             query = query.or(
-              `updated_at.gte.${twoMonthsAgoString},created_at.gte.${twoMonthsAgoString}`,
+              `updated_at.gte.${twelveMonthsAgoString},created_at.gte.${twelveMonthsAgoString}`,
             )
           } else if (!hasActiveFilters) {
-            // For other tabs (em_curso, pendentes) with no filters: show last 4 months
-            const fourMonthsAgo = new Date()
-            fourMonthsAgo.setMonth(fourMonthsAgo.getMonth() - 4)
-            const fourMonthsAgoString = fourMonthsAgo.toISOString()
+            // For other tabs (em_curso, pendentes) with no filters: show last 12 months (extended from 4 months)
+            const twelveMonthsAgoEmCurso = new Date()
+            twelveMonthsAgoEmCurso.setMonth(twelveMonthsAgoEmCurso.getMonth() - 12)
+            const twelveMonthsAgoEmCursoString = twelveMonthsAgoEmCurso.toISOString()
             console.log(
-              '🔄 No filters active - applying 4 month date filter:',
-              fourMonthsAgoString,
+              '🔄 No filters active - applying 12 month date filter:',
+              twelveMonthsAgoEmCursoString,
             )
-            query = query.gte('created_at', fourMonthsAgoString)
+            query = query.gte('created_at', twelveMonthsAgoEmCursoString)
           }
 
           // Direct field filters using real column names

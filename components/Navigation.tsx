@@ -116,7 +116,14 @@ export function Navigation() {
   const { theme, setTheme } = useTheme()
   const { canAccessPage, pagePermissions, loading: permissionsLoading } = usePermissions()
   const [mounted, setMounted] = useState(false)
-  const [isCollapsed, setIsCollapsed] = useState(true)
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    // Check localStorage for saved preference, default to expanded (false) for better visibility
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebar-collapsed')
+      return saved === 'true'
+    }
+    return false // Default to expanded for better visibility
+  })
   const [openSubmenus, setOpenSubmenus] = useState<string[]>([])
   const [user, setUser] = useState<any>(null)
 
@@ -229,15 +236,28 @@ export function Navigation() {
       ref={navRef}
       className={cn(
         'flex h-screen flex-col border-r border-border bg-card text-foreground transition-all duration-300',
+        'flex-shrink-0', // Prevent sidebar from shrinking
+        'relative z-10', // Ensure sidebar is above other content
         isCollapsed ? 'w-16' : 'w-64'
       )}
+      style={{
+        minWidth: isCollapsed ? '64px' : '256px',
+        maxWidth: isCollapsed ? '64px' : '256px',
+      }}
     >
       {/* Header */}
       <div className="flex h-16 items-center justify-end px-4">
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setIsCollapsed(!isCollapsed)}
+          onClick={() => {
+            const newState = !isCollapsed
+            setIsCollapsed(newState)
+            // Save preference to localStorage
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('sidebar-collapsed', String(newState))
+            }
+          }}
           className="hover:bg-accent hover:text-accent-foreground"
         >
           {isCollapsed ? (
@@ -250,8 +270,35 @@ export function Navigation() {
 
       {/* Navigation Items */}
       <nav className="flex-1 overflow-y-auto p-2">
-        <ul className="space-y-1">
-          {filteredMenuItems.map((item) => {
+        {permissionsLoading ? (
+          <div className="flex items-center justify-center py-8">
+            {isCollapsed ? (
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <span className="text-xs text-muted-foreground">A carregar...</span>
+              </div>
+            )}
+          </div>
+        ) : filteredMenuItems.length === 0 ? (
+          <div className="flex items-center justify-center py-8">
+            {isCollapsed ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="h-5 w-5 rounded-full bg-muted" />
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Sem permissões</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <span className="text-xs text-muted-foreground text-center px-2">Sem permissões disponíveis</span>
+            )}
+          </div>
+        ) : (
+          <ul className="space-y-1">
+            {filteredMenuItems.map((item) => {
             if (item.submenu) {
               const isOpen = openSubmenus.includes(item.title) || hasActiveSubmenu(item.submenu)
               
@@ -385,7 +432,8 @@ export function Navigation() {
               </li>
             )
           })}
-        </ul>
+          </ul>
+        )}
       </nav>
 
       {/* Footer - Auth & Theme */}

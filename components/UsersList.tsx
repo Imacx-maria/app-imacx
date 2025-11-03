@@ -185,7 +185,7 @@ export default function UsersList({ users, roles, departamentos, onEdit, onDelet
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {user.has_profile === false && (
-                          <AlertTriangle className="h-4 w-4 text-yellow-600" title="Perfil não criado" />
+                          <AlertTriangle className="h-4 w-4 text-yellow-600" aria-label="Perfil não criado" />
                         )}
                         {user.first_name || '-'}
                       </div>

@@ -239,8 +239,8 @@ export default function OperacoesPage() {
         return
       }
 
-      // Fetch items with relations
-      const { data: itemsData, error: itemsError } = await supabase.from('items_base').select(`
+      // Fetch items with relations and apply database-level filters
+      let query = supabase.from('items_base').select(`
           id,
           folha_obra_id,
           descricao,
@@ -266,6 +266,16 @@ export default function OperacoesPage() {
             concluido
           )
         `)
+
+      // Apply database-level filters
+      if (foFilter?.trim()) {
+        query = query.ilike('folhas_obras.Numero_do_', `%${foFilter.trim()}%`)
+      }
+      if (itemFilter?.trim()) {
+        query = query.ilike('descricao', `%${itemFilter.trim()}%`)
+      }
+
+      const { data: itemsData, error: itemsError } = await query
 
       if (itemsError) {
         console.error('Complex query failed:', itemsError)
@@ -373,7 +383,7 @@ export default function OperacoesPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, foFilter, itemFilter])
 
   // Debug function
   const runDebugCheck = useCallback(async () => {
@@ -547,15 +557,11 @@ export default function OperacoesPage() {
     }
   }
 
-  // Filter items
+  // Filter items - now filters are applied at database level, so just return items
+  // Keeping this for backwards compatibility but filters are applied in fetchData
   const filteredItems = useMemo(() => {
-    return items.filter((item) => {
-      const foMatch = !foFilter || item.folhas_obras?.numero_fo?.toLowerCase().includes(foFilter.toLowerCase())
-      const itemMatch = !itemFilter || item.descricao?.toLowerCase().includes(itemFilter.toLowerCase())
-
-      return foMatch && itemMatch
-    })
-  }, [items, foFilter, itemFilter])
+    return items
+  }, [items])
 
   // Sort items
   const sortedItems = useMemo(() => {

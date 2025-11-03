@@ -159,7 +159,7 @@ export default function FaturacaoPage() {
 
   // No need for job-level fatura status anymore since we show items directly
 
-  // Data fetching - fetch items with job info
+  // Data fetching - fetch items with job info and apply filters at database level
   const fetchItems = useCallback(async () => {
     setLoading(true)
     try {
@@ -187,6 +187,41 @@ export default function FaturacaoPage() {
           )
         `)
 
+      // Apply database-level filters for ALL filter inputs
+      if (debouncedFoFilter?.trim()) {
+        query = query.ilike('folhas_obras.Numero_do_', `%${debouncedFoFilter.trim()}%`)
+      }
+      if (debouncedOrcFilter?.trim()) {
+        const orcNumber = parseInt(debouncedOrcFilter.trim())
+        if (!isNaN(orcNumber)) {
+          query = query.eq('folhas_obras.numero_orc', orcNumber)
+        }
+      }
+      if (debouncedCampanhaFilter?.trim()) {
+        query = query.ilike('folhas_obras.Trabalho', `%${debouncedCampanhaFilter.trim()}%`)
+      }
+      if (debouncedClienteFilter?.trim()) {
+        query = query.ilike('folhas_obras.Nome', `%${debouncedClienteFilter.trim()}%`)
+      }
+
+      // Apply tab-based filters at database level
+      if (jobsTab === 'por_facturar') {
+        query = query.eq('facturado', false)
+
+        if (subTab === 'pendentes') {
+          query = query.eq('folhas_obras.pendente', true)
+        } else {
+          query = query.eq('folhas_obras.pendente', false)
+        }
+      } else {
+        // Facturados: fetch last 12 months (extended from 3 months)
+        query = query.eq('facturado', true)
+        const twelveMonthsAgo = new Date()
+        twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12)
+        const twelveMonthsAgoISO = twelveMonthsAgo.toISOString()
+        query = query.gte('folhas_obras.created_at', twelveMonthsAgoISO)
+      }
+
       const { data: itemsData, error: itemsError } = await query
 
       if (itemsError) throw itemsError
@@ -195,10 +230,10 @@ export default function FaturacaoPage() {
       const transformedItems: ItemRow[] = (itemsData || []).map((item: any) => {
         const job = item.folhas_obras
         const logistics = item.logistica_entregas?.[0] // Get first logistics entry
-        
+
         let dias_trabalho: number | null = null
         let dias_em_progresso = false
-        
+
         if (job.created_at) {
           if (logistics?.data_saida) {
             // Has data_saida: calculate from created_at to data_saida
@@ -210,7 +245,7 @@ export default function FaturacaoPage() {
             dias_em_progresso = true
           }
         }
-        
+
         return {
           id: item.id,
           descricao: item.descricao,
@@ -233,69 +268,20 @@ export default function FaturacaoPage() {
         }
       })
 
-      // Apply filters
-      let filteredItems = transformedItems
-
-      // Filter by text filters
-      if (debouncedFoFilter) {
-        filteredItems = filteredItems.filter(item => 
-          item.numero_fo && item.numero_fo.toString().toLowerCase().includes(debouncedFoFilter.toLowerCase())
-        )
-      }
-      if (debouncedOrcFilter) {
-        filteredItems = filteredItems.filter(item => 
-          item.numero_orc && item.numero_orc.toString().includes(debouncedOrcFilter)
-        )
-      }
-      if (debouncedCampanhaFilter) {
-        filteredItems = filteredItems.filter(item => 
-          item.nome_campanha && item.nome_campanha.toLowerCase().includes(debouncedCampanhaFilter.toLowerCase())
-        )
-      }
-      if (debouncedClienteFilter) {
-        filteredItems = filteredItems.filter(item => 
-          item.cliente && item.cliente.toLowerCase().includes(debouncedClienteFilter.toLowerCase())
-        )
-      }
-
-      // Filter by tab
-      if (jobsTab === 'por_facturar') {
-        // Por Facturar: ALL items with facturado = FALSE
-        filteredItems = filteredItems.filter(item => item.facturado !== true)
-        
-        if (subTab === 'pendentes') {
-          // Pendentes: facturado = FALSE AND job is pendente
-          filteredItems = filteredItems.filter(item => item.pendente === true)
-        } else {
-          // Em Curso: facturado = FALSE AND job is NOT pendente
-          filteredItems = filteredItems.filter(item => item.pendente !== true)
-        }
-      } else {
-        // Facturados: items with facturado = TRUE (last 3 months only)
-        const threeMonthsAgo = new Date()
-        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
-        
-        filteredItems = filteredItems.filter(item => {
-          if (item.facturado !== true) return false
-          
-          // Only show items from last 3 months
-          if (item.created_at) {
-            const itemDate = new Date(item.created_at)
-            return itemDate >= threeMonthsAgo
-          }
-          
-          return true
-        })
-      }
-
+      // All filters are now applied at database level - no client-side filtering needed
       console.log('🔍 Faturacao - Items fetched:', {
         total: transformedItems.length,
-        filtered: filteredItems.length,
         tab: jobsTab,
-        subTab
+        subTab,
+        filters: {
+          fo: debouncedFoFilter,
+          orc: debouncedOrcFilter,
+          campanha: debouncedCampanhaFilter,
+          cliente: debouncedClienteFilter
+        }
       })
 
-      setItems(filteredItems)
+      setItems(transformedItems)
       } catch (error) {
         console.error('Error fetching items:', error)
       } finally {
