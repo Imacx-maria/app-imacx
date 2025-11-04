@@ -56,6 +56,12 @@ interface ProductionOperation {
   N_Pal?: string | null
   tem_corte?: boolean | null
   source_impressao_id?: string | null
+  plano_nome?: string | null
+  cores?: string | null
+  batch_id?: string | null
+  batch_parent_id?: string | null
+  total_placas?: number | null
+  placas_neste_batch?: number | null
 }
 
 interface ProductionItem {
@@ -494,6 +500,8 @@ export function CorteLoosePlatesTable({
           <TableHeader>
             <TableRow>
               <TableHead className="w-[120px]">Data</TableHead>
+              <TableHead className="w-[100px]">Plano</TableHead>
+              <TableHead className="w-[60px]">Cores</TableHead>
               <TableHead className="w-[120px]">Operador</TableHead>
               <TableHead className="w-[120px]">Máquina</TableHead>
               <TableHead className="w-[140px]">Palete</TableHead>
@@ -502,7 +510,7 @@ export function CorteLoosePlatesTable({
               <TableHead className="w-[120px]">Cor</TableHead>
               <TableHead className="w-[80px]">Corte</TableHead>
               <TableHead className="w-[50px]">Notas</TableHead>
-              <TableHead className="w-[60px]">C</TableHead>
+              <TableHead className="w-[60px] text-center">C</TableHead>
               <TableHead className="w-[80px]">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -527,6 +535,40 @@ export function CorteLoosePlatesTable({
                         }
                       }}
                       disabled={!isEditing}
+                    />
+                  </TableCell>
+
+                  {/* Plano Nome */}
+                  <TableCell>
+                    <Input
+                      value={isEditing ? (editDrafts[op.id]?.plano_nome || '') : (op.plano_nome || '')}
+                      onChange={(e) => {
+                        if (isEditing) {
+                          changeField(op.id, 'plano_nome', e.target.value)
+                        }
+                      }}
+                      placeholder="Plano A"
+                      disabled={!isEditing}
+                      className="w-full text-sm"
+                    />
+                  </TableCell>
+
+                  {/* Cores */}
+                  <TableCell>
+                    <Input
+                      value={isEditing ? (editDrafts[op.id]?.cores || '') : (op.cores || '')}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        // Validate format: digit/digit or empty
+                        if (/^\d?\/?\d?$/.test(value) || value === '') {
+                          if (isEditing) {
+                            changeField(op.id, 'cores', value)
+                          }
+                        }
+                      }}
+                      placeholder="4/4"
+                      disabled={!isEditing}
+                      className="w-[50px] text-sm font-mono text-center"
                     />
                   </TableCell>
 
@@ -667,10 +709,12 @@ export function CorteLoosePlatesTable({
                   </TableCell>
 
                   <TableCell>
-                    <Checkbox
-                      checked={op.concluido || false}
-                      onCheckedChange={(checked) => handleFieldChange(op.id, 'concluido', checked)}
-                    />
+                    <div className="flex items-center justify-center">
+                      <Checkbox
+                        checked={op.concluido || false}
+                        onCheckedChange={(checked) => handleFieldChange(op.id, 'concluido', checked)}
+                      />
+                    </div>
                   </TableCell>
 
                   <TableCell>

@@ -11,6 +11,7 @@
  * - Both numero_fo and numero_orc cannot be null, 0, or "0000"
  * - Items must NOT be brindes
  * - Items must NOT have complexidade = 'OFFSET'
+ * - Items must NOT be concluded (concluido = true)
  * - Items must NOT have completed operations (Corte or Impressao_Flexiveis)
  */
 
@@ -146,6 +147,12 @@ interface ProductionOperation {
   N_Pal?: string | null
   tem_corte?: boolean | null
   source_impressao_id?: string | null // Links Corte operations to source Impressão operation
+  plano_nome?: string | null // Plan name (e.g., "Plano A", "Plano B")
+  cores?: string | null // Print colors (e.g., "4/4", "4/0")
+  batch_id?: string | null // Groups related split operations
+  batch_parent_id?: string | null // References original operation if this is a duplicate
+  total_placas?: number | null // Total plates across all batches
+  placas_neste_batch?: number | null // Plates assigned to this batch/session
 }
 
 type SortKey = 'numero_fo' | 'nome_campanha' | 'descricao' | 'quantidade' | 'prioridade'
@@ -268,6 +275,9 @@ export default function OperacoesPage() {
         `)
 
       // Apply database-level filters
+      // Filter out concluded items at database level
+      query = query.or('concluido.is.null,concluido.eq.false')
+
       if (foFilter?.trim()) {
         query = query.ilike('folhas_obras.Numero_do_', `%${foFilter.trim()}%`)
       }
@@ -337,6 +347,7 @@ export default function OperacoesPage() {
         const hasPaginacaoTrue = item.designer_items?.paginacao === true
         const isNotBrinde = item.brindes !== true
         const isNotOffset = item.complexidade !== 'OFFSET'
+        const isNotConcluido = item.concluido !== true // Item must not be concluded
 
         // Require both FO and ORC values
         const foData = item.folhas_obras as any
@@ -347,30 +358,52 @@ export default function OperacoesPage() {
         const hasOrcValue = foData?.numero_orc && foData?.numero_orc !== 0
 
         const includeItem =
-          hasLogisticaEntregasNotConcluida && hasPaginacaoTrue && isNotBrinde && isNotOffset && hasFoValue && hasOrcValue
+          hasLogisticaEntregasNotConcluida && hasPaginacaoTrue && isNotBrinde && isNotOffset && isNotConcluido && hasFoValue && hasOrcValue
 
         return includeItem
       })
 
       console.log('After filtering:', filteredItems.length)
 
-      // Filter out items that have completed operations (Corte)
+      // Filter out items that have completed operations (Corte) AND attach operations status
       const itemsWithoutCompleted = []
       for (const item of filteredItems) {
-        const { data: operations, error: opError } = await supabase
+        // First, get ALL operations for this item to check completion status
+        const { data: allOperations, error: allOpError } = await supabase
+          .from('producao_operacoes')
+          .select('concluido, Tipo_Op')
+          .eq('item_id', item.id)
+
+        // Then, get only Corte operations to check if item should be filtered out
+        const { data: corteOperations, error: corteOpError } = await supabase
           .from('producao_operacoes')
           .select('concluido')
           .eq('item_id', item.id)
           .in('Tipo_Op', ['Corte'])
 
-        if (!opError && operations) {
-          const hasCompletedOperation = operations.some((op: any) => op.concluido === true)
-          if (!hasCompletedOperation) {
-            itemsWithoutCompleted.push(item)
+        if (!allOpError && allOperations) {
+          // Check if item has completed Corte operations (for filtering)
+          const hasCompletedCorte = corteOperations && corteOperations.some((op: any) => op.concluido === true)
+
+          // Attach operations completion status based on ALL operations
+          const allOperationsConcluded = allOperations.length > 0 && allOperations.every((op: any) => op.concluido === true)
+          const itemWithStatus = {
+            ...item,
+            _operationsAllConcluded: allOperationsConcluded,
+            _hasOperations: allOperations.length > 0
+          }
+
+          // Only include items that don't have completed Corte operations
+          if (!hasCompletedCorte) {
+            itemsWithoutCompleted.push(itemWithStatus)
           }
     } else {
           // If no operations exist, include the item
-          itemsWithoutCompleted.push(item)
+          itemsWithoutCompleted.push({
+            ...item,
+            _operationsAllConcluded: false,
+            _hasOperations: false
+          })
         }
       }
 
@@ -535,25 +568,28 @@ export default function OperacoesPage() {
     }
   }, [auditLogs, logDateFrom, logDateTo, logOperatorFilter, logOpTypeFilter, logActionTypeFilter, logChangedByFilter])
 
-  // Toggle item completion
+  // Toggle ALL operations completion for an item
   const handleItemCompletion = async (itemId: string, currentValue: boolean) => {
     try {
       const newValue = !currentValue
+      const today = new Date().toISOString().split('T')[0]
 
+      // Update ALL operations for this item
       const { error } = await supabase
-        .from('items_base')
-        .update({ concluido: newValue })
-        .eq('id', itemId)
+        .from('producao_operacoes')
+        .update({
+          concluido: newValue,
+          data_conclusao: newValue ? today : null
+        })
+        .eq('item_id', itemId)
 
       if (error) throw error
 
-      // Update local state
-      setItems(items.map(item =>
-        item.id === itemId ? { ...item, concluido: newValue } : item
-      ))
+      // Refresh data to update the UI
+      fetchData()
     } catch (err) {
-      console.error('Error updating item completion:', err)
-      alert('Erro ao atualizar conclusão do item')
+      console.error('Error updating operations completion:', err)
+      alert('Erro ao atualizar conclusão das operações')
     }
   }
 
@@ -844,11 +880,13 @@ export default function OperacoesPage() {
                       title={item.prioridade ? 'Prioritário' : 'Normal'}
                     />
                     </TableCell>
-                  <TableCell className="w-[60px] text-center">
-                    <Checkbox
-                      checked={item.concluido || false}
-                      onCheckedChange={() => handleItemCompletion(item.id, item.concluido || false)}
-                    />
+                  <TableCell className="w-[60px]">
+                    <div className="flex items-center justify-center">
+                      <Checkbox
+                        checked={(item as any)._operationsAllConcluded || false}
+                        onCheckedChange={() => handleItemCompletion(item.id, (item as any)._operationsAllConcluded || false)}
+                      />
+                    </div>
                   </TableCell>
                   <TableCell className="w-[100px]">
                     <Button size="icon" variant="default" onClick={() => setOpenItemId(item.id)}>
@@ -1264,6 +1302,8 @@ function ItemDrawerContent({ itemId, items, onClose, supabase, onMainRefresh }: 
   const item = items.find((i) => i.id === itemId)
   const [operations, setOperations] = useState<ProductionOperation[]>([])
   const [loading, setLoading] = useState(true)
+  const [designerPlanos, setDesignerPlanos] = useState<any[]>([])
+  const [importingPlanos, setImportingPlanos] = useState(false)
 
   const fetchOperations = useCallback(async () => {
     if (!item) return
@@ -1288,9 +1328,152 @@ function ItemDrawerContent({ itemId, items, onClose, supabase, onMainRefresh }: 
     }
   }, [item, supabase])
 
+  const fetchDesignerPlanos = useCallback(async () => {
+    if (!item) return
+
+    try {
+      const { data, error } = await supabase
+        .from('designer_planos')
+        .select('*')
+        .eq('item_id', item.id)
+        .eq('criado_em_producao', false)
+        .order('plano_ordem', { ascending: true })
+
+      if (!error && data) {
+        setDesignerPlanos(data)
+      }
+    } catch (error) {
+      console.error('Error fetching designer planos:', error)
+    }
+  }, [item, supabase])
+
   useEffect(() => {
     fetchOperations()
-  }, [fetchOperations])
+    fetchDesignerPlanos()
+  }, [fetchOperations, fetchDesignerPlanos])
+
+  const handleImportPlanos = async () => {
+    if (!item || designerPlanos.length === 0) return
+
+    setImportingPlanos(true)
+    try {
+      let importedCount = 0
+
+      // Fetch all machines to map names to IDs (for legacy planos with machine names)
+      const { data: machinesData, error: machinesError } = await supabase
+        .from('maquinas_operacao')
+        .select('id, nome_maquina')
+
+      const machineNameToId = new Map<string, string>()
+      if (machinesData) {
+        machinesData.forEach((m: any) => {
+          machineNameToId.set(m.nome_maquina.toUpperCase(), m.id)
+        })
+      }
+
+      for (const plano of designerPlanos) {
+        const now = new Date()
+        const dateStr = format(now, 'yyyyMMdd')
+        const timeStr = format(now, 'HHmmss')
+        const foShort = item.folhas_obras?.numero_fo?.substring(0, 6) || 'FO'
+        const typePrefix = plano.tipo_operacao === 'Impressao' ? 'IMP' : plano.tipo_operacao === 'Impressao_Flexiveis' ? 'FLX' : 'CRT'
+        const no_interno = `${foShort}-${dateStr}-${typePrefix}-${timeStr}-${plano.plano_ordem}`
+
+        // Handle legacy planos: if maquina is not a UUID, look up by name
+        let maquinaId = plano.maquina
+        if (plano.maquina && !plano.maquina.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+          // It's a machine name, not a UUID - look it up
+          maquinaId = machineNameToId.get(plano.maquina.toUpperCase()) || null
+        }
+
+        const operationData = {
+          item_id: itemId,
+          folha_obra_id: item.folha_obra_id,
+          Tipo_Op: plano.tipo_operacao,
+          plano_nome: plano.plano_nome,
+          maquina: maquinaId,
+          material_id: plano.material_id,
+          cores: plano.cores,
+          data_operacao: new Date().toISOString().split('T')[0],
+          no_interno,
+          num_placas_print: plano.tipo_operacao === 'Impressao' || plano.tipo_operacao === 'Impressao_Flexiveis' ? plano.quantidade : 0,
+          num_placas_corte: plano.tipo_operacao === 'Corte' ? plano.quantidade : 0,
+          notas_imp: plano.notas,
+          concluido: false,
+        }
+
+        const { data: savedOp, error: opError } = await supabase
+          .from('producao_operacoes')
+          .insert([operationData])
+          .select()
+          .single()
+
+        if (opError) {
+          console.error('Error inserting operation:', JSON.stringify(opError, null, 2))
+          console.error('Operation data:', JSON.stringify(operationData, null, 2))
+        }
+
+        if (!opError && savedOp) {
+          // Mark plano as created
+          await supabase
+            .from('designer_planos')
+            .update({
+              criado_em_producao: true,
+              producao_operacao_id: savedOp.id,
+            })
+            .eq('id', plano.id)
+
+          // Log operation creation
+          await logOperationCreation(supabase, savedOp.id, operationData)
+
+          // If Impressao, create linked Corte (standard behavior)
+          if (plano.tipo_operacao === 'Impressao' || plano.tipo_operacao === 'Impressao_Flexiveis') {
+            const corteNoInterno = `${no_interno}-CORTE`
+            const corteData = {
+              Tipo_Op: 'Corte',
+              item_id: itemId,
+              folha_obra_id: item.folha_obra_id,
+              data_operacao: new Date().toISOString().split('T')[0],
+              no_interno: corteNoInterno,
+              num_placas_corte: 0,
+              QT_print: plano.quantidade || 0,
+              source_impressao_id: savedOp.id,
+              material_id: plano.material_id,
+              plano_nome: plano.plano_nome,
+              cores: plano.cores,
+              concluido: false,
+            }
+
+            const { data: corteOp, error: corteError } = await supabase
+              .from('producao_operacoes')
+              .insert([corteData])
+              .select()
+              .single()
+
+            if (!corteError && corteOp) {
+              await logOperationCreation(supabase, corteOp.id, corteData)
+            }
+          }
+
+          importedCount++
+        }
+      }
+
+      if (importedCount > 0) {
+        alert(`${importedCount} planos importados com sucesso!`)
+        fetchOperations()
+        fetchDesignerPlanos()
+        onMainRefresh()
+      } else {
+        alert('Nenhum plano foi importado. Verifique a consola para erros.')
+      }
+    } catch (error) {
+      console.error('Error importing planos:', error)
+      alert(`Erro ao importar planos: ${error}`)
+    } finally {
+      setImportingPlanos(false)
+    }
+  }
 
   if (!item) return null
 
@@ -1327,6 +1510,46 @@ function ItemDrawerContent({ itemId, items, onClose, supabase, onMainRefresh }: 
           <div className="font-mono">{item.descricao}</div>
           </div>
                         </div>
+
+      {/* Import Planos Button - Show if there are designer planos available */}
+      {designerPlanos.length > 0 && (
+        <div className="mb-4 rounded-lg border-2 border-info bg-info/10 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-semibold text-info-foreground">
+                Planos Disponíveis do Designer
+              </h4>
+              <p className="text-sm text-info-foreground/80">
+                {designerPlanos.length} plano{designerPlanos.length > 1 ? 's' : ''} pronto{designerPlanos.length > 1 ? 's' : ''} para importar
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {designerPlanos.map((plano: any) => (
+                  <Badge key={plano.id} variant="secondary" className="font-mono">
+                    {plano.plano_nome}: {plano.tipo_operacao} - {plano.quantidade || 0} placas
+                  </Badge>
+                ))}
+              </div>
+            </div>
+            <Button
+              onClick={handleImportPlanos}
+              disabled={importingPlanos}
+              className="bg-info text-info-foreground hover:bg-info/90"
+            >
+              {importingPlanos ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Importando...
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Importar Planos
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Tabs for different operation types */}
       <Tabs defaultValue="impressao" className="w-full">
@@ -1413,6 +1636,13 @@ function OperationsTable({
   // Edit mode state
   const [editingRowIds, setEditingRowIds] = useState<Set<string>>(new Set())
   const [editDrafts, setEditDrafts] = useState<Record<string, Record<string, any>>>({})
+
+  // Batch split dialog state
+  const [batchDialogOpen, setBatchDialogOpen] = useState(false)
+  const [batchSourceOp, setBatchSourceOp] = useState<ProductionOperation | null>(null)
+  const [batchSplits, setBatchSplits] = useState<Array<{ operator: string; machine: string; placas: number }>>([
+    { operator: '', machine: '', placas: 0 }
+  ])
 
   // Fetch paletes
   useEffect(() => {
@@ -1795,7 +2025,7 @@ function OperationsTable({
     try {
       // Get operation details before deleting for audit log
       const operation = operations.find(op => op.id === operationId)
-      
+
       const { error } = await supabase.from('producao_operacoes').delete().eq('id', operationId)
 
       if (error) throw error
@@ -1810,6 +2040,82 @@ function OperationsTable({
     } catch (err) {
       console.error('Error deleting operation:', err)
       alert('Erro ao eliminar operação')
+    }
+  }
+
+  // Batch split handlers
+  const openBatchDialog = (operation: ProductionOperation) => {
+    setBatchSourceOp(operation)
+    setBatchSplits([{ operator: '', machine: '', placas: 0 }])
+    setBatchDialogOpen(true)
+  }
+
+  const handleBatchSplit = async () => {
+    if (!batchSourceOp) return
+
+    // Validate splits
+    const totalPlacas = batchSplits.reduce((sum, split) => sum + (split.placas || 0), 0)
+    if (totalPlacas === 0) {
+      alert('Deve especificar pelo menos 1 placa para dividir')
+      return
+    }
+
+    if (!batchSplits.every(split => split.operator && split.machine)) {
+      alert('Todos os turnos devem ter operador e máquina selecionados')
+      return
+    }
+
+    try {
+      const batchId = crypto.randomUUID()
+      const now = new Date()
+
+      // Create batch operations
+      for (const split of batchSplits) {
+        const dateStr = format(now, 'yyyyMMdd')
+        const timeStr = format(now, 'HHmmss')
+        const no_interno = `BATCH-${dateStr}-${timeStr}-${Math.random().toString(36).substring(7)}`
+
+        const batchData = {
+          Tipo_Op: batchSourceOp.Tipo_Op,
+          item_id: itemId,
+          folha_obra_id: folhaObraId,
+          data_operacao: new Date().toISOString().split('T')[0],
+          no_interno,
+          num_placas_print: batchSourceOp.Tipo_Op === 'Impressao' ? split.placas : 0,
+          num_placas_corte: batchSourceOp.Tipo_Op === 'Corte' ? split.placas : 0,
+          operador_id: split.operator,
+          maquina: split.machine,
+          material_id: batchSourceOp.material_id,
+          N_Pal: batchSourceOp.N_Pal,
+          plano_nome: batchSourceOp.plano_nome,
+          cores: batchSourceOp.cores,
+          batch_id: batchId,
+          batch_parent_id: batchSourceOp.id,
+          total_placas: totalPlacas,
+          placas_neste_batch: split.placas,
+          concluido: false,
+        }
+
+        const { data, error } = await supabase
+          .from('producao_operacoes')
+          .insert([batchData])
+          .select()
+          .single()
+
+        if (error) throw error
+
+        await logOperationCreation(supabase, data.id, batchData)
+      }
+
+      alert(`${batchSplits.length} operações em lote criadas com sucesso!`)
+      setBatchDialogOpen(false)
+      setBatchSourceOp(null)
+      setBatchSplits([{ operator: '', machine: '', placas: 0 }])
+      onRefresh()
+      onMainRefresh()
+    } catch (err) {
+      console.error('Error creating batch operations:', err)
+      alert('Erro ao criar operações em lote')
     }
   }
 
@@ -1965,6 +2271,8 @@ function OperationsTable({
           <TableHeader>
             <TableRow>
               <TableHead className="w-[120px]">Data</TableHead>
+              <TableHead className="w-[100px]">Plano</TableHead>
+              <TableHead className="w-[60px]">Cores</TableHead>
               <TableHead className="w-[120px]">Operador</TableHead>
               <TableHead className="w-[120px]">Máquina</TableHead>
               <TableHead className="w-[140px]">Palete</TableHead>
@@ -1973,7 +2281,7 @@ function OperationsTable({
               <TableHead className="w-[120px]">Cor</TableHead>
               <TableHead className="w-[80px]">Print</TableHead>
               <TableHead className="w-[50px]">Notas</TableHead>
-              <TableHead className="w-[80px]">
+              <TableHead className="w-[80px] text-center">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -2008,6 +2316,56 @@ function OperationsTable({
                         }
                       }}
                       disabled={!isEditing}
+                    />
+                  </TableCell>
+
+                  {/* Plano Nome */}
+                  <TableCell>
+                    <div className="flex flex-col gap-1">
+                      <Input
+                        value={isEditing ? (editDrafts[op.id]?.plano_nome || '') : (op.plano_nome || '')}
+                        onChange={(e) => {
+                          if (isEditing) {
+                            changeField(op.id, 'plano_nome', e.target.value)
+                          }
+                        }}
+                        placeholder="Plano A"
+                        disabled={!isEditing}
+                        className="w-full text-sm"
+                      />
+                      {!isEditing && (
+                        <div className="flex gap-1 flex-wrap">
+                          {op.batch_id && (
+                            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                              Lote {op.placas_neste_batch}/{op.total_placas}
+                            </Badge>
+                          )}
+                          {op.plano_nome && (
+                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                              Do Designer
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
+
+                  {/* Cores */}
+                  <TableCell>
+                    <Input
+                      value={isEditing ? (editDrafts[op.id]?.cores || '') : (op.cores || '')}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        // Validate format: digit/digit or empty
+                        if (/^\d?\/?\d?$/.test(value) || value === '') {
+                          if (isEditing) {
+                            changeField(op.id, 'cores', value)
+                          }
+                        }
+                      }}
+                      placeholder="4/4"
+                      disabled={!isEditing}
+                      className="w-[50px] text-sm font-mono text-center"
                     />
                   </TableCell>
 
@@ -2160,10 +2518,12 @@ function OperationsTable({
 
                   {/* Concluído */}
                   <TableCell>
-                    <Checkbox
-                      checked={op.concluido || false}
-                      onCheckedChange={(checked) => handleFieldChange(op.id, 'concluido', checked)}
-                    />
+                    <div className="flex items-center justify-center">
+                      <Checkbox
+                        checked={op.concluido || false}
+                        onCheckedChange={(checked) => handleFieldChange(op.id, 'concluido', checked)}
+                      />
+                    </div>
                   </TableCell>
 
                   {/* Ações */}
@@ -2173,6 +2533,14 @@ function OperationsTable({
                         <>
                           <Button size="icon" variant="outline" onClick={() => startEdit(op.id)}>
                             <Edit3 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            onClick={() => openBatchDialog(op)}
+                            title="Dividir em lotes/turnos"
+                          >
+                            <Copy className="h-4 w-4" />
                           </Button>
                           <Button size="icon" variant="destructive" onClick={() => handleDeleteOperation(op.id)}>
                             <Trash2 className="h-4 w-4" />
@@ -2196,6 +2564,137 @@ function OperationsTable({
           </TableBody>
         </Table>
       </div>
+
+      {/* Batch Split Dialog */}
+      <Dialog open={batchDialogOpen} onOpenChange={setBatchDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Dividir Operação em Lotes/Turnos</DialogTitle>
+            <DialogDescription>
+              {batchSourceOp && (
+                <span>
+                  Dividir operação: <strong>{batchSourceOp.no_interno}</strong> - {batchSourceOp.Tipo_Op}
+                  {batchSourceOp.plano_nome && <span> ({batchSourceOp.plano_nome})</span>}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {batchSplits.map((split, index) => (
+              <Card key={index} className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold">Turno {index + 1}</h4>
+                  {batchSplits.length > 1 && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        const newSplits = batchSplits.filter((_, i) => i !== index)
+                        setBatchSplits(newSplits)
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Operador</label>
+                    <Select
+                      value={split.operator}
+                      onValueChange={(v) => {
+                        const newSplits = [...batchSplits]
+                        newSplits[index].operator = v
+                        setBatchSplits(newSplits)
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecionar operador" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {operators.map((op) => (
+                          <SelectItem key={op.value} value={op.value}>
+                            {op.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Máquina</label>
+                    <Select
+                      value={split.machine}
+                      onValueChange={(v) => {
+                        const newSplits = [...batchSplits]
+                        newSplits[index].machine = v
+                        setBatchSplits(newSplits)
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecionar máquina" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {machines
+                          .filter((m) => m.tipo === (type === 'Impressao' ? 'Impressao' : 'Impressao_vinil'))
+                          .map((m) => (
+                            <SelectItem key={m.value} value={m.value}>
+                              {m.label}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">N° Placas</label>
+                    <Input
+                      type="number"
+                      value={split.placas || ''}
+                      onChange={(e) => {
+                        const newSplits = [...batchSplits]
+                        newSplits[index].placas = parseInt(e.target.value) || 0
+                        setBatchSplits(newSplits)
+                      }}
+                      placeholder="0"
+                      min="0"
+                    />
+                  </div>
+                </div>
+              </Card>
+            ))}
+
+            <Button
+              variant="outline"
+              onClick={() => {
+                setBatchSplits([...batchSplits, { operator: '', machine: '', placas: 0 }])
+              }}
+              className="w-full"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar Turno
+            </Button>
+
+            <div className="border-t pt-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Total de Placas:</span>
+                <Badge variant="secondary" className="text-lg">
+                  {batchSplits.reduce((sum, split) => sum + (split.placas || 0), 0)}
+                </Badge>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBatchDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleBatchSplit}>Criar Lotes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -2559,7 +3058,7 @@ function CorteFromPrintTable({
                 <TableHead className="w-[150px]">Máquina</TableHead>
                 <TableHead className="w-[100px]">Placas Cortadas</TableHead>
                 <TableHead className="w-[50px]">Notas</TableHead>
-                <TableHead className="w-[60px]">C</TableHead>
+                <TableHead className="w-[60px] text-center">C</TableHead>
                 <TableHead className="w-[130px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -2668,12 +3167,14 @@ function CorteFromPrintTable({
                     </TableCell>
 
                     <TableCell>
-                      <Checkbox
-                        checked={op.concluido || false}
-                        onCheckedChange={(checked) =>
-                          handleFieldChange(op.id, 'concluido', checked)
-                        }
-                      />
+                      <div className="flex items-center justify-center">
+                        <Checkbox
+                          checked={op.concluido || false}
+                          onCheckedChange={(checked) =>
+                            handleFieldChange(op.id, 'concluido', checked)
+                          }
+                        />
+                      </div>
                     </TableCell>
 
                     <TableCell>

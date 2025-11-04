@@ -471,6 +471,7 @@ export default function DesignerFlow() {
   const [allDesignerItems, setAllDesignerItems] = useState<any[]>([])
   const [jobDesigners, setJobDesigners] = useState<Record<string, string>>({}) // jobId -> designerId mapping
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
+  const [itemPlanos, setItemPlanos] = useState<Record<string, any[]>>({}) // itemId -> planos mapping
   type SortColumn = 'prioridade' | 'artwork' | 'numero_fo' | 'numero_orc' | 'nome_campanha' | 'designer' | 'created_at'
   const [sortColumn, setSortColumn] = useState<SortColumn>('prioridade')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
@@ -557,6 +558,40 @@ export default function DesignerFlow() {
     if (!selectedJob) return []
     return allItems.filter((item) => item.folha_obra_id === selectedJob.id)
   }, [selectedJob, allItems])
+
+  // Fetch planos for job items when job is selected
+  useEffect(() => {
+    const fetchPlanosForJob = async () => {
+      if (!selectedJob || jobItems.length === 0) return
+
+      try {
+        const itemIds = jobItems.map(item => item.id)
+
+        const { data, error } = await supabase
+          .from('designer_planos')
+          .select('*')
+          .in('item_id', itemIds)
+          .order('item_id', { ascending: true })
+          .order('plano_ordem', { ascending: true })
+
+        if (!error && data) {
+          // Group planos by item_id
+          const planosByItem: Record<string, any[]> = {}
+          data.forEach(plano => {
+            if (!planosByItem[plano.item_id]) {
+              planosByItem[plano.item_id] = []
+            }
+            planosByItem[plano.item_id].push(plano)
+          })
+          setItemPlanos(planosByItem)
+        }
+      } catch (error) {
+        console.error('Error fetching planos:', error)
+      }
+    }
+
+    fetchPlanosForJob()
+  }, [selectedJob, jobItems, supabase])
 
   // Sort jobs
   const sortedJobs = useMemo(() => {
@@ -744,6 +779,19 @@ export default function DesignerFlow() {
       }
     },
     [supabase]
+  )
+
+  // Handle planos change - update local state when planos are added/edited/deleted
+  const handlePlanosChange = useCallback(
+    (itemId: string) => {
+      return async (planos: any[]) => {
+        setItemPlanos(prev => ({
+          ...prev,
+          [itemId]: planos
+        }))
+      }
+    },
+    []
   )
 
   // Handle complexidade change - now saves to designer_items
@@ -1125,6 +1173,8 @@ export default function DesignerFlow() {
                     onComplexidadeChange={handleComplexidadeChange}
                     isOpen={openItemId === item.designer_item_id}
                     onToggle={(open) => setOpenItemId(open ? item.designer_item_id : null)}
+                    planos={itemPlanos[item.id] || []}
+                    onPlanosChange={handlePlanosChange(item.id)}
                   />
                 ))
               )}

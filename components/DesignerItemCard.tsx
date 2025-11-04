@@ -32,6 +32,7 @@ import {
   TableCell,
   TableRow,
 } from '@/components/ui/table'
+import PlanosTable, { type DesignerPlano } from '@/components/designer/PlanosTable'
 
 type ComplexidadeOption = {
   value: string
@@ -63,6 +64,8 @@ interface DesignerItemCardProps {
   onComplexidadeChange: (itemId: string, grau: string | null) => Promise<void>
   isOpen?: boolean
   onToggle?: (open: boolean) => void
+  planos?: DesignerPlano[]
+  onPlanosChange?: (planos: DesignerPlano[]) => void
 }
 
 const getCurrentStage = (item: Item): string => {
@@ -182,11 +185,13 @@ export default function DesignerItemCard({
   onComplexidadeChange,
   isOpen: controlledOpen = false,
   onToggle,
+  planos = [],
+  onPlanosChange,
 }: DesignerItemCardProps) {
   // Use controlled state if provided, otherwise fall back to internal state
   const [internalOpen, setInternalOpen] = useState(false)
   const isOpen = onToggle !== undefined ? controlledOpen : internalOpen
-  
+
   const handleToggle = (open: boolean) => {
     if (onToggle) {
       onToggle(open)
@@ -194,6 +199,8 @@ export default function DesignerItemCard({
       setInternalOpen(open)
     }
   }
+
+  const supabase = useMemo(() => createBrowserClient(), [])
 
   const currentStage = useMemo(() => getCurrentStage(item), [item])
   const statusBadge = useMemo(() => getStatusBadge(currentStage), [currentStage])
@@ -804,6 +811,18 @@ export default function DesignerItemCard({
                     void handlePathBlur(e.target.value)
                   }}
                   className="text-sm font-mono"
+                />
+              </div>
+            )}
+
+            {/* Planos de Produção - Show only when paginação is active */}
+            {item.paginacao && onPlanosChange && (
+              <div className="space-y-3 border-t border-border pt-4">
+                <PlanosTable
+                  itemId={item.id}
+                  planos={planos}
+                  onPlanosChange={onPlanosChange}
+                  supabase={supabase}
                 />
               </div>
             )}

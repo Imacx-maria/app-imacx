@@ -14,15 +14,29 @@ interface AuditLogEntry {
   notes?: string
 }
 
-// Helper function to get current authenticated user
+// Helper function to get current authenticated user and verify profile exists
 const getCurrentUser = async (supabase: any) => {
   const {
     data: { user },
     error,
   } = await supabase.auth.getUser()
   if (error || !user) {
-    throw new Error('No authenticated user found for audit logging')
+    console.warn('⚠️ AUDIT: No authenticated user found')
+    return null
   }
+
+  // Verify the user has a profile entry
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', user.id)
+    .single()
+
+  if (profileError || !profile) {
+    console.warn('⚠️ AUDIT: User has no profile entry:', user.id)
+    return null
+  }
+
   return user
 }
 
@@ -60,6 +74,12 @@ const logOperationCreation = async (
     console.log('📝 AUDIT: Logging operation creation:', operationId)
 
     const user = await getCurrentUser(supabase)
+
+    // Skip audit logging if user doesn't have a profile
+    if (!user) {
+      console.warn('⚠️ AUDIT: Skipping audit log - user has no profile')
+      return
+    }
 
     const auditData: AuditLogEntry = {
       operacao_id: operationId,
@@ -105,6 +125,12 @@ const logFieldUpdate = async (
     )
 
     const user = await getCurrentUser(supabase)
+
+    // Skip audit logging if user doesn't have a profile
+    if (!user) {
+      console.warn('⚠️ AUDIT: Skipping audit log - user has no profile')
+      return
+    }
 
     // Convert values to strings for storage, but keep originals for specific fields
     const oldValueStr =
@@ -164,6 +190,12 @@ const logOperationDeletion = async (
     console.log('📝 AUDIT: Logging operation deletion:', operationId)
 
     const user = await getCurrentUser(supabase)
+
+    // Skip audit logging if user doesn't have a profile
+    if (!user) {
+      console.warn('⚠️ AUDIT: Skipping audit log - user has no profile')
+      return
+    }
 
     const auditData: AuditLogEntry = {
       operacao_id: operationId,
