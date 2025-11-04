@@ -127,6 +127,9 @@ export interface Job {
   prioridade: boolean | null
   profile_id?: string | null
   notas?: string
+  cliente?: string
+  id_cliente?: string | null
+  customer_id?: number | null
 }
 
 export interface Designer {

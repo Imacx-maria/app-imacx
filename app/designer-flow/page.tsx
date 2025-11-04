@@ -123,13 +123,11 @@ const fetchJobs = async (
       }
     }
 
-    // STEP 2: Build main jobs query
-    const columns = 'id, created_at, numero_fo, numero_orc, nome_campanha, data_saida, prioridade'
-
+    // STEP 2: Build main jobs query - use folhas_obras table directly to get all columns including Nome and customer_id
     let query = supabase
-      .from('folhas_obras_with_dias')
-      .select(columns)
-      .not('numero_fo', 'is', null)
+      .from('folhas_obras')
+      .select('id, created_at, Numero_do_, numero_orc, Trabalho, Data_efeti, prioridade, Nome, customer_id')
+      .not('Numero_do_', 'is', null)
       .not('numero_orc', 'is', null)
 
     // Check if any filters are active
@@ -148,11 +146,11 @@ const fetchJobs = async (
     }
 
     if (foFilter?.trim()) {
-      query = query.ilike('numero_fo', `%${foFilter.trim()}%`)
+      query = query.ilike('Numero_do_', `%${foFilter.trim()}%`)
     }
 
     if (campaignFilter?.trim()) {
-      query = query.ilike('nome_campanha', `%${campaignFilter.trim()}%`)
+      query = query.ilike('Trabalho', `%${campaignFilter.trim()}%`)
     }
 
     let { data: jobsData, error: jobsError } = await query.order('created_at', { ascending: false })
@@ -166,9 +164,23 @@ const fetchJobs = async (
       return []
     }
 
+    // Map database columns to Job interface, including cliente data
+    const mappedJobs = jobsData.map((row: any) => ({
+      id: row.id,
+      created_at: row.created_at,
+      numero_fo: row.Numero_do_ ? String(row.Numero_do_) : '',
+      numero_orc: row.numero_orc ?? null,
+      nome_campanha: row.Trabalho || '',
+      data_saida: row.Data_efeti ?? null,
+      prioridade: row.prioridade ?? false,
+      cliente: row.Nome || '',
+      id_cliente: row.customer_id ? row.customer_id.toString() : null,
+      customer_id: row.customer_id || null,
+    }))
+
     // STEP 3: Apply tab filter (Em Aberto vs Paginados)
     if (activeTab === 'paginados' || activeTab === 'aberto') {
-      const jobIdsToCheck = jobsData.map((job) => job.id)
+      const jobIdsToCheck = mappedJobs.map((job) => job.id)
 
       const { data: designerItems, error: designerError } = await supabase
         .from('designer_items')
@@ -195,7 +207,7 @@ const fetchJobs = async (
           }
         })
 
-        jobsData = jobsData.filter((job: Job) => {
+        const filteredMappedJobs = mappedJobs.filter((job: Job) => {
           const jobItems = itemsByJob[job.id] || []
           const itemCount = jobItems.length
           const completedItems = jobItems.filter((item) => !!item.paginacao).length
@@ -207,10 +219,11 @@ const fetchJobs = async (
             return itemCount === 0 || !allCompleted
           }
         })
+        return filteredMappedJobs
       }
     }
 
-    return jobsData
+    return mappedJobs
   } catch (error) {
     console.error('Error in fetchJobs:', error)
     return []
@@ -472,7 +485,7 @@ export default function DesignerFlow() {
   const [jobDesigners, setJobDesigners] = useState<Record<string, string>>({}) // jobId -> designerId mapping
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [itemPlanos, setItemPlanos] = useState<Record<string, any[]>>({}) // itemId -> planos mapping
-  type SortColumn = 'prioridade' | 'artwork' | 'numero_fo' | 'numero_orc' | 'nome_campanha' | 'designer' | 'created_at'
+  type SortColumn = 'prioridade' | 'artwork' | 'numero_fo' | 'numero_orc' | 'nome_campanha' | 'designer' | 'created_at' | 'cliente'
   const [sortColumn, setSortColumn] = useState<SortColumn>('prioridade')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
   const [loading, setLoading] = useState(false)
@@ -623,6 +636,10 @@ export default function DesignerFlow() {
         // Sort by designer name
         aVal = jobDesigners[a.id] || ''
         bVal = jobDesigners[b.id] || ''
+      } else if (sortColumn === 'cliente') {
+        // Sort by cliente name
+        aVal = a.cliente || ''
+        bVal = b.cliente || ''
       } else if (sortColumn === 'numero_fo' || sortColumn === 'numero_orc') {
         aVal = parseNumericField(aVal)
         bVal = parseNumericField(bVal)
@@ -949,15 +966,21 @@ export default function DesignerFlow() {
                           </Tooltip>
                         </TooltipProvider>
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[120px] cursor-pointer border-b select-none" onClick={() => handleSort('numero_fo')}>
+                      <TableHead className="sticky top-0 z-10 w-[90px] cursor-pointer border-b select-none" onClick={() => handleSort('numero_fo')}>
                         FO
                         {sortColumn === 'numero_fo' && (
                           sortDirection === 'asc' ? <ArrowUp className="ml-1 inline h-3 w-3" /> : <ArrowDown className="ml-1 inline h-3 w-3" />
                         )}
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[120px] cursor-pointer border-b select-none" onClick={() => handleSort('numero_orc')}>
+                      <TableHead className="sticky top-0 z-10 w-[90px] cursor-pointer border-b select-none" onClick={() => handleSort('numero_orc')}>
                         ORC
                         {sortColumn === 'numero_orc' && (
+                          sortDirection === 'asc' ? <ArrowUp className="ml-1 inline h-3 w-3" /> : <ArrowDown className="ml-1 inline h-3 w-3" />
+                        )}
+                      </TableHead>
+                      <TableHead className="sticky top-0 z-10 w-[180px] cursor-pointer border-b select-none" onClick={() => handleSort('cliente')}>
+                        Cliente
+                        {sortColumn === 'cliente' && (
                           sortDirection === 'asc' ? <ArrowUp className="ml-1 inline h-3 w-3" /> : <ArrowDown className="ml-1 inline h-3 w-3" />
                         )}
                       </TableHead>
@@ -988,7 +1011,7 @@ export default function DesignerFlow() {
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8">
+                        <TableCell colSpan={9} className="text-center py-8">
                           <div className="flex items-center justify-center gap-2">
                             <Loader2 className="animate-spin" size={16} />
                             A carregar...
@@ -997,7 +1020,7 @@ export default function DesignerFlow() {
                       </TableRow>
                     ) : paginatedJobs.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center text-gray-500">
+                        <TableCell colSpan={9} className="text-center text-gray-500">
                           Nenhum trabalho encontrado.
                         </TableCell>
                       </TableRow>
@@ -1027,7 +1050,7 @@ export default function DesignerFlow() {
                                 )
                                 // Persist to Supabase
                                 await supabase
-                                  .from('folhas_obras_with_dias')
+                                  .from('folhas_obras')
                                   .update({ prioridade: newPrioridade })
                                   .eq('id', job.id)
                               }}
@@ -1082,8 +1105,17 @@ export default function DesignerFlow() {
                               </Tooltip>
                             </TooltipProvider>
                           </TableCell>
-                          <TableCell className="font-medium">{job.numero_fo}</TableCell>
-                          <TableCell>{job.numero_orc}</TableCell>
+                          <TableCell className="font-medium w-[90px]">
+                            {String(job.numero_fo).slice(0, 6)}
+                          </TableCell>
+                          <TableCell className="w-[90px]">
+                            {job.numero_orc ? String(job.numero_orc).slice(0, 6) : ''}
+                          </TableCell>
+                          <TableCell className="w-[180px]" title={job.cliente || ''}>
+                            {job.cliente && job.cliente.length > 15
+                              ? `${job.cliente.slice(0, 15)}...`
+                              : job.cliente || ''}
+                          </TableCell>
                           <TableCell>{job.nome_campanha}</TableCell>
                           <TableCell className="min-w-[200px]">
                             <DesignerSelector 
