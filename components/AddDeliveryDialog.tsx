@@ -59,10 +59,9 @@ interface DeliveryFormData {
   id_local_recolha?: string
   id_local_entrega?: string
   transportadora?: string
-  
-  // Contact info
-  contacto_entrega?: string
-  telefone_entrega?: string
+  peso?: string
+  nr_viaturas?: string
+  nr_paletes?: string
   
   // Notes
   notas?: string
@@ -206,10 +205,9 @@ export function AddDeliveryDialog({
         id_local_entrega: formData.id_local_entrega || null,
         local_entrega: localEntrega,
         transportadora: formData.transportadora || null,
-        
-        // Contact
-        contacto_entrega: formData.contacto_entrega?.trim() || null,
-        telefone_entrega: formData.telefone_entrega?.trim() || null,
+        peso: formData.peso?.trim() || null,
+        nr_viaturas: formData.nr_viaturas?.trim() || null,
+        nr_paletes: formData.nr_paletes?.trim() || null,
         
         // Notes
         notas: formData.notas?.trim() || null,
@@ -480,34 +478,51 @@ export function AddDeliveryDialog({
               />
             </div>
 
-            {/* Contact Info */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Transport Info */}
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="contacto_entrega">Contacto Entrega</Label>
+                <Label htmlFor="peso">Peso</Label>
                 <Input
-                  id="contacto_entrega"
-                  placeholder="Nome do contacto"
-                  value={formData.contacto_entrega || ''}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      contacto_entrega: e.target.value,
-                    }))
-                  }
+                  id="peso"
+                  placeholder="Peso"
+                  maxLength={6}
+                  value={formData.peso || ''}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value.length <= 6) {
+                      setFormData((prev) => ({ ...prev, peso: value }))
+                    }
+                  }}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="telefone_entrega">Telefone Entrega</Label>
+                <Label htmlFor="nr_viaturas">Nº Viaturas</Label>
                 <Input
-                  id="telefone_entrega"
-                  placeholder="Telefone"
-                  value={formData.telefone_entrega || ''}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      telefone_entrega: e.target.value,
-                    }))
-                  }
+                  id="nr_viaturas"
+                  placeholder="Nº"
+                  maxLength={3}
+                  value={formData.nr_viaturas || ''}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value.length <= 3) {
+                      setFormData((prev) => ({ ...prev, nr_viaturas: value }))
+                    }
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="nr_paletes">Nº Paletes</Label>
+                <Input
+                  id="nr_paletes"
+                  placeholder="Nº"
+                  maxLength={4}
+                  value={formData.nr_paletes || ''}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value.length <= 4) {
+                      setFormData((prev) => ({ ...prev, nr_paletes: value }))
+                    }
+                  }}
                 />
               </div>
             </div>
