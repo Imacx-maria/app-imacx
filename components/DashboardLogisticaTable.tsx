@@ -104,8 +104,9 @@ interface DashboardLogisticaRecord {
   local_recolha?: string
   contacto?: string
   telefone?: string
-  contacto_entrega?: string
-  telefone_entrega?: string
+  peso?: string
+  nr_viaturas?: string
+  nr_paletes?: string
   logistica_quantidade?: number
   data?: string | null
   id_local_entrega?: string
@@ -173,6 +174,7 @@ export const DashboardLogisticaTable: React.FC<
     nomeCampanha: '',
     item: '',
     numeroFo: '',
+    numeroOrc: '',
     guia: '',
     codigo: '',
   })
@@ -184,6 +186,17 @@ export const DashboardLogisticaTable: React.FC<
 
   // Debounced filter values for performance
   const debouncedFilters = useDebounce(filters, 300)
+
+  // Apply 3-character minimum filter requirement (same as designer-flow page)
+  const effectiveFilters = {
+    guia: debouncedFilters.guia.trim().length >= 3 ? debouncedFilters.guia : '',
+    numeroFo: debouncedFilters.numeroFo.trim().length >= 3 ? debouncedFilters.numeroFo : '',
+    numeroOrc: debouncedFilters.numeroOrc.trim().length >= 3 ? debouncedFilters.numeroOrc : '',
+    cliente: debouncedFilters.cliente.trim().length >= 3 ? debouncedFilters.cliente : '',
+    nomeCampanha: debouncedFilters.nomeCampanha.trim().length >= 3 ? debouncedFilters.nomeCampanha : '',
+    item: debouncedFilters.item.trim().length >= 3 ? debouncedFilters.item : '',
+    codigo: debouncedFilters.codigo.trim().length >= 3 ? debouncedFilters.codigo : '',
+  }
 
   // Updated sorting state to match main production table pattern
   const [sortCol, setSortCol] = useState<SortableLogisticaKey>('numero_fo')
@@ -248,7 +261,7 @@ export const DashboardLogisticaTable: React.FC<
     return formatDateForDB(tomorrow)
   }, [formatDateForDB])
 
-  // Fetch data with database-level filtering
+  // Fetch data - ALL filtering is done client-side to handle fields from related tables
   const fetchData = useCallback(
     async (filterParams: Partial<typeof filters> = {}) => {
       console.log('📊 [DASHBOARD TABLE] Starting fetchData with filters:', filterParams)
@@ -256,6 +269,7 @@ export const DashboardLogisticaTable: React.FC<
       try {
         // Fetch all logistics records (both em curso and despachados)
         // Using left join to include standalone deliveries without item_id
+        // NOTE: All filtering is done client-side because fields can come from related tables
         let logisticsQuery = supabase.from('logistica_entregas').select(`
           *,
           items_base!left (
@@ -275,49 +289,8 @@ export const DashboardLogisticaTable: React.FC<
           )
         `)
 
-        // Apply database-level filters for ALL filter inputs
-        if (filterParams.guia?.trim()) {
-          logisticsQuery = logisticsQuery.ilike(
-            'guia',
-            `%${filterParams.guia.trim()}%`,
-          )
-        }
-
-        // Apply FO filter at database level (direct field in logistica_entregas)
-        if (filterParams.numeroFo?.trim()) {
-          logisticsQuery = logisticsQuery.ilike(
-            'numero_fo',
-            `%${filterParams.numeroFo.trim()}%`,
-          )
-        }
-
-        // Apply Cliente filter at database level (direct field in logistica_entregas)
-        if (filterParams.cliente?.trim()) {
-          logisticsQuery = logisticsQuery.ilike(
-            'cliente',
-            `%${filterParams.cliente.trim()}%`,
-          )
-        }
-
-        // Apply Nome Campanha filter at database level (direct field in logistica_entregas)
-        if (filterParams.nomeCampanha?.trim()) {
-          logisticsQuery = logisticsQuery.ilike(
-            'nome_campanha',
-            `%${filterParams.nomeCampanha.trim()}%`,
-          )
-        }
-
-        // Apply Item filter at database level (direct field in logistica_entregas)
-        if (filterParams.item?.trim()) {
-          logisticsQuery = logisticsQuery.ilike(
-            'descricao',
-            `%${filterParams.item.trim()}%`,
-          )
-        }
-
         console.log('🔍 [DASHBOARD TABLE] Executing logistics query...')
-        // Removed hard limit of 200 - now fetches up to 1000 matching records
-        // If more comprehensive searches needed, this can be increased or pagination added
+        // Fetch up to 1000 records - filtering happens client-side
         const { data: logisticsData, error: logisticsError } =
           await logisticsQuery.order('created_at', { ascending: false }).limit(1000)
 
@@ -393,8 +366,9 @@ export const DashboardLogisticaTable: React.FC<
             local_recolha: logistica.local_recolha,
             contacto: logistica.contacto,
             telefone: logistica.telefone,
-            contacto_entrega: logistica.contacto_entrega,
-            telefone_entrega: logistica.telefone_entrega,
+            peso: logistica.peso,
+            nr_viaturas: logistica.nr_viaturas,
+            nr_paletes: logistica.nr_paletes,
             logistica_quantidade: logistica.quantidade,
             data: logistica.data,
             id_local_entrega: logistica.id_local_entrega,
@@ -446,23 +420,10 @@ export const DashboardLogisticaTable: React.FC<
     [supabase],
   )
 
-  // On mount and when any debounced filter changes, refetch data from database
+  // On mount, fetch all data (filtering happens client-side)
   useEffect(() => {
-    fetchData({
-      guia: debouncedFilters.guia,
-      numeroFo: debouncedFilters.numeroFo,
-      cliente: debouncedFilters.cliente,
-      nomeCampanha: debouncedFilters.nomeCampanha,
-      item: debouncedFilters.item,
-    })
-  }, [
-    fetchData,
-    debouncedFilters.guia,
-    debouncedFilters.numeroFo,
-    debouncedFilters.cliente,
-    debouncedFilters.nomeCampanha,
-    debouncedFilters.item,
-  ])
+    fetchData()
+  }, [fetchData])
 
   // Sync with initial props
   useEffect(() => {
@@ -497,10 +458,10 @@ export const DashboardLogisticaTable: React.FC<
     return lookup
   }, [transportadoras])
 
-  // Client-side filtering logic - now only for date filters since text filters are at database level
+  // Client-side filtering logic - ALL filters applied here (not at database level)
   const filterRecords = useCallback((recordsList: DashboardLogisticaRecord[]) => {
     return recordsList.filter((record) => {
-      // Date filter for data_saida (client-side only)
+      // Date filter for data_saida
       let dateMatch = true
       if (dateFilter !== 'all' && record.data_saida) {
         const recordDate = record.data_saida.split('T')[0]
@@ -513,12 +474,10 @@ export const DashboardLogisticaTable: React.FC<
         dateMatch = false
       }
 
-      // Calendar date filter - filter by selectedDate from calendar clicks (client-side only)
+      // Calendar date filter - filter by selectedDate from calendar clicks
       let calendarDateMatch = true
       if (selectedDate && record.data_saida) {
-        // Extract date part from record.data_saida (format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)
         const recordDateStr = record.data_saida.split('T')[0]
-        // Format selectedDate to YYYY-MM-DD (avoid timezone issues)
         const year = selectedDate.getFullYear()
         const month = String(selectedDate.getMonth() + 1).padStart(2, '0')
         const day = String(selectedDate.getDate()).padStart(2, '0')
@@ -528,10 +487,66 @@ export const DashboardLogisticaTable: React.FC<
         calendarDateMatch = false
       }
 
-      // All text filters (FO, Guia, Cliente, Campanha, Item) are now applied at database level
-      return dateMatch && calendarDateMatch
+      // FO filter (client-side because it can come from either table)
+      let foMatch = true
+      if (effectiveFilters.numeroFo?.trim()) {
+        const foFilter = effectiveFilters.numeroFo.trim().toLowerCase()
+        const foValue = (record.numero_fo || '').toLowerCase()
+        foMatch = foValue.includes(foFilter)
+      }
+
+      // ORC filter (client-side because it can come from either table)
+      let orcMatch = true
+      if (effectiveFilters.numeroOrc?.trim()) {
+        const orcFilter = effectiveFilters.numeroOrc.trim().toLowerCase()
+        const orcValue = String(record.numero_orc || '').toLowerCase()
+        orcMatch = orcValue.includes(orcFilter)
+      }
+
+      // Guia filter
+      let guiaMatch = true
+      if (effectiveFilters.guia?.trim()) {
+        const guiaFilter = effectiveFilters.guia.trim().toLowerCase()
+        const guiaValue = (record.guia || '').toLowerCase()
+        guiaMatch = guiaValue.includes(guiaFilter)
+      }
+
+      // Cliente filter
+      let clienteMatch = true
+      if (effectiveFilters.cliente?.trim()) {
+        const clienteFilter = effectiveFilters.cliente.trim().toLowerCase()
+        const clienteValue = (record.cliente || '').toLowerCase()
+        clienteMatch = clienteValue.includes(clienteFilter)
+      }
+
+      // Nome Campanha filter
+      let campanhaMatch = true
+      if (effectiveFilters.nomeCampanha?.trim()) {
+        const campanhaFilter = effectiveFilters.nomeCampanha.trim().toLowerCase()
+        const campanhaValue = (record.nome_campanha || '').toLowerCase()
+        campanhaMatch = campanhaValue.includes(campanhaFilter)
+      }
+
+      // Item filter
+      let itemMatch = true
+      if (effectiveFilters.item?.trim()) {
+        const itemFilter = effectiveFilters.item.trim().toLowerCase()
+        const itemValue = (record.item_descricao || '').toLowerCase()
+        itemMatch = itemValue.includes(itemFilter)
+      }
+
+      // Código filter
+      let codigoMatch = true
+      if (effectiveFilters.codigo?.trim()) {
+        const codigoFilter = effectiveFilters.codigo.trim().toLowerCase()
+        const codigoValue = (record.codigo || '').toLowerCase()
+        codigoMatch = codigoValue.includes(codigoFilter)
+      }
+
+      return dateMatch && calendarDateMatch && foMatch && orcMatch && guiaMatch &&
+             clienteMatch && campanhaMatch && itemMatch && codigoMatch
     })
-  }, [dateFilter, getTodayString, getTomorrowString, selectedDate])
+  }, [dateFilter, getTodayString, getTomorrowString, selectedDate, effectiveFilters])
 
   // Separate records by saiu status and filter
   const filteredEmCurso = useMemo(
@@ -628,6 +643,7 @@ export const DashboardLogisticaTable: React.FC<
       nomeCampanha: '',
       item: '',
       numeroFo: '',
+      numeroOrc: '',
       guia: '',
       codigo: '',
     })
@@ -813,8 +829,9 @@ export const DashboardLogisticaTable: React.FC<
           .from('logistica_entregas')
           .update({
             notas: fields.outras || null,
-            contacto_entrega: fields.contacto_entrega || null,
-            telefone_entrega: fields.telefone_entrega || null,
+            peso: fields.peso || null,
+            nr_viaturas: fields.nr_viaturas || null,
+            nr_paletes: fields.nr_paletes || null,
             data: fields.data || null,
           })
           .eq('id', record.logistica_id)
@@ -826,15 +843,16 @@ export const DashboardLogisticaTable: React.FC<
               ? {
                   ...r,
                   notas: fields.outras,
-                  contacto_entrega: fields.contacto_entrega,
-                  telefone_entrega: fields.telefone_entrega,
+                  peso: fields.peso,
+                  nr_viaturas: fields.nr_viaturas,
+                  nr_paletes: fields.nr_paletes,
                   data: fields.data,
                 }
               : r,
           ),
         )
       } catch (error) {
-        console.error('Error updating notas and delivery contacts:', error)
+        console.error('Error updating notas and transport info:', error)
       }
     },
     [supabase, setRecords],
@@ -1001,19 +1019,42 @@ export const DashboardLogisticaTable: React.FC<
       <div className="mb-4 flex items-center gap-2">
         <Input
           placeholder="FO"
-          className="w-[140px]"
+          className="w-[90px]"
+          maxLength={5}
           value={filters.numeroFo}
-          onChange={(e) =>
-            setFilters((prev) => ({ ...prev, numeroFo: e.target.value }))
-          }
+          onChange={(e) => {
+            const value = e.target.value
+            if (value.length <= 5) {
+              setFilters((prev) => ({ ...prev, numeroFo: value }))
+            }
+          }}
+          title="Mínimo 3 caracteres para filtrar"
+        />
+        <Input
+          placeholder="ORC"
+          className="w-[90px]"
+          maxLength={5}
+          value={filters.numeroOrc}
+          onChange={(e) => {
+            const value = e.target.value
+            if (value.length <= 5) {
+              setFilters((prev) => ({ ...prev, numeroOrc: value }))
+            }
+          }}
+          title="Mínimo 3 caracteres para filtrar"
         />
         <Input
           placeholder="Guia"
-          className="w-[140px]"
+          className="w-[90px]"
+          maxLength={5}
           value={filters.guia}
-          onChange={(e) =>
-            setFilters((prev) => ({ ...prev, guia: e.target.value }))
-          }
+          onChange={(e) => {
+            const value = e.target.value
+            if (value.length <= 5) {
+              setFilters((prev) => ({ ...prev, guia: value }))
+            }
+          }}
+          title="Mínimo 3 caracteres para filtrar"
         />
         <Input
           placeholder="Cliente"
@@ -1022,6 +1063,7 @@ export const DashboardLogisticaTable: React.FC<
           onChange={(e) =>
             setFilters((prev) => ({ ...prev, cliente: e.target.value }))
           }
+          title="Mínimo 3 caracteres para filtrar"
         />
         <Input
           placeholder="Nome Campanha"
@@ -1030,6 +1072,7 @@ export const DashboardLogisticaTable: React.FC<
           onChange={(e) =>
             setFilters((prev) => ({ ...prev, nomeCampanha: e.target.value }))
           }
+          title="Mínimo 3 caracteres para filtrar"
         />
         <Input
           placeholder="Item"
@@ -1038,6 +1081,7 @@ export const DashboardLogisticaTable: React.FC<
           onChange={(e) =>
             setFilters((prev) => ({ ...prev, item: e.target.value }))
           }
+          title="Mínimo 3 caracteres para filtrar"
         />
 
         {/* Date filter buttons */}
@@ -1057,14 +1101,6 @@ export const DashboardLogisticaTable: React.FC<
             className="h-10 px-3 text-xs"
           >
             Hoje
-          </Button>
-          <Button
-            variant={dateFilter === 'tomorrow' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setDateFilter('tomorrow')}
-            className="h-10 px-3 text-xs"
-          >
-            Amanhã
           </Button>
         </div>
 
@@ -1278,10 +1314,14 @@ export const DashboardLogisticaTable: React.FC<
                     <TableCell className="text-center align-middle">
                       <Input
                         className="h-8 text-sm text-center"
+                        maxLength={5}
                         value={currentEditValues.guia ?? record.guia ?? ''}
-                        onChange={(e) =>
-                          updateEditValue(recordId, 'guia', e.target.value)
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value
+                          if (value.length <= 5) {
+                            updateEditValue(recordId, 'guia', value)
+                          }
+                        }}
                         onBlur={() => {
                           const values = editValues[recordId] || {}
                           if (values.guia !== undefined && values.guia !== record.guia) {
@@ -1351,8 +1391,9 @@ export const DashboardLogisticaTable: React.FC<
                           idLocalRecolha={record.id_local_recolha || ''}
                           idLocalEntrega={record.id_local_entrega || ''}
                           notas={record.notas || ''}
-                          contactoEntrega={record.contacto_entrega || ''}
-                          telefoneEntrega={record.telefone_entrega || ''}
+                          peso={record.peso || ''}
+                          nrViaturas={record.nr_viaturas || ''}
+                          nrPaletes={record.nr_paletes || ''}
                           armazens={armazens}
                           transportadoras={transportadoras}
                           onSave={async (fields) => {
@@ -1361,8 +1402,9 @@ export const DashboardLogisticaTable: React.FC<
                             await handleTransportadoraChange(record, fields.transportadora)
                             await handleNotasSave(record, {
                               outras: fields.notas,
-                              contacto_entrega: fields.contacto_entrega,
-                              telefone_entrega: fields.telefone_entrega,
+                              peso: fields.peso,
+                              nr_viaturas: fields.nr_viaturas,
+                              nr_paletes: fields.nr_paletes,
                               data: record.data || null,
                             })
                           }}
@@ -1573,8 +1615,9 @@ export const DashboardLogisticaTable: React.FC<
                           idLocalRecolha={record.id_local_recolha || ''}
                           idLocalEntrega={record.id_local_entrega || ''}
                           notas={record.notas || ''}
-                          contactoEntrega={record.contacto_entrega || ''}
-                          telefoneEntrega={record.telefone_entrega || ''}
+                          peso={record.peso || ''}
+                          nrViaturas={record.nr_viaturas || ''}
+                          nrPaletes={record.nr_paletes || ''}
                           armazens={armazens}
                           transportadoras={transportadoras}
                           onSave={async (fields) => {
@@ -1583,8 +1626,9 @@ export const DashboardLogisticaTable: React.FC<
                             await handleTransportadoraChange(record, fields.transportadora)
                             await handleNotasSave(record, {
                               outras: fields.notas,
-                              contacto_entrega: fields.contacto_entrega,
-                              telefone_entrega: fields.telefone_entrega,
+                              peso: fields.peso,
+                              nr_viaturas: fields.nr_viaturas,
+                              nr_paletes: fields.nr_paletes,
                               data: record.data || null,
                             })
                           }}

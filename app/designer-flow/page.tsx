@@ -994,11 +994,11 @@ export default function DesignerFlow() {
                             setLoading(true)
                             const jobsData = await fetchJobs(
                               supabase,
-                              debouncedFoFilter,
-                              debouncedOrcFilter,
-                              debouncedCampaignFilter,
-                              debouncedItemFilter,
-                              debouncedCodigoFilter,
+                              effectiveFoFilter,
+                              effectiveOrcFilter,
+                              effectiveCampaignFilter,
+                              effectiveItemFilter,
+                              effectiveCodigoFilter,
                               activeTab,
                             )
                             setJobs(jobsData)
