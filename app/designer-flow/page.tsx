@@ -190,7 +190,7 @@ const fetchJobs = async (
           .in('folha_obra_id', jobIdsToCheck)
 
         if (itemsData && itemsData.length > 0) {
-          const itemIds = itemsData.map((i) => i.id)
+          const itemIds = itemsData.map((i: any) => i.id)
 
           // Check for items with concluido=true in logistica_entregas
           const { data: logisticaItems } = await supabase
@@ -200,7 +200,7 @@ const fetchJobs = async (
             .in('item_id', itemIds)
 
           if (logisticaItems && logisticaItems.length > 0) {
-            const itemIdsWithConcluido = logisticaItems.map((l) => l.item_id)
+            const itemIdsWithConcluido = logisticaItems.map((l: any) => l.item_id)
 
             // Update designer_items for these items if not already paginacao=true
             const { data: designerItemsToUpdate } = await supabase
@@ -211,7 +211,7 @@ const fetchJobs = async (
 
             if (designerItemsToUpdate && designerItemsToUpdate.length > 0) {
               const today = new Date().toISOString().split('T')[0]
-              const updates = designerItemsToUpdate.map((item) =>
+              const updates = designerItemsToUpdate.map((item: any) =>
                 supabase
                   .from('designer_items')
                   .update({

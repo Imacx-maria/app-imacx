@@ -1916,11 +1916,11 @@ export default function ProducaoPage() {
   // Trigger search when filters change
   useEffect(() => {
     console.log('🔍 Filter change detected:', {
-      debouncedCodeF,
-      debouncedItemF,
-      debouncedFoF,
-      debouncedCampF,
-      debouncedClientF,
+      effectiveCodeF,
+      effectiveItemF,
+      effectiveFoF,
+      effectiveCampF,
+      effectiveClientF,
       showFatura,
       activeTab,
     })
@@ -1962,11 +1962,16 @@ export default function ProducaoPage() {
     fetchJobs,
   ])
   // Memoize job IDs to prevent unnecessary re-fetches
-  const jobIds = useMemo(() => {
+  const jobIdString = useMemo(() => {
     return jobs
       .map((job) => job.id)
       .filter((id) => !id.startsWith('temp-'))
-  }, [jobs.map(j => j.id).join(',')])
+      .join(',')
+  }, [jobs])
+
+  const jobIds = useMemo(() => {
+    return jobIdString.split(',').filter(Boolean)
+  }, [jobIdString])
 
   // Load items and operacoes when job IDs change
   useEffect(() => {
@@ -1977,7 +1982,7 @@ export default function ProducaoPage() {
       fetchJobsCompletionStatus(jobIds)
     }
   }, [
-    jobIds.join(','), // Use stringified IDs to avoid re-fetching when order changes
+    jobIdString,
     fetchItems,
     fetchOperacoes,
     fetchJobsSaiuStatus,
