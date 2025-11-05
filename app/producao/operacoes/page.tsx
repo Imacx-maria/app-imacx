@@ -1305,6 +1305,16 @@ function ItemDrawerContent({ itemId, items, onClose, supabase, onMainRefresh }: 
   const [designerPlanos, setDesignerPlanos] = useState<any[]>([])
   const [importingPlanos, setImportingPlanos] = useState(false)
 
+  /**
+   * Calculate stock quantity to deduct from paletes
+   * Rounds UP fractional plates to whole numbers
+   * Example: 20.5 plates → 21 plates deducted from stock
+   */
+  const calculateStockDeduction = (plates: number | null | undefined): number => {
+    if (!plates) return 0
+    return Math.ceil(plates)
+  }
+
   const fetchOperations = useCallback(async () => {
     if (!item) return
 

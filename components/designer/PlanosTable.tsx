@@ -371,16 +371,23 @@ export default function PlanosTable({
                     {isEditing ? (
                       <Input
                         type="number"
+                        step="0.1"
+                        min="0"
                         value={plano.quantidade || ''}
-                        onChange={(e) =>
-                          onPlanosChange(
-                            planos.map((p) =>
-                              p.id === plano.id
-                                ? { ...p, quantidade: parseInt(e.target.value) || 0 }
-                                : p
+                        onChange={(e) => {
+                          const value = e.target.value
+                          // Validate: allow max 1 decimal place
+                          if (value === '' || /^\d+(\.\d{0,1})?$/.test(value)) {
+                            const numValue = value === '' ? 0 : parseFloat(value)
+                            onPlanosChange(
+                              planos.map((p) =>
+                                p.id === plano.id
+                                  ? { ...p, quantidade: numValue }
+                                  : p
+                              )
                             )
-                          )
-                        }
+                          }
+                        }}
                         className="w-[70px]"
                       />
                     ) : (
@@ -498,10 +505,17 @@ export default function PlanosTable({
                 <TableCell>
                   <Input
                     type="number"
+                    step="0.1"
+                    min="0"
                     value={newPlano.quantidade || ''}
-                    onChange={(e) =>
-                      setNewPlano({ ...newPlano, quantidade: parseInt(e.target.value) || 0 })
-                    }
+                    onChange={(e) => {
+                      const value = e.target.value
+                      // Validate: allow max 1 decimal place
+                      if (value === '' || /^\d+(\.\d{0,1})?$/.test(value)) {
+                        const numValue = value === '' ? 0 : parseFloat(value)
+                        setNewPlano({ ...newPlano, quantidade: numValue })
+                      }
+                    }}
                     placeholder="10"
                     className="w-[70px]"
                   />

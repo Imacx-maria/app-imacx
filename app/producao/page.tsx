@@ -2252,7 +2252,7 @@ export default function ProducaoPage() {
           <div className="flex items-center gap-2">
             <div className="relative w-28">
               <Input
-                placeholder="Filtra FO"
+                placeholder="FO"
                 className="h-10 pr-10"
                 value={foF}
                 onChange={(e) => setFoF(e.target.value)}
@@ -2271,7 +2271,7 @@ export default function ProducaoPage() {
             </div>
             <div className="relative flex-1">
               <Input
-                placeholder="Filtra Nome Campanha"
+                placeholder="Nome Campanha"
                 className="h-10 pr-10"
                 value={campF}
                 onChange={(e) => setCampF(e.target.value)}
@@ -2290,7 +2290,7 @@ export default function ProducaoPage() {
             </div>
             <div className="relative flex-1">
               <Input
-                placeholder="Filtra Item"
+                placeholder="Item"
                 className="h-10 pr-10"
                 value={itemF}
                 onChange={(e) => setItemF(e.target.value)}
@@ -2309,7 +2309,7 @@ export default function ProducaoPage() {
             </div>
             <div className="relative w-40">
               <Input
-                placeholder="Filtra Código"
+                placeholder="Código"
                 className="h-10 pr-10"
                 value={codeF}
                 onChange={(e) => {
@@ -2338,7 +2338,7 @@ export default function ProducaoPage() {
             </div>
             <div className="relative flex-1">
               <Input
-                placeholder="Filtra Cliente"
+                placeholder="Cliente"
                 className="h-10 pr-10"
                 value={clientF}
                 onChange={(e) => setClientF(e.target.value)}
