@@ -25,8 +25,9 @@ export interface TransportePopoverProps {
   idLocalRecolha: string
   idLocalEntrega: string
   notas: string
-  contactoEntrega: string
-  telefoneEntrega: string
+  peso: string
+  nrViaturas: string
+  nrPaletes: string
   armazens: ArmazemOption[]
   transportadoras: TransportadoraOption[]
   onSave: (fields: {
@@ -36,8 +37,9 @@ export interface TransportePopoverProps {
     id_local_recolha: string
     id_local_entrega: string
     notas: string
-    contacto_entrega: string
-    telefone_entrega: string
+    peso: string
+    nr_viaturas: string
+    nr_paletes: string
   }) => Promise<void> | void
   onArmazensUpdate?: () => Promise<void>
   onTransportadorasUpdate?: () => Promise<void>
@@ -52,8 +54,9 @@ const TransportePopover: React.FC<TransportePopoverProps> = ({
   idLocalRecolha,
   idLocalEntrega,
   notas,
-  contactoEntrega,
-  telefoneEntrega,
+  peso,
+  nrViaturas,
+  nrPaletes,
   armazens,
   transportadoras,
   onSave,
@@ -67,8 +70,9 @@ const TransportePopover: React.FC<TransportePopoverProps> = ({
   const [localIdEntrega, setLocalIdEntrega] = useState(idLocalEntrega)
   const [localTransportadora, setLocalTransportadora] = useState(transportadora)
   const [localNotas, setLocalNotas] = useState(notas)
-  const [localContactoEntrega, setLocalContactoEntrega] = useState(contactoEntrega)
-  const [localTelefoneEntrega, setLocalTelefoneEntrega] = useState(telefoneEntrega)
+  const [localPeso, setLocalPeso] = useState(peso)
+  const [localNrViaturas, setLocalNrViaturas] = useState(nrViaturas)
+  const [localNrPaletes, setLocalNrPaletes] = useState(nrPaletes)
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [originalFields, setOriginalFields] = useState({
@@ -76,8 +80,9 @@ const TransportePopover: React.FC<TransportePopoverProps> = ({
     id_local_entrega: idLocalEntrega,
     transportadora: transportadora,
     notas: notas,
-    contacto_entrega: contactoEntrega,
-    telefone_entrega: telefoneEntrega,
+    peso: peso,
+    nr_viaturas: nrViaturas,
+    nr_paletes: nrPaletes,
   })
 
   const popoverDescriptionId = React.useId()
@@ -88,19 +93,21 @@ const TransportePopover: React.FC<TransportePopoverProps> = ({
       setLocalIdEntrega(idLocalEntrega)
       setLocalTransportadora(transportadora)
       setLocalNotas(notas)
-      setLocalContactoEntrega(contactoEntrega)
-      setLocalTelefoneEntrega(telefoneEntrega)
+      setLocalPeso(peso)
+      setLocalNrViaturas(nrViaturas)
+      setLocalNrPaletes(nrPaletes)
       setOriginalFields({
         id_local_recolha: idLocalRecolha,
         id_local_entrega: idLocalEntrega,
         transportadora: transportadora,
         notas: notas,
-        contacto_entrega: contactoEntrega,
-        telefone_entrega: telefoneEntrega,
+        peso: peso,
+        nr_viaturas: nrViaturas,
+        nr_paletes: nrPaletes,
       })
       setSaveSuccess(false)
     }
-  }, [isOpen, idLocalRecolha, idLocalEntrega, transportadora, notas, contactoEntrega, telefoneEntrega])
+  }, [isOpen, idLocalRecolha, idLocalEntrega, transportadora, notas, peso, nrViaturas, nrPaletes])
 
   const handleSave = async () => {
     if (disabled || isSaving) return
@@ -121,8 +128,9 @@ const TransportePopover: React.FC<TransportePopoverProps> = ({
         id_local_recolha: localIdRecolha,
         id_local_entrega: localIdEntrega,
         notas: localNotas,
-        contacto_entrega: localContactoEntrega,
-        telefone_entrega: localTelefoneEntrega,
+        peso: localPeso,
+        nr_viaturas: localNrViaturas,
+        nr_paletes: localNrPaletes,
       }
 
       const changed = Object.keys(originalFields).some(
@@ -191,6 +199,7 @@ const TransportePopover: React.FC<TransportePopoverProps> = ({
           options={transportadoras}
           onOptionsUpdate={onTransportadorasUpdate}
           placeholder="Selecionar..."
+          disabled={disabled || isSaving}
         />
       </div>
 
@@ -205,30 +214,61 @@ const TransportePopover: React.FC<TransportePopoverProps> = ({
         />
       </div>
 
-      <div className="mb-4">
-        <label className="mb-2 block text-xs font-semibold">
-          Contacto Entrega
-        </label>
-        <Input
-          type="text"
-          value={localContactoEntrega}
-          onChange={(e) => setLocalContactoEntrega(e.target.value)}
-          disabled={disabled || isSaving}
-          placeholder="Nome do contacto de entrega"
-        />
-      </div>
-
-      <div className="mb-4">
-        <label className="mb-2 block text-xs font-semibold">
-          Telefone Entrega
-        </label>
-        <Input
-          type="text"
-          value={localTelefoneEntrega}
-          onChange={(e) => setLocalTelefoneEntrega(e.target.value)}
-          disabled={disabled || isSaving}
-          placeholder="Telefone de entrega"
-        />
+      <div className="mb-4 grid grid-cols-3 gap-4">
+        <div>
+          <label className="mb-2 block text-xs font-semibold">
+            Peso
+          </label>
+          <Input
+            type="text"
+            value={localPeso}
+            onChange={(e) => {
+              const value = e.target.value
+              if (value.length <= 6) {
+                setLocalPeso(value)
+              }
+            }}
+            disabled={disabled || isSaving}
+            placeholder="Peso"
+            maxLength={6}
+          />
+        </div>
+        <div>
+          <label className="mb-2 block text-xs font-semibold">
+            Nº Viaturas
+          </label>
+          <Input
+            type="text"
+            value={localNrViaturas}
+            onChange={(e) => {
+              const value = e.target.value
+              if (value.length <= 3) {
+                setLocalNrViaturas(value)
+              }
+            }}
+            disabled={disabled || isSaving}
+            placeholder="Nº"
+            maxLength={3}
+          />
+        </div>
+        <div>
+          <label className="mb-2 block text-xs font-semibold">
+            Nº Paletes
+          </label>
+          <Input
+            type="text"
+            value={localNrPaletes}
+            onChange={(e) => {
+              const value = e.target.value
+              if (value.length <= 4) {
+                setLocalNrPaletes(value)
+              }
+            }}
+            disabled={disabled || isSaving}
+            placeholder="Nº"
+            maxLength={4}
+          />
+        </div>
       </div>
 
       <div className="mt-4 flex items-center justify-between">
