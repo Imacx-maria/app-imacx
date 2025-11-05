@@ -58,16 +58,10 @@ export default function FeriadosPage() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
   // Debounced filter values for performance
-  const [debouncedDescriptionFilter, setDebouncedDescriptionFilter] =
-    useState(descriptionFilter)
+  const debouncedDescriptionFilter = useDebounce(descriptionFilter, 300)
 
-  // Update debounced value with delay
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedDescriptionFilter(descriptionFilter)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [descriptionFilter])
+  // Effective filter - only activate with 3+ characters
+  const effectiveDescriptionFilter = debouncedDescriptionFilter.trim().length >= 3 ? debouncedDescriptionFilter : ''
 
   const supabase = createBrowserClient()
 
@@ -115,13 +109,13 @@ export default function FeriadosPage() {
 
   // Trigger search when filter changes
   useEffect(() => {
-    fetchFeriados({ descriptionFilter: debouncedDescriptionFilter })
-  }, [debouncedDescriptionFilter, fetchFeriados])
+    fetchFeriados({ descriptionFilter: effectiveDescriptionFilter })
+  }, [effectiveDescriptionFilter, fetchFeriados])
 
   // Trigger search when sorting changes
   useEffect(() => {
-    fetchFeriados({ descriptionFilter: debouncedDescriptionFilter })
-  }, [sortColumn, sortDirection, debouncedDescriptionFilter, fetchFeriados])
+    fetchFeriados({ descriptionFilter: effectiveDescriptionFilter })
+  }, [sortColumn, sortDirection, effectiveDescriptionFilter, fetchFeriados])
 
   // Remove client-side filtering and sorting - now using database-level operations
   const sortedFeriados = feriados
@@ -232,10 +226,11 @@ export default function FeriadosPage() {
         {/* Filter bar - standardized */}
         <div className="flex items-center gap-2">
           <Input
-            placeholder="FILTRAR POR DESCRIÇÃO..."
+            placeholder="Descrição"
             value={descriptionFilter}
             onChange={(e) => setDescriptionFilter(e.target.value)}
             className="h-10 flex-1"
+            title="Mínimo 3 caracteres para filtrar"
           />
           <TooltipProvider>
             <Tooltip>
@@ -260,7 +255,7 @@ export default function FeriadosPage() {
                   size="icon"
                   onClick={() =>
                     fetchFeriados({
-                      descriptionFilter: debouncedDescriptionFilter,
+                      descriptionFilter: effectiveDescriptionFilter,
                     })
                   }
                 >

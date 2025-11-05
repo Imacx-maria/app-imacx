@@ -251,6 +251,7 @@ export const DashboardLogisticaTable: React.FC<
   // Fetch data with database-level filtering
   const fetchData = useCallback(
     async (filterParams: Partial<typeof filters> = {}) => {
+      console.log('📊 [DASHBOARD TABLE] Starting fetchData with filters:', filterParams)
       setLoading(true)
       try {
         // Fetch all logistics records (both em curso and despachados)
@@ -314,14 +315,19 @@ export const DashboardLogisticaTable: React.FC<
           )
         }
 
+        console.log('🔍 [DASHBOARD TABLE] Executing logistics query...')
         // Removed hard limit of 200 - now fetches up to 1000 matching records
         // If more comprehensive searches needed, this can be increased or pagination added
         const { data: logisticsData, error: logisticsError } =
           await logisticsQuery.order('created_at', { ascending: false }).limit(1000)
 
         if (logisticsError) {
-          console.error('Error fetching logistics:', logisticsError)
+          console.error('❌ [DASHBOARD TABLE] Error fetching logistics:', logisticsError)
+          console.error('❌ [DASHBOARD TABLE] Error details:', JSON.stringify(logisticsError, null, 2))
+          throw logisticsError
         }
+
+        console.log('✅ [DASHBOARD TABLE] Fetched logistics records:', logisticsData?.length || 0)
 
         debugLog('Fetched logistics:', logisticsData?.length || 0)
 
@@ -401,6 +407,7 @@ export const DashboardLogisticaTable: React.FC<
         })
 
         debugLog('Processed flat records:', flatRecords.length)
+        console.log('✅ [DASHBOARD TABLE] Processed flat records:', flatRecords.length)
 
         setRecords(flatRecords)
         setClientes(
@@ -421,10 +428,19 @@ export const DashboardLogisticaTable: React.FC<
             codigo_pos: a.codigo_pos,
           })) || [],
         )
+
+        console.log('✅ [DASHBOARD TABLE] Data fetch completed successfully')
       } catch (error) {
-        console.error('Error in fetchData:', error)
+        console.error('💥 [DASHBOARD TABLE] Exception in fetchData:', error)
+        console.error('💥 [DASHBOARD TABLE] Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+        // Set empty data on error so loading completes
+        setRecords([])
+        setClientes([])
+        setTransportadoras([])
+        setArmazens([])
       } finally {
         setLoading(false)
+        console.log('🏁 [DASHBOARD TABLE] fetchData completed (loading set to false)')
       }
     },
     [supabase],
@@ -482,7 +498,7 @@ export const DashboardLogisticaTable: React.FC<
   }, [transportadoras])
 
   // Client-side filtering logic - now only for date filters since text filters are at database level
-  const filterRecords = (recordsList: DashboardLogisticaRecord[]) => {
+  const filterRecords = useCallback((recordsList: DashboardLogisticaRecord[]) => {
     return recordsList.filter((record) => {
       // Date filter for data_saida (client-side only)
       let dateMatch = true
@@ -515,21 +531,21 @@ export const DashboardLogisticaTable: React.FC<
       // All text filters (FO, Guia, Cliente, Campanha, Item) are now applied at database level
       return dateMatch && calendarDateMatch
     })
-  }
+  }, [dateFilter, getTodayString, getTomorrowString, selectedDate])
 
   // Separate records by saiu status and filter
   const filteredEmCurso = useMemo(
     () => filterRecords(records.filter((r) => !r.saiu)),
-    [records, filters, dateFilter, selectedDate, getTodayString, getTomorrowString],
+    [records, filterRecords],
   )
 
   const filteredDespachados = useMemo(
     () => filterRecords(records.filter((r) => r.saiu)),
-    [records, filters, dateFilter, selectedDate, getTodayString, getTomorrowString],
+    [records, filterRecords],
   )
 
   // Updated sorting logic following the same pattern as main production table
-  const createSorted = (filtered: DashboardLogisticaRecord[]) => {
+  const createSorted = useCallback((filtered: DashboardLogisticaRecord[]) => {
     if (!hasUserSorted) {
       return [...filtered]
     }
@@ -593,30 +609,16 @@ export const DashboardLogisticaTable: React.FC<
       return 0
     })
     return arr
-  }
+  }, [clienteLookup, hasUserSorted, sortCol, sortDir])
 
   const sortedEmCurso = useMemo(
     () => createSorted(filteredEmCurso),
-    [
-      filteredEmCurso,
-      sortCol,
-      sortDir,
-      clienteLookup,
-      transportadoraLookup,
-      hasUserSorted,
-    ],
+    [filteredEmCurso, createSorted],
   )
 
   const sortedDespachados = useMemo(
     () => createSorted(filteredDespachados),
-    [
-      filteredDespachados,
-      sortCol,
-      sortDir,
-      clienteLookup,
-      transportadoraLookup,
-      hasUserSorted,
-    ],
+    [filteredDespachados, createSorted],
   )
 
   // Clear filters function

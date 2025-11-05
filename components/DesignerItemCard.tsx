@@ -315,6 +315,16 @@ export default function DesignerItemCard({
         supabaseUpdates[related.dataRecusaField as string] = null
       }
 
+      // If A* is unchecked, also uncheck paginacao and clear path_trabalho
+      if (isAprov && value === false) {
+        ;(updates as any).paginacao = false
+        ;(updates as any).data_paginacao = null
+        ;(updates as any).path_trabalho = null
+        supabaseUpdates.paginacao = false
+        supabaseUpdates.data_paginacao = null
+        supabaseUpdates.path_trabalho = null
+      }
+
       // Cascade reset later versions when A* or R* toggled true
       if ((isAprov || isRecusa) && value === true && version) {
         for (let v = Number(version) + 1; v <= 6; v++) {
@@ -767,11 +777,13 @@ export default function DesignerItemCard({
               />
             )}
 
-            {showFinal && (
+            {(showFinal || item.paginacao || item.path_trabalho) && (
               <div className="space-y-4">
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Finalização
-                </div>
+                {showFinal && (
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Finalização
+                  </div>
+                )}
                 <div>
                   <div className="space-y-2 border-l-4 border-l-success p-3">
                     <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">

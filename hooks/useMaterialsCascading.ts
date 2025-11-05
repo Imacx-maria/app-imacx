@@ -37,15 +37,20 @@ export const useMaterialsCascading = () => {
       const { data, error } = await supabase
         .from('materiais')
         .select(
-          'id, material, carateristica, cor, referencia, ref_fornecedor, tipo_canal, dimensoes, valor_m2_custo, valor_placa, valor_m2, qt_palete',
+          'id, material, carateristica, cor, referencia, ref_fornecedor, tipo_canal, dimensoes, valor_m2_custo, valor_placa, valor_m2, qt_palete, tipo',
         )
         .eq('tipo', 'RÍGIDOS') // Filter to only show rigid materials (with accent)
+        .not('material', 'is', null) // Ensure material field is not null
         .order('material', { ascending: true })
 
       if (error) throw error
 
       if (data) {
+        console.log(`[useMaterialsCascading] Fetched ${data.length} RÍGIDOS materials`)
+        console.log('[useMaterialsCascading] Sample materials:', data.slice(0, 5).map(d => d.material))
         setMaterialsData(data)
+      } else {
+        console.warn('[useMaterialsCascading] No data returned from query')
       }
     } catch (err) {
       console.error('Error fetching materials:', err)
@@ -71,12 +76,16 @@ export const useMaterialsCascading = () => {
       }
     })
 
-    return Array.from(uniqueMaterials)
+    const options = Array.from(uniqueMaterials)
       .sort()
       .map((material) => ({
         value: material,
         label: material,
       }))
+    
+    console.log(`[useMaterialsCascading] Generated ${options.length} unique material options from ${materialsData.length} records`)
+    
+    return options
   }, [materialsData])
 
   // Get characteristics filtered by selected material (second level)

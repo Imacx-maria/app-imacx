@@ -1,4 +1,4 @@
-import * as React from 'react'
+﻿import * as React from 'react'
 import { Check, ChevronsUpDown, Plus, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -68,7 +68,7 @@ export const CreatableCombobox: React.FC<CreatableComboboxProps> = ({
         sampleOptions: options.slice(0, 3).map(o => ({ value: o.value, label: o.label }))
       })
     }
-  }, [value, selectedOption, options.length])
+  }, [value, selectedOption, options])
 
   // Find by matching value from options, but also support displaying a value that's not in the list
   const findOptionByValue = React.useMemo(() => {
@@ -221,3 +221,4 @@ export const CreatableCombobox: React.FC<CreatableComboboxProps> = ({
 }
 
 export default CreatableCombobox
+

@@ -124,84 +124,37 @@ export default function UtilizadoresPage() {
   const loadUsers = useCallback(async () => {
     try {
       setLoading(true)
+      console.log('📋 [UTILIZADORES PAGE] Fetching users from API...')
 
-      // First, get all auth users
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers()
+      // Fetch users from server-side API route (with admin auth)
+      const response = await fetch('/api/users/list')
 
-      if (authError) {
-        console.error('Error loading auth users:', authError)
-        throw authError
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('❌ [UTILIZADORES PAGE] API error:', errorData)
+        throw new Error(errorData.error || 'Failed to load users')
       }
 
-      // Then get all profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-
-      if (profilesError) {
-        console.error('Error loading profiles:', profilesError)
-        throw profilesError
-      }
-
-      // Match auth users with their profiles
-      const combinedUsers = await Promise.all(
-        (authUsers.users || []).map(async (authUser: any) => {
-          // Find matching profile
-          const profile = profiles?.find((p: any) => p.user_id === authUser.id)
-
-          if (profile) {
-            // User has profile - fetch siglas
-            const { data: siglasData } = await supabase
-              .from('user_siglas')
-              .select('sigla')
-              .eq('profile_id', profile.id)
-
-            return {
-              ...profile,
-              siglas: siglasData?.map((s: any) => s.sigla) || [],
-              auth_user_id: authUser.id,
-              has_profile: true,
-            }
-          } else {
-            // User missing profile - create minimal object
-            return {
-              id: null,
-              user_id: authUser.id,
-              auth_user_id: authUser.id,
-              email: authUser.email,
-              first_name: authUser.raw_user_meta_data?.first_name || authUser.email?.split('@')[0] || '',
-              last_name: authUser.raw_user_meta_data?.last_name || '',
-              phone: null,
-              notes: null,
-              role_id: null,
-              departamento_id: null,
-              active: null,
-              created_at: authUser.created_at,
-              updated_at: null,
-              siglas: [],
-              has_profile: false,
-            }
-          }
-        })
-      )
+      const data = await response.json()
+      console.log('✅ [UTILIZADORES PAGE] Received users:', data.count)
 
       // Sort by created_at desc
-      combinedUsers.sort((a, b) => {
+      const sortedUsers = (data.users || []).sort((a: any, b: any) => {
         const dateA = new Date(a.created_at || 0).getTime()
         const dateB = new Date(b.created_at || 0).getTime()
         return dateB - dateA
       })
 
-      console.log('Loaded users (with orphan detection):', combinedUsers)
-      setUsers(combinedUsers as ManagedUser[])
+      console.log('✅ [UTILIZADORES PAGE] Users sorted and ready')
+      setUsers(sortedUsers as ManagedUser[])
       setError(null)
     } catch (err: any) {
-      console.error('Error loading users:', err)
+      console.error('💥 [UTILIZADORES PAGE] Error loading users:', err)
       setError(`Erro ao carregar utilizadores: ${err.message || err}`)
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [])
 
   useEffect(() => {
     loadUsers()

@@ -95,7 +95,7 @@ function JobDrawerContentComponent({
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
-  const ITEMS_PER_PAGE = 40
+  const ITEMS_PER_PAGE = 5
 
   // Helper functions for inline editing
   const isEditing = (itemId: string) => editingItems.has(itemId)
@@ -2120,6 +2120,51 @@ function JobDrawerContentComponent({
                             ),
                           ])
 
+                          // When concluido is checked, also update designer_items for paginacao
+                          if (row.item_id) {
+                            try {
+                              const designerUpdates: any = {
+                                paginacao: true,
+                                path_trabalho: 'Indefinido',
+                                updated_at: new Date().toISOString(),
+                              }
+
+                              // Only set data_paginacao if not already set
+                              const { data: designerItem } = await supabase
+                                .from('designer_items')
+                                .select('id, data_paginacao, aprovacao_recebida1, aprovacao_recebida2, aprovacao_recebida3, aprovacao_recebida4, aprovacao_recebida5, aprovacao_recebida6')
+                                .eq('item_id', row.item_id)
+                                .single()
+
+                              if (designerItem && !designerItem.data_paginacao) {
+                                designerUpdates.data_paginacao = today
+                              }
+
+                              // Set the last aprovacao_recebida to true if any is already true
+                              if (designerItem) {
+                                for (let i = 6; i >= 1; i--) {
+                                  const field = `aprovacao_recebida${i}`
+                                  if (designerItem[field as keyof typeof designerItem]) {
+                                    // This approval is already true, keep it
+                                    break
+                                  }
+                                  if (i === 1) {
+                                    // No approvals set, set aprovacao_recebida1
+                                    designerUpdates.aprovacao_recebida1 = true
+                                    designerUpdates.data_aprovacao_recebida1 = today
+                                  }
+                                }
+                              }
+
+                              await supabase
+                                .from('designer_items')
+                                .update(designerUpdates)
+                                .eq('item_id', row.item_id)
+                            } catch (error) {
+                              console.error('Error updating designer_items for paginacao:', error)
+                            }
+                          }
+
                           // Update local state
                           setLogisticaRows((prevRows) =>
                             prevRows.map((r) =>
@@ -2155,6 +2200,23 @@ function JobDrawerContentComponent({
                               null,
                             ),
                           ])
+
+                          // When concluido is unchecked, also revert designer_items paginacao
+                          if (row.item_id) {
+                            try {
+                              await supabase
+                                .from('designer_items')
+                                .update({
+                                  paginacao: false,
+                                  path_trabalho: null,
+                                  data_paginacao: null,
+                                  updated_at: new Date().toISOString(),
+                                })
+                                .eq('item_id', row.item_id)
+                            } catch (error) {
+                              console.error('Error reverting designer_items paginacao:', error)
+                            }
+                          }
 
                           // Update local state
                           setLogisticaRows((prevRows) =>

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
@@ -205,9 +205,10 @@ export function Navigation() {
 
   // Filter menu items based on permissions
   const filteredMenuItems = useMemo(() => {
-    // If still loading, show nothing to prevent flashing unauthorized content
+    // If still loading, show Dashboard only to prevent blank sidebar
     if (permissionsLoading) {
-      return []
+      console.log('🔄 [NAVIGATION] Permissions loading - showing dashboard only')
+      return menuItems.filter(item => item.pageId === 'dashboard')
     }
 
     // Filter based on actual permissions (empty permissions = only show items without pageId requirement)
@@ -229,8 +230,9 @@ export function Navigation() {
       return false
     })
 
+    console.log('✅ [NAVIGATION] Filtered menu items:', filtered.map(i => i.title))
     return filtered
-  }, [canAccessPage, permissionsLoading, pagePermissions])
+  }, [canAccessPage, permissionsLoading])
 
   // Prevent hydration mismatch by not rendering until mounted
   if (!mounted) {
@@ -572,3 +574,4 @@ export function Navigation() {
     </div>
   )
 }
+

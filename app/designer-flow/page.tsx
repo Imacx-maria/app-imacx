@@ -178,6 +178,59 @@ const fetchJobs = async (
       customer_id: row.customer_id || null,
     }))
 
+    // STEP 2.5: Auto-update paginacao for items with concluido=true in logistica_entregas
+    try {
+      const jobIdsToCheck = mappedJobs.map((job) => job.id)
+
+      if (jobIdsToCheck.length > 0) {
+        // Get all items for these jobs
+        const { data: itemsData } = await supabase
+          .from('items_base')
+          .select('id')
+          .in('folha_obra_id', jobIdsToCheck)
+
+        if (itemsData && itemsData.length > 0) {
+          const itemIds = itemsData.map((i) => i.id)
+
+          // Check for items with concluido=true in logistica_entregas
+          const { data: logisticaItems } = await supabase
+            .from('logistica_entregas')
+            .select('item_id')
+            .eq('concluido', true)
+            .in('item_id', itemIds)
+
+          if (logisticaItems && logisticaItems.length > 0) {
+            const itemIdsWithConcluido = logisticaItems.map((l) => l.item_id)
+
+            // Update designer_items for these items if not already paginacao=true
+            const { data: designerItemsToUpdate } = await supabase
+              .from('designer_items')
+              .select('id, item_id, paginacao, data_paginacao')
+              .in('item_id', itemIdsWithConcluido)
+              .eq('paginacao', false)
+
+            if (designerItemsToUpdate && designerItemsToUpdate.length > 0) {
+              const today = new Date().toISOString().split('T')[0]
+              const updates = designerItemsToUpdate.map((item) =>
+                supabase
+                  .from('designer_items')
+                  .update({
+                    paginacao: true,
+                    path_trabalho: 'Indefinido',
+                    data_paginacao: item.data_paginacao || today,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq('id', item.id)
+              )
+              await Promise.all(updates)
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error auto-updating paginacao from logistica:', error)
+    }
+
     // STEP 3: Apply tab filter (Em Aberto vs Paginados)
     if (activeTab === 'paginados' || activeTab === 'aberto') {
       const jobIdsToCheck = mappedJobs.map((job) => job.id)
@@ -504,16 +557,22 @@ export default function DesignerFlow() {
   const debouncedItemFilter = useDebounce(itemFilter, 300)
   const debouncedCodigoFilter = useDebounce(codigoFilter, 300)
 
+  // Apply 3-character minimum filter requirement
+  const effectiveFoFilter = debouncedFoFilter.trim().length >= 3 ? debouncedFoFilter : ''
+  const effectiveCampaignFilter = debouncedCampaignFilter.trim().length >= 3 ? debouncedCampaignFilter : ''
+  const effectiveItemFilter = debouncedItemFilter.trim().length >= 3 ? debouncedItemFilter : ''
+  const effectiveCodigoFilter = debouncedCodigoFilter.trim().length >= 3 ? debouncedCodigoFilter : ''
+
   // Load jobs on filter change
   useEffect(() => {
     const loadJobs = async () => {
       setLoading(true)
       const jobsData = await fetchJobs(
         supabase,
-        debouncedFoFilter,
-        debouncedCampaignFilter,
-        debouncedItemFilter,
-        debouncedCodigoFilter,
+        effectiveFoFilter,
+        effectiveCampaignFilter,
+        effectiveItemFilter,
+        effectiveCodigoFilter,
         activeTab,
       )
       setJobs(jobsData)
@@ -522,7 +581,7 @@ export default function DesignerFlow() {
     }
 
     loadJobs()
-  }, [debouncedFoFilter, debouncedCampaignFilter, debouncedItemFilter, debouncedCodigoFilter, activeTab, supabase])
+  }, [effectiveFoFilter, effectiveCampaignFilter, effectiveItemFilter, effectiveCodigoFilter, activeTab, supabase])
 
   // Load all items and designer items for A column calculation
   useEffect(() => {
@@ -847,33 +906,37 @@ export default function DesignerFlow() {
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 flex-1">
                 <Input
-                  placeholder="FILTRAR POR FO..."
+                  placeholder="FO"
                   value={foFilter}
                   onChange={(e) => setFoFilter(e.target.value)}
                   disabled={loading}
                   className="h-10 w-[110px] rounded-none"
                   maxLength={6}
+                  title="Mínimo 3 caracteres para filtrar"
                 />
                 <Input
-                  placeholder="FILTRAR POR CAMPANHA..."
+                  placeholder="Campanha"
                   value={campaignFilter}
                   onChange={(e) => setCampaignFilter(e.target.value)}
                   disabled={loading}
                   className="h-10 flex-1 rounded-none"
+                  title="Mínimo 3 caracteres para filtrar"
                 />
                 <Input
-                  placeholder="FILTRAR POR ITEM..."
+                  placeholder="Item"
                   value={itemFilter}
                   onChange={(e) => setItemFilter(e.target.value)}
                   disabled={loading}
                   className="h-10 flex-1 rounded-none"
+                  title="Mínimo 3 caracteres para filtrar"
                 />
                 <Input
-                  placeholder="FILTRAR POR CÓDIGO..."
+                  placeholder="Código"
                   value={codigoFilter}
                   onChange={(e) => setCodigoFilter(e.target.value)}
                   disabled={loading}
                   className="h-10 flex-1 rounded-none"
+                  title="Mínimo 3 caracteres para filtrar"
                 />
 
                 <TooltipProvider>
@@ -1084,6 +1147,7 @@ export default function DesignerFlow() {
                                           .update({
                                             paginacao: newPaginacao,
                                             data_paginacao: newPaginacao ? new Date().toISOString() : null,
+                                            path_trabalho: newPaginacao ? 'P:' : null,
                                           })
                                           .eq('id', designer.id),
                                       )
@@ -1091,6 +1155,19 @@ export default function DesignerFlow() {
                                       await Promise.all(updatePromises)
 
                                       // Update local state
+                                      setAllItems((prev) =>
+                                        prev.map((item) =>
+                                          jobDesignerItems.find((jd) => jd.item_id === item.id)
+                                            ? {
+                                                ...item,
+                                                paginacao: newPaginacao,
+                                                data_paginacao: newPaginacao ? new Date().toISOString() : null,
+                                                path_trabalho: newPaginacao ? 'P:' : null,
+                                              }
+                                            : item,
+                                        ),
+                                      )
+
                                       setAllDesignerItems((prev) =>
                                         prev.map((d) =>
                                           jobDesignerItems.find((jd) => jd.id === d.id)
@@ -1098,6 +1175,19 @@ export default function DesignerFlow() {
                                             : d,
                                         ),
                                       )
+
+                                      // Refetch jobs to update tab classification
+                                      setLoading(true)
+                                      const jobsData = await fetchJobs(
+                                        supabase,
+                                        debouncedFoFilter,
+                                        debouncedCampaignFilter,
+                                        debouncedItemFilter,
+                                        debouncedCodigoFilter,
+                                        activeTab,
+                                      )
+                                      setJobs(jobsData)
+                                      setLoading(false)
                                     }}
                                   />
                                 </TooltipTrigger>

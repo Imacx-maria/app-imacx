@@ -123,33 +123,14 @@ export default function MateriaisPage() {
   const [availableTipos, setAvailableTipos] = useState<string[]>([])
 
   // Debounced filter values for performance
-  const [debouncedMaterialFilter, setDebouncedMaterialFilter] =
-    useState(materialFilter)
-  const [debouncedCaracteristicaFilter, setDebouncedCaracteristicaFilter] =
-    useState(caracteristicaFilter)
-  const [debouncedCorFilter, setDebouncedCorFilter] = useState(corFilter)
+  const debouncedMaterialFilter = useDebounce(materialFilter, 300)
+  const debouncedCaracteristicaFilter = useDebounce(caracteristicaFilter, 300)
+  const debouncedCorFilter = useDebounce(corFilter, 300)
 
-  // Update debounced values with delay
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedMaterialFilter(materialFilter)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [materialFilter])
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedCaracteristicaFilter(caracteristicaFilter)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [caracteristicaFilter])
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedCorFilter(corFilter)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [corFilter])
+  // Effective filters - only activate with 3+ characters
+  const effectiveMaterialFilter = debouncedMaterialFilter.trim().length >= 3 ? debouncedMaterialFilter : ''
+  const effectiveCaracteristicaFilter = debouncedCaracteristicaFilter.trim().length >= 3 ? debouncedCaracteristicaFilter : ''
+  const effectiveCorFilter = debouncedCorFilter.trim().length >= 3 ? debouncedCorFilter : ''
 
   const supabase = createBrowserClient()
 
@@ -229,14 +210,14 @@ export default function MateriaisPage() {
   // Trigger search when filters change (debounced)
   useEffect(() => {
     fetchMateriais({
-      materialFilter: debouncedMaterialFilter,
-      caracteristicaFilter: debouncedCaracteristicaFilter,
-      corFilter: debouncedCorFilter,
+      materialFilter: effectiveMaterialFilter,
+      caracteristicaFilter: effectiveCaracteristicaFilter,
+      corFilter: effectiveCorFilter,
     })
   }, [
-    debouncedMaterialFilter,
-    debouncedCaracteristicaFilter,
-    debouncedCorFilter,
+    effectiveMaterialFilter,
+    effectiveCaracteristicaFilter,
+    effectiveCorFilter,
     fetchMateriais,
   ])
 
@@ -244,17 +225,17 @@ export default function MateriaisPage() {
   useEffect(() => {
     if (sortColumn) {
       fetchMateriais({
-        materialFilter: debouncedMaterialFilter,
-        caracteristicaFilter: debouncedCaracteristicaFilter,
-        corFilter: debouncedCorFilter,
+        materialFilter: effectiveMaterialFilter,
+        caracteristicaFilter: effectiveCaracteristicaFilter,
+        corFilter: effectiveCorFilter,
       })
     }
   }, [
     sortColumn,
     sortDirection,
-    debouncedMaterialFilter,
-    debouncedCaracteristicaFilter,
-    debouncedCorFilter,
+    effectiveMaterialFilter,
+    effectiveCaracteristicaFilter,
+    effectiveCorFilter,
     fetchMateriais,
   ])
 
@@ -794,9 +775,9 @@ export default function MateriaisPage() {
                     size="icon"
                     onClick={() =>
                       fetchMateriais({
-                        materialFilter: debouncedMaterialFilter,
-                        caracteristicaFilter: debouncedCaracteristicaFilter,
-                        corFilter: debouncedCorFilter,
+                        materialFilter: effectiveMaterialFilter,
+                        caracteristicaFilter: effectiveCaracteristicaFilter,
+                        corFilter: effectiveCorFilter,
                       })
                     }
                   >
@@ -845,22 +826,25 @@ export default function MateriaisPage() {
         {/* Filter bar - standardized */}
         <div className="flex items-center gap-2">
           <Input
-            placeholder="FILTRAR POR MATERIAL..."
+            placeholder="Material"
             value={materialFilter}
             onChange={(e) => setMaterialFilter(e.target.value)}
             className="h-10 flex-1"
+            title="Mínimo 3 caracteres para filtrar"
           />
           <Input
-            placeholder="FILTRAR POR CARACTERÍSTICAS..."
+            placeholder="Características"
             value={caracteristicaFilter}
             onChange={(e) => setCaracteristicaFilter(e.target.value)}
             className="h-10 flex-1"
+            title="Mínimo 3 caracteres para filtrar"
           />
           <Input
-            placeholder="FILTRAR POR COR..."
+            placeholder="Cor"
             value={corFilter}
             onChange={(e) => setCorFilter(e.target.value)}
             className="h-10 flex-1"
+            title="Mínimo 3 caracteres para filtrar"
           />
           <TooltipProvider>
             <Tooltip>
@@ -890,9 +874,9 @@ export default function MateriaisPage() {
                   className="h-10 w-10"
                   onClick={() =>
                     fetchMateriais({
-                      materialFilter: debouncedMaterialFilter,
-                      caracteristicaFilter: debouncedCaracteristicaFilter,
-                      corFilter: debouncedCorFilter,
+                      materialFilter: effectiveMaterialFilter,
+                      caracteristicaFilter: effectiveCaracteristicaFilter,
+                      corFilter: effectiveCorFilter,
                     })
                   }
                 >

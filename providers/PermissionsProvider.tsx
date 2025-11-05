@@ -43,79 +43,194 @@ export function PermissionsProvider({
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchPermissions = async () => {
-      try {
-        const supabase = createBrowserClient()
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
+    const supabase = createBrowserClient()
+    let isMounted = true
+    let retryTimeout: NodeJS.Timeout | null = null
+    let activeController: AbortController | null = null
 
-        if (!session) {
-          setLoading(false)
-          return
-        }
+    const MAX_RETRIES = 5
+    const RETRY_DELAY_MS = 800
 
-        // Try to get profile - if RLS blocks it, we can still show dashboard
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('role_id')
-          .eq('user_id', session.user.id)
-          .single()
-
-        if (profileError) {
-          console.error('❌ [PERMISSIONS PROVIDER] Profile fetch error:', profileError)
-          console.error('❌ [PERMISSIONS PROVIDER] Error details:', JSON.stringify(profileError, null, 2))
-          console.error('❌ [PERMISSIONS PROVIDER] User ID:', session.user.id)
-          console.error('❌ [PERMISSIONS PROVIDER] This is likely an RLS policy issue')
-          // If we can't get profile, give dashboard access only
-          setPagePermissions(['dashboard'])
-          setLoading(false)
-          return
-        }
-
-        if (profile?.role_id) {
-          setRole(profile.role_id)
-
-          // Fetch role with page_permissions AND role name for fallback
-          const { data: roleData, error: roleError } = await supabase
-            .from('roles')
-            .select('id, name, page_permissions')
-            .eq('id', profile.role_id)
-            .single()
-
-          if (roleError) {
-            console.error('❌ [PERMISSIONS PROVIDER] Role fetch error:', roleError)
-            console.error('❌ [PERMISSIONS PROVIDER] Role ID:', profile.role_id)
-            console.error('❌ [PERMISSIONS PROVIDER] Error details:', JSON.stringify(roleError, null, 2))
-            // When there's an error, just give dashboard access
-            setPagePermissions(['dashboard'])
-          } else if (roleData?.page_permissions && Array.isArray(roleData.page_permissions) && roleData.page_permissions.length > 0) {
-            // Normalize permissions to lowercase for case-insensitive matching
-            const normalizedPermissions = roleData.page_permissions.map((p: string) => p.toLowerCase())
-            setPagePermissions(normalizedPermissions)
-          } else {
-            // No permissions set in database - respect empty array (empty = no access except dashboard)
-            console.error('❌ [PERMISSIONS PROVIDER] Role has no page_permissions')
-            console.error('❌ [PERMISSIONS PROVIDER] Role name:', roleData?.name)
-            console.error('❌ [PERMISSIONS PROVIDER] Role data:', JSON.stringify(roleData, null, 2))
-            setPagePermissions(['dashboard'])
-          }
-        } else {
-          // User has no role assigned - give dashboard access only
-          console.error('❌ [PERMISSIONS PROVIDER] User has no role_id')
-          console.error('❌ [PERMISSIONS PROVIDER] Profile data:', JSON.stringify(profile, null, 2))
-          setPagePermissions(['dashboard'])
-        }
-      } catch (error) {
-        console.error('Error fetching permissions:', error)
-        // Fallback: limited access on error
-        setPagePermissions(['dashboard'])
-      } finally {
-        setLoading(false)
+    const clearRetry = () => {
+      if (retryTimeout) {
+        clearTimeout(retryTimeout)
+        retryTimeout = null
       }
     }
 
-    fetchPermissions()
+    const cancelActiveRequest = () => {
+      if (activeController) {
+        activeController.abort()
+        activeController = null
+      }
+    }
+
+    const fallbackToDashboard = () => {
+      cancelActiveRequest()
+      clearRetry()
+      if (!isMounted) return
+      setPermissions([])
+      setPagePermissions(['dashboard'])
+      setRole(null)
+      setLoading(false)
+    }
+
+    const scheduleRetry = (nextAttempt: number, reason?: string) => {
+      if (!isMounted) return
+      clearRetry()
+      retryTimeout = setTimeout(() => {
+        fetchPermissions(nextAttempt).catch((error) => {
+          console.error('[PermissionsProvider] Retry attempt failed', error)
+        })
+      }, RETRY_DELAY_MS)
+      if (reason) {
+        console.warn(
+          '[PermissionsProvider] Scheduling retry due to:',
+          reason,
+          'attempt',
+          nextAttempt,
+        )
+      }
+    }
+
+    const fetchPermissions = async (attempt = 0): Promise<void> => {
+      console.log('[PermissionsProvider] Fetch attempt', attempt)
+
+      try {
+        if (!isMounted) {
+          console.log('[PermissionsProvider] Unmounted before fetch started')
+          return
+        }
+
+        if (attempt === 0) {
+          setLoading(true)
+        }
+
+        cancelActiveRequest()
+        const controller = new AbortController()
+        activeController = controller
+
+        const response = await fetch('/api/permissions/me', {
+          cache: 'no-store',
+          signal: controller.signal,
+        })
+
+        if (!isMounted || controller.signal.aborted) {
+          console.log(
+            '[PermissionsProvider] Ignoring response - unmounted or aborted',
+          )
+          return
+        }
+
+        if (response.status === 401) {
+          console.log('[PermissionsProvider] No session from API response')
+          fallbackToDashboard()
+          return
+        }
+
+        if (!response.ok) {
+          throw new Error(
+            `Permissions API responded with status ${response.status}`,
+          )
+        }
+
+        const payload = (await response.json()) as {
+          roleId: string | null
+          permissions: string[]
+          shouldRetry?: boolean
+          reason?: string
+        }
+
+        const normalizedPermissions = Array.isArray(payload.permissions)
+          ? payload.permissions.map((p) => p.toLowerCase())
+          : []
+
+        if (
+          (payload.shouldRetry ||
+            !payload.roleId ||
+            normalizedPermissions.length === 0) &&
+          attempt < MAX_RETRIES
+        ) {
+          scheduleRetry(attempt + 1, payload.reason)
+          return
+        }
+
+        if (!payload.roleId || normalizedPermissions.length === 0) {
+          console.warn(
+            '[PermissionsProvider] Permissions unavailable after retries, falling back to dashboard',
+            payload.reason,
+          )
+          fallbackToDashboard()
+          return
+        }
+
+        clearRetry()
+        activeController = null
+        setRole(payload.roleId)
+        setPermissions(normalizedPermissions)
+        setPagePermissions(normalizedPermissions)
+        setLoading(false)
+        console.log(
+          '[PermissionsProvider] Permissions loaded',
+          normalizedPermissions,
+        )
+      } catch (error) {
+        if (!isMounted) {
+          console.log('[PermissionsProvider] Error after unmount ignored')
+          return
+        }
+
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          console.log('[PermissionsProvider] Fetch aborted')
+          return
+        }
+
+        console.error('[PermissionsProvider] Exception in fetchPermissions', error)
+
+        if (attempt < MAX_RETRIES) {
+          scheduleRetry(attempt + 1)
+        } else {
+          fallbackToDashboard()
+        }
+      }
+    }
+
+    fetchPermissions().catch((error) => {
+      console.error('[PermissionsProvider] Initial fetch failed', error)
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event) => {
+      console.log('[PermissionsProvider] Auth state changed', event)
+
+      if (event === 'INITIAL_SESSION') {
+        return
+      }
+
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        clearRetry()
+        await fetchPermissions().catch((error) => {
+          console.error('[PermissionsProvider] Fetch after auth change failed', error)
+        })
+      } else if (event === 'SIGNED_OUT') {
+        clearRetry()
+        cancelActiveRequest()
+        if (!isMounted) return
+        setPermissions([])
+        setPagePermissions([])
+        setRole(null)
+        setLoading(false)
+      }
+    })
+
+    return () => {
+      console.log('[PermissionsProvider] Cleaning up')
+      isMounted = false
+      clearRetry()
+      cancelActiveRequest()
+      subscription.unsubscribe()
+    }
   }, [])
 
   const hasPermission = (permission: string) => permissions.includes(permission)
@@ -152,4 +267,3 @@ export function PermissionsProvider({
     </PermissionsContext.Provider>
   )
 }
-

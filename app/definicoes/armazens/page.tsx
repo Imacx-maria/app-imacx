@@ -57,15 +57,10 @@ export default function ArmazensPage() {
   const [submitting, setSubmitting] = useState(false)
 
   // Debounced filter values for performance
-  const [debouncedNameFilter, setDebouncedNameFilter] = useState(nameFilter)
+  const debouncedNameFilter = useDebounce(nameFilter, 300)
 
-  // Update debounced value with delay
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedNameFilter(nameFilter)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [nameFilter])
+  // Effective filter - only activate with 3+ characters
+  const effectiveNameFilter = debouncedNameFilter.trim().length >= 3 ? debouncedNameFilter : ''
 
   const supabase = createBrowserClient()
 
@@ -108,8 +103,8 @@ export default function ArmazensPage() {
 
   // Trigger search when filter changes
   useEffect(() => {
-    fetchArmazens({ nameFilter: debouncedNameFilter })
-  }, [debouncedNameFilter, fetchArmazens])
+    fetchArmazens({ nameFilter: effectiveNameFilter })
+  }, [effectiveNameFilter, fetchArmazens])
 
   // Remove client-side filtering - now using database-level filtering
   const filteredArmazens = armazens
@@ -247,10 +242,11 @@ export default function ArmazensPage() {
         {/* Filter bar - standardized */}
         <div className="mb-6 flex items-center gap-2">
           <Input
-            placeholder="FILTRAR POR NOME OU NÚMERO PHC..."
+            placeholder="Nome ou Número PHC"
             value={nameFilter}
             onChange={(e) => setNameFilter(e.target.value)}
             className="h-10 flex-1"
+            title="Mínimo 3 caracteres para filtrar"
           />
           <TooltipProvider>
             <Tooltip>
@@ -275,7 +271,7 @@ export default function ArmazensPage() {
                   variant="outline"
                   size="icon"
                   onClick={() =>
-                    fetchArmazens({ nameFilter: debouncedNameFilter })
+                    fetchArmazens({ nameFilter: effectiveNameFilter })
                   }
                   aria-label="Atualizar"
                 >

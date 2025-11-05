@@ -246,6 +246,12 @@ export default function ProducaoPage() {
   const debouncedItemF = useDebounce(itemF, 300)
   const debouncedCodeF = useDebounce(codeF, 300)
 
+  // Apply 3-character minimum filter requirement
+  const effectiveFoF = debouncedFoF.trim().length >= 3 ? debouncedFoF : ''
+  const effectiveCampF = debouncedCampF.trim().length >= 3 ? debouncedCampF : ''
+  const effectiveItemF = debouncedItemF.trim().length >= 3 ? debouncedItemF : ''
+  const effectiveCodeF = debouncedCodeF.trim().length >= 3 ? debouncedCodeF : ''
+
   // Debug: Track when codeF and debounced value changes
   useEffect(() => {
     console.log(
@@ -273,6 +279,9 @@ export default function ProducaoPage() {
     )
   }, [debouncedCodeF])
   const debouncedClientF = useDebounce(clientF, 300)
+
+  // Add effectiveClientF
+  const effectiveClientF = debouncedClientF.trim().length >= 3 ? debouncedClientF : ''
 
   /* sorting */
   type SortableJobKey =
@@ -1068,7 +1077,136 @@ export default function ProducaoPage() {
           }
         }
 
-        // STEP 2: Build the base query - select only existing columns in schema
+        // STEP 2: Pre-filter by logistics status BEFORE fetching jobs (for em_curso/concluidos tabs)
+        // This prevents truncation: we get all matching job IDs first, then fetch only those jobs
+        let logisticsFilteredJobIds: string[] | null = null
+        const itemFiltersPresent = !!(
+          filters.itemF?.trim() || filters.codeF?.trim()
+        )
+        
+        if (
+          !jobIds && // Only if we didn't already filter by items
+          !itemFiltersPresent && // Only if item filters aren't active
+          (filters.activeTab === 'em_curso' || filters.activeTab === 'concluidos')
+        ) {
+          console.log('🔄 Pre-filtering by logistics status at database level')
+          
+          // First, get all items that match the date criteria (if any)
+          let itemsQuery = supabase
+            .from('items_base')
+            .select('id, folha_obra_id')
+          
+          // Apply date filter to items via their jobs if needed
+          const hasActiveFilters = !!(
+            filters.foF?.trim() ||
+            filters.campF?.trim() ||
+            filters.clientF?.trim()
+          )
+          
+          if (!hasActiveFilters) {
+            // Get jobs from last 12 months to limit scope
+            const twelveMonthsAgo = new Date()
+            twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12)
+            const { data: recentJobs } = await supabase
+              .from('folhas_obras')
+              .select('id')
+              .gte('created_at', twelveMonthsAgo.toISOString())
+            
+            if (recentJobs && recentJobs.length > 0) {
+              const recentJobIds = recentJobs.map((j: any) => j.id)
+              itemsQuery = itemsQuery.in('folha_obra_id', recentJobIds)
+            }
+          }
+          
+          const { data: allItems, error: itemsErr } = await itemsQuery
+          
+          if (!itemsErr && allItems && allItems.length > 0) {
+            const itemIds = allItems.map((item: any) => item.id)
+            
+            // Get logistics entries for these items
+            const { data: logisticsData, error: logisticsErr } = await supabase
+              .from('logistica_entregas')
+              .select('item_id, concluido')
+              .in('item_id', itemIds)
+            
+            if (!logisticsErr && logisticsData) {
+              // Group items by job
+              const itemsByJob = new Map<string, any[]>()
+              allItems.forEach((item: any) => {
+                if (!itemsByJob.has(item.folha_obra_id)) {
+                  itemsByJob.set(item.folha_obra_id, [])
+                }
+                itemsByJob.get(item.folha_obra_id)!.push(item)
+              })
+              
+              // Filter job IDs based on logistics status
+              const matchingJobIds: string[] = []
+              
+              // Get all job IDs that have items (from itemsByJob map)
+              const jobsWithItems = Array.from(itemsByJob.keys())
+              
+              // For em_curso: also include jobs that have NO items (they're in progress)
+              if (filters.activeTab === 'em_curso') {
+                // Get all jobs from the date range to find jobs without items
+                const hasActiveFilters = !!(
+                  filters.foF?.trim() ||
+                  filters.campF?.trim() ||
+                  filters.clientF?.trim()
+                )
+                
+                let jobsQuery = supabase.from('folhas_obras').select('id')
+                if (!hasActiveFilters) {
+                  const twelveMonthsAgo = new Date()
+                  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12)
+                  jobsQuery = jobsQuery.gte('created_at', twelveMonthsAgo.toISOString())
+                }
+                const { data: allJobsInRange } = await jobsQuery
+                
+                if (allJobsInRange) {
+                  // Jobs without items should also be included in em_curso
+                  const jobsWithoutItems = allJobsInRange
+                    .map((j: any) => j.id)
+                    .filter((jobId: string) => !itemsByJob.has(jobId))
+                  
+                  matchingJobIds.push(...jobsWithoutItems)
+                }
+              }
+              
+              itemsByJob.forEach((jobItems, jobId) => {
+                if (filters.activeTab === 'em_curso') {
+                  // em_curso: job has ANY item with concluido=false or no logistics entry
+                  const hasIncomplete = jobItems.some((item) => {
+                    const logEntries = logisticsData.filter((l: any) => l.item_id === item.id)
+                    if (logEntries.length === 0) return true // No logistics entry = incomplete
+                    return logEntries.some((e: any) => e.concluido !== true)
+                  })
+                  if (hasIncomplete) matchingJobIds.push(jobId)
+                } else if (filters.activeTab === 'concluidos') {
+                  // concluidos: ALL items have ALL logistics entries with concluido=true
+                  const allCompleted = jobItems.every((item) => {
+                    const logEntries = logisticsData.filter((l: any) => l.item_id === item.id)
+                    if (logEntries.length === 0) return false // No entries = not completed
+                    return logEntries.every((e: any) => e.concluido === true)
+                  })
+                  if (allCompleted && jobItems.length > 0) matchingJobIds.push(jobId)
+                }
+              })
+              
+              if (matchingJobIds.length > 0) {
+                logisticsFilteredJobIds = matchingJobIds
+                console.log(`✅ Found ${matchingJobIds.length} jobs matching logistics criteria`)
+              } else {
+                console.log('⚠️ No jobs match logistics criteria')
+                setJobs((prev: Job[]) => (reset ? [] : prev))
+                setHasMoreJobs(false)
+                setCurrentPage(page)
+                return
+              }
+            }
+          }
+        }
+
+        // STEP 3: Build the base query - select only existing columns in schema
         let query = supabase.from('folhas_obras').select(
           `
           id,
@@ -1089,8 +1227,16 @@ export default function ProducaoPage() {
 
         // Include both FO-only and ORC-linked jobs (no forced filter by numero_orc)
 
-        // If we have job IDs from item search, filter by those ONLY
-        if (jobIds) {
+        // If we have job IDs from logistics pre-filter, use those
+        if (logisticsFilteredJobIds) {
+          console.log(
+            '🎯 Logistics pre-filter active - filtering to',
+            logisticsFilteredJobIds.length,
+            'job IDs'
+          )
+          query = query.in('id', logisticsFilteredJobIds)
+        } else if (jobIds) {
+          // If we have job IDs from item search, filter by those ONLY
           console.log(
             '🎯 Item search active - filtering to specific job IDs:',
             jobIds,
@@ -1099,9 +1245,9 @@ export default function ProducaoPage() {
           console.log('🎯 Bypassing all other filters due to item search')
         }
 
-        // STEP 3: Apply other filters (only if no item search is active)
-        if (!jobIds) {
-          console.log('🔄 Applying standard filters (no item search active)')
+        // STEP 4: Apply other filters (only if no pre-filtering is active)
+        if (!logisticsFilteredJobIds && !jobIds) {
+          console.log('🔄 Applying standard filters (no pre-filtering active)')
 
           // Check if any filters are active
           const hasActiveFilters = !!(
@@ -1148,14 +1294,26 @@ export default function ProducaoPage() {
 
           // Note: 'fatura' column does not exist in schema; skipping fatura filter
         } else {
-          console.log('🔄 Skipping all standard filters due to item search')
+          // Apply text filters even when pre-filtering (FO, campaign, client)
+          if (filters.foF && filters.foF.trim() !== '') {
+            query = query.ilike('Numero_do_', `%${filters.foF.trim()}%`)
+          }
+          if (filters.campF && filters.campF.trim() !== '') {
+            query = query.ilike('Trabalho', `%${filters.campF.trim()}%`)
+          }
+          if (filters.clientF && filters.clientF.trim() !== '') {
+            query = query.ilike('Nome', `%${filters.clientF.trim()}%`)
+          }
         }
 
         // Order and pagination (use existing column)
         query = query.order('created_at', { ascending: false })
 
         // Only apply pagination if we're not filtering by specific job IDs
-        if (!jobIds) {
+        if (!logisticsFilteredJobIds && !jobIds) {
+          query = query.range(startRange, endRange)
+        } else {
+          // When pre-filtered, we still need pagination but on the filtered set
           query = query.range(startRange, endRange)
         }
 
@@ -1277,124 +1435,15 @@ export default function ProducaoPage() {
           console.warn('PHC date enrichment error:', e)
         }
 
-        // Apply logistics-based filtering for tabs (only if no item filter was used)
-        // Skip this entirely when item/codigo filters are active
-        const itemFiltersPresent = !!(
-          filters.itemF?.trim() || filters.codeF?.trim()
-        )
-        console.log('🔄 Logistics filtering check:', {
-          hasJobIds: !!jobIds,
-          hasItemFilters: itemFiltersPresent,
-          activeTab: filters.activeTab,
-          shouldSkipLogisticsFilter: !!jobIds || itemFiltersPresent,
-        })
-
-        if (
-          !jobIds && // Only apply tab filtering if we didn't already filter by items
-          !filters.itemF?.trim() && // Skip if item description filter is active
-          !filters.codeF?.trim() && // Skip if codigo filter is active
-          filteredJobs.length > 0 &&
-          (filters.activeTab === 'em_curso' ||
-            filters.activeTab === 'concluidos' ||
-            filters.activeTab === 'pendentes')
-        ) {
-          console.log('🔄 Applying logistics-based tab filtering')
-          const currentJobIds = filteredJobs.map((job) => job.id)
-
-          // Get all items for these jobs
-          const { data: itemsData, error: itemsError } = await supabase
-            .from('items_base')
-            .select('id, folha_obra_id, concluido')
-            .in('folha_obra_id', currentJobIds)
-
-          if (!itemsError && itemsData && itemsData.length > 0) {
-            const itemIds = itemsData.map((item) => item.id)
-
-            // Get logistics entries for these items
-            const { data: logisticsData, error: logisticsError } =
-              await supabase
-                .from('logistica_entregas')
-                .select('item_id, concluido')
-                .in('item_id', itemIds)
-
-            if (!logisticsError && logisticsData) {
-              // Calculate completion status for each job
-              const jobCompletionMap = new Map<string, boolean>()
-
-              currentJobIds.forEach((jobId: string) => {
-                const jobItems = itemsData.filter(
-                  (item) => item.folha_obra_id === jobId,
-                )
-
-                if (jobItems.length === 0) {
-                  // Jobs with no items are considered incomplete
-                  jobCompletionMap.set(jobId, false)
-                  return
-                }
-
-                // Check if ALL items have logistics entries with concluido=true
-                const allItemsCompleted = jobItems.every((item) => {
-                  const logisticsEntries = logisticsData.filter(
-                    (l) => l.item_id === item.id,
-                  )
-
-                  // If no logistics entries exist for this item, it's not completed
-                  if (logisticsEntries.length === 0) {
-                    return false
-                  }
-
-                  // ALL logistics entries for this item must have concluido=true
-                  return logisticsEntries.every(
-                    (entry) => entry.concluido === true,
-                  )
-                })
-
-                jobCompletionMap.set(jobId, allItemsCompleted)
-
-                // Debug logging
-                if (process.env.NODE_ENV === 'development') {
-                  const job = filteredJobs.find((j) => j.id === jobId)
-                  console.log(
-                    `🔍 Job ${job?.numero_fo}: ${jobItems.length} items, all completed: ${allItemsCompleted}`,
-                  )
-                }
-              })
-
-              // Filter jobs based on logistica_entregas concluido status (source of truth)
-              if (filters.activeTab === 'em_curso') {
-                // Show jobs where ANY item has logistica concluido=false and not pendente
-                filteredJobs = filteredJobs.filter((job) => {
-                  if (job.pendente === true) return false
-                  const jobItems = itemsData.filter(
-                    (item) => item.folha_obra_id === job.id,
-                  )
-                  if (jobItems.length === 0) return true // Show if no items yet
-                  return jobItems.some((item) => {
-                    const logEntry = logisticsData.find((l) => l.item_id === item.id)
-                    return !logEntry || logEntry.concluido !== true
-                  })
-                })
-              } else if (filters.activeTab === 'concluidos') {
-                // Show jobs where ALL items have logistica concluido=true and not pendente
-                filteredJobs = filteredJobs.filter((job) => {
-                  if (job.pendente === true) return false
-                  const jobItems = itemsData.filter(
-                    (item) => item.folha_obra_id === job.id,
-                  )
-                  if (jobItems.length === 0) return false // Don't show if no items
-                  return jobItems.every((item) => {
-                    const logEntry = logisticsData.find((l) => l.item_id === item.id)
-                    return logEntry && logEntry.concluido === true
-                  })
-                })
-              } else if (filters.activeTab === 'pendentes') {
-                // Show jobs that are marked as pendente = true
-                filteredJobs = filteredJobs.filter(
-                  (job) => job.pendente === true,
-                )
-              }
-            }
-          }
+        // Apply pendente filtering for pendentes tab (this is a simple field filter, no logistics needed)
+        if (filters.activeTab === 'pendentes') {
+          filteredJobs = filteredJobs.filter((job) => job.pendente === true)
+        } else if (filters.activeTab === 'em_curso') {
+          // For em_curso tab, exclude pendente jobs (they're already filtered out by pre-filtering)
+          filteredJobs = filteredJobs.filter((job) => job.pendente !== true)
+        } else if (filters.activeTab === 'concluidos') {
+          // For concluidos tab, exclude pendente jobs
+          filteredJobs = filteredJobs.filter((job) => job.pendente !== true)
         }
 
         // Item/codigo filtering is now handled at the beginning of the function
@@ -1408,7 +1457,16 @@ export default function ProducaoPage() {
             filteredJobs.slice(0, 3).map((j) => j.numero_fo),
           )
           setJobs((prev) => (reset ? filteredJobs : [...prev, ...filteredJobs]))
-          setHasMoreJobs((count || 0) > endRange + 1)
+          
+          // Calculate hasMoreJobs - if we pre-filtered by logistics, count is already accurate
+          // Otherwise use the normal count check
+          if (logisticsFilteredJobIds) {
+            // When pre-filtered, count is the total matching jobs, and we paginate those
+            setHasMoreJobs((count || 0) > endRange + 1)
+          } else {
+            // Normal pagination check
+            setHasMoreJobs((count || 0) > endRange + 1)
+          }
           setCurrentPage(page)
         }
       } catch (error) {
@@ -1868,21 +1926,21 @@ export default function ProducaoPage() {
     })
 
     if (
-      debouncedFoF ||
-      debouncedCampF ||
-      debouncedItemF ||
-      debouncedCodeF ||
-      debouncedClientF
+      effectiveFoF ||
+      effectiveCampF ||
+      effectiveItemF ||
+      effectiveCodeF ||
+      effectiveClientF
     ) {
       // Run filtered search
       setHasMoreJobs(true)
       setCurrentPage(0)
       fetchJobs(0, true, {
-        foF: debouncedFoF,
-        campF: debouncedCampF,
-        itemF: debouncedItemF,
-        codeF: debouncedCodeF,
-        clientF: debouncedClientF,
+        foF: effectiveFoF,
+        campF: effectiveCampF,
+        itemF: effectiveItemF,
+        codeF: effectiveCodeF,
+        clientF: effectiveClientF,
         showFatura,
         activeTab,
       })
@@ -1894,11 +1952,11 @@ export default function ProducaoPage() {
       fetchJobs(0, true, { activeTab })
     }
   }, [
-    debouncedFoF,
-    debouncedCampF,
-    debouncedItemF,
-    debouncedCodeF,
-    debouncedClientF,
+    effectiveFoF,
+    effectiveCampF,
+    effectiveItemF,
+    effectiveCodeF,
+    effectiveClientF,
     showFatura,
     activeTab,
     fetchJobs,
@@ -2193,6 +2251,7 @@ export default function ProducaoPage() {
                 className="h-10 pr-10"
                 value={foF}
                 onChange={(e) => setFoF(e.target.value)}
+                title="Mínimo 3 caracteres para filtrar"
               />
               {foF && (
                 <Button
@@ -2211,6 +2270,7 @@ export default function ProducaoPage() {
                 className="h-10 pr-10"
                 value={campF}
                 onChange={(e) => setCampF(e.target.value)}
+                title="Mínimo 3 caracteres para filtrar"
               />
               {campF && (
                 <Button
@@ -2229,6 +2289,7 @@ export default function ProducaoPage() {
                 className="h-10 pr-10"
                 value={itemF}
                 onChange={(e) => setItemF(e.target.value)}
+                title="Mínimo 3 caracteres para filtrar"
               />
               {itemF && (
                 <Button
@@ -2257,6 +2318,7 @@ export default function ProducaoPage() {
                     e.target.value,
                   )
                 }}
+                title="Mínimo 3 caracteres para filtrar"
               />
               {codeF && (
                 <Button
@@ -2275,6 +2337,7 @@ export default function ProducaoPage() {
                 className="h-10 pr-10"
                 value={clientF}
                 onChange={(e) => setClientF(e.target.value)}
+                title="Mínimo 3 caracteres para filtrar"
               />
               {clientF && (
                 <Button

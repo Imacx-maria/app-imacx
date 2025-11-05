@@ -73,17 +73,12 @@ export default function LoginPage() {
           setError(error.message)
         }
       } else {
-        console.log('✅ Login bem-sucedido! Aguardando sessão...')
-        
-        // Wait a moment for session to be stored
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
+        console.log('✅ Login bem-sucedido!')
+
+        // The PermissionsProvider will automatically detect the auth state change
+        // via onAuthStateChange and fetch permissions
         console.log('🔄 Redirecionando para dashboard...')
         router.push('/dashboard')
-        
-        // Refresh to ensure middleware runs and sees the session
-        await new Promise(resolve => setTimeout(resolve, 100))
-        router.refresh()
       }
     } catch (err: any) {
       console.error('❌ Exception:', err)

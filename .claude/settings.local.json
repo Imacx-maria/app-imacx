@@ -45,7 +45,8 @@
       "Bash(del \"C:\\Users\\maria\\Desktop\\pessoal\\OSA_files\\scndb\\mike-rinder-files\\this-is-just-noise.html\")",
       "Bash(awk:*)",
       "Bash(tasklist:*)",
-      "Bash(if exist \".next\" echo \"Build directory exists\")"
+      "Bash(if exist \".next\" echo \"Build directory exists\")",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

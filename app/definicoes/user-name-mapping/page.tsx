@@ -30,6 +30,7 @@ import {
   ArrowDown,
 } from 'lucide-react'
 import PermissionGuard from '@/components/PermissionGuard'
+import { useDebounce } from '@/hooks/useDebounce'
 
 interface UserNameMapping {
   id: string
@@ -67,15 +68,10 @@ export default function UserNameMappingPage() {
   })
 
   // Debounced filter values for performance
-  const [debouncedNameFilter, setDebouncedNameFilter] = useState(nameFilter)
+  const debouncedNameFilter = useDebounce(nameFilter, 300)
 
-  // Update debounced value with delay
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedNameFilter(nameFilter)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [nameFilter])
+  // Effective filter - only activate with 3+ characters
+  const effectiveNameFilter = debouncedNameFilter.trim().length >= 3 ? debouncedNameFilter : ''
 
   const supabase = createBrowserClient()
 
@@ -129,15 +125,15 @@ export default function UserNameMappingPage() {
 
   // Trigger search when filter changes
   useEffect(() => {
-    fetchUserMappings({ nameFilter: debouncedNameFilter })
-  }, [debouncedNameFilter, fetchUserMappings])
+    fetchUserMappings({ nameFilter: effectiveNameFilter })
+  }, [effectiveNameFilter, fetchUserMappings])
 
   // Trigger refetch when sorting changes
   useEffect(() => {
     if (sortColumn) {
-      fetchUserMappings({ nameFilter: debouncedNameFilter })
+      fetchUserMappings({ nameFilter: effectiveNameFilter })
     }
-  }, [sortColumn, sortDirection, debouncedNameFilter, fetchUserMappings])
+  }, [sortColumn, sortDirection, effectiveNameFilter, fetchUserMappings])
 
   const handleDelete = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir este mapeamento?')) return
@@ -326,10 +322,11 @@ export default function UserNameMappingPage() {
         {/* Filter bar - standardized */}
         <div className="mb-6 flex items-center gap-2">
           <Input
-            placeholder="FILTRAR POR NOME, INICIAIS OU DEPARTAMENTO..."
+            placeholder="Nome, Iniciais ou Departamento"
             value={nameFilter}
             onChange={(e) => setNameFilter(e.target.value)}
             className="h-10 flex-1"
+            title="Mínimo 3 caracteres para filtrar"
           />
           <TooltipProvider>
             <Tooltip>
@@ -353,7 +350,7 @@ export default function UserNameMappingPage() {
                   variant="outline"
                   size="icon"
                   onClick={() =>
-                    fetchUserMappings({ nameFilter: debouncedNameFilter })
+                    fetchUserMappings({ nameFilter: effectiveNameFilter })
                   }
                 >
                   <RotateCw className="h-4 w-4" />

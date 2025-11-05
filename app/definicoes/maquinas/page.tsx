@@ -86,6 +86,9 @@ export default function MaquinasPage() {
   // Debounced filter values for performance
   const debouncedNameFilter = useDebounce(nameFilter, 300)
 
+  // Effective filter - only activate with 3+ characters
+  const effectiveNameFilter = debouncedNameFilter.trim().length >= 3 ? debouncedNameFilter : ''
+
   const supabase = createBrowserClient()
 
   // Convert to database-level filtering
@@ -141,8 +144,8 @@ export default function MaquinasPage() {
 
   // Trigger search when filter changes
   useEffect(() => {
-    fetchMaquinas({ nameFilter: debouncedNameFilter })
-  }, [debouncedNameFilter, fetchMaquinas])
+    fetchMaquinas({ nameFilter: effectiveNameFilter })
+  }, [effectiveNameFilter, fetchMaquinas])
 
   // Remove client-side filtering - now using database-level filtering
   const filteredMaquinas = maquinas
@@ -302,10 +305,11 @@ export default function MaquinasPage() {
         {/* Filter bar - standardized */}
         <div className="flex items-center gap-2">
           <Input
-            placeholder="FILTRAR POR NOME DA MÁQUINA..."
+            placeholder="Nome da Máquina"
             value={nameFilter}
             onChange={(e) => setNameFilter(e.target.value)}
             className="h-10 flex-1"
+            title="Mínimo 3 caracteres para filtrar"
           />
           <TooltipProvider>
             <Tooltip>
@@ -330,7 +334,7 @@ export default function MaquinasPage() {
                   variant="outline"
                   size="icon"
                   onClick={() =>
-                    fetchMaquinas({ nameFilter: debouncedNameFilter })
+                    fetchMaquinas({ nameFilter: effectiveNameFilter })
                   }
                   aria-label="Atualizar"
                 >

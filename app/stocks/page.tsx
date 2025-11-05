@@ -1594,14 +1594,14 @@ export default function StocksPage() {
                   value: palete,
                   label: palete.toUpperCase(),
                 }))}
-                placeholder="FILTRAR PALETES..."
+                placeholder="Paletes"
                 searchPlaceholder="Pesquisar paletes..."
                 emptyMessage="Nenhuma palete encontrada."
                 className="h-10 flex-1"
               />
             ) : (
               <Input
-                placeholder="FILTRAR POR MATERIAL..."
+                placeholder="Material"
                 value={
                   activeTab === 'entries' ? materialFilter : currentStockFilter
                 }
@@ -1616,7 +1616,7 @@ export default function StocksPage() {
               />
             )}
             <Input
-              placeholder="FILTRAR POR REFERÊNCIA..."
+              placeholder="Referência"
               value={
                 activeTab === 'entries'
                   ? referenciaFilter
