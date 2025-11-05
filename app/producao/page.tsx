@@ -218,6 +218,7 @@ export default function ProducaoPage() {
 
   /* filters */
   const [foF, setFoF] = useState('')
+  const [orcF, setOrcF] = useState('')
   const [campF, setCampF] = useState('')
   const [itemF, setItemF] = useState('')
   const [codeF, setCodeF] = useState('')
@@ -242,12 +243,14 @@ export default function ProducaoPage() {
 
   // Debounced filter values for performance
   const debouncedFoF = useDebounce(foF, 300)
+  const debouncedOrcF = useDebounce(orcF, 300)
   const debouncedCampF = useDebounce(campF, 300)
   const debouncedItemF = useDebounce(itemF, 300)
   const debouncedCodeF = useDebounce(codeF, 300)
 
   // Apply 3-character minimum filter requirement
   const effectiveFoF = debouncedFoF.trim().length >= 3 ? debouncedFoF : ''
+  const effectiveOrcF = debouncedOrcF.trim().length >= 3 ? debouncedOrcF : ''
   const effectiveCampF = debouncedCampF.trim().length >= 3 ? debouncedCampF : ''
   const effectiveItemF = debouncedItemF.trim().length >= 3 ? debouncedItemF : ''
   const effectiveCodeF = debouncedCodeF.trim().length >= 3 ? debouncedCodeF : ''
@@ -991,6 +994,7 @@ export default function ProducaoPage() {
       reset = false,
       filters: {
         foF?: string
+        orcF?: string
         campF?: string
         itemF?: string
         codeF?: string
@@ -1284,6 +1288,10 @@ export default function ProducaoPage() {
             query = query.ilike('Numero_do_', `%${filters.foF.trim()}%`)
           }
 
+          if (filters.orcF && filters.orcF.trim() !== '') {
+            query = query.ilike('numero_orc', `%${filters.orcF.trim()}%`)
+          }
+
           if (filters.campF && filters.campF.trim() !== '') {
             query = query.ilike('Trabalho', `%${filters.campF.trim()}%`)
           }
@@ -1297,6 +1305,9 @@ export default function ProducaoPage() {
           // Apply text filters even when pre-filtering (FO, campaign, client)
           if (filters.foF && filters.foF.trim() !== '') {
             query = query.ilike('Numero_do_', `%${filters.foF.trim()}%`)
+          }
+          if (filters.orcF && filters.orcF.trim() !== '') {
+            query = query.ilike('numero_orc', `%${filters.orcF.trim()}%`)
           }
           if (filters.campF && filters.campF.trim() !== '') {
             query = query.ilike('Trabalho', `%${filters.campF.trim()}%`)
@@ -1919,6 +1930,7 @@ export default function ProducaoPage() {
       effectiveCodeF,
       effectiveItemF,
       effectiveFoF,
+      effectiveOrcF,
       effectiveCampF,
       effectiveClientF,
       showFatura,
@@ -1927,6 +1939,7 @@ export default function ProducaoPage() {
 
     if (
       effectiveFoF ||
+      effectiveOrcF ||
       effectiveCampF ||
       effectiveItemF ||
       effectiveCodeF ||
@@ -1937,6 +1950,7 @@ export default function ProducaoPage() {
       setCurrentPage(0)
       fetchJobs(0, true, {
         foF: effectiveFoF,
+        orcF: effectiveOrcF,
         campF: effectiveCampF,
         itemF: effectiveItemF,
         codeF: effectiveCodeF,
@@ -1953,6 +1967,7 @@ export default function ProducaoPage() {
     }
   }, [
     effectiveFoF,
+    effectiveOrcF,
     effectiveCampF,
     effectiveItemF,
     effectiveCodeF,
@@ -2269,6 +2284,25 @@ export default function ProducaoPage() {
                 </Button>
               )}
             </div>
+            <div className="relative w-28">
+              <Input
+                placeholder="ORC"
+                className="h-10 pr-10"
+                value={orcF}
+                onChange={(e) => setOrcF(e.target.value)}
+                title="Mínimo 3 caracteres para filtrar"
+              />
+              {orcF && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
+                  onClick={() => setOrcF('')}
+                >
+                  <XSquare className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
             <div className="relative flex-1">
               <Input
                 placeholder="Nome Campanha"
@@ -2365,12 +2399,13 @@ export default function ProducaoPage() {
                       className="bg-yellow-400 hover:bg-yellow-500 border border-black"
                     onClick={() => {
                       setFoF('')
+                      setOrcF('')
                       setCampF('')
                       setItemF('')
                       setCodeF('')
                       setClientF('')
                     }}
-                    disabled={!foF && !campF && !itemF && !codeF && !clientF}
+                    disabled={!foF && !orcF && !campF && !itemF && !codeF && !clientF}
                   >
                     <XSquare className="h-4 w-4" />
                   </Button>

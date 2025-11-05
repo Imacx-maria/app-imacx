@@ -1778,13 +1778,13 @@ function OperationsTable({
       // Normalize fields
       const normalizedDraft = { ...draft }
 
-      // Normalize numeric fields
+      // Normalize numeric fields - support decimals
       if (normalizedDraft.num_placas_print !== undefined) {
-        const n = parseInt(String(normalizedDraft.num_placas_print))
+        const n = parseFloat(String(normalizedDraft.num_placas_print))
         normalizedDraft.num_placas_print = Number.isFinite(n) ? n : 0
       }
       if (normalizedDraft.num_placas_corte !== undefined) {
-        const n = parseInt(String(normalizedDraft.num_placas_corte))
+        const n = parseFloat(String(normalizedDraft.num_placas_corte))
         normalizedDraft.num_placas_corte = Number.isFinite(n) ? n : 0
       }
 
@@ -1897,10 +1897,10 @@ function OperationsTable({
 
   const handleFieldChange = async (operationId: string, field: string, value: any) => {
     try {
-      // Normalize numeric fields
+      // Normalize numeric fields - support decimals
       let normalizedValue = value
       if (field === 'num_placas_print' || field === 'num_placas_corte') {
-        const n = parseInt(String(value))
+        const n = parseFloat(String(value))
         normalizedValue = Number.isFinite(n) ? n : 0
       }
 
@@ -2494,15 +2494,21 @@ function OperationsTable({
                   {/* Quantidades - Num Placas Print */}
                   <TableCell>
                     <Input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      inputMode="decimal"
+                      pattern="[0-9]*\.?[0-9]?"
                       value={isEditing && editDrafts[op.id]?.num_placas_print !== undefined
                         ? String(editDrafts[op.id]?.num_placas_print ?? '')
                         : String(op.num_placas_print ?? '')}
                       onChange={(e) => {
                         if (isEditing) {
-                          changeField(op.id, 'num_placas_print', e.target.value)
+                          const value = e.target.value
+                          // Validate: allow decimals with max 1 decimal place
+                          if (value === '' || /^\d+(\.\d{0,1})?$/.test(value)) {
+                            changeField(op.id, 'num_placas_print', value)
+                          }
                         }
                       }}
                       disabled={!isEditing}
@@ -2822,9 +2828,9 @@ function CorteFromPrintTable({
       // Normalize fields
       const normalizedDraft = { ...draft }
 
-      // Normalize numeric fields
+      // Normalize numeric fields - support decimals
       if (normalizedDraft.num_placas_corte !== undefined) {
-        const n = parseInt(String(normalizedDraft.num_placas_corte))
+        const n = parseFloat(String(normalizedDraft.num_placas_corte))
         normalizedDraft.num_placas_corte = Number.isFinite(n) ? n : 0
       }
 
@@ -2897,10 +2903,10 @@ function CorteFromPrintTable({
 
   const handleFieldChange = async (operationId: string, field: string, value: any) => {
     try {
-      // Normalize numeric fields
+      // Normalize numeric fields - support decimals
       let normalizedValue = value
       if (field === 'num_placas_corte') {
-        const n = parseInt(String(value))
+        const n = parseFloat(String(value))
         normalizedValue = Number.isFinite(n) ? n : 0
 
         // Validation: Don't allow totalCut > QT_print
@@ -3146,14 +3152,20 @@ function CorteFromPrintTable({
 
                     <TableCell>
                       <Input
-                        type="text"
-                        inputMode="numeric"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        inputMode="decimal"
                         value={isEditing && editDrafts[op.id]?.num_placas_corte !== undefined
                           ? String(editDrafts[op.id]?.num_placas_corte ?? '')
                           : String(op.num_placas_corte ?? '')}
                         onChange={(e) => {
                           if (isEditing) {
-                            changeField(op.id, 'num_placas_corte', e.target.value)
+                            const value = e.target.value
+                            // Validate: allow decimals with max 1 decimal place
+                            if (value === '' || /^\d+(\.\d{0,1})?$/.test(value)) {
+                              changeField(op.id, 'num_placas_corte', value)
+                            }
                           }
                         }}
                         disabled={!isEditing}

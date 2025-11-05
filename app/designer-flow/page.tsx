@@ -88,6 +88,7 @@ const parseNumericField = (value: string | number | null | undefined): number =>
 const fetchJobs = async (
   supabase: any,
   foFilter: string,
+  orcFilter: string,
   campaignFilter: string,
   itemFilter: string,
   codigoFilter: string,
@@ -131,7 +132,7 @@ const fetchJobs = async (
       .not('numero_orc', 'is', null)
 
     // Check if any filters are active
-    const hasActiveFilters = foFilter?.trim() || campaignFilter?.trim() || hasItemFilters
+    const hasActiveFilters = foFilter?.trim() || orcFilter?.trim() || campaignFilter?.trim() || hasItemFilters
 
     // If no filters are active, only show last 12 months (extended from 4 months)
     if (!hasActiveFilters) {
@@ -147,6 +148,10 @@ const fetchJobs = async (
 
     if (foFilter?.trim()) {
       query = query.ilike('Numero_do_', `%${foFilter.trim()}%`)
+    }
+
+    if (orcFilter?.trim()) {
+      query = query.ilike('numero_orc', `%${orcFilter.trim()}%`)
     }
 
     if (campaignFilter?.trim()) {
@@ -529,6 +534,7 @@ export default function DesignerFlow() {
   const supabase = createBrowserClient()
   const [activeTab, setActiveTab] = useState<'aberto' | 'paginados'>('aberto')
   const [foFilter, setFoFilter] = useState('')
+  const [orcFilter, setOrcFilter] = useState('')
   const [campaignFilter, setCampaignFilter] = useState('')
   const [itemFilter, setItemFilter] = useState('')
   const [codigoFilter, setCodigoFilter] = useState('')
@@ -553,12 +559,14 @@ export default function DesignerFlow() {
 
   // Debounce filters
   const debouncedFoFilter = useDebounce(foFilter, 300)
+  const debouncedOrcFilter = useDebounce(orcFilter, 300)
   const debouncedCampaignFilter = useDebounce(campaignFilter, 300)
   const debouncedItemFilter = useDebounce(itemFilter, 300)
   const debouncedCodigoFilter = useDebounce(codigoFilter, 300)
 
   // Apply 3-character minimum filter requirement
   const effectiveFoFilter = debouncedFoFilter.trim().length >= 3 ? debouncedFoFilter : ''
+  const effectiveOrcFilter = debouncedOrcFilter.trim().length >= 3 ? debouncedOrcFilter : ''
   const effectiveCampaignFilter = debouncedCampaignFilter.trim().length >= 3 ? debouncedCampaignFilter : ''
   const effectiveItemFilter = debouncedItemFilter.trim().length >= 3 ? debouncedItemFilter : ''
   const effectiveCodigoFilter = debouncedCodigoFilter.trim().length >= 3 ? debouncedCodigoFilter : ''
@@ -570,6 +578,7 @@ export default function DesignerFlow() {
       const jobsData = await fetchJobs(
         supabase,
         effectiveFoFilter,
+        effectiveOrcFilter,
         effectiveCampaignFilter,
         effectiveItemFilter,
         effectiveCodigoFilter,
@@ -581,7 +590,7 @@ export default function DesignerFlow() {
     }
 
     loadJobs()
-  }, [effectiveFoFilter, effectiveCampaignFilter, effectiveItemFilter, effectiveCodigoFilter, activeTab, supabase])
+  }, [effectiveFoFilter, effectiveOrcFilter, effectiveCampaignFilter, effectiveItemFilter, effectiveCodigoFilter, activeTab, supabase])
 
   // Load all items and designer items for A column calculation
   useEffect(() => {
@@ -915,6 +924,15 @@ export default function DesignerFlow() {
                   title="Mínimo 3 caracteres para filtrar"
                 />
                 <Input
+                  placeholder="ORC"
+                  value={orcFilter}
+                  onChange={(e) => setOrcFilter(e.target.value)}
+                  disabled={loading}
+                  className="h-10 w-[110px] rounded-none"
+                  maxLength={6}
+                  title="Mínimo 3 caracteres para filtrar"
+                />
+                <Input
                   placeholder="Campanha"
                   value={campaignFilter}
                   onChange={(e) => setCampaignFilter(e.target.value)}
@@ -948,11 +966,12 @@ export default function DesignerFlow() {
                         className="h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
                         onClick={() => {
                           setFoFilter('')
+                          setOrcFilter('')
                           setCampaignFilter('')
                           setItemFilter('')
                           setCodigoFilter('')
                         }}
-                        disabled={!foFilter && !campaignFilter && !itemFilter && !codigoFilter}
+                        disabled={!foFilter && !orcFilter && !campaignFilter && !itemFilter && !codigoFilter}
                       >
                         <XSquare className="h-4 w-4" />
                       </Button>
@@ -976,6 +995,7 @@ export default function DesignerFlow() {
                             const jobsData = await fetchJobs(
                               supabase,
                               debouncedFoFilter,
+                              debouncedOrcFilter,
                               debouncedCampaignFilter,
                               debouncedItemFilter,
                               debouncedCodigoFilter,
@@ -1181,6 +1201,7 @@ export default function DesignerFlow() {
                                       const jobsData = await fetchJobs(
                                         supabase,
                                         debouncedFoFilter,
+                                        debouncedOrcFilter,
                                         debouncedCampaignFilter,
                                         debouncedItemFilter,
                                         debouncedCodigoFilter,

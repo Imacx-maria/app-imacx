@@ -110,7 +110,13 @@ export const useOperations = () => {
   const createOperation = useCallback(
     async (operationData: any) => {
       try {
-        // First, check stock availability
+        // Calculate actual plates needed for stock (ceiling for fractional plates)
+        // Example: 20.5 plates → 21 plates deducted from stock
+        const platesToDeduct = Math.ceil(
+          operationData.num_placas_print || operationData.num_placas_corte || operationData.quantidade_material_usado || 0
+        )
+
+        // First, check stock availability using CEILING value
         const { data: stockData, error: stockError } = await supabase
           .from('stocks')
           .select('quantidade_disponivel, id')
@@ -124,12 +130,11 @@ export const useOperations = () => {
           throw new Error('Material não encontrado no estoque')
         }
 
-        if (
-          stockData.quantidade_disponivel <
-          operationData.quantidade_material_usado
-        ) {
+        // Check stock using CEILING value
+        if (stockData.quantidade_disponivel < platesToDeduct) {
+          const actualPlates = operationData.num_placas_print || operationData.num_placas_corte || operationData.quantidade_material_usado
           throw new Error(
-            `Estoque insuficiente. Disponível: ${stockData.quantidade_disponivel}`,
+            `Estoque insuficiente. Necessário: ${platesToDeduct} placas (arredondado de ${actualPlates}). Disponível: ${stockData.quantidade_disponivel}`,
           )
         }
 
@@ -153,10 +158,9 @@ export const useOperations = () => {
           throw new Error(`Erro ao criar operação: ${operationError.message}`)
         }
 
-        // Create stock consumption record
-        const newAvailableQuantity =
-          stockData.quantidade_disponivel -
-          operationData.quantidade_material_usado
+        // Create stock consumption record using CEILING value
+        const newAvailableQuantity = stockData.quantidade_disponivel - platesToDeduct
+        const actualPlates = operationData.num_placas_print || operationData.num_placas_corte || operationData.quantidade_material_usado
 
         const { data: stockConsumption, error: stockConsumptionError } =
           await supabase
@@ -164,11 +168,11 @@ export const useOperations = () => {
             .insert([
               {
                 material_id: operationData.material_id,
-                quantidade: -operationData.quantidade_material_usado,
+                quantidade: -platesToDeduct,  // Use CEILING value for stock deduction
                 quantidade_disponivel: newAvailableQuantity,
                 tipo_movimento: 'Saída',
                 ref_interna: `OP-${operationData.no_interno}`,
-                notas: `Consumo para operação ${operationData.no_interno}`,
+                notas: `Consumo para operação ${operationData.no_interno} (${actualPlates} placas solicitadas, ${platesToDeduct} placas deduzidas do stock)`,
                 data: operationData.data_operacao,
               },
             ])
