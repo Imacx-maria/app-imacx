@@ -27,7 +27,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { Plus, Trash2, X, Loader2, Pencil, Check, RotateCw } from 'lucide-react'
+import { Plus, Trash2, X, Loader2, Pencil, Check, RotateCw, XSquare } from 'lucide-react'
 import PermissionGuard from '@/components/PermissionGuard'
 import { useDebounce } from '@/hooks/useDebounce'
 
@@ -264,27 +264,24 @@ export default function TransportadorasPage() {
 
         {/* Filter bar */}
         <div className="mb-6 flex items-center gap-2">
-          <Input
-            placeholder="Filtrar por nome..."
-            value={nameFilter}
-            onChange={(e) => setNameFilter(e.target.value)}
-            className="w-[300px]"
-          />
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setNameFilter('')}
-                  aria-label="Limpar filtro"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Limpar filtro</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <div className="relative w-[300px]">
+            <Input
+              placeholder="Filtrar por nome..."
+              value={nameFilter}
+              onChange={(e) => setNameFilter(e.target.value)}
+              className="h-10 pr-10"
+            />
+            {nameFilter && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
+                onClick={() => setNameFilter('')}
+              >
+                <XSquare className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>

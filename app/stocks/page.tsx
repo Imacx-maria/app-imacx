@@ -48,6 +48,7 @@ import {
   ArrowUp,
   ArrowDown,
   Download,
+  XSquare,
 } from 'lucide-react'
 import PermissionGuard from '@/components/PermissionGuard'
 import {
@@ -1600,58 +1601,122 @@ export default function StocksPage() {
                 className="h-10 flex-1"
               />
             ) : (
+              <div className="relative flex-1">
+                <Input
+                  placeholder="Material"
+                  value={
+                    activeTab === 'entries' ? materialFilter : currentStockFilter
+                  }
+                  onChange={(e) => {
+                    if (activeTab === 'entries') {
+                      setMaterialFilter(e.target.value)
+                    } else {
+                      setCurrentStockFilter(e.target.value)
+                    }
+                  }}
+                  className="h-10 pr-10 rounded-none"
+                />
+                {((activeTab === 'entries' && materialFilter) || (activeTab === 'current' && currentStockFilter)) && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
+                    onClick={() => {
+                      if (activeTab === 'entries') {
+                        setMaterialFilter('')
+                      } else {
+                        setCurrentStockFilter('')
+                      }
+                    }}
+                  >
+                    <XSquare className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            )}
+            <div className="relative flex-1">
               <Input
-                placeholder="Material"
+                placeholder="Referência"
                 value={
-                  activeTab === 'entries' ? materialFilter : currentStockFilter
+                  activeTab === 'entries'
+                    ? referenciaFilter
+                    : activeTab === 'current'
+                      ? currentStockReferenciaFilter
+                      : paletesReferenciaFilter
                 }
                 onChange={(e) => {
                   if (activeTab === 'entries') {
-                    setMaterialFilter(e.target.value)
+                    setReferenciaFilter(e.target.value)
+                  } else if (activeTab === 'current') {
+                    setCurrentStockReferenciaFilter(e.target.value)
                   } else {
-                    setCurrentStockFilter(e.target.value)
+                    setPaletesReferenciaFilter(e.target.value)
                   }
                 }}
-                className="h-10 flex-1 rounded-none"
+                className="h-10 pr-10 rounded-none"
               />
-            )}
-            <Input
-              placeholder="Referência"
-              value={
-                activeTab === 'entries'
-                  ? referenciaFilter
-                  : activeTab === 'current'
-                    ? currentStockReferenciaFilter
-                    : paletesReferenciaFilter
-              }
-              onChange={(e) => {
-                if (activeTab === 'entries') {
-                  setReferenciaFilter(e.target.value)
-                } else if (activeTab === 'current') {
-                  setCurrentStockReferenciaFilter(e.target.value)
-                } else {
-                  setPaletesReferenciaFilter(e.target.value)
-                }
-              }}
-              className="h-10 flex-1 rounded-none"
-            />
+              {((activeTab === 'entries' && referenciaFilter) ||
+                (activeTab === 'current' && currentStockReferenciaFilter) ||
+                (activeTab === 'palettes' && paletesReferenciaFilter)) && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
+                  onClick={() => {
+                    if (activeTab === 'entries') {
+                      setReferenciaFilter('')
+                    } else if (activeTab === 'current') {
+                      setCurrentStockReferenciaFilter('')
+                    } else {
+                      setPaletesReferenciaFilter('')
+                    }
+                  }}
+                >
+                  <XSquare className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
 
             {activeTab === 'palettes' && (
               <>
-                <Input
-                  type="date"
-                  placeholder="DATA INÍCIO"
-                  value={paletesDateFrom}
-                  onChange={(e) => setPaletesDateFrom(e.target.value)}
-                  className="h-10 w-[130px] rounded-none"
-                />
-                <Input
-                  type="date"
-                  placeholder="DATA FIM"
-                  value={paletesDateTo}
-                  onChange={(e) => setPaletesDateTo(e.target.value)}
-                  className="h-10 w-[130px] rounded-none"
-                />
+                <div className="relative w-[130px]">
+                  <Input
+                    type="date"
+                    placeholder="DATA INÍCIO"
+                    value={paletesDateFrom}
+                    onChange={(e) => setPaletesDateFrom(e.target.value)}
+                    className="h-10 pr-10 rounded-none"
+                  />
+                  {paletesDateFrom && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
+                      onClick={() => setPaletesDateFrom('')}
+                    >
+                      <XSquare className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <div className="relative w-[130px]">
+                  <Input
+                    type="date"
+                    placeholder="DATA FIM"
+                    value={paletesDateTo}
+                    onChange={(e) => setPaletesDateTo(e.target.value)}
+                    className="h-10 pr-10 rounded-none"
+                  />
+                  {paletesDateTo && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
+                      onClick={() => setPaletesDateTo('')}
+                    >
+                      <XSquare className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
                 <Select
                   value={paletesFornecedorFilter}
                   onValueChange={setPaletesFornecedorFilter}

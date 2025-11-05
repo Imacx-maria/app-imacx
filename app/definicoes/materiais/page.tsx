@@ -38,6 +38,7 @@ import {
   RotateCw,
   ArrowUp,
   ArrowDown,
+  XSquare,
 } from 'lucide-react'
 import PermissionGuard from '@/components/PermissionGuard'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -825,27 +826,63 @@ export default function MateriaisPage() {
 
         {/* Filter bar - standardized */}
         <div className="flex items-center gap-2">
-          <Input
-            placeholder="Material"
-            value={materialFilter}
-            onChange={(e) => setMaterialFilter(e.target.value)}
-            className="h-10 flex-1"
-            title="Mínimo 3 caracteres para filtrar"
-          />
-          <Input
-            placeholder="Características"
-            value={caracteristicaFilter}
-            onChange={(e) => setCaracteristicaFilter(e.target.value)}
-            className="h-10 flex-1"
-            title="Mínimo 3 caracteres para filtrar"
-          />
-          <Input
-            placeholder="Cor"
-            value={corFilter}
-            onChange={(e) => setCorFilter(e.target.value)}
-            className="h-10 flex-1"
-            title="Mínimo 3 caracteres para filtrar"
-          />
+          <div className="relative flex-1">
+            <Input
+              placeholder="Material"
+              value={materialFilter}
+              onChange={(e) => setMaterialFilter(e.target.value)}
+              className="h-10 pr-10"
+              title="Mínimo 3 caracteres para filtrar"
+            />
+            {materialFilter && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
+                onClick={() => setMaterialFilter('')}
+              >
+                <XSquare className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          <div className="relative flex-1">
+            <Input
+              placeholder="Características"
+              value={caracteristicaFilter}
+              onChange={(e) => setCaracteristicaFilter(e.target.value)}
+              className="h-10 pr-10"
+              title="Mínimo 3 caracteres para filtrar"
+            />
+            {caracteristicaFilter && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
+                onClick={() => setCaracteristicaFilter('')}
+              >
+                <XSquare className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          <div className="relative flex-1">
+            <Input
+              placeholder="Cor"
+              value={corFilter}
+              onChange={(e) => setCorFilter(e.target.value)}
+              className="h-10 pr-10"
+              title="Mínimo 3 caracteres para filtrar"
+            />
+            {corFilter && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
+                onClick={() => setCorFilter('')}
+              >
+                <XSquare className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>

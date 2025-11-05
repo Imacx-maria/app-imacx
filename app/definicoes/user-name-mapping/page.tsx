@@ -28,6 +28,7 @@ import {
   RotateCw,
   ArrowUp,
   ArrowDown,
+  XSquare,
 } from 'lucide-react'
 import PermissionGuard from '@/components/PermissionGuard'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -321,28 +322,25 @@ export default function UserNameMappingPage() {
 
         {/* Filter bar - standardized */}
         <div className="mb-6 flex items-center gap-2">
-          <Input
-            placeholder="Nome, Iniciais ou Departamento"
-            value={nameFilter}
-            onChange={(e) => setNameFilter(e.target.value)}
-            className="h-10 flex-1"
-            title="Mínimo 3 caracteres para filtrar"
-          />
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                  onClick={() => setNameFilter('')}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Limpar filtro</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <div className="relative flex-1">
+            <Input
+              placeholder="Nome, Iniciais ou Departamento"
+              value={nameFilter}
+              onChange={(e) => setNameFilter(e.target.value)}
+              className="h-10 pr-10"
+              title="Mínimo 3 caracteres para filtrar"
+            />
+            {nameFilter && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
+                onClick={() => setNameFilter('')}
+              >
+                <XSquare className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
