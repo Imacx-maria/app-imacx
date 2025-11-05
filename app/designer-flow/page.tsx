@@ -1114,8 +1114,8 @@ export default function DesignerFlow() {
                           className={`${selectedJob?.id === job.id ? 'bg-accent' : ''} imx-row-hover`}
                         >
                           <TableCell className="text-center p-0">
-                            <button
-                              className={`mx-auto flex h-3 w-3 items-center justify-center transition-colors cursor-pointer ${getPriorityColor(job) === 'red' ? 'bg-destructive' : getPriorityColor(job) === 'blue' ? 'bg-info' : 'bg-success'}`}
+                            <div
+                              className={`mx-auto flex h-3 w-3 items-center justify-center transition-colors ${getPriorityColor(job) === 'red' ? 'bg-destructive' : getPriorityColor(job) === 'blue' ? 'bg-info' : 'bg-success'}`}
                               title={
                                 job.prioridade
                                   ? 'Prioritário'
@@ -1124,93 +1124,18 @@ export default function DesignerFlow() {
                                     ? 'Aguardando há mais de 3 dias'
                                     : 'Normal'
                               }
-                              onClick={async () => {
-                                const newPrioridade = !job.prioridade
-                                setJobs((prevJobs) =>
-                                  prevJobs.map((j) =>
-                                    j.id === job.id ? { ...j, prioridade: newPrioridade } : j,
-                                  ),
-                                )
-                                // Persist to Supabase
-                                await supabase
-                                  .from('folhas_obras')
-                                  .update({ prioridade: newPrioridade })
-                                  .eq('id', job.id)
-                              }}
                             />
                           </TableCell>
                           <TableCell className="text-center p-0">
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <button
-                                    className={`mx-auto flex h-3 w-3 items-center justify-center transition-colors cursor-pointer ${getAColor(job.id, allItems, allDesignerItems)}`}
-                                    title="Artes Finais - Click to toggle all items"
-                                    onClick={async () => {
-                                      // Get all designer items for this job
-                                      const jobItems = allItems.filter((item) => item.folha_obra_id === job.id)
-                                      const jobItemIds = jobItems.map((item) => item.id)
-                                      const jobDesignerItems = allDesignerItems.filter((designer) =>
-                                        jobItemIds.includes(designer.item_id),
-                                      )
-
-                                      if (jobDesignerItems.length === 0) return
-
-                                      // Determine new state: if all are true, set to false, otherwise set all to true
-                                      const allCompleted = jobDesignerItems.every((d) => d.paginacao === true)
-                                      const newPaginacao = !allCompleted
-
-                                      // Update all designer items
-                                      const updatePromises = jobDesignerItems.map((designer) =>
-                                        supabase
-                                          .from('designer_items')
-                                          .update({
-                                            paginacao: newPaginacao,
-                                            data_paginacao: newPaginacao ? new Date().toISOString() : null,
-                                            path_trabalho: newPaginacao ? 'P:' : null,
-                                          })
-                                          .eq('id', designer.id),
-                                      )
-
-                                      await Promise.all(updatePromises)
-
-                                      // Update local state
-                                      setAllItems((prev) =>
-                                        prev.map((item) =>
-                                          jobDesignerItems.find((jd) => jd.item_id === item.id)
-                                            ? {
-                                                ...item,
-                                                paginacao: newPaginacao,
-                                                data_paginacao: newPaginacao ? new Date().toISOString() : null,
-                                                path_trabalho: newPaginacao ? 'P:' : null,
-                                              }
-                                            : item,
-                                        ),
-                                      )
-
-                                      setAllDesignerItems((prev) =>
-                                        prev.map((d) =>
-                                          jobDesignerItems.find((jd) => jd.id === d.id)
-                                            ? { ...d, paginacao: newPaginacao }
-                                            : d,
-                                        ),
-                                      )
-
-                                      // Refetch jobs to update tab classification
-                                      setLoading(true)
-                                      const jobsData = await fetchJobs(
-                                        supabase,
-                                        debouncedFoFilter,
-                                        debouncedOrcFilter,
-                                        debouncedCampaignFilter,
-                                        debouncedItemFilter,
-                                        debouncedCodigoFilter,
-                                        activeTab,
-                                      )
-                                      setJobs(jobsData)
-                                      setLoading(false)
-                                    }}
-                                  />
+                                  <span>
+                                    <span
+                                      className={`mx-auto flex h-3 w-3 items-center justify-center transition-colors ${getAColor(job.id, allItems, allDesignerItems)}`}
+                                      title="Artes Finais"
+                                    />
+                                  </span>
                                 </TooltipTrigger>
                                 <TooltipContent>Artes Finais</TooltipContent>
                               </Tooltip>
