@@ -106,7 +106,7 @@ export const CreatableCombobox: React.FC<CreatableComboboxProps> = ({
 
   return (
     <div className={className}>
-      <Popover open={open} onOpenChange={setOpen} modal={false}>
+      <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
