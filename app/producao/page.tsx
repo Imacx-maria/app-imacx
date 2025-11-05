@@ -184,6 +184,9 @@ export default function ProducaoPage() {
   const [jobsCompletionStatus, setJobsCompletionStatus] = useState<
     Record<string, { completed: boolean; percentage: number }>
   >({})
+  const [jobTotalValues, setJobTotalValues] = useState<Record<string, number>>(
+    {},
+  )
 
   /* duplicate validation state */
   const [duplicateDialog, setDuplicateDialog] = useState<{
@@ -281,6 +284,65 @@ export default function ProducaoPage() {
       debouncedCodeF.length,
     )
   }, [debouncedCodeF])
+
+  // Diagnostic logging: Track drawer state changes
+  useEffect(() => {
+    console.log('🔍 [DRAWER STATE] openId changed:', openId)
+    console.log('🔍 [DRAWER STATE] Timestamp:', new Date().toISOString())
+
+    // Log inert elements
+    const inertElements = document.querySelectorAll('[inert]')
+    console.log('🔍 [DRAWER STATE] Inert elements count:', inertElements.length)
+    if (inertElements.length > 0) {
+      console.log('🔍 [DRAWER STATE] Inert elements:', Array.from(inertElements))
+    }
+
+    // Log pointer-events styles on main content
+    const mainContent = document.querySelector('.w-full.space-y-6')
+    if (mainContent) {
+      const styles = window.getComputedStyle(mainContent)
+      console.log('🔍 [DRAWER STATE] Main content pointer-events:', styles.pointerEvents)
+      console.log('🔍 [DRAWER STATE] Main content inert:', mainContent.hasAttribute('inert'))
+    }
+  }, [openId])
+
+  // Cleanup effect: Force remove inert attributes when drawer closes
+  useEffect(() => {
+    if (!openId) {
+      // Drawer is closed, ensure no residual inert attributes
+      const cleanup = () => {
+        // Remove inert from all elements
+        const inertElements = document.querySelectorAll('[inert]')
+        if (inertElements.length > 0) {
+          console.log('🧹 [DRAWER CLEANUP] Removing inert from', inertElements.length, 'elements')
+          inertElements.forEach(el => {
+            el.removeAttribute('inert')
+          })
+        }
+
+        // Ensure main content is clickable
+        const mainContent = document.querySelector('.w-full.space-y-6')
+        if (mainContent) {
+          mainContent.removeAttribute('inert')
+          // Force pointer events to be enabled
+          ;(mainContent as HTMLElement).style.pointerEvents = ''
+        }
+      }
+
+      // Run cleanup immediately
+      cleanup()
+
+      // Run again after a delay to catch any async inert applications
+      const timer1 = setTimeout(cleanup, 50)
+      const timer2 = setTimeout(cleanup, 200)
+
+      return () => {
+        clearTimeout(timer1)
+        clearTimeout(timer2)
+      }
+    }
+  }, [openId])
+
   const debouncedClientF = useDebounce(clientF, 300)
 
   // Add effectiveClientF
@@ -302,6 +364,7 @@ export default function ProducaoPage() {
     | 'pendente'
     | 'artwork'
     | 'corte'
+    | 'total_value'
   const [sortCol, setSortCol] = useState<SortableJobKey>('prioridade')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
@@ -1886,6 +1949,62 @@ export default function ProducaoPage() {
     }
   }, [supabase])
 
+  // Fetch individual job total values from PHC BO table
+  const fetchJobTotalValues = useCallback(
+    async (jobIds: string[]) => {
+      if (jobIds.length === 0) return
+
+      try {
+        // Get all jobs with their FO numbers
+        const { data: jobsData, error: jobsError } = await supabase
+          .from('folhas_obras')
+          .select('id, Numero_do_')
+          .in('id', jobIds)
+          .not('Numero_do_', 'is', null)
+
+        if (jobsError) throw jobsError
+
+        // Extract FO numbers
+        const foNumbers = jobsData
+          ?.map((job) => String(job.Numero_do_))
+          .filter((fo) => fo && fo !== 'null' && fo !== 'undefined') || []
+
+        if (foNumbers.length === 0) {
+          setJobTotalValues({})
+          return
+        }
+
+        // Fetch values from PHC BO table
+        const { data: boData, error: boError } = await supabase
+          .schema('phc')
+          .from('bo')
+          .select('document_number, total_value')
+          .eq('document_type', 'Folha de Obra')
+          .in('document_number', foNumbers)
+
+        if (boError) throw boError
+
+        // Create a map of FO number -> total_value
+        const foValueMap: Record<string, number> = {}
+        boData?.forEach((row) => {
+          foValueMap[String(row.document_number)] = Number(row.total_value) || 0
+        })
+
+        // Create a map of job ID -> total_value by matching FO numbers
+        const jobValuesMap: Record<string, number> = {}
+        jobsData?.forEach((job) => {
+          const foValue = foValueMap[String(job.Numero_do_)] || 0
+          jobValuesMap[job.id] = foValue
+        })
+
+        setJobTotalValues(jobValuesMap)
+      } catch (error) {
+        console.error('Error fetching job total values:', error)
+      }
+    },
+    [supabase],
+  )
+
   // Initial data load - only on mount
   useEffect(() => {
     if (initialLoadDone.current) return
@@ -1995,6 +2114,7 @@ export default function ProducaoPage() {
       fetchOperacoes(jobIds)
       fetchJobsSaiuStatus(jobIds)
       fetchJobsCompletionStatus(jobIds)
+      fetchJobTotalValues(jobIds)
     }
   }, [
     jobIdString,
@@ -2002,6 +2122,7 @@ export default function ProducaoPage() {
     fetchOperacoes,
     fetchJobsSaiuStatus,
     fetchJobsCompletionStatus,
+    fetchJobTotalValues,
   ])
 
   // Auto-complete jobs when all logistics entries are completed
@@ -2239,6 +2360,11 @@ export default function ProducaoPage() {
           A = aCorteCompleted
           B = bCorteCompleted
           break
+        case 'total_value':
+          // Sort by job total value from PHC BO table
+          A = jobTotalValues[a.id] ?? 0
+          B = jobTotalValues[b.id] ?? 0
+          break
         case 'created_at':
           // Use data_in (input date) instead of created_at for proper date sorting
           A = a.data_in ? new Date(a.data_in).getTime() : 0
@@ -2255,7 +2381,7 @@ export default function ProducaoPage() {
       return 0
     })
     return arr
-  }, [filtered, sortCol, sortDir, allOperacoes, hasUserSorted])
+  }, [filtered, sortCol, sortDir, allOperacoes, hasUserSorted, jobTotalValues])
 
   /* ---------- render ---------- */
   return (
@@ -3139,6 +3265,19 @@ export default function ProducaoPage() {
                           </TableHead>
 
                           <TableHead
+                            onClick={() => toggleSort('total_value')}
+                            className="border-border sticky top-0 z-10 w-[120px] cursor-pointer border-b bg-primary text-right text-primary-foreground uppercase select-none"
+                          >
+                            Valor{' '}
+                            {sortCol === 'total_value' &&
+                              (sortDir === 'asc' ? (
+                                <ArrowUp className="ml-1 inline h-3 w-3" />
+                              ) : (
+                                <ArrowDown className="ml-1 inline h-3 w-3" />
+                              ))}
+                          </TableHead>
+
+                          <TableHead
                             onClick={() => toggleSort('prioridade')}
                             className="border-border sticky top-0 z-10 w-[36px] cursor-pointer border-b bg-primary p-0 text-center  text-primary-foreground uppercase select-none"
                           >
@@ -3646,6 +3785,17 @@ export default function ProducaoPage() {
                                 </div>
                               </TableCell>
 
+                              <TableCell className="w-[120px] text-right text-sm font-mono">
+                                {jobTotalValues[job.id]
+                                  ? new Intl.NumberFormat('pt-PT', {
+                                      style: 'currency',
+                                      currency: 'EUR',
+                                      minimumFractionDigits: 0,
+                                      maximumFractionDigits: 0,
+                                    }).format(jobTotalValues[job.id])
+                                  : '—'}
+                              </TableCell>
+
                               <TableCell className="w-[36px] p-0 text-center">
                                 <button
                                   className={`mx-auto flex h-3 w-3 items-center justify-center transition-colors ${getPColor(job)}`}
@@ -3756,7 +3906,13 @@ export default function ProducaoPage() {
                                           size="icon"
                                           variant="default"
                                           className="border border-black"
-                                          onClick={() => setOpenId(job.id)}
+                                          onClick={() => {
+                                            console.log('👆 [BUTTON CLICK] Eye button clicked')
+                                            console.log('👆 [BUTTON CLICK] Job ID:', job.id)
+                                            console.log('👆 [BUTTON CLICK] Current openId:', openId)
+                                            console.log('👆 [BUTTON CLICK] Timestamp:', new Date().toISOString())
+                                            setOpenId(job.id)
+                                          }}
                                         >
                                           <Eye className="h-4 w-4" />
                                         </Button>
@@ -3849,7 +4005,7 @@ export default function ProducaoPage() {
                         {sorted.length === 0 && (
                           <TableRow>
                             <TableCell
-                              colSpan={12}
+                              colSpan={13}
                               className="py-8 text-center"
                             >
                               Nenhum trabalho encontrado.
@@ -4471,7 +4627,7 @@ export default function ProducaoPage() {
                         {sorted.length === 0 && (
                           <TableRow>
                             <TableCell
-                              colSpan={8}
+                              colSpan={9}
                               className="py-8 text-center"
                             >
                               Nenhum trabalho com logística concluída
@@ -4599,6 +4755,19 @@ export default function ProducaoPage() {
                           >
                             Status{' '}
                             {sortCol === 'prioridade' &&
+                              (sortDir === 'asc' ? (
+                                <ArrowUp className="ml-1 inline h-3 w-3" />
+                              ) : (
+                                <ArrowDown className="ml-1 inline h-3 w-3" />
+                              ))}
+                          </TableHead>
+
+                          <TableHead
+                            onClick={() => toggleSort('total_value')}
+                            className="border-border sticky top-0 z-10 w-[120px] cursor-pointer border-b bg-primary text-right text-primary-foreground uppercase select-none"
+                          >
+                            Valor{' '}
+                            {sortCol === 'total_value' &&
                               (sortDir === 'asc' ? (
                                 <ArrowUp className="ml-1 inline h-3 w-3" />
                               ) : (
@@ -5114,6 +5283,17 @@ export default function ProducaoPage() {
                                 </div>
                               </TableCell>
 
+                              <TableCell className="w-[120px] text-right text-sm font-mono">
+                                {jobTotalValues[job.id]
+                                  ? new Intl.NumberFormat('pt-PT', {
+                                      style: 'currency',
+                                      currency: 'EUR',
+                                      minimumFractionDigits: 0,
+                                      maximumFractionDigits: 0,
+                                    }).format(jobTotalValues[job.id])
+                                  : '—'}
+                              </TableCell>
+
                               <TableCell className="w-[36px] p-0 text-center">
                                 <button
                                   className={`mx-auto flex h-3 w-3 items-center justify-center transition-colors ${getPColor(job)}`}
@@ -5225,7 +5405,13 @@ export default function ProducaoPage() {
                                           size="icon"
                                           variant="default"
                                           className="border border-black"
-                                          onClick={() => setOpenId(job.id)}
+                                          onClick={() => {
+                                            console.log('👆 [BUTTON CLICK] Eye button clicked')
+                                            console.log('👆 [BUTTON CLICK] Job ID:', job.id)
+                                            console.log('👆 [BUTTON CLICK] Current openId:', openId)
+                                            console.log('👆 [BUTTON CLICK] Timestamp:', new Date().toISOString())
+                                            setOpenId(job.id)
+                                          }}
                                         >
                                           <Eye className="h-4 w-4" />
                                         </Button>
@@ -5303,7 +5489,7 @@ export default function ProducaoPage() {
                         {sorted.length === 0 && (
                           <TableRow>
                             <TableCell
-                              colSpan={12}
+                              colSpan={13}
                               className="py-8 text-center"
                             >
                               Nenhum trabalho pendente encontrado.
@@ -5320,31 +5506,50 @@ export default function ProducaoPage() {
         </Tabs>
 
         {/* drawer (single level) */}
-        <Drawer
-          open={!!openId}
-          onOpenChange={(o) => !o && setOpenId(null)}
-          shouldScaleBackground={false}
-        >
-          <DrawerContent
-            className="!top-0 !mt-0 h-screen min-h-screen max-h-none overflow-y-auto !transform-none !filter-none !backdrop-filter-none will-change-auto"
-            style={{
-              transform: 'none',
-              filter: 'none',
-              backfaceVisibility: 'hidden',
-              perspective: '1000px',
+        {openId && (
+          <Drawer
+            open={!!openId}
+            modal={false}
+            onOpenChange={(o) => {
+              console.log('🚪 [DRAWER CHANGE] onOpenChange called:', o)
+              console.log('🚪 [DRAWER CHANGE] Current openId:', openId)
+              console.log('🚪 [DRAWER CHANGE] Timestamp:', new Date().toISOString())
+
+              if (!o) {
+                console.log('🚪 [DRAWER CHANGE] Closing drawer...')
+                setOpenId(null)
+
+                // Force check after state update
+                setTimeout(() => {
+                  const inertElements = document.querySelectorAll('[inert]')
+                  console.log('🚪 [DRAWER CHANGE] Post-close inert check:', inertElements.length)
+                  if (inertElements.length > 0) {
+                    console.error('❌ [DRAWER CHANGE] Inert still present after close!', inertElements)
+                  }
+                }, 100)
+              }
             }}
+            shouldScaleBackground={false}
           >
-            <DrawerHeader className="sr-only">
-              <DrawerTitle>
-                {openId && jobs.find((j) => j.id === openId)
-                  ? `${jobs.find((j) => j.id === openId)?.concluido ? 'Trabalho' : 'Novo Trabalho'} (FO: ${jobs.find((j) => j.id === openId)?.numero_fo})`
-                  : 'Detalhes do Trabalho'}
-              </DrawerTitle>
-              <DrawerDescription>
-                Detalhes Produção Folha de Obra
-              </DrawerDescription>
-            </DrawerHeader>
-            {openId && (
+            <DrawerContent
+              className="!top-0 !mt-0 h-screen min-h-screen max-h-none overflow-y-auto !transform-none !filter-none !backdrop-filter-none will-change-auto"
+              style={{
+                transform: 'none',
+                filter: 'none',
+                backfaceVisibility: 'hidden',
+                perspective: '1000px',
+              }}
+            >
+              <DrawerHeader className="sr-only">
+                <DrawerTitle>
+                  {jobs.find((j) => j.id === openId)
+                    ? `${jobs.find((j) => j.id === openId)?.concluido ? 'Trabalho' : 'Novo Trabalho'} (FO: ${jobs.find((j) => j.id === openId)?.numero_fo})`
+                    : 'Detalhes do Trabalho'}
+                </DrawerTitle>
+                <DrawerDescription>
+                  Detalhes Produção Folha de Obra
+                </DrawerDescription>
+              </DrawerHeader>
               <Suspense
                 fallback={
                   <div className="flex h-full items-center justify-center">
@@ -5365,9 +5570,9 @@ export default function ProducaoPage() {
                   fetchJobsCompletionStatus={fetchJobsCompletionStatus}
                 />
               </Suspense>
-            )}
-          </DrawerContent>
-        </Drawer>
+            </DrawerContent>
+          </Drawer>
+        )}
 
         {/* Duplicate Warning Dialog */}
         <Dialog
