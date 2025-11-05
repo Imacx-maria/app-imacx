@@ -629,6 +629,7 @@ export default function DesignerFlow() {
     }
 
     loadAllData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobs, supabase])
 
   // No longer needed - items are loaded in the main useEffect above

@@ -188,7 +188,7 @@ export const DashboardLogisticaTable: React.FC<
   const debouncedFilters = useDebounce(filters, 300)
 
   // Apply 3-character minimum filter requirement (same as designer-flow page)
-  const effectiveFilters = {
+  const effectiveFilters = useMemo(() => ({
     guia: debouncedFilters.guia.trim().length >= 3 ? debouncedFilters.guia : '',
     numeroFo: debouncedFilters.numeroFo.trim().length >= 3 ? debouncedFilters.numeroFo : '',
     numeroOrc: debouncedFilters.numeroOrc.trim().length >= 3 ? debouncedFilters.numeroOrc : '',
@@ -196,7 +196,7 @@ export const DashboardLogisticaTable: React.FC<
     nomeCampanha: debouncedFilters.nomeCampanha.trim().length >= 3 ? debouncedFilters.nomeCampanha : '',
     item: debouncedFilters.item.trim().length >= 3 ? debouncedFilters.item : '',
     codigo: debouncedFilters.codigo.trim().length >= 3 ? debouncedFilters.codigo : '',
-  }
+  }), [debouncedFilters])
 
   // Updated sorting state to match main production table pattern
   const [sortCol, setSortCol] = useState<SortableLogisticaKey>('numero_fo')
