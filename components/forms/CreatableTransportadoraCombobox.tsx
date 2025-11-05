@@ -18,6 +18,7 @@ interface CreatableTransportadoraComboboxProps {
   placeholder?: string
   className?: string
   buttonClassName?: string
+  disabled?: boolean
 }
 
 const CreatableTransportadoraCombobox: React.FC<
@@ -30,6 +31,7 @@ const CreatableTransportadoraCombobox: React.FC<
   placeholder = 'Selecionar transportadora...',
   className = '',
   buttonClassName = 'border-border',
+  disabled = false,
 }) => {
   const [isCreating, setIsCreating] = useState(false)
   const supabase = createBrowserClient()
@@ -98,6 +100,7 @@ const CreatableTransportadoraCombobox: React.FC<
         createMessage="Criar transportadora"
         loading={isCreating}
         buttonClassName={buttonClassName}
+        disabled={disabled}
       />
     </div>
   )

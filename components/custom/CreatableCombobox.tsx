@@ -106,7 +106,7 @@ export const CreatableCombobox: React.FC<CreatableComboboxProps> = ({
 
   return (
     <div className={className}>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={setOpen} modal={false}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -147,7 +147,7 @@ export const CreatableCombobox: React.FC<CreatableComboboxProps> = ({
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className="max-h-[300px] w-full p-0"
+          className="max-h-[300px] w-full p-0 z-[10000]"
           align="start"
           side="bottom"
           sideOffset={4}
