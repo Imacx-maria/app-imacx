@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createBrowserClient } from '@/utils/supabase'
+import { createAdminClient } from '@/utils/supabaseAdmin'
+import { createServerClient } from '@/utils/supabase'
+import { cookies } from 'next/headers'
 
 /**
  * POST /api/users/repair-profile
@@ -18,12 +20,10 @@ import { createBrowserClient } from '@/utils/supabase'
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createBrowserClient()
-
-    // Check if user is authenticated and has admin permissions
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
+    // Verify the requesting user is authenticated
+    const cookieStore = await cookies()
+    const supabase = await createServerClient(cookieStore)
+    const { data: { session } } = await supabase.auth.getSession()
 
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -41,8 +41,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Create admin client for privileged operations
+    const adminClient = createAdminClient()
+
     // Verify auth user exists
-    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(
+    const { data: authUser, error: authError } = await adminClient.auth.admin.getUserById(
       auth_user_id
     )
 
@@ -54,7 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if profile already exists
-    const { data: existingProfile } = await supabase
+    const { data: existingProfile } = await adminClient
       .from('profiles')
       .select('id, user_id')
       .eq('user_id', auth_user_id)
@@ -71,7 +74,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify role exists
-    const { data: role, error: roleError } = await supabase
+    const { data: role, error: roleError } = await adminClient
       .from('roles')
       .select('id, name')
       .eq('id', role_id)
@@ -85,7 +88,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the profile
-    const { data: newProfile, error: profileError } = await supabase
+    const { data: newProfile, error: profileError } = await adminClient
       .from('profiles')
       .insert({
         user_id: auth_user_id,

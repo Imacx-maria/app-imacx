@@ -165,6 +165,11 @@ export default function CreateUserForm({ editingUser, roles: providedRoles = [],
         if (!response.ok) {
           throw new Error(result.error || 'Erro ao atualizar utilizador')
         }
+
+        // Show warnings if any
+        if (result.warnings && result.warnings.length > 0) {
+          alert('Aviso: ' + result.warnings.join('\n'))
+        }
       } else {
         // Create new user via API
         if (!password) {

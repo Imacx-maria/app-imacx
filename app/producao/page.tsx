@@ -5509,7 +5509,6 @@ export default function ProducaoPage() {
         {openId && (
           <Drawer
             open={!!openId}
-            modal={false}
             onOpenChange={(o) => {
               console.log('🚪 [DRAWER CHANGE] onOpenChange called:', o)
               console.log('🚪 [DRAWER CHANGE] Current openId:', openId)
@@ -5532,7 +5531,7 @@ export default function ProducaoPage() {
             shouldScaleBackground={false}
           >
             <DrawerContent
-              className="!top-0 !mt-0 h-screen min-h-screen max-h-none overflow-y-auto !transform-none !filter-none !backdrop-filter-none will-change-auto"
+              className="!top-20 !mt-0 max-h-[calc(100vh-80px)] !outline-none !border-none !transform-none !filter-none !backdrop-filter-none will-change-auto"
               style={{
                 transform: 'none',
                 filter: 'none',

@@ -59,17 +59,7 @@ export async function GET(request: Request) {
 
     console.log('✅ [API /users/list] Admin verified, fetching users...')
 
-    // Fetch all auth users using admin client
-    const { data: authData, error: authError } = await adminClient.auth.admin.listUsers()
-
-    if (authError) {
-      console.error('❌ [API /users/list] Error fetching auth users:', authError)
-      throw authError
-    }
-
-    console.log('✅ [API /users/list] Fetched auth users:', authData.users.length)
-
-    // Fetch all profiles
+    // Fetch all profiles (single source of truth)
     const { data: profiles, error: profilesError } = await adminClient
       .from('profiles')
       .select('*')
@@ -81,44 +71,32 @@ export async function GET(request: Request) {
 
     console.log('✅ [API /users/list] Fetched profiles:', profiles?.length || 0)
 
-    // Match auth users with profiles and fetch siglas
+    // Fetch auth data for each profile to get email
     const combinedUsers = await Promise.all(
-      authData.users.map(async (authUser) => {
-        const profile = profiles?.find((p) => p.user_id === authUser.id)
+      (profiles || []).map(async (profile) => {
+        // Fetch siglas for this profile
+        const { data: siglasData } = await adminClient
+          .from('user_siglas')
+          .select('sigla')
+          .eq('profile_id', profile.id)
 
-        if (profile) {
-          // Fetch siglas for this profile
-          const { data: siglasData } = await adminClient
-            .from('user_siglas')
-            .select('sigla')
-            .eq('profile_id', profile.id)
+        // Get auth user email (fallback to profile email if auth fetch fails)
+        let authEmail = profile.email
+        try {
+          const { data: authUser } = await adminClient.auth.admin.getUserById(profile.user_id)
+          if (authUser?.user) {
+            authEmail = authUser.user.email || profile.email
+          }
+        } catch (error) {
+          console.warn(`⚠️ Could not fetch auth user for ${profile.user_id}, using profile email`)
+        }
 
-          return {
-            ...profile,
-            siglas: siglasData?.map((s) => s.sigla) || [],
-            auth_user_id: authUser.id,
-            email: authUser.email,
-            has_profile: true,
-          }
-        } else {
-          // User missing profile
-          return {
-            id: null,
-            user_id: authUser.id,
-            auth_user_id: authUser.id,
-            email: authUser.email,
-            first_name: authUser.user_metadata?.first_name || authUser.email?.split('@')[0] || '',
-            last_name: authUser.user_metadata?.last_name || '',
-            phone: null,
-            notes: null,
-            role_id: null,
-            departamento_id: null,
-            active: null,
-            created_at: authUser.created_at,
-            updated_at: null,
-            siglas: [],
-            has_profile: false,
-          }
+        return {
+          ...profile,
+          siglas: siglasData?.map((s) => s.sigla) || [],
+          auth_user_id: profile.user_id,
+          email: authEmail,
+          has_profile: true,
         }
       })
     )

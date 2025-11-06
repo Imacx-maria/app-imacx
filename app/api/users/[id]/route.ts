@@ -28,8 +28,12 @@ export async function PUT(
     // Create admin client
     const adminClient = createAdminClient()
 
-    // Update password if provided
-    if (password) {
+    // Check if auth user exists
+    const { data: authUserCheck, error: authCheckError } = await adminClient.auth.admin.getUserById(userId)
+    const authUserExists = !!authUserCheck?.user && !authCheckError
+
+    // Update password if provided and auth user exists
+    if (password && authUserExists) {
       const { error: authError } = await adminClient.auth.admin.updateUserById(
         userId,
         { password }
@@ -42,6 +46,8 @@ export async function PUT(
           { status: 400 }
         )
       }
+    } else if (password && !authUserExists) {
+      console.warn(`⚠️ Cannot update password - auth user ${userId} not found. Profile will be updated without password change.`)
     }
 
     // Get profile_id for siglas update
@@ -114,6 +120,7 @@ export async function PUT(
     return NextResponse.json({
       success: true,
       message: 'User updated successfully',
+      warnings: authUserExists ? [] : ['Auth user not found - password cannot be changed. Profile updated successfully.'],
     })
   } catch (error: any) {
     console.error('Unexpected error:', error)

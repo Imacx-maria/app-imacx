@@ -32,7 +32,22 @@ export async function POST(request: NextRequest) {
     // Create admin client
     const adminClient = createAdminClient()
 
+    // Check if user already exists with this email
+    const { data: existingProfile } = await adminClient
+      .from('profiles')
+      .select('id, email, user_id')
+      .eq('email', email.toLowerCase().trim())
+      .single()
+
+    if (existingProfile) {
+      return NextResponse.json(
+        { error: `Já existe um utilizador com o email ${email}` },
+        { status: 409 }
+      )
+    }
+
     // Create user in Supabase Auth (without email confirmation)
+    console.log('🔐 [CREATE USER] Creating auth user for:', email)
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
       email,
       password,
@@ -44,7 +59,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (authError) {
-      console.error('Auth error:', authError)
+      console.error('❌ [CREATE USER] Auth error:', authError)
       return NextResponse.json(
         { error: authError.message },
         { status: 400 }
@@ -52,14 +67,18 @@ export async function POST(request: NextRequest) {
     }
 
     if (!authData.user) {
+      console.error('❌ [CREATE USER] No user returned from auth')
       return NextResponse.json(
         { error: 'Failed to create user' },
         { status: 500 }
       )
     }
 
+    console.log('✅ [CREATE USER] Auth user created:', authData.user.id)
+
     // Create profile explicitly (don't rely on trigger)
     // This is more robust and ensures profile exists immediately
+    console.log('📝 [CREATE USER] Creating profile for user_id:', authData.user.id)
     const { data: profile, error: profileCreateError } = await adminClient
       .from('profiles')
       .insert({
@@ -79,8 +98,9 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (profileCreateError || !profile) {
-      console.error('Profile create error:', profileCreateError)
+      console.error('❌ [CREATE USER] Profile create error:', profileCreateError)
       // Clean up auth user since profile creation failed
+      console.log('🧹 [CREATE USER] Cleaning up auth user:', authData.user.id)
       await adminClient.auth.admin.deleteUser(authData.user.id)
       return NextResponse.json(
         {
@@ -90,6 +110,8 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    console.log('✅ [CREATE USER] Profile created:', profile.id)
 
     // Insert siglas if provided
     if (siglas && Array.isArray(siglas) && siglas.length > 0) {
@@ -107,6 +129,12 @@ export async function POST(request: NextRequest) {
         // Don't fail the whole operation, just log the error
       }
     }
+
+    console.log('✅ [CREATE USER] User creation complete:', {
+      auth_user_id: authData.user.id,
+      profile_id: profile.id,
+      email: authData.user.email,
+    })
 
     return NextResponse.json({
       success: true,
