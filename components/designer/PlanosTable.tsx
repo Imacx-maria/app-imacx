@@ -22,6 +22,7 @@ import {
 import { Trash2, Plus, Save, X } from 'lucide-react'
 import { useMaterialsCascading } from '@/hooks/useMaterialsCascading'
 import { useTableData } from '@/hooks/useTableData'
+import { useCoresImpressao } from '@/hooks/useCoresImpressao'
 import Combobox from '@/components/ui/Combobox'
 
 export interface DesignerPlano {
@@ -55,6 +56,14 @@ export default function PlanosTable({
   const { materialOptions, getCaracteristicaOptions, getCorOptions, getMaterialId } =
     useMaterialsCascading()
   const { machines } = useTableData()
+  const { cores: coresOptions, loading: coresLoading, error: coresError } = useCoresImpressao()
+
+  // Debug log for cores options
+  useEffect(() => {
+    console.log('🎨 [PlanosTable] Cores options updated:', coresOptions)
+    console.log('🎨 [PlanosTable] Cores loading:', coresLoading)
+    console.log('🎨 [PlanosTable] Cores error:', coresError)
+  }, [coresOptions, coresLoading, coresError])
 
   // Convert machines to combobox format (value = UUID, label = name)
   const machineOptions = machines.map((m) => ({
@@ -256,7 +265,7 @@ export default function PlanosTable({
               <TableHead className="w-[100px]">Tipo Op</TableHead>
               <TableHead className="w-[180px]">Máquina</TableHead>
               <TableHead className="w-[425px]">Material</TableHead>
-              <TableHead className="w-[60px]">Cores</TableHead>
+              <TableHead className="w-[140px]">Cores</TableHead>
               <TableHead className="w-[80px]">Qtd</TableHead>
               <TableHead>Notas</TableHead>
               <TableHead className="w-[100px]">Ações</TableHead>
@@ -348,20 +357,18 @@ export default function PlanosTable({
                   <TableCell>{renderMaterialInputs(plano.id!, !isEditing)}</TableCell>
                   <TableCell>
                     {isEditing ? (
-                      <Input
+                      <Combobox
+                        options={coresOptions}
                         value={plano.cores || ''}
-                        onChange={(e) => {
-                          const value = e.target.value
-                          if (/^\d?\/?\d?$/.test(value) || value === '') {
-                            onPlanosChange(
-                              planos.map((p) =>
-                                p.id === plano.id ? { ...p, cores: value } : p
-                              )
+                        onChange={(value) =>
+                          onPlanosChange(
+                            planos.map((p) =>
+                              p.id === plano.id ? { ...p, cores: value } : p
                             )
-                          }
-                        }}
-                        placeholder="4/4"
-                        className="w-[50px]"
+                          )
+                        }
+                        placeholder="Cores"
+                        className="w-[140px]"
                       />
                     ) : (
                       <span className="text-sm font-mono">{plano.cores || '-'}</span>
@@ -490,16 +497,12 @@ export default function PlanosTable({
                 </TableCell>
                 <TableCell>{renderMaterialInputs('new')}</TableCell>
                 <TableCell>
-                  <Input
+                  <Combobox
+                    options={coresOptions}
                     value={newPlano.cores || ''}
-                    onChange={(e) => {
-                      const value = e.target.value
-                      if (/^\d?\/?\d?$/.test(value) || value === '') {
-                        setNewPlano({ ...newPlano, cores: value })
-                      }
-                    }}
-                    placeholder="4/4"
-                    className="w-[50px]"
+                    onChange={(value) => setNewPlano({ ...newPlano, cores: value })}
+                    placeholder="Cores"
+                    className="w-[140px]"
                   />
                 </TableCell>
                 <TableCell>

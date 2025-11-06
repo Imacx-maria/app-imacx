@@ -33,7 +33,6 @@ import {
   ArrowLeft,
   ArrowRight,
   X,
-  Loader2,
   RotateCw,
   XSquare,
 } from 'lucide-react'
@@ -1093,16 +1092,7 @@ export default function DesignerFlow() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {loading ? (
-                      <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8">
-                          <div className="flex items-center justify-center gap-2">
-                            <Loader2 className="animate-spin" size={16} />
-                            A carregar...
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : paginatedJobs.length === 0 ? (
+                    {paginatedJobs.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={9} className="text-center text-gray-500">
                           Nenhum trabalho encontrado.
