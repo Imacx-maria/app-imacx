@@ -2676,6 +2676,7 @@ function OperationsTable({
                       }}
                       placeholder="0"
                       min="0"
+                      className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   </div>
                 </div>
@@ -3169,7 +3170,7 @@ function CorteFromPrintTable({
                           }
                         }}
                         disabled={!isEditing}
-                        className="w-full"
+                        className="w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                     </TableCell>
 

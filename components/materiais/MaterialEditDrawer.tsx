@@ -578,7 +578,7 @@ export default function MaterialEditDrawer({
                       parseFloat(e.target.value) || null,
                     )
                   }
-                  className="mt-2 h-10 rounded-none text-right"
+                  className="mt-2 h-10 rounded-none text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
               <div>
@@ -595,7 +595,7 @@ export default function MaterialEditDrawer({
                       parseFloat(e.target.value) || null,
                     )
                   }
-                  className="mt-2 h-10 rounded-none text-right"
+                  className="mt-2 h-10 rounded-none text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
               <div>
@@ -612,7 +612,7 @@ export default function MaterialEditDrawer({
                       parseFloat(e.target.value) || null,
                     )
                   }
-                  className="mt-2 h-10 rounded-none text-right"
+                  className="mt-2 h-10 rounded-none text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
             </div>
@@ -632,7 +632,7 @@ export default function MaterialEditDrawer({
                       parseInt(e.target.value) || null,
                     )
                   }
-                  className="mt-2 h-10 rounded-none text-right"
+                  className="mt-2 h-10 rounded-none text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
               <div>
@@ -649,7 +649,7 @@ export default function MaterialEditDrawer({
                       parseFloat(e.target.value) || null,
                     )
                   }
-                  className="mt-2 h-10 rounded-none text-right"
+                  className="mt-2 h-10 rounded-none text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
               <div>
@@ -666,7 +666,7 @@ export default function MaterialEditDrawer({
                       parseFloat(e.target.value) || null,
                     )
                   }
-                  className="mt-2 h-10 rounded-none text-right"
+                  className="mt-2 h-10 rounded-none text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
               <div>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Loader2 } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -254,9 +254,7 @@ export function AddDeliveryDialog({
           {/* FO/ORC Section (Optional) */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="numero_fo">
-                FO (Opcional) {loadingPhc && <Loader2 className="inline h-3 w-3 animate-spin ml-1" />}
-              </Label>
+              <Label htmlFor="numero_fo">FO (Opcional)</Label>
               <Input
                 id="numero_fo"
                 placeholder="Número FO"

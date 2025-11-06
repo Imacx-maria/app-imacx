@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Check, ChevronsUpDown, Loader2 } from 'lucide-react'
+import { Check, ChevronsUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Command,
@@ -125,11 +125,7 @@ const Combobox: React.FC<ComboboxProps> = ({
               <span className="max-w-[85%] truncate">
                 {value && selectedLabel ? selectedLabel : placeholder}
               </span>
-              {loading ? (
-                <Loader2 className="ml-2 h-4 w-4 animate-spin opacity-70" />
-              ) : (
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              )}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
           <PopoverContent

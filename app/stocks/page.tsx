@@ -2252,7 +2252,7 @@ export default function StocksPage() {
                               }
                               type="number"
                               placeholder="0"
-                              className="h-8"
+                              className="h-8 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                           </TableCell>
                           <TableCell>
@@ -2275,7 +2275,7 @@ export default function StocksPage() {
                               }
                               type="number"
                               placeholder="0"
-                              className="h-8"
+                              className="h-8 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                           </TableCell>
                           <TableCell>
@@ -2298,7 +2298,7 @@ export default function StocksPage() {
                               }
                               type="number"
                               placeholder="0"
-                              className="h-8"
+                              className="h-8 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                           </TableCell>
                           <TableCell className="text-right font-bold">
@@ -2408,7 +2408,7 @@ export default function StocksPage() {
                           qt_palete: e.target.value,
                         }))
                       }
-                      className="h-10"
+                      className="h-10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <Input
                       type="date"
@@ -2683,7 +2683,7 @@ export default function StocksPage() {
                                     },
                                   }))
                                 }
-                                className="h-8"
+                                className="h-8 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               />
                             ) : (
                               palete.qt_palete
@@ -2899,6 +2899,7 @@ export default function StocksPage() {
                       handleQuantidadeChange(e.target.value)
                     }
                     placeholder="0"
+                    className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
 
@@ -2917,6 +2918,7 @@ export default function StocksPage() {
                       }))
                     }
                     placeholder="0"
+                    className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
 
@@ -2934,6 +2936,7 @@ export default function StocksPage() {
                       }))
                     }
                     placeholder="0.00"
+                    className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
 
@@ -2951,6 +2954,7 @@ export default function StocksPage() {
                       }))
                     }
                     placeholder="0.00"
+                    className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
 
@@ -2963,6 +2967,7 @@ export default function StocksPage() {
                     value={calculateTotalValue()}
                     disabled
                     placeholder="0.00"
+                    className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
 
@@ -2976,6 +2981,7 @@ export default function StocksPage() {
                     value={formData.quantidade_palete}
                     disabled
                     placeholder="0"
+                    className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
 
@@ -2989,6 +2995,7 @@ export default function StocksPage() {
                       handleNumPalettesChange(e.target.value)
                     }
                     placeholder="0"
+                    className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
 

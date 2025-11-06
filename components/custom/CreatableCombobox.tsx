@@ -1,5 +1,5 @@
 ﻿import * as React from 'react'
-import { Check, ChevronsUpDown, Plus, Loader2 } from 'lucide-react'
+import { Check, ChevronsUpDown, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -119,12 +119,7 @@ export const CreatableCombobox: React.FC<CreatableComboboxProps> = ({
             )}
             disabled={disabled || loading}
           >
-            {loading ? (
-              <div className="flex items-center">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Loading...
-              </div>
-            ) : selectedOption ? (
+            {selectedOption ? (
               <span className="truncate uppercase" title={selectedOption.label}>
                 {selectedOption.label.length > 14
                   ? `${selectedOption.label.substring(0, 14)}...`
@@ -171,11 +166,7 @@ export const CreatableCombobox: React.FC<CreatableComboboxProps> = ({
                       onClick={handleCreateNew}
                       disabled={isCreating}
                     >
-                      {isCreating ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Plus className="mr-2 h-4 w-4" />
-                      )}
+                      <Plus className="mr-2 h-4 w-4" />
                       <span>{createMessage} &quot;</span>
                       <span className="uppercase">{searchValue}</span>
                       <span>&quot;</span>

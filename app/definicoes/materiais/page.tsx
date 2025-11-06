@@ -1032,7 +1032,7 @@ export default function MateriaisPage() {
                         type="number"
                         value={editRow.qt_palete ?? ''}
                         onChange={handleInputChange}
-                        className="h-10 border-0 text-right text-sm outline-0 focus:border-0 focus:ring-0"
+                        className="h-10 border-0 text-right text-sm outline-0 focus:border-0 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                     </TableCell>
                     <TableCell className="text-right uppercase">

@@ -627,7 +627,7 @@ export default function DesignerItemCard({
                     void handleQuantidadeBlur(nextValue)
                   }}
                   maxLength={6}
-                  className="text-sm h-[40px] flex-1 border border-foreground/20"
+                  className="text-sm h-[40px] flex-1 border border-foreground/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
               <div>

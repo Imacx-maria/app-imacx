@@ -414,7 +414,7 @@ export default function MaquinasPage() {
                                 valor_m2: e.target.value,
                               }))
                             }
-                            className="h-10 border-0 text-right text-sm outline-0 focus:border-0 focus:ring-0"
+                            className="h-10 border-0 text-right text-sm outline-0 focus:border-0 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             type="number"
                             step="0.01"
                             min="0"
@@ -531,7 +531,7 @@ export default function MaquinasPage() {
                                   valor_m2: e.target.value,
                                 }))
                               }
-                              className="h-10 border-0 text-right text-sm outline-0 focus:border-0 focus:ring-0"
+                              className="h-10 border-0 text-right text-sm outline-0 focus:border-0 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               type="number"
                               step="0.01"
                               min="0"
@@ -711,7 +711,7 @@ export default function MaquinasPage() {
                         }))
                       }
                       placeholder="Ex: 15.50"
-                      className="h-10"
+                      className="h-10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   </div>
 

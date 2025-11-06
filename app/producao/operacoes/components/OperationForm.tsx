@@ -451,7 +451,7 @@ export const OperationForm: React.FC<OperationFormProps> = ({
                       min="0"
                       value={formData.quantidade_material_usado}
                       onChange={(e) => handleInputChange('quantidade_material_usado', parseFloat(e.target.value) || 0)}
-                      className={errors.quantidade_material_usado ? 'border-red-500' : ''}
+                      className={errors.quantidade_material_usado ? 'border-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none' : '[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'}
                     />
                     {errors.quantidade_material_usado && (
                       <p className="text-sm text-red-500 mt-1">{errors.quantidade_material_usado}</p>
@@ -467,6 +467,7 @@ export const OperationForm: React.FC<OperationFormProps> = ({
                       min="0"
                       value={formData.desperdicio}
                       onChange={(e) => handleInputChange('desperdicio', parseFloat(e.target.value) || 0)}
+                      className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   </div>
                 </div>

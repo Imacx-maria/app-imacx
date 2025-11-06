@@ -395,7 +395,7 @@ export default function PlanosTable({
                             )
                           }
                         }}
-                        className="w-[70px]"
+                        className="w-[70px] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                     ) : (
                       <span className="text-sm">{plano.quantidade || 0}</span>
@@ -520,7 +520,7 @@ export default function PlanosTable({
                       }
                     }}
                     placeholder="10"
-                    className="w-[70px]"
+                    className="w-[70px] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </TableCell>
                 <TableCell>
