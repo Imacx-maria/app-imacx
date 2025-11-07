@@ -48,7 +48,8 @@
       "Bash(if exist \".next\" echo \"Build directory exists\")",
       "Bash(curl:*)",
       "Bash(if exist .next echo \"Build complete\")",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(powershell -Command:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { createBrowserClient } from '@/utils/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,14 +14,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerClose,
-  DrawerDescription,
-} from '@/components/ui/drawer'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
@@ -38,6 +30,19 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from '@/components/ui/command'
 import {
   Plus,
   Eye,
@@ -49,6 +54,9 @@ import {
   ArrowDown,
   Download,
   XSquare,
+  ChevronsUpDown,
+  Check,
+  Loader2,
 } from 'lucide-react'
 import PermissionGuard from '@/components/PermissionGuard'
 import {
@@ -98,7 +106,6 @@ export default function StocksPage() {
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([])
   const [loading, setLoading] = useState(true)
   const [currentStocksLoading, setCurrentStocksLoading] = useState(true)
-  const [openDrawer, setOpenDrawer] = useState(false)
   const [editingStock, setEditingStock] =
     useState<StockEntryWithRelations | null>(null)
   const [activeTab, setActiveTab] = useState('entries')
@@ -185,6 +192,34 @@ export default function StocksPage() {
   const [stockCriticoValueMap, setStockCriticoValueMap] = useState<{
     [id: string]: string
   }>({})
+
+  // Inline input state management
+  const [showInlineInput, setShowInlineInput] = useState(false)
+  const [inlineEntries, setInlineEntries] = useState<
+    Array<{
+      id: string
+      material_id: string
+      material_name: string
+      referencia: string
+      fornecedor_id: string
+      fornecedor_name: string
+      quantidade: number
+      no_guia_forn: string
+      no_palete: string
+      num_paletes: number
+      size_x: number
+      size_y: number
+      preco_unitario: number
+      valor_total: number
+      isSaving: boolean
+    }>
+  >([])
+  const [isSavingBatch, setIsSavingBatch] = useState(false)
+  const [lastSavesSummary, setLastSavesSummary] = useState<{
+    count: number
+    paletes: string[]
+    total: number
+  } | null>(null)
 
   const supabase = createBrowserClient()
 
@@ -547,6 +582,27 @@ export default function StocksPage() {
     }
   }, [fetchMaterials])
 
+  // Keyboard shortcuts for inline input
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+N: Add new row
+      if (e.ctrlKey && e.key === 'n' && showInlineInput) {
+        e.preventDefault()
+        addNewRow()
+      }
+      // Escape: Close inline input
+      if (e.key === 'Escape' && showInlineInput) {
+        setShowInlineInput(false)
+        setLastSavesSummary(null)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [showInlineInput])
+
   const getReferenciaByMaterialId = (materialId: string) => {
     const found = materials.find((m) => m.id === materialId)
     return found?.referencia || '-'
@@ -804,7 +860,6 @@ export default function StocksPage() {
             fetchCurrentStocks(),
           ])
           resetForm()
-          setOpenDrawer(false)
         }
       } else {
         const { data, error } = await supabase.from('stocks').insert(stockData)
@@ -828,7 +883,6 @@ export default function StocksPage() {
             fetchCurrentStocks(),
           ])
           resetForm()
-          setOpenDrawer(false)
         }
       }
     } catch (error) {
@@ -840,24 +894,46 @@ export default function StocksPage() {
   }
 
   const handleEdit = (stock: StockEntryWithRelations) => {
-    setEditingStock(stock)
-    const selectedMaterial = materials.find((m) => m.id === stock.material_id)
-    setFormData({
-      material_id: stock.material_id,
-      material_referencia: selectedMaterial?.referencia || '',
-      fornecedor_id: stock.fornecedor_id || '',
-      no_guia_forn: stock.no_guia_forn || '',
-      quantidade: stock.quantidade.toString(),
-      quantidade_disponivel: stock.quantidade_disponivel.toString(),
-      vl_m2: (stock as any).vl_m2 || '',
-      preco_unitario: stock.preco_unitario?.toString() || '',
-      valor_total: stock.valor_total?.toString() || '',
-      notas: stock.notas || '',
-      n_palet: '',
-      quantidade_palete: '',
-      num_palettes: stock.n_palet || '',
-    })
-    setOpenDrawer(true)
+    // Toggle inline editing
+    if (editingStock?.id === stock.id) {
+      // Cancel editing
+      setEditingStock(null)
+    } else {
+      // Start editing this stock
+      setEditingStock(stock)
+    }
+  }
+
+  const handleSaveInlineEdit = async (stockId: string) => {
+    if (!editingStock) return
+
+    try {
+      const { error } = await supabase
+        .from('stocks')
+        .update({
+          quantidade: editingStock.quantidade,
+          size_x: (editingStock as any).size_x,
+          size_y: (editingStock as any).size_y,
+          preco_unitario: editingStock.preco_unitario,
+          valor_total: editingStock.valor_total,
+          n_palet: editingStock.n_palet,
+          no_guia_forn: editingStock.no_guia_forn,
+        })
+        .eq('id', stockId)
+
+      if (error) throw error
+
+      alert('Stock atualizado com sucesso!')
+      setEditingStock(null)
+      await fetchStocks()
+    } catch (error) {
+      console.error('Error updating stock:', error)
+      alert('Erro ao atualizar stock')
+    }
+  }
+
+  const handleCancelInlineEdit = () => {
+    setEditingStock(null)
   }
 
   const handleDelete = async (id: string) => {
@@ -892,7 +968,6 @@ export default function StocksPage() {
       num_palettes: '',
     })
     setEditingStock(null)
-    setOpenDrawer(false)
   }
 
   const handleMaterialChange = (materialId: string) => {
@@ -936,7 +1011,6 @@ export default function StocksPage() {
 
   const openNewForm = () => {
     resetForm()
-    setOpenDrawer(true)
 
     setTimeout(() => {
       const activeElement = document.activeElement as HTMLElement
@@ -951,6 +1025,323 @@ export default function StocksPage() {
         ;(drawerContent as HTMLElement).focus()
       }
     }, 100)
+  }
+
+  // Inline input handlers
+  const handleShowInlineInput = () => {
+    setShowInlineInput(true)
+    setInlineEntries([
+      {
+        id: crypto.randomUUID(),
+        material_id: '',
+        material_name: '',
+        referencia: '',
+        fornecedor_id: '',
+        fornecedor_name: '',
+        quantidade: 0,
+        no_guia_forn: '',
+        no_palete: '',
+        num_paletes: 1,
+        size_x: 0,
+        size_y: 0,
+        preco_unitario: 0,
+        valor_total: 0,
+        isSaving: false,
+      },
+    ])
+  }
+
+  const handleReferenciaSelect = (
+    index: number,
+    referencia: string,
+    material: any,
+  ) => {
+    const updatedEntries = [...inlineEntries]
+    if (material) {
+      updatedEntries[index] = {
+        ...updatedEntries[index],
+        referencia: referencia,
+        material_id: material.id,
+        material_name: formatMaterialName(material),
+        fornecedor_id: material.fornecedor_id || '',
+        fornecedor_name:
+          fornecedores.find((f) => f.id === material.fornecedor_id)
+            ?.nome_forn || '',
+      }
+    } else {
+      updatedEntries[index] = {
+        ...updatedEntries[index],
+        referencia: referencia,
+      }
+    }
+    setInlineEntries(updatedEntries)
+  }
+
+  const handleMaterialSelect = (index: number, material: any) => {
+    const updatedEntries = [...inlineEntries]
+    const fornecedor = fornecedores.find((f) => f.id === material.fornecedor_id)
+    const preco = material.valor_placa || 0
+    const quantidade = updatedEntries[index].quantidade || 0
+    updatedEntries[index] = {
+      ...updatedEntries[index],
+      material_id: material.id,
+      material_name: formatMaterialName(material),
+      referencia: material.referencia || '',
+      fornecedor_id: material.fornecedor_id || '',
+      fornecedor_name: fornecedor?.nome_forn || '',
+      preco_unitario: preco,
+      valor_total: quantidade * preco,
+    }
+    setInlineEntries(updatedEntries)
+  }
+
+  const updateEntry = (index: number, field: string, value: any) => {
+    const updatedEntries = [...inlineEntries]
+    updatedEntries[index] = {
+      ...updatedEntries[index],
+      [field]: value,
+    }
+
+    // Recalculate valor_total when quantidade changes
+    if (field === 'quantidade') {
+      const preco = updatedEntries[index].preco_unitario || 0
+      updatedEntries[index].valor_total = value * preco
+    }
+
+    setInlineEntries(updatedEntries)
+  }
+
+  const addNewRow = () => {
+    setInlineEntries([
+      ...inlineEntries,
+      {
+        id: crypto.randomUUID(),
+        material_id: '',
+        material_name: '',
+        referencia: '',
+        fornecedor_id: '',
+        fornecedor_name: '',
+        quantidade: 0,
+        no_guia_forn: '',
+        no_palete: '',
+        num_paletes: 1,
+        size_x: 0,
+        size_y: 0,
+        preco_unitario: 0,
+        valor_total: 0,
+        isSaving: false,
+      },
+    ])
+  }
+
+  const removeEntry = (index: number) => {
+    setInlineEntries(inlineEntries.filter((_, i) => i !== index))
+    if (inlineEntries.length === 1) {
+      setShowInlineInput(false)
+    }
+  }
+
+  const handleSaveEntry = async (
+    index: number,
+    skipNotifications = false,
+  ): Promise<{ paleteNumber: string; quantidade: number } | null> => {
+    const entry = inlineEntries[index]
+
+    // Mark as saving
+    updateEntry(index, 'isSaving', true)
+
+    try {
+      // Get current user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) {
+        if (!skipNotifications) alert('Utilizador não autenticado')
+        updateEntry(index, 'isSaving', false)
+        return null
+      }
+
+      // Get user profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single()
+
+      // Get material details
+      const material = materials.find((m) => m.id === entry.material_id)
+
+      // Step 1: Parse palete numbers - OPTIONAL (only if REF PAL is provided)
+      let paleteNumbers: string[] = []
+      let allPaletesString = ''
+
+      if (entry.no_palete && entry.no_palete.trim()) {
+        const basePaleteNumber = entry.no_palete.trim()
+        const numPaletes = entry.num_paletes
+
+        // Check if user entered comma-separated paletes
+        if (basePaleteNumber.includes(',')) {
+          // Manual comma-separated list (e.g., "P100, P101, P102")
+          paleteNumbers = basePaleteNumber
+            .split(',')
+            .map((p) => p.trim())
+            .filter(Boolean)
+
+          // Validate each palete format
+          const invalidPaletes = paleteNumbers.filter(
+            (p) => !p.match(/^P\d+$/i),
+          )
+          if (invalidPaletes.length > 0) {
+            if (!skipNotifications)
+              alert(
+                `Formato de palete inválido: ${invalidPaletes.join(', ')}. Use formato: P100`,
+              )
+            updateEntry(index, 'isSaving', false)
+            return null
+          }
+        } else {
+          // Single palete - generate sequential numbers
+          const paleteMatch = basePaleteNumber.match(/^P(\d+)$/i)
+          if (!paleteMatch) {
+            if (!skipNotifications)
+              alert('Formato de palete inválido. Use formato: P100')
+            updateEntry(index, 'isSaving', false)
+            return null
+          }
+
+          const baseNumber = parseInt(paleteMatch[1])
+
+          // Generate sequential palete numbers
+          for (let i = 0; i < numPaletes; i++) {
+            paleteNumbers.push(`P${baseNumber + i}`)
+          }
+        }
+
+        // Step 2: Create multiple palete entries (only if REF PAL provided)
+        const paletesToInsert = paleteNumbers.map((paleteNum) => ({
+          no_palete: paleteNum,
+          fornecedor_id: entry.fornecedor_id || null,
+          no_guia_forn: entry.no_guia_forn || null,
+          ref_cartao: entry.referencia || null,
+          qt_palete: material?.qt_palete || null,
+          data: new Date().toISOString(),
+          author_id: profile?.id,
+        }))
+
+        const { data: newPaletes, error: paleteError } = await supabase
+          .from('paletes')
+          .insert(paletesToInsert)
+          .select()
+
+        if (paleteError) throw paleteError
+
+        allPaletesString = paleteNumbers.join(', ')
+      }
+
+      // Step 3: Create stock entry (with or without paletes)
+
+      // Calculate vl_m2 if size_x and size_y are provided
+      let calculatedVlM2 = null
+      if (entry.size_x && entry.size_y && entry.preco_unitario) {
+        // Convert mm² to m² by dividing by 1,000,000
+        const areaM2 = (entry.size_x * entry.size_y) / 1000000
+        // Calculate price per m²
+        calculatedVlM2 = (entry.preco_unitario / areaM2).toFixed(2)
+      }
+
+      const { data: newStock, error: stockError } = await supabase
+        .from('stocks')
+        .insert({
+          material_id: entry.material_id,
+          fornecedor_id: entry.fornecedor_id || null,
+          no_guia_forn: entry.no_guia_forn || null,
+          quantidade: entry.quantidade,
+          quantidade_disponivel: entry.quantidade,
+          size_x: entry.size_x || null,
+          size_y: entry.size_y || null,
+          vl_m2: calculatedVlM2 || material?.valor_m2_custo || null,
+          preco_unitario: entry.preco_unitario || material?.valor_placa || null,
+          valor_total: entry.valor_total || (entry.quantidade * (material?.valor_placa || 0)) || null,
+          n_palet: allPaletesString || null,
+          data: new Date().toISOString(),
+        })
+        .select()
+        .single()
+
+      if (stockError) throw stockError
+
+      // Success
+      if (!skipNotifications) {
+        if (paleteNumbers.length > 0) {
+          alert(
+            `Stock adicionado com sucesso! ${paleteNumbers.length} palete(s) criada(s): ${allPaletesString}`,
+          )
+        } else {
+          alert('Stock adicionado com sucesso!')
+        }
+      }
+
+      return {
+        paleteNumber: allPaletesString,
+        quantidade: entry.quantidade,
+      }
+    } catch (error) {
+      console.error('Erro ao guardar:', error)
+      if (!skipNotifications) alert('Erro ao guardar entrada de stock')
+      updateEntry(index, 'isSaving', false)
+      return null
+    }
+  }
+
+  const handleSaveAll = async () => {
+    const validEntries = inlineEntries
+      .map((entry, index) => ({ entry, index }))
+      .filter(
+        ({ entry }) =>
+          entry.material_id &&
+          entry.quantidade > 0,
+      )
+
+    if (validEntries.length === 0) {
+      alert('Nenhuma entrada válida para guardar')
+      return
+    }
+
+    setIsSavingBatch(true)
+    const savedPaletes: string[] = []
+    let totalQuantidade = 0
+
+    for (const { entry, index } of validEntries) {
+      const result = await handleSaveEntry(index, true)
+      if (result) {
+        // Split comma-separated paletes and add to array
+        const paletesArray = result.paleteNumber
+          .split(', ')
+          .map((p) => p.trim())
+        savedPaletes.push(...paletesArray)
+        totalQuantidade += result.quantidade
+      }
+    }
+
+    // Refresh the tables
+    await Promise.all([fetchStocks(), fetchPaletes()])
+
+    // Set summary
+    setLastSavesSummary({
+      count: validEntries.length, // Number of stock entries
+      paletes: savedPaletes, // All paletes created
+      total: totalQuantidade,
+    })
+
+    // Clear entries and show summary
+    setInlineEntries([])
+    setIsSavingBatch(false)
+    setShowInlineInput(false)
+
+    // Auto-hide summary after 10 seconds
+    setTimeout(() => {
+      setLastSavesSummary(null)
+    }, 10000)
   }
 
   const formatPrice = (price: number | null | undefined) => {
@@ -1576,6 +1967,480 @@ export default function StocksPage() {
     }
   }
 
+  // Reference Combobox Component
+  const ReferenceCombobox = ({
+    value,
+    onSelect,
+  }: {
+    value: string
+    onSelect: (referencia: string, material: any) => void
+  }) => {
+    const [open, setOpen] = useState(false)
+    const [search, setSearch] = useState('')
+
+    // Get unique referencias
+    const uniqueReferencias = Array.from(
+      new Set(materials.map((m) => m.referencia).filter(Boolean)),
+    ).sort()
+
+    const filteredReferencias = uniqueReferencias.filter((ref) =>
+      ref?.toLowerCase().includes(search.toLowerCase()),
+    )
+
+    return (
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            className="w-full justify-between"
+          >
+            <span className="truncate max-w-[90px]" title={value}>
+              {value || 'Selecionar referência...'}
+            </span>
+            <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 flex-shrink-0" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[200px] p-0">
+          <Command>
+            <CommandInput
+              placeholder="Referência..."
+              value={search}
+              onValueChange={setSearch}
+            />
+            <CommandEmpty>Referência não encontrada.</CommandEmpty>
+            <CommandGroup className="max-h-[200px] overflow-auto">
+              {filteredReferencias.slice(0, 50).map((ref) => {
+                const material = materials.find((m) => m.referencia === ref)
+                return (
+                  <CommandItem
+                    key={ref}
+                    onSelect={() => {
+                      onSelect(ref || '', material)
+                      setOpen(false)
+                    }}
+                  >
+                    {ref}
+                  </CommandItem>
+                )
+              })}
+            </CommandGroup>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    )
+  }
+
+  // Material Combobox Component
+  const MaterialCombobox = ({
+    value,
+    onSelect,
+  }: {
+    value: string
+    onSelect: (material: any) => void
+  }) => {
+    const [open, setOpen] = useState(false)
+    const [search, setSearch] = useState('')
+
+    const filteredMaterials = materials.filter(
+      (m) =>
+        formatMaterialName(m).toLowerCase().includes(search.toLowerCase()) ||
+        m.referencia?.toLowerCase().includes(search.toLowerCase()),
+    )
+
+    return (
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            className="w-full justify-between"
+          >
+            {value
+              ? formatMaterialName(materials.find((m) => m.id === value))
+              : 'Selecionar material...'}
+            <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[300px] p-0">
+          <Command>
+            <CommandInput
+              placeholder="Nome ou referência..."
+              value={search}
+              onValueChange={setSearch}
+            />
+            <CommandEmpty>Material não encontrado.</CommandEmpty>
+            <CommandGroup className="max-h-[200px] overflow-auto">
+              {filteredMaterials.slice(0, 50).map((material) => {
+                const fornecedor = fornecedores.find(
+                  (f) => f.id === material.fornecedor_id,
+                )
+                return (
+                  <CommandItem
+                    key={material.id}
+                    onSelect={() => {
+                      onSelect(material)
+                      setOpen(false)
+                    }}
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-medium">
+                        {formatMaterialName(material)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        Ref: {material.referencia} | Forn:{' '}
+                        {fornecedor?.nome_forn || 'N/A'}
+                      </span>
+                    </div>
+                  </CommandItem>
+                )
+              })}
+            </CommandGroup>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    )
+  }
+
+  // Inline Stock Input Component
+  const InlineStockInput = () => (
+    <Card className="mb-4">
+      <CardHeader className="py-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium">Entrada Rápida de Stock</h3>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setShowInlineInput(false)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        <Table>
+          <TableBody>
+            {inlineEntries.map((entry, index) => (
+              <React.Fragment key={entry.id}>
+                <TableRow className="border-b-0">
+                <TableCell className="w-[140px]">
+                  <div className="text-xs text-muted-foreground font-medium mb-1">Referência</div>
+                  <ReferenceCombobox
+                    value={entry.referencia}
+                    onSelect={(ref, material) =>
+                      handleReferenciaSelect(index, ref, material)
+                    }
+                  />
+                </TableCell>
+                <TableCell className="min-w-[400px]">
+                  <div className="text-xs text-muted-foreground font-medium mb-1">Material</div>
+                  <MaterialCombobox
+                    value={entry.material_id}
+                    onSelect={(material) =>
+                      handleMaterialSelect(index, material)
+                    }
+                  />
+                </TableCell>
+                <TableCell className="w-[120px]">
+                  <div className="text-xs text-muted-foreground font-medium mb-1">QTD UNIT.</div>
+                  <input
+                    key={`${entry.id}-quantidade`}
+                    type="text"
+                    inputMode="numeric"
+                    defaultValue={entry.quantidade || ''}
+                    onBlur={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '')
+                      updateEntry(index, 'quantidade', val ? parseInt(val) : 0)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        const val = e.currentTarget.value.replace(/[^0-9]/g, '')
+                        updateEntry(index, 'quantidade', val ? parseInt(val) : 0)
+                      }
+                    }}
+                    maxLength={6}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="0"
+                  />
+                </TableCell>
+                <TableCell className="w-[120px]">
+                  <div className="text-xs text-muted-foreground font-medium mb-1">SIZE X</div>
+                  <input
+                    key={`${entry.id}-size_x`}
+                    type="text"
+                    inputMode="numeric"
+                    defaultValue={entry.size_x || ''}
+                    onBlur={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '')
+                      updateEntry(index, 'size_x', val ? parseInt(val) : 0)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        const val = e.currentTarget.value.replace(/[^0-9]/g, '')
+                        updateEntry(index, 'size_x', val ? parseInt(val) : 0)
+                      }
+                    }}
+                    maxLength={5}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="3000"
+                  />
+                </TableCell>
+                <TableCell className="w-[120px]">
+                  <div className="text-xs text-muted-foreground font-medium mb-1">SIZE Y</div>
+                  <input
+                    key={`${entry.id}-size_y`}
+                    type="text"
+                    inputMode="numeric"
+                    defaultValue={entry.size_y || ''}
+                    onBlur={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '')
+                      updateEntry(index, 'size_y', val ? parseInt(val) : 0)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        const val = e.currentTarget.value.replace(/[^0-9]/g, '')
+                        updateEntry(index, 'size_y', val ? parseInt(val) : 0)
+                      }
+                    }}
+                    maxLength={5}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="2000"
+                  />
+                </TableCell>
+                <TableCell className="w-[120px]">
+                  <div className="text-xs text-muted-foreground font-medium mb-1">PREÇO UNIT.</div>
+                  <input
+                    key={`${entry.id}-preco_unitario`}
+                    type="text"
+                    inputMode="decimal"
+                    defaultValue={entry.preco_unitario ? entry.preco_unitario.toFixed(2) : ''}
+                    onFocus={(e) => {
+                      if (!entry.quantidade || entry.quantidade <= 0) {
+                        e.preventDefault()
+                        e.target.blur()
+                        alert('Tem que introduzir a quantidade primeiro')
+                      }
+                    }}
+                    onChange={(e) => {
+                      if (entry.quantidade > 0) {
+                        const val = parseFloat(e.target.value) || 0
+                        // Calculate VL TOTAL = PREÇO UNIT × quantidade
+                        const valorTotal = val * entry.quantidade
+                        // Update both values together
+                        setInlineEntries(prev => prev.map((ent, i) =>
+                          i === index
+                            ? { ...ent, preco_unitario: val, valor_total: valorTotal }
+                            : ent
+                        ))
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        e.currentTarget.blur()
+                      }
+                    }}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="0.00"
+                  />
+                </TableCell>
+                <TableCell className="w-[150px]">
+                  <div className="text-xs text-muted-foreground font-medium mb-1">VL TOT.</div>
+                  <input
+                    key={`${entry.id}-valor_total`}
+                    type="text"
+                    inputMode="decimal"
+                    defaultValue={entry.valor_total ? entry.valor_total.toFixed(2) : ''}
+                    onFocus={(e) => {
+                      if (!entry.quantidade || entry.quantidade <= 0) {
+                        e.preventDefault()
+                        e.target.blur()
+                        alert('Tem que introduzir a quantidade primeiro')
+                      }
+                    }}
+                    onChange={(e) => {
+                      if (entry.quantidade > 0) {
+                        const val = parseFloat(e.target.value) || 0
+                        // Calculate PREÇO UNIT = VL TOTAL / quantidade
+                        const precoUnit = val / entry.quantidade
+                        // Update both values together
+                        setInlineEntries(prev => prev.map((ent, i) =>
+                          i === index
+                            ? { ...ent, valor_total: val, preco_unitario: precoUnit }
+                            : ent
+                        ))
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        e.currentTarget.blur()
+                      }
+                    }}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="0.00"
+                  />
+                </TableCell>
+                <TableCell className="w-[100px]">
+                  <div className="text-xs text-muted-foreground font-medium mb-1">Ações</div>
+                  <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      onClick={async () => {
+                        const result = await handleSaveEntry(index)
+                        if (result) {
+                          removeEntry(index)
+                          // Refresh the tables
+                          fetchStocks()
+                          fetchPaletes()
+                          // Add new empty row if this was the last one
+                          if (inlineEntries.length === 1) {
+                            addNewRow()
+                          }
+                        }
+                      }}
+                      disabled={
+                        !entry.material_id ||
+                        entry.quantidade <= 0 ||
+                        entry.isSaving
+                      }
+                    >
+                      {entry.isSaving ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Check className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => removeEntry(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+              <TableRow className="border-t-0">
+                <TableCell className="pt-0 min-w-[400px]" colSpan={2}>
+                  <div className="text-xs text-muted-foreground font-medium mb-1">REF PAL (OPCIONAL)</div>
+                  <input
+                    key={`${entry.id}-no_palete-row2`}
+                    type="text"
+                    defaultValue={entry.no_palete || ''}
+                    onBlur={(e) =>
+                      updateEntry(index, 'no_palete', e.target.value)
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        updateEntry(index, 'no_palete', e.currentTarget.value)
+                      }
+                    }}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="P100 ou P100,P101,P102 (Opcional)"
+                  />
+                </TableCell>
+                <TableCell className="pt-0 w-[120px]">
+                  <div className="text-xs text-muted-foreground font-medium mb-1">NºPAL</div>
+                  <input
+                    key={`${entry.id}-num_paletes-row2`}
+                    type="text"
+                    inputMode="numeric"
+                    defaultValue={entry.num_paletes || 1}
+                    onBlur={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '')
+                      updateEntry(index, 'num_paletes', val ? parseInt(val) : 1)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        const val = e.currentTarget.value.replace(/[^0-9]/g, '')
+                        updateEntry(index, 'num_paletes', val ? parseInt(val) : 1)
+                      }
+                    }}
+                    maxLength={3}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </TableCell>
+                <TableCell className="pt-0 w-[150px]">
+                  <div className="text-xs text-muted-foreground font-medium mb-1">Nº Guia</div>
+                  <input
+                    key={`${entry.id}-no_guia_forn-row2`}
+                    type="text"
+                    defaultValue={entry.no_guia_forn || ''}
+                    onBlur={(e) =>
+                      updateEntry(index, 'no_guia_forn', e.target.value)
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        updateEntry(index, 'no_guia_forn', e.currentTarget.value)
+                      }
+                    }}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="Opcional"
+                  />
+                </TableCell>
+                <TableCell className="pt-0" colSpan={4}></TableCell>
+              </TableRow>
+              </React.Fragment>
+            ))}
+          </TableBody>
+        </Table>
+        <div className="p-2 border-t space-y-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={addNewRow}
+            className="w-full"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Adicionar Linha (Ctrl+N)
+          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={handleSaveAll}
+              disabled={
+                isSavingBatch ||
+                inlineEntries.filter(
+                  (e) =>
+                    e.material_id &&
+                    e.quantidade > 0,
+                ).length === 0
+              }
+              className="flex-1"
+            >
+              {isSavingBatch ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  A guardar...
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Guardar Tudo (
+                  {
+                    inlineEntries.filter(
+                      (e) =>
+                        e.material_id &&
+                        e.quantidade > 0,
+                    ).length
+                  }{' '}
+                  entradas)
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+
   return (
     <PermissionGuard>
       <div className="w-full space-y-6">
@@ -1927,6 +2792,52 @@ export default function StocksPage() {
           </TabsList>
 
           <TabsContent value="entries" className="space-y-4">
+            {/* Success Summary */}
+            {lastSavesSummary && (
+              <Card className="mb-4 border-green-200 bg-green-50">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-semibold text-green-900 mb-2">
+                        ✅ Entradas Criadas com Sucesso!
+                      </h3>
+                      <div className="text-sm text-green-800 space-y-1">
+                        <p>
+                          • {lastSavesSummary.count} entradas de stock
+                        </p>
+                        <p>
+                          • Paletes: {lastSavesSummary.paletes.join(', ')}
+                        </p>
+                        <p>• Total: {lastSavesSummary.total} unidades</p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setLastSavesSummary(null)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Inline Stock Input */}
+            <div className="mb-4">
+              {!showInlineInput ? (
+                <Button
+                  onClick={handleShowInlineInput}
+                  className="w-full sm:w-auto"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Adicionar Stock (Modo Rápido)
+                </Button>
+              ) : (
+                <InlineStockInput />
+              )}
+            </div>
+
             <div className="w-full">
               <div className="w-full">
                 <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
@@ -2056,55 +2967,201 @@ export default function StocksPage() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      sortedStocks.map((stock) => (
-                        <TableRow key={stock.id} className="hover:bg-accent">
-                          <TableCell>
-                            {new Date(stock.data).toLocaleDateString('pt-PT')}
-                          </TableCell>
-                          <TableCell>
-                            {stock.materiais?.referencia || '-'}
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {formatMaterialName(stock.materiais)}
-                          </TableCell>
-                          <TableCell>
-                            {stock.fornecedores?.nome_forn || '-'}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {stock.quantidade}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {(stock as any).vl_m2 || '-'}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {formatPrice(stock.preco_unitario)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {formatPrice(stock.valor_total)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {stock.n_palet || '-'}
-                          </TableCell>
-                          <TableCell className="flex justify-center gap-2">
-                            <Button
-                              variant="default"
-                              size="icon"
-                              className="h-10 w-10"
-                              onClick={() => handleEdit(stock)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="icon"
-                              className="h-10 w-10"
-                              onClick={() => handleDelete(stock.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      sortedStocks.map((stock) => {
+                        const isEditing = editingStock?.id === stock.id
+
+                        if (isEditing) {
+                          // Inline edit mode - similar to quick entry form
+                          return (
+                            <React.Fragment key={stock.id}>
+                              <TableRow className="border-b-0" style={{ backgroundColor: '#fdfbf2' }}>
+                                <TableCell className="text-xs text-muted-foreground font-medium">Data</TableCell>
+                                <TableCell className="text-xs text-muted-foreground font-medium">Referência</TableCell>
+                                <TableCell className="text-xs text-muted-foreground font-medium">Material</TableCell>
+                                <TableCell className="text-xs text-muted-foreground font-medium">QTD UNIT.</TableCell>
+                                <TableCell className="text-xs text-muted-foreground font-medium">SIZE X</TableCell>
+                                <TableCell className="text-xs text-muted-foreground font-medium">SIZE Y</TableCell>
+                                <TableCell className="text-xs text-muted-foreground font-medium">PREÇO UNIT.</TableCell>
+                                <TableCell className="text-xs text-muted-foreground font-medium">VL TOT.</TableCell>
+                                <TableCell className="text-xs text-muted-foreground font-medium" colSpan={2}>Ações</TableCell>
+                              </TableRow>
+                              <TableRow className="border-b-0" style={{ backgroundColor: '#fdfbf2' }}>
+                                <TableCell>
+                                  {new Date(stock.data).toLocaleDateString('pt-PT')}
+                                </TableCell>
+                                <TableCell>
+                                  {stock.materiais?.referencia || '-'}
+                                </TableCell>
+                                <TableCell>
+                                  {formatMaterialName(stock.materiais)}
+                                </TableCell>
+                                <TableCell>
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={editingStock?.quantidade || ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value.replace(/[^0-9]/g, '')
+                                      setEditingStock(prev => prev ? { ...prev, quantidade: parseInt(val) || 0 } : null)
+                                    }}
+                                    className="w-full h-8 px-2 text-sm border rounded"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={(editingStock as any)?.size_x || ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value.replace(/[^0-9]/g, '')
+                                      setEditingStock(prev => prev ? { ...prev, size_x: parseInt(val) || 0 } as any : null)
+                                    }}
+                                    className="w-full h-8 px-2 text-sm border rounded"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={(editingStock as any)?.size_y || ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value.replace(/[^0-9]/g, '')
+                                      setEditingStock(prev => prev ? { ...prev, size_y: parseInt(val) || 0 } as any : null)
+                                    }}
+                                    className="w-full h-8 px-2 text-sm border rounded"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={editingStock?.preco_unitario?.toFixed(2) || ''}
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value) || 0
+                                      const valorTotal = val * (editingStock?.quantidade || 0)
+                                      setEditingStock(prev => prev ? { ...prev, preco_unitario: val, valor_total: valorTotal } : null)
+                                    }}
+                                    className="w-full h-8 px-2 text-sm border rounded"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={editingStock?.valor_total?.toFixed(2) || ''}
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value) || 0
+                                      const precoUnit = val / (editingStock?.quantidade || 1)
+                                      setEditingStock(prev => prev ? { ...prev, valor_total: val, preco_unitario: precoUnit } : null)
+                                    }}
+                                    className="w-full h-8 px-2 text-sm border rounded"
+                                  />
+                                </TableCell>
+                                <TableCell colSpan={2}>
+                                  <div className="flex gap-1">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleSaveInlineEdit(stock.id)}
+                                    >
+                                      <Check className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={handleCancelInlineEdit}
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                              <TableRow style={{ backgroundColor: '#fdfbf2' }}>
+                                <TableCell className="text-xs text-muted-foreground font-medium pt-0" colSpan={3}>REF PAL (OPCIONAL)</TableCell>
+                                <TableCell className="text-xs text-muted-foreground font-medium pt-0">NºPAL</TableCell>
+                                <TableCell className="text-xs text-muted-foreground font-medium pt-0" colSpan={6}>Nº GUIA</TableCell>
+                              </TableRow>
+                              <TableRow style={{ backgroundColor: '#fdfbf2' }}>
+                                <TableCell className="pt-0" colSpan={3}>
+                                  <input
+                                    type="text"
+                                    value={editingStock?.n_palet || ''}
+                                    onChange={(e) => {
+                                      setEditingStock(prev => prev ? { ...prev, n_palet: e.target.value } : null)
+                                    }}
+                                    className="w-full h-8 px-2 text-sm border rounded"
+                                    placeholder="P100 ou P100,P101,P102 (Opcional)"
+                                  />
+                                </TableCell>
+                                <TableCell className="pt-0">
+                                  <div className="text-sm">{editingStock?.n_palet?.split(',').length || 0}</div>
+                                </TableCell>
+                                <TableCell className="pt-0" colSpan={6}>
+                                  <input
+                                    type="text"
+                                    value={editingStock?.no_guia_forn || ''}
+                                    onChange={(e) => {
+                                      setEditingStock(prev => prev ? { ...prev, no_guia_forn: e.target.value } : null)
+                                    }}
+                                    className="w-full h-8 px-2 text-sm border rounded"
+                                    placeholder="Opcional"
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            </React.Fragment>
+                          )
+                        }
+
+                        // Normal view mode
+                        return (
+                          <TableRow key={stock.id} className="hover:bg-accent">
+                            <TableCell>
+                              {new Date(stock.data).toLocaleDateString('pt-PT')}
+                            </TableCell>
+                            <TableCell>
+                              {stock.materiais?.referencia || '-'}
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {formatMaterialName(stock.materiais)}
+                            </TableCell>
+                            <TableCell>
+                              {stock.fornecedores?.nome_forn || '-'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {stock.quantidade}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {(stock as any).vl_m2 || '-'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {formatPrice(stock.preco_unitario)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {formatPrice(stock.valor_total)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {stock.n_palet || '-'}
+                            </TableCell>
+                            <TableCell className="flex justify-center gap-2">
+                              <Button
+                                variant="default"
+                                size="icon"
+                                className="h-10 w-10"
+                                onClick={() => handleEdit(stock)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="icon"
+                                className="h-10 w-10"
+                                onClick={() => handleDelete(stock.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })
                     )}
                   </TableBody>
                 </Table>
@@ -2136,6 +3193,18 @@ export default function StocksPage() {
                       >
                         Material
                         {sortColumnCurrent === 'material' &&
+                          (sortDirectionCurrent === 'asc' ? (
+                            <ArrowUp className="ml-1 inline h-3 w-3" />
+                          ) : (
+                            <ArrowDown className="ml-1 inline h-3 w-3" />
+                          ))}
+                      </TableHead>
+                      <TableHead
+                        className="sticky top-0 z-10 w-[150px] cursor-pointer border-b select-none"
+                        onClick={() => handleSortCurrent('total_recebido')}
+                      >
+                        Total Recebido
+                        {sortColumnCurrent === 'total_recebido' &&
                           (sortDirectionCurrent === 'asc' ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
@@ -2211,7 +3280,7 @@ export default function StocksPage() {
                     {sortedCurrentStocks.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={8}
+                          colSpan={9}
                           className="text-center text-gray-500"
                         >
                           Nenhum material encontrado.
@@ -2228,6 +3297,9 @@ export default function StocksPage() {
                           </TableCell>
                           <TableCell className="font-medium">
                             {formatCurrentStockMaterialName(stock)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {Math.round(stock.total_recebido)}
                           </TableCell>
                           <TableCell className="text-right">
                             {Math.round(stock.total_consumido)}
@@ -2813,239 +3885,6 @@ export default function StocksPage() {
             />
           </TabsContent>
         </Tabs>
-
-        <Drawer open={openDrawer} onOpenChange={setOpenDrawer}>
-          <DrawerContent>
-            <DrawerHeader>
-              <DrawerTitle>
-                {editingStock ? 'Editar Entrada de Stock' : 'Nova Entrada de Stock'}
-              </DrawerTitle>
-              <DrawerDescription>
-                Preencha os dados da entrada de stock
-              </DrawerDescription>
-            </DrawerHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 p-6">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="material">Material</Label>
-                  <Combobox
-                    value={formData.material_id}
-                    onChange={handleMaterialChange}
-                    options={materialOptions}
-                    placeholder="Selecionar material..."
-                    searchPlaceholder="Pesquisar material..."
-                    emptyMessage="Nenhum material encontrado."
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="referencia">Referência</Label>
-                  <Combobox
-                    value={formData.material_referencia}
-                    onChange={handleReferenciaChange}
-                    options={referenciaOptions}
-                    placeholder="Selecionar referência..."
-                    searchPlaceholder="Pesquisar referência..."
-                    emptyMessage="Nenhuma referência encontrada."
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="fornecedor">Fornecedor</Label>
-                  <Select
-                    value={formData.fornecedor_id}
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        fornecedor_id: value,
-                      }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecionar fornecedor..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {fornecedores.map((forn) => (
-                        <SelectItem key={forn.id} value={forn.id}>
-                          {forn.nome_forn}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="no_guia_forn">Nº Guia Fornecedor</Label>
-                  <Input
-                    id="no_guia_forn"
-                    value={formData.no_guia_forn}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        no_guia_forn: e.target.value,
-                      }))
-                    }
-                    placeholder="Nº Guia"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="quantidade">Quantidade</Label>
-                  <Input
-                    id="quantidade"
-                    type="number"
-                    value={formData.quantidade}
-                    onChange={(e) =>
-                      handleQuantidadeChange(e.target.value)
-                    }
-                    placeholder="0"
-                    className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="quantidade_disponivel">
-                    Quantidade Disponível
-                  </Label>
-                  <Input
-                    id="quantidade_disponivel"
-                    type="number"
-                    value={formData.quantidade_disponivel}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        quantidade_disponivel: e.target.value,
-                      }))
-                    }
-                    placeholder="0"
-                    className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="vl_m2">VL_m2</Label>
-                  <Input
-                    id="vl_m2"
-                    type="number"
-                    step="0.01"
-                    value={formData.vl_m2}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        vl_m2: e.target.value,
-                      }))
-                    }
-                    placeholder="0.00"
-                    className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="preco_unitario">Preço Unitário</Label>
-                  <Input
-                    id="preco_unitario"
-                    type="number"
-                    step="0.01"
-                    value={formData.preco_unitario}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        preco_unitario: e.target.value,
-                      }))
-                    }
-                    placeholder="0.00"
-                    className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="valor_total">Valor Total</Label>
-                  <Input
-                    id="valor_total"
-                    type="number"
-                    step="0.01"
-                    value={calculateTotalValue()}
-                    disabled
-                    placeholder="0.00"
-                    className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="quantidade_palete">
-                    Quantidade por Palete
-                  </Label>
-                  <Input
-                    id="quantidade_palete"
-                    type="number"
-                    value={formData.quantidade_palete}
-                    disabled
-                    placeholder="0"
-                    className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="num_palettes">Nº Palettes</Label>
-                  <Input
-                    id="num_palettes"
-                    type="number"
-                    value={formData.num_palettes}
-                    onChange={(e) =>
-                      handleNumPalettesChange(e.target.value)
-                    }
-                    placeholder="0"
-                    className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="n_palet">Nº Palete</Label>
-                  <Input
-                    id="n_palet"
-                    value={formData.n_palet}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        n_palet: e.target.value,
-                      }))
-                    }
-                    placeholder="Nº Palete"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="notas">Notas</Label>
-                <Textarea
-                  id="notas"
-                  value={formData.notas}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      notas: e.target.value,
-                    }))
-                  }
-                  placeholder="Notas adicionais..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setOpenDrawer(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={submitting}>
-                  Guardar
-                </Button>
-              </div>
-            </form>
-          </DrawerContent>
-        </Drawer>
       </div>
     </PermissionGuard>
   )
