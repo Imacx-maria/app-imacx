@@ -14,7 +14,6 @@ export interface MaterialData {
   referencia: string | null
   ref_fornecedor: string | null
   tipo_canal: string | null
-  dimensoes: string | null
   valor_m2_custo: number | null
   valor_placa: number | null
   valor_m2: number | null
@@ -34,26 +33,40 @@ export const useMaterialsCascading = () => {
       setLoading(true)
       setError(null)
 
+      console.log('[useMaterialsCascading] Starting fetch...')
+
+      // Try flexible query - match RÍGIDOS with case-insensitive and trim
       const { data, error } = await supabase
         .from('materiais')
         .select(
-          'id, material, carateristica, cor, referencia, ref_fornecedor, tipo_canal, dimensoes, valor_m2_custo, valor_placa, valor_m2, qt_palete, tipo',
+          'id, material, carateristica, cor, referencia, ref_fornecedor, tipo_canal, valor_m2_custo, valor_placa, valor_m2, qt_palete, tipo',
         )
-        .eq('tipo', 'RÍGIDOS') // Filter to only show rigid materials (with accent)
+        .ilike('tipo', 'RÍGIDOS') // Case-insensitive match for RÍGIDOS
         .not('material', 'is', null) // Ensure material field is not null
         .order('material', { ascending: true })
 
-      if (error) throw error
+      console.log('[useMaterialsCascading] Query completed:', { 
+        hasData: !!data, 
+        dataLength: data?.length || 0, 
+        hasError: !!error,
+        error: error 
+      })
+
+      if (error) {
+        console.error('[useMaterialsCascading] Supabase error:', error)
+        throw error
+      }
 
       if (data) {
-        console.log(`[useMaterialsCascading] Fetched ${data.length} RÍGIDOS materials`)
+        console.log(`[useMaterialsCascading] Fetched ${data.length} materials`)
         console.log('[useMaterialsCascading] Sample materials:', data.slice(0, 5).map(d => d.material))
+        console.log('[useMaterialsCascading] Sample tipos:', data.slice(0, 5).map(d => d.tipo))
         setMaterialsData(data)
       } else {
         console.warn('[useMaterialsCascading] No data returned from query')
       }
     } catch (err) {
-      console.error('Error fetching materials:', err)
+      console.error('[useMaterialsCascading] Error fetching materials:', err)
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setLoading(false)
@@ -84,6 +97,10 @@ export const useMaterialsCascading = () => {
       }))
     
     console.log(`[useMaterialsCascading] Generated ${options.length} unique material options from ${materialsData.length} records`)
+    console.log('[useMaterialsCascading] Material options:', options)
+    if (materialsData.length > 0) {
+      console.log('[useMaterialsCascading] Full raw data sample:', materialsData.slice(0, 3))
+    }
     
     return options
   }, [materialsData])

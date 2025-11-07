@@ -221,6 +221,13 @@ export default function PlanosTable({
   const renderMaterialInputs = (planoId: string) => {
     const selection = materialSelections[planoId] || {}
 
+    console.log(`[PlanosTable] renderMaterialInputs for ${planoId}:`, {
+      selection,
+      materialOptionsCount: materialOptions.length,
+      caracteristicasCount: getCaracteristicaOptions(selection.material).length,
+      coresCount: getCorOptions(selection.material, selection.caracteristicas).length,
+    })
+
     return (
       <div className="flex gap-2">
         <Combobox
@@ -229,6 +236,7 @@ export default function PlanosTable({
           onChange={(value) => handleMaterialChange(planoId, 'material', value)}
           placeholder="Material"
           className="w-[150px]"
+          emptyMessage={materialOptions.length === 0 ? 'Nenhum material disponível' : 'Nenhuma opção encontrada.'}
         />
         <Combobox
           options={getCaracteristicaOptions(selection.material)}
@@ -237,6 +245,7 @@ export default function PlanosTable({
           placeholder="Caract."
           disabled={!selection.material}
           className="w-[125px]"
+          emptyMessage={selection.material && getCaracteristicaOptions(selection.material).length === 0 ? 'Nenhuma característica' : 'Selecione material'}
         />
         <Combobox
           options={getCorOptions(selection.material, selection.caracteristicas)}
@@ -245,6 +254,7 @@ export default function PlanosTable({
           placeholder="Cor"
           disabled={!selection.caracteristicas}
           className="w-[150px]"
+          emptyMessage={selection.caracteristicas && getCorOptions(selection.material, selection.caracteristicas).length === 0 ? 'Nenhuma cor' : 'Selecione caract.'}
         />
       </div>
     )

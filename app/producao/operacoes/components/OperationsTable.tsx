@@ -665,7 +665,7 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                       {materialDetails?.ref_fornecedor ?? '-'}
                     </TableCell>
                     <TableCell>{materialDetails?.tipo_canal ?? '-'}</TableCell>
-                    <TableCell>{materialDetails?.dimensoes ?? '-'}</TableCell>
+                    <TableCell>-</TableCell>
                     <TableCell>
                       {typeof materialDetails?.valor_m2_custo === 'number'
                         ? materialDetails.valor_m2_custo.toLocaleString(
