@@ -278,61 +278,50 @@ export default function MateriaisPage() {
 
   useEffect(() => {
     const fetchCascadingData = async () => {
-      // Fetch distinct tipos for filter dropdown
-      const { data: tipoData } = await supabase
-        .from('materiais')
-        .select('tipo')
-        .not('tipo', 'is', null)
+      // PERFORMANCE FIX: Consolidate 4 separate queries into 1
+      // OLD: 4 queries to materiais table (one per field)
+      // NEW: 1 query with specific fields, compute distinct values in-memory
 
-      if (tipoData) {
-        const tipoSet = new Set(
-          tipoData
-            .map((item) => item.tipo?.trim().toUpperCase())
-            .filter(Boolean),
-        )
+      const { data: allFieldsData, error } = await supabase
+        .from('materiais')
+        .select('tipo, material, carateristica, cor')
+
+      if (error) {
+        console.error('Error fetching cascading data:', error)
+        return
+      }
+
+      if (allFieldsData) {
+        // Compute distinct values in-memory (very fast for typical dataset sizes)
+        const tipoSet = new Set<string>()
+        const materialSet = new Set<string>()
+        const caracteristicaSet = new Set<string>()
+        const corSet = new Set<string>()
+
+        // Single loop through data to populate all sets
+        allFieldsData.forEach((item) => {
+          if (item.tipo?.trim()) {
+            tipoSet.add(item.tipo.trim().toUpperCase())
+          }
+          if (item.material) {
+            materialSet.add(item.material.toUpperCase())
+          }
+          if (item.carateristica) {
+            caracteristicaSet.add(item.carateristica.toUpperCase())
+          }
+          if (item.cor) {
+            corSet.add(item.cor.toUpperCase())
+          }
+        })
+
+        // Set state with sorted arrays
         setAvailableTipos(Array.from(tipoSet).sort())
-      }
+        setAvailableMaterials(Array.from(materialSet).sort())
+        setAvailableCaracteristicas(Array.from(caracteristicaSet).sort())
+        setAvailableCores(Array.from(corSet).sort())
 
-      // Fetch distinct materials
-      const { data: materialData } = await supabase
-        .from('materiais')
-        .select('material')
-        .not('material', 'is', null)
-
-      if (materialData) {
-        const materialSet = new Set(
-          materialData
-            .map((item) => item.material?.toUpperCase())
-            .filter(Boolean),
-        )
-        setAvailableMaterials(Array.from(materialSet))
-      }
-
-      // Fetch all characteristics and colors for initial load
-      const { data: caracteristicaData } = await supabase
-        .from('materiais')
-        .select('carateristica')
-        .not('carateristica', 'is', null)
-
-      if (caracteristicaData) {
-        const caracteristicaSet = new Set(
-          caracteristicaData
-            .map((item) => item.carateristica?.toUpperCase())
-            .filter(Boolean),
-        )
-        setAvailableCaracteristicas(Array.from(caracteristicaSet))
-      }
-
-      const { data: corData } = await supabase
-        .from('materiais')
-        .select('cor')
-        .not('cor', 'is', null)
-
-      if (corData) {
-        const corSet = new Set(
-          corData.map((item) => item.cor?.toUpperCase()).filter(Boolean),
-        )
-        setAvailableCores(Array.from(corSet))
+        console.log('🎯 [MATERIAIS] Performance: Reduced 4 queries to 1 query')
+        console.log(`📊 [MATERIAIS] Loaded ${tipoSet.size} tipos, ${materialSet.size} materials, ${caracteristicaSet.size} caracteristicas, ${corSet.size} cores`)
       }
     }
 
