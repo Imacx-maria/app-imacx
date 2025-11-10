@@ -1,4 +1,13 @@
-import { Metric, PerformanceMetric, ErrorEvent, LogEntry, SystemHealth, MonitoringConfig, Alert, AlertThreshold } from './types'
+import type {
+  Metric,
+  PerformanceMetric,
+  ErrorEvent,
+  LogEntry,
+  SystemHealth,
+  MonitoringConfig,
+  Alert,
+  AlertThreshold
+} from './types'
 
 // Global monitoring state
 let isInitialized = false
@@ -245,9 +254,16 @@ function startHealthCheck() {
       })
       
       // Check memory usage (Node.js only)
-      const memoryUsage = typeof process !== 'undefined' && process.memoryUsage ?
-        Math.round((process.memoryUsage.heapUsed / process.memoryUsage.heapTotal) * 100) :
-        0
+      const memoryUsage = (() => {
+        if (typeof process !== 'undefined' && process.env && process.versions && process.versions.node) {
+          // We're in Node.js
+          const memInfo = (process as any).memoryUsage()
+          if (memInfo && memInfo.heapUsed && memInfo.heapTotal && memInfo.heapTotal > 0) {
+            return Math.round((memInfo.heapUsed / memInfo.heapTotal) * 100)
+          }
+        }
+        return 0
+      })()
       
       // Check uptime
       const uptime = process.uptime()
