@@ -682,7 +682,7 @@ export default function ProducaoPage() {
       fetchJobTotalValues(jobIds)
     }
   }, [
-    jobIdString,
+    jobIds,
     fetchItems,
     fetchOperacoes,
     fetchJobsSaiuStatus,

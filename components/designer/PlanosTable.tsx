@@ -96,7 +96,8 @@ export default function PlanosTable({
   // Cleanup debounce timers on unmount
   useEffect(() => {
     return () => {
-      Object.values(debounceTimers.current).forEach(timer => clearTimeout(timer))
+      const timers = Object.values(debounceTimers.current)
+      timers.forEach((timer) => clearTimeout(timer))
     }
   }, [])
 

@@ -296,7 +296,11 @@ export default function StocksPage() {
         .order('created_at', { ascending: false })
 
       if (!error && data) {
-        setStocks(data)
+        const normalized = (data as StockEntryWithRelations[]).map((item) => ({
+          ...item,
+          updated_at: item.updated_at ?? null,
+        }))
+        setStocks(normalized)
       }
     } catch (error) {
       console.error('Error fetching stocks:', error)
@@ -597,6 +601,52 @@ export default function StocksPage() {
     }
   }, [fetchMaterials])
 
+  const updateEntry = (index: number, field: string, value: any) => {
+    const updatedEntries = [...inlineEntries]
+    updatedEntries[index] = {
+      ...updatedEntries[index],
+      [field]: value,
+    }
+
+    // Recalculate valor_total when quantidade changes
+    if (field === 'quantidade') {
+      const preco = updatedEntries[index].preco_unitario || 0
+      updatedEntries[index].valor_total = value * preco
+    }
+
+    setInlineEntries(updatedEntries)
+  }
+
+  const addNewRow = useCallback(() => {
+    setInlineEntries((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        material_id: '',
+        material_name: '',
+        referencia: '',
+        fornecedor_id: '',
+        fornecedor_name: '',
+        quantidade: 0,
+        no_guia_forn: '',
+        no_palete: '',
+        num_paletes: 1,
+        size_x: 0,
+        size_y: 0,
+        preco_unitario: 0,
+        valor_total: 0,
+        isSaving: false,
+      },
+    ])
+  }, [])
+
+  const removeEntry = (index: number) => {
+    setInlineEntries(inlineEntries.filter((_, i) => i !== index))
+    if (inlineEntries.length === 1) {
+      setShowInlineInput(false)
+    }
+  }
+
   // Keyboard shortcuts for inline input
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -616,7 +666,7 @@ export default function StocksPage() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [showInlineInput])
+  }, [showInlineInput, addNewRow])
 
   const getReferenciaByMaterialId = (materialId: string) => {
     const found = materials.find((m) => m.id === materialId)
@@ -1110,52 +1160,6 @@ export default function StocksPage() {
       valor_total: quantidade * preco,
     }
     setInlineEntries(updatedEntries)
-  }
-
-  const updateEntry = (index: number, field: string, value: any) => {
-    const updatedEntries = [...inlineEntries]
-    updatedEntries[index] = {
-      ...updatedEntries[index],
-      [field]: value,
-    }
-
-    // Recalculate valor_total when quantidade changes
-    if (field === 'quantidade') {
-      const preco = updatedEntries[index].preco_unitario || 0
-      updatedEntries[index].valor_total = value * preco
-    }
-
-    setInlineEntries(updatedEntries)
-  }
-
-  const addNewRow = () => {
-    setInlineEntries([
-      ...inlineEntries,
-      {
-        id: crypto.randomUUID(),
-        material_id: '',
-        material_name: '',
-        referencia: '',
-        fornecedor_id: '',
-        fornecedor_name: '',
-        quantidade: 0,
-        no_guia_forn: '',
-        no_palete: '',
-        num_paletes: 1,
-        size_x: 0,
-        size_y: 0,
-        preco_unitario: 0,
-        valor_total: 0,
-        isSaving: false,
-      },
-    ])
-  }
-
-  const removeEntry = (index: number) => {
-    setInlineEntries(inlineEntries.filter((_, i) => i !== index))
-    if (inlineEntries.length === 1) {
-      setShowInlineInput(false)
-    }
   }
 
   const handleSaveEntry = async (

@@ -110,7 +110,7 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
 
   const canAccessPage = (path: string) => {
     if (hasRole(ROLES.ADMIN)) return true
-    const normalized = path.toLowerCase()
+    const normalized = path.toLowerCase().replace(/^\//, '') // Remove leading slash
     return pagePermissions.some(p => {
       if (p === 'page:*') return true
       if (!p.startsWith('page:')) return false

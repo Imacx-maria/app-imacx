@@ -742,27 +742,6 @@ export default function StocksPage() {
     }
   }, [fetchMaterials])
 
-  // Keyboard shortcuts for inline input
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+N: Add new row
-      if (e.ctrlKey && e.key === 'n' && showInlineInput) {
-        e.preventDefault()
-        addNewRow()
-      }
-      // Escape: Close inline input
-      if (e.key === 'Escape' && showInlineInput) {
-        setShowInlineInput(false)
-        setLastSavesSummary(null)
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [showInlineInput])
-
   const getReferenciaByMaterialId = (materialId: string) => {
     const found = materials.find((m) => m.id === materialId)
     return found?.referencia || '-'
@@ -1271,9 +1250,9 @@ export default function StocksPage() {
     setInlineEntries(updatedEntries)
   }
 
-  const addNewRow = () => {
-    setInlineEntries([
-      ...inlineEntries,
+  const addNewRow = useCallback(() => {
+    setInlineEntries((prev) => [
+      ...prev,
       {
         id: crypto.randomUUID(),
         material_id: '',
@@ -1292,7 +1271,7 @@ export default function StocksPage() {
         isSaving: false,
       },
     ])
-  }
+  }, [])
 
   const removeEntry = (index: number) => {
     setInlineEntries(inlineEntries.filter((_, i) => i !== index))
@@ -1300,6 +1279,26 @@ export default function StocksPage() {
       setShowInlineInput(false)
     }
   }
+
+  // Keyboard shortcuts for inline input
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'n' && showInlineInput) {
+        e.preventDefault()
+        addNewRow()
+      }
+      // Escape: Close inline input
+      if (e.key === 'Escape' && showInlineInput) {
+        setShowInlineInput(false)
+        setLastSavesSummary(null)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [showInlineInput, addNewRow])
 
   const handleSaveEntry = async (
     index: number,
