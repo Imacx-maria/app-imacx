@@ -94,7 +94,19 @@ import { LogisticaRecord, Cliente } from '@/types/logistica'
 import { useLogisticaData } from '@/utils/useLogisticaData'
 import { exportProducaoToExcel } from '@/utils/exportProducaoToExcel'
 import { Suspense } from 'react'
-import type { Job, Item, LoadingState } from '@/types/producao'
+import type {
+  Job,
+  Item,
+  LoadingState,
+  Holiday,
+  SortableJobKey,
+  PhcFoHeader,
+  ClienteOption,
+  DuplicateDialogState,
+  FOTotals,
+  ProducaoTab,
+  SortDirection,
+} from '@/types/producao'
 import { useDebounce } from '@/hooks/useDebounce'
 import {
   parseDateFromYYYYMMDD,
@@ -151,13 +163,6 @@ const ErrorMessage = ({
 
 /* ---------- Performance optimizations complete ---------- */
 
-/* ---------- Holiday interface ---------- */
-interface Holiday {
-  id: string
-  holiday_date: string
-  description?: string
-}
-
 /* ---------- main page ---------- */
 export default function ProducaoPage() {
   const supabase = useMemo(() => createBrowserClient(), [])
@@ -168,13 +173,11 @@ export default function ProducaoPage() {
   const [allOperacoes, setAllOperacoes] = useState<any[]>([])
   const [allDesignerItems, setAllDesignerItems] = useState<any[]>([])
   const [openId, setOpenId] = useState<string | null>(null)
-  const [clientes, setClientes] = useState<{ value: string; label: string }[]>(
-    [],
-  )
+  const [clientes, setClientes] = useState<ClienteOption[]>([])
   const [holidays, setHolidays] = useState<Holiday[]>([])
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   // Ref to access latest clientes in fetchJobs without creating dependency
-  const clientesRef = useRef<{ value: string; label: string }[]>([])
+  const clientesRef = useRef<ClienteOption[]>([])
   // Ref to track if initial load has happened
   const initialLoadDone = useRef(false)
   // Ref to track FO imports in progress to prevent duplicate imports from multiple tabs
@@ -190,16 +193,7 @@ export default function ProducaoPage() {
   )
 
   /* duplicate validation state */
-  const [duplicateDialog, setDuplicateDialog] = useState<{
-    isOpen: boolean
-    type: 'orc' | 'fo'
-    value: string | number
-    existingJob?: Job
-    currentJobId: string
-    originalValue?: string | number | null
-    onConfirm?: () => void
-    onCancel?: () => void
-  }>({
+  const [duplicateDialog, setDuplicateDialog] = useState<DuplicateDialogState>({
     isOpen: false,
     type: 'orc',
     value: '',
@@ -238,15 +232,10 @@ export default function ProducaoPage() {
   const [showFatura, setShowFatura] = useState(false)
 
   /* tab state */
-  const [activeTab, setActiveTab] = useState<
-    'em_curso' | 'concluidos' | 'pendentes'
-  >('em_curso')
+  const [activeTab, setActiveTab] = useState<ProducaoTab>('em_curso')
 
   /* FO totals state */
-  const [foTotals, setFoTotals] = useState<{
-    em_curso: number
-    pendentes: number
-  }>({
+  const [foTotals, setFoTotals] = useState<FOTotals>({
     em_curso: 0,
     pendentes: 0,
   })
@@ -323,24 +312,8 @@ export default function ProducaoPage() {
 
 
   /* sorting */
-  type SortableJobKey =
-    | 'created_at'
-    | 'numero_orc'
-    | 'numero_fo'
-    | 'cliente'
-    | 'nome_campanha'
-    | 'notas'
-    | 'prioridade'
-    | 'data_concluido'
-    | 'concluido'
-    | 'saiu'
-    | 'fatura'
-    | 'pendente'
-    | 'artwork'
-    | 'corte'
-    | 'total_value'
   const [sortCol, setSortCol] = useState<SortableJobKey>('prioridade')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [sortDir, setSortDir] = useState<SortDirection>('desc')
 
   const [hasUserSorted, setHasUserSorted] = useState(false) // Track if user has manually sorted
   const toggleSort = useCallback(
@@ -454,16 +427,6 @@ export default function ProducaoPage() {
   )
 
   // PHC header and BI lines prefill helpers
-  type PhcFoHeader = {
-    folha_obra_id: string
-    folha_obra_number?: string | null
-    orcamento_number?: string | null
-    nome_trabalho?: string | null
-    observacoes?: string | null
-    customer_id?: number | null
-    folha_obra_date?: string | null
-  }
-
   const fetchPhcHeaderByFo = useCallback(
     async (foNumber: string): Promise<PhcFoHeader | null> => {
       try {

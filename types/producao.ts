@@ -225,3 +225,89 @@ export interface LoadingState {
   operacoes: boolean
   clientes: boolean
 }
+
+/**
+ * Holiday interface for calendar integration
+ * Represents holidays that affect production schedules
+ */
+export interface Holiday {
+  id: string
+  holiday_date: string
+  description?: string
+}
+
+/**
+ * Sortable keys for the jobs table
+ * Defines all columns that can be sorted
+ */
+export type SortableJobKey =
+  | 'created_at'
+  | 'numero_orc'
+  | 'numero_fo'
+  | 'cliente'
+  | 'nome_campanha'
+  | 'notas'
+  | 'prioridade'
+  | 'data_concluido'
+  | 'concluido'
+  | 'saiu'
+  | 'fatura'
+  | 'pendente'
+  | 'artwork'
+  | 'corte'
+  | 'total_value'
+
+/**
+ * PHC integration - Folha de Obra header from PHC system
+ */
+export interface PhcFoHeader {
+  folha_obra_id: string
+  folha_obra_number?: string | null
+  orcamento_number?: string | null
+  nome_trabalho?: string | null
+  observacoes?: string | null
+  customer_id?: number | null
+  folha_obra_date?: string | null
+}
+
+/**
+ * Client option for dropdown/combobox
+ */
+export interface ClienteOption {
+  value: string
+  label: string
+}
+
+/**
+ * Duplicate validation dialog state
+ * Manages the state of duplicate ORC/FO number validation
+ */
+export interface DuplicateDialogState {
+  isOpen: boolean
+  type: 'orc' | 'fo'
+  value: string | number
+  existingJob?: Job
+  currentJobId: string
+  originalValue?: string | number | null
+  onConfirm?: () => void
+  onCancel?: () => void
+}
+
+/**
+ * FO totals by tab
+ * Tracks total number of FOs in each status category
+ */
+export interface FOTotals {
+  em_curso: number
+  pendentes: number
+}
+
+/**
+ * Active tab types for the producao page
+ */
+export type ProducaoTab = 'em_curso' | 'concluidos' | 'pendentes'
+
+/**
+ * Sort direction
+ */
+export type SortDirection = 'asc' | 'desc'
