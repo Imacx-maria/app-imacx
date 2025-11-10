@@ -121,6 +121,9 @@ import {
 import { usePhcIntegration } from '@/app/producao/hooks/usePhcIntegration'
 import { useDuplicateValidation } from '@/app/producao/hooks/useDuplicateValidation'
 import { useProducaoJobs } from '@/app/producao/hooks/useProducaoJobs'
+import { useJobStatus } from '@/app/producao/hooks/useJobStatus'
+import { useItemsData } from '@/app/producao/hooks/useItemsData'
+import { useReferenceData } from '@/app/producao/hooks/useReferenceData'
 
 /* ---------- lazy loaded components ---------- */
 const JobDrawerContent = lazy(() =>
@@ -328,6 +331,35 @@ export default function ProducaoPage() {
     setCurrentPage,
   )
 
+  /* ---------- Job Status Hook ---------- */
+  const { fetchJobsSaiuStatus, fetchJobsCompletionStatus, fetchJobTotalValues } =
+    useJobStatus(
+      supabase,
+      setJobsSaiuStatus,
+      setJobsCompletionStatus,
+      setJobTotalValues,
+    )
+
+  /* ---------- Items Data Hook ---------- */
+  const { fetchItems, fetchOperacoes, fetchDesignerItems } = useItemsData(
+    supabase,
+    setLoading,
+    setError,
+    setAllItems,
+    setAllOperacoes,
+    setAllDesignerItems,
+    allItems,
+  )
+
+  /* ---------- Reference Data Hook ---------- */
+  const { fetchClientes, fetchHolidays } = useReferenceData(
+    supabase,
+    setLoading,
+    setError,
+    setClientes,
+    setHolidays,
+  )
+
   /* ---------- Other Functions ---------- */
 
   const prefillAndInsertFromOrc = useCallback(
@@ -421,62 +453,6 @@ export default function ProducaoPage() {
 
   /* ---------- Optimized Data Fetching ---------- */
 
-  // Fetch clientes (static data - can be cached client-side)
-  const fetchClientes = useCallback(async () => {
-    setLoading((prev) => ({ ...prev, clientes: true }))
-    try {
-      const { data: clientesData, error } = await supabase
-        .schema('phc')
-        .from('cl')
-        .select('customer_id, customer_name')
-        .order('customer_name', { ascending: true })
-
-      if (error) throw error
-
-      if (clientesData) {
-        const clienteOptions = clientesData.map((c: any) => ({
-          value: c.customer_id.toString(),
-          label: c.customer_name,
-        }))
-        setClientes(clienteOptions)
-      }
-    } catch (error) {
-      console.error('Error fetching clientes:', error)
-      setError('Failed to load client data')
-    } finally {
-      setLoading((prev) => ({ ...prev, clientes: false }))
-    }
-  }, [supabase])
-
-  const fetchHolidays = useCallback(async () => {
-    try {
-      const today = new Date()
-      const startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1)
-      const endDate = new Date(today.getFullYear(), today.getMonth() + 2, 0)
-
-      const startDateStr = startDate.toISOString().split('T')[0]
-      const endDateStr = endDate.toISOString().split('T')[0]
-
-      const { data, error } = await supabase
-        .from('feriados')
-        .select('id, holiday_date, description')
-        .gte('holiday_date', startDateStr)
-        .lte('holiday_date', endDateStr)
-        .order('holiday_date', { ascending: true })
-
-      if (error) {
-        console.error('Error fetching holidays:', error)
-        return
-      }
-
-      if (data) {
-        setHolidays(data)
-      }
-    } catch (error) {
-      console.error('Error fetching holidays:', error)
-    }
-  }, [supabase])
-
   // Keep clientesRef in sync with clientes state
   useEffect(() => {
     clientesRef.current = clientes
@@ -484,292 +460,6 @@ export default function ProducaoPage() {
 
   // Note: Backfill effect removed - customer_id is now stored in database,
   // so id_cliente is properly loaded from the database query in fetchJobs
-
-
-  // Fetch saiu status for jobs by checking if ALL items have saiu=true in logistica_entregas
-  const fetchJobsSaiuStatus = useCallback(
-    async (jobIds: string[]) => {
-      if (jobIds.length === 0) return
-
-      try {
-        // First get all items for these jobs
-        const { data: itemsData, error: itemsError } = await supabase
-          .from('items_base')
-          .select('id, folha_obra_id')
-          .in('folha_obra_id', jobIds)
-
-        if (itemsError) throw itemsError
-
-        if (itemsData && itemsData.length > 0) {
-          const itemIds = itemsData.map((item) => item.id)
-
-          // Get logistics entries for these items
-          const { data: logisticsData, error: logisticsError } = await supabase
-            .from('logistica_entregas')
-            .select('item_id, saiu')
-            .in('item_id', itemIds)
-
-          if (logisticsError) throw logisticsError
-
-          // Calculate saiu status for each job
-          const jobSaiuStatus: Record<string, boolean> = {}
-
-          jobIds.forEach((jobId) => {
-            const jobItems = itemsData.filter(
-              (item) => item.folha_obra_id === jobId,
-            )
-
-            if (jobItems.length === 0) {
-              jobSaiuStatus[jobId] = false
-              return
-            }
-
-            // Check if all items have logistics entries with saiu=true
-            const allItemsSaiu = jobItems.every((item) => {
-              const logisticsEntry = logisticsData?.find(
-                (l) => l.item_id === item.id,
-              )
-              return logisticsEntry && logisticsEntry.saiu === true
-            })
-
-            jobSaiuStatus[jobId] = allItemsSaiu
-          })
-
-          setJobsSaiuStatus(jobSaiuStatus)
-        }
-      } catch (error) {
-        console.error('Error fetching jobs saiu status:', error)
-      }
-    },
-    [supabase],
-  )
-
-  // Fetch completion status for jobs by checking logistics entries
-  const fetchJobsCompletionStatus = useCallback(
-    async (jobIds: string[]) => {
-      if (jobIds.length === 0) return
-
-      try {
-        // First get all items for these jobs
-        const { data: itemsData, error: itemsError } = await supabase
-          .from('items_base')
-          .select('id, folha_obra_id')
-          .in('folha_obra_id', jobIds)
-
-        if (itemsError) throw itemsError
-
-        if (itemsData && itemsData.length > 0) {
-          const itemIds = itemsData.map((item) => item.id)
-
-          // Get logistics entries for these items
-          const { data: logisticsData, error: logisticsError } = await supabase
-            .from('logistica_entregas')
-            .select('item_id, concluido')
-            .in('item_id', itemIds)
-
-          if (logisticsError) throw logisticsError
-
-          // Calculate completion status for each job
-          const jobCompletionStatus: Record<
-            string,
-            { completed: boolean; percentage: number }
-          > = {}
-
-          jobIds.forEach((jobId) => {
-            const jobItems = itemsData.filter(
-              (item) => item.folha_obra_id === jobId,
-            )
-
-            if (jobItems.length === 0) {
-              jobCompletionStatus[jobId] = { completed: false, percentage: 0 }
-              return
-            }
-
-            // Calculate completion percentage based on logistics entries with concluido=true
-            const completedItems = jobItems.filter((item) => {
-              const logisticsEntry = logisticsData?.find(
-                (l) => l.item_id === item.id,
-              )
-              return logisticsEntry && logisticsEntry.concluido === true
-            })
-
-            const percentage = Math.round(
-              (completedItems.length / jobItems.length) * 100,
-            )
-            const allCompleted = completedItems.length === jobItems.length
-
-            jobCompletionStatus[jobId] = { completed: allCompleted, percentage }
-          })
-
-          setJobsCompletionStatus(jobCompletionStatus)
-        }
-      } catch (error) {
-        console.error('Error fetching jobs completion status:', error)
-      }
-    },
-    [supabase],
-  )
-
-  // Fetch items for loaded jobs only
-  const fetchItems = useCallback(
-    async (jobIds: string[]) => {
-      if (jobIds.length === 0) return
-
-      setLoading((prev) => ({ ...prev, items: true }))
-      try {
-        // Optimized query: only fetch items for loaded jobs
-        const { data: itemsData, error } = await supabase
-          .from('items_base')
-          .select(
-            `
-          id, folha_obra_id, descricao, codigo, 
-          quantidade, brindes
-        `,
-          )
-          .in('folha_obra_id', jobIds)
-          .limit(ITEMS_FETCH_LIMIT)
-
-        if (error) throw error
-
-        // Fetch designer items data separately for better performance
-        const { data: designerData, error: designerError } = await supabase
-          .from('designer_items')
-          .select('item_id, paginacao')
-          .in('item_id', itemsData?.map((item) => item.id) || [])
-
-        if (designerError) throw designerError
-
-        // Fetch logistics data for completion status
-        const { data: logisticsData, error: logisticsError } = await supabase
-          .from('logistica_entregas')
-          .select('item_id, concluido')
-          .in('item_id', itemsData?.map((item) => item.id) || [])
-
-        if (logisticsError) throw logisticsError
-
-        if (itemsData) {
-          // Merge designer data and logistics data with items data
-          const itemsWithDesigner = itemsData.map((item: any) => {
-            const designer = designerData?.find((d) => d.item_id === item.id)
-            const logistics = logisticsData?.find((l) => l.item_id === item.id)
-            return {
-              id: item.id,
-              folha_obra_id: item.folha_obra_id,
-              descricao: item.descricao ?? '',
-              codigo: item.codigo ?? '',
-              quantidade: item.quantidade ?? null,
-              paginacao: designer?.paginacao ?? false,
-              brindes: item.brindes ?? false,
-              concluido: logistics?.concluido ?? false,
-            }
-          })
-
-          setAllItems((prev) => {
-            // Replace items for these jobs to avoid duplicates
-            const filtered = prev.filter(
-              (item) => !jobIds.includes(item.folha_obra_id),
-            )
-            return [...filtered, ...itemsWithDesigner]
-          })
-
-          // Update designer items state for the color calculations
-          if (designerData) {
-            setAllDesignerItems((prev) => {
-              // Replace designer items for these jobs to avoid duplicates
-              const filtered = prev.filter(
-                (designer) =>
-                  !itemsData.some((item) => item.id === designer.item_id),
-              )
-              return [...filtered, ...designerData]
-            })
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching items:', error)
-        setError('Failed to load production items')
-      } finally {
-        setLoading((prev) => ({ ...prev, items: false }))
-      }
-    },
-    [supabase],
-  )
-
-  // Fetch operacoes for loaded jobs
-  const fetchOperacoes = useCallback(
-    async (jobIds: string[]) => {
-      if (jobIds.length === 0) return
-
-      setLoading((prev) => ({ ...prev, operacoes: true }))
-      try {
-        const { data: operacoesData, error } = await supabase
-          .from('producao_operacoes')
-          .select('id, folha_obra_id, concluido')
-          .in('folha_obra_id', jobIds)
-
-        if (error) throw error
-
-        if (operacoesData) {
-          setAllOperacoes((prev) => {
-            // Replace operacoes for these jobs to avoid duplicates
-            const filtered = prev.filter(
-              (op) => !jobIds.includes(op.folha_obra_id),
-            )
-            return [...filtered, ...operacoesData]
-          })
-        }
-      } catch (error) {
-        console.error('Error fetching operacoes:', error)
-        setError('Failed to load production operations')
-      } finally {
-        setLoading((prev) => ({ ...prev, operacoes: false }))
-      }
-    },
-    [supabase],
-  )
-
-  const fetchDesignerItems = useCallback(
-    async (jobIds: string[]) => {
-      if (jobIds.length === 0) return
-
-      // Get item IDs for these jobs first (exclude pending items)
-      const jobItemIds = allItems
-        .filter(
-          (item) =>
-            jobIds.includes(item.folha_obra_id) && !item.id.startsWith('temp-'),
-        )
-        .map((item) => item.id)
-
-      // If no items are loaded yet, skip designer items fetch
-      // This prevents the race condition on initial page load
-      if (jobItemIds.length === 0) return
-
-      setLoading((prev) => ({ ...prev, operacoes: true })) // Reuse loading state
-      try {
-        const { data: designerData, error } = await supabase
-          .from('designer_items')
-          .select('id, item_id, paginacao')
-          .in('item_id', jobItemIds)
-
-        if (error) throw error
-
-        if (designerData) {
-          setAllDesignerItems((prev) => {
-            // Replace designer items for these jobs to avoid duplicates
-            const filtered = prev.filter(
-              (designer) => !jobItemIds.includes(designer.item_id),
-            )
-            return [...filtered, ...designerData]
-          })
-        }
-      } catch (error) {
-        console.error('Error fetching designer items:', error)
-        setError('Failed to load designer items')
-      } finally {
-        setLoading((prev) => ({ ...prev, operacoes: false }))
-      }
-    },
-    [supabase, allItems],
-  )
 
   // Fetch FO totals for Em curso and Pendentes tabs
   const fetchFoTotals = useCallback(async () => {
@@ -879,62 +569,6 @@ export default function ProducaoPage() {
       console.error('Error fetching FO totals:', error)
     }
   }, [supabase])
-
-  // Fetch individual job total values from PHC BO table
-  const fetchJobTotalValues = useCallback(
-    async (jobIds: string[]) => {
-      if (jobIds.length === 0) return
-
-      try {
-        // Get all jobs with their FO numbers
-        const { data: jobsData, error: jobsError } = await supabase
-          .from('folhas_obras')
-          .select('id, Numero_do_')
-          .in('id', jobIds)
-          .not('Numero_do_', 'is', null)
-
-        if (jobsError) throw jobsError
-
-        // Extract FO numbers
-        const foNumbers = jobsData
-          ?.map((job) => String(job.Numero_do_))
-          .filter((fo) => fo && fo !== 'null' && fo !== 'undefined') || []
-
-        if (foNumbers.length === 0) {
-          setJobTotalValues({})
-          return
-        }
-
-        // Fetch values from PHC BO table
-        const { data: boData, error: boError } = await supabase
-          .schema('phc')
-          .from('bo')
-          .select('document_number, total_value')
-          .eq('document_type', 'Folha de Obra')
-          .in('document_number', foNumbers)
-
-        if (boError) throw boError
-
-        // Create a map of FO number -> total_value
-        const foValueMap: Record<string, number> = {}
-        boData?.forEach((row) => {
-          foValueMap[String(row.document_number)] = Number(row.total_value) || 0
-        })
-
-        // Create a map of job ID -> total_value by matching FO numbers
-        const jobValuesMap: Record<string, number> = {}
-        jobsData?.forEach((job) => {
-          const foValue = foValueMap[String(job.Numero_do_)] || 0
-          jobValuesMap[job.id] = foValue
-        })
-
-        setJobTotalValues(jobValuesMap)
-      } catch (error) {
-        console.error('Error fetching job total values:', error)
-      }
-    },
-    [supabase],
-  )
 
   // Initial data load - only on mount
   useEffect(() => {
