@@ -69,7 +69,12 @@ import {
   PaletesFilters,
 } from '@/types/producao'
 import Combobox from '@/components/ui/Combobox'
-import StockAnalyticsCharts from '@/components/StockAnalyticsCharts'
+// PERFORMANCE: Recharts is lazy loaded (300KB) - only loads when analytics tab is viewed
+import dynamic from 'next/dynamic'
+const StockAnalyticsCharts = dynamic(() => import('@/components/StockAnalyticsCharts'), {
+  loading: () => <div className="p-8 text-center text-muted-foreground">Loading analytics...</div>,
+  ssr: false
+})
 
 interface Palete {
   id: string

@@ -90,7 +90,7 @@ import {
 import LogisticaTableWithCreatable from '@/components/custom/LogisticaTableWithCreatable'
 import { LogisticaRecord, Cliente } from '@/types/logistica'
 import { useLogisticaData } from '@/utils/useLogisticaData'
-import { exportProducaoToExcel } from '@/utils/exportProducaoToExcel'
+// PERFORMANCE: ExcelJS is lazy loaded (500KB) - only loads when user exports
 import { Suspense } from 'react'
 import type {
   Job,
@@ -1572,7 +1572,8 @@ export default function ProducaoPage() {
                           }
                         }
 
-                        // Call the export function with both datasets
+                        // PERFORMANCE: Lazy load ExcelJS (500KB) only when user clicks export
+                        const { exportProducaoToExcel } = await import('@/utils/exportProducaoToExcel')
                         exportProducaoToExcel({
                           filteredRecords: emCursoRows,
                           pendentesRecords: pendentesRows,

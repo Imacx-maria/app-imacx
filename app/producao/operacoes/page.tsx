@@ -58,7 +58,12 @@ import { Card } from '@/components/ui/card'
 import { createBrowserClient } from '@/utils/supabase'
 import DatePicker from '@/components/custom/DatePicker'
 import SimpleNotasPopover from '@/components/custom/SimpleNotasPopover'
-import ProductionAnalyticsCharts from '@/components/ProductionAnalyticsCharts'
+// PERFORMANCE: Recharts is lazy loaded (300KB) - only loads when charts tab is viewed
+import dynamic from 'next/dynamic'
+const ProductionAnalyticsCharts = dynamic(() => import('@/components/ProductionAnalyticsCharts'), {
+  loading: () => <div className="p-8 text-center text-muted-foreground">Loading charts...</div>,
+  ssr: false
+})
 import { useTableData } from '@/hooks/useTableData'
 import { useMaterialsCascading } from '@/hooks/useMaterialsCascading'
 import {
