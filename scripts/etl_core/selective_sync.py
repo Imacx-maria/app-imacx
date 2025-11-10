@@ -43,6 +43,16 @@ def get_one_year_ago_filter():
     current_year_start = _current_year_start_date().isoformat()
     return f"dataobra >= '{current_year_start}'"
 
+
+def get_one_year_ago_filter_bo():
+    """Get filter for BO table - last 1 year and exclude zero-value supplier orders."""
+    base = get_one_year_ago_filter()
+    # Exclude supplier orders with zero total value while keeping other document types untouched.
+    return (
+        f"{base} AND (nmdos <> 'Encomenda a Fornecedor' "
+        "OR COALESCE(ebo_2tvall, 0) <> 0)"
+    )
+
 def get_three_years_ago_filter():
     """Get filter for records from the last 3 years"""
     three_years_ago = (datetime.now() - timedelta(days=1095)).strftime('%Y-%m-%d')
@@ -158,7 +168,7 @@ TABLE_CONFIGS = {
             'ebo_2tvall': 'total_value',      # Clearer: ebo_2tvall → total_value
             'marca': 'last_delivery_date'     # PHC: marca → last_delivery_date (delivery date, stored as "DD.MM.YYYY" in VARCHAR)
         },
-        'filter': get_one_year_ago_filter(),  # Last 1 year from today (dynamic)
+        'filter': get_one_year_ago_filter_bo,  # Last 1 year & no zero-value supplier orders
         'description': 'Work Orders/Budgets (Last 1 Year)',
         'primary_key': 'document_id',
         'source_date_column': 'dataobra',

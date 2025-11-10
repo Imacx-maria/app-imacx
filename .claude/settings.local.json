@@ -52,7 +52,9 @@
       "Bash(powershell -Command:*)",
       "Bash(tree:*)",
       "Bash(copy \"app\\stocks\\page.tsx\" \"app\\stocks\\gestao\\page.tsx\")",
-      "Bash(git tag:*)"
+      "Bash(git tag:*)",
+      "Bash(npm install:*)",
+      "Bash(pnpm add:*)"
     ],
     "deny": [],
     "ask": []
