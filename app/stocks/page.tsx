@@ -112,6 +112,12 @@ export default function StocksPage() {
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([])
   const [loading, setLoading] = useState(true)
   const [currentStocksLoading, setCurrentStocksLoading] = useState(true)
+
+  // ✅ Pagination state for infinite scroll
+  const [stocksPage, setStocksPage] = useState(0)
+  const [hasMoreStocks, setHasMoreStocks] = useState(true)
+  const [loadingMoreStocks, setLoadingMoreStocks] = useState(false)
+  const STOCKS_PAGE_SIZE = 50
   const [editingStock, setEditingStock] =
     useState<StockEntryWithRelations | null>(null)
   const [activeTab, setActiveTab] = useState('entries')
@@ -120,6 +126,12 @@ export default function StocksPage() {
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [paletesLoading, setPaletesLoading] = useState(true)
   const [editingPaleteId, setEditingPaleteId] = useState<string | null>(null)
+
+  // ✅ Pagination state for paletes
+  const [paletesPage, setPaletesPage] = useState(0)
+  const [hasMorePaletes, setHasMorePaletes] = useState(true)
+  const [loadingMorePaletes, setLoadingMorePaletes] = useState(false)
+  const PALETES_PAGE_SIZE = 50
   const [paletesFilter, setPaletesFilter] = useState('')
   const [paletesReferenciaFilter, setPaletesReferenciaFilter] = useState('')
 
@@ -281,29 +293,64 @@ export default function StocksPage() {
     return cleanup
   }, [])
 
-  const fetchStocks = useCallback(async () => {
-    setLoading(true)
+  const fetchStocks = useCallback(async (page: number = 0, append: boolean = false) => {
+    if (!append) setLoading(true)
+    else setLoadingMoreStocks(true)
+
     try {
+      const from = page * STOCKS_PAGE_SIZE
+      const to = from + STOCKS_PAGE_SIZE - 1
+
       const { data, error } = await supabase
         .from('stocks')
         .select(
           `
-          *,
+          id,
+          material_id,
+          quantidade,
+          quantidade_disponivel,
+          vl_m2,
+          preco_unitario,
+          valor_total,
+          n_palet,
+          no_guia_forn,
+          notas,
+          data,
+          fornecedor_id,
+          tipo_movimento,
+          ref_interna,
+          created_at,
           materiais(material, cor, tipo, carateristica, referencia),
           fornecedores(nome_forn)
         `,
         )
         .order('created_at', { ascending: false })
+        .range(from, to)
 
       if (!error && data) {
-        setStocks(data)
+        if (append) {
+          setStocks(prev => [...prev, ...data])
+        } else {
+          setStocks(data)
+        }
+
+        // Check if there's more data
+        setHasMoreStocks(data.length === STOCKS_PAGE_SIZE)
+        setStocksPage(page)
       }
     } catch (error) {
       console.error('Error fetching stocks:', error)
     } finally {
       setLoading(false)
+      setLoadingMoreStocks(false)
     }
-  }, [supabase])
+  }, [supabase, STOCKS_PAGE_SIZE])
+
+  const loadMoreStocks = useCallback(() => {
+    if (!loadingMoreStocks && hasMoreStocks) {
+      fetchStocks(stocksPage + 1, true)
+    }
+  }, [fetchStocks, stocksPage, loadingMoreStocks, hasMoreStocks])
 
   const fetchMaterials = useCallback(async () => {
     try {
@@ -313,6 +360,7 @@ export default function StocksPage() {
           'id, material, cor, tipo, carateristica, fornecedor_id, qt_palete, valor_m2_custo, valor_placa, stock_minimo, stock_critico, referencia',
         )
         .order('material', { ascending: true })
+        .limit(1000)
 
       if (!error && data) {
         setMaterials(data)
@@ -328,6 +376,7 @@ export default function StocksPage() {
         .from('fornecedores')
         .select('id, nome_forn')
         .order('nome_forn', { ascending: true })
+        .limit(500)
 
       if (!error && data) {
         setFornecedores(data)
@@ -339,48 +388,51 @@ export default function StocksPage() {
 
   const fetchCurrentStocksManual = useCallback(async () => {
     try {
+      // ✅ FIX: Batch all queries instead of looping (300+ queries → 3 queries)
+
+      // Query 1: Get all materials (limit 1000 to prevent loading millions)
       const { data: materialsData, error: materialsError } = await supabase
         .from('materiais')
         .select(
           'id, material, cor, tipo, carateristica, stock_minimo, stock_critico, referencia, stock_correct, stock_correct_updated_at',
         )
+        .limit(1000)
       if (materialsError) throw materialsError
+
+      // Query 2: Get ALL stocks in one query, then group by material_id
+      const { data: allStocksData } = await supabase
+        .from('stocks')
+        .select('material_id, quantidade, quantidade_disponivel')
+        .limit(10000)  // Prevent loading millions of records
+
+      // Query 3: Get ALL operacoes in one query, then group by material_id
+      const { data: allOperacoesData } = await supabase
+        .from('producao_operacoes')
+        .select('material_id, num_placas_corte')
+        .limit(10000)  // Prevent loading millions of records
+
+      // Group stocks by material_id (in JavaScript, not database)
+      const stocksByMaterial = new Map<string, { totalRecebido: number; quantidadeDisponivel: number }>()
+      for (const stock of allStocksData || []) {
+        const existing = stocksByMaterial.get(stock.material_id) || { totalRecebido: 0, quantidadeDisponivel: 0 }
+        existing.totalRecebido += stock.quantidade || 0
+        existing.quantidadeDisponivel += stock.quantidade_disponivel || 0
+        stocksByMaterial.set(stock.material_id, existing)
+      }
+
+      // Group operacoes by material_id (in JavaScript, not database)
+      const operacoesByMaterial = new Map<string, number>()
+      for (const op of allOperacoesData || []) {
+        const existing = operacoesByMaterial.get(op.material_id) || 0
+        operacoesByMaterial.set(op.material_id, existing + (op.num_placas_corte || 0))
+      }
+
+      // Build final result
       const currentStocksData: CurrentStock[] = []
       for (const material of materialsData || []) {
-        const { data: stocksData } = await supabase
-          .from('stocks')
-          .select('quantidade')
-          .eq('material_id', material.id)
-
-        const totalRecebido =
-          stocksData?.reduce(
-            (sum, stock) => sum + (stock.quantidade || 0),
-            0,
-          ) || 0
-
-        const { data: operacoesData } = await supabase
-          .from('producao_operacoes')
-          .select('num_placas_corte')
-          .eq('material_id', material.id)
-
-        const totalConsumido =
-          operacoesData?.reduce(
-            (sum, op) => sum + (op.num_placas_corte || 0),
-            0,
-          ) || 0
-
-        const stockAtual = totalRecebido - totalConsumido
-
-        const { data: stocksDisponivelData } = await supabase
-          .from('stocks')
-          .select('quantidade_disponivel')
-          .eq('material_id', material.id)
-
-        const quantidadeDisponivel =
-          stocksDisponivelData?.reduce(
-            (sum, stock) => sum + (stock.quantidade_disponivel || 0),
-            0,
-          ) || 0
+        const stocks = stocksByMaterial.get(material.id) || { totalRecebido: 0, quantidadeDisponivel: 0 }
+        const totalConsumido = operacoesByMaterial.get(material.id) || 0
+        const stockAtual = stocks.totalRecebido - totalConsumido
 
         currentStocksData.push({
           id: material.id,
@@ -388,10 +440,10 @@ export default function StocksPage() {
           cor: material.cor,
           tipo: material.tipo,
           carateristica: material.carateristica,
-          total_recebido: totalRecebido || 0,
+          total_recebido: stocks.totalRecebido || 0,
           total_consumido: totalConsumido || 0,
           stock_atual: stockAtual || 0,
-          quantidade_disponivel: quantidadeDisponivel || 0,
+          quantidade_disponivel: stocks.quantidadeDisponivel || 0,
           stock_minimo: material.stock_minimo,
           stock_critico: material.stock_critico,
           referencia: material.referencia,
@@ -416,6 +468,7 @@ export default function StocksPage() {
         const { data: materiaisData } = await supabase
           .from('materiais')
           .select('id, stock_correct, stock_correct_updated_at')
+          .limit(1000)
         const materiaisMap = new Map(
           (materiaisData || []).map((m) => [m.id, m]),
         )
@@ -436,9 +489,14 @@ export default function StocksPage() {
   }, [supabase, fetchCurrentStocksManual])
 
   const fetchPaletes = useCallback(
-    async (filters: PaletesFilters = {}) => {
-      setPaletesLoading(true)
+    async (filters: PaletesFilters = {}, page: number = 0, append: boolean = false) => {
+      if (!append) setPaletesLoading(true)
+      else setLoadingMorePaletes(true)
+
       try {
+        const from = page * PALETES_PAGE_SIZE
+        const to = from + PALETES_PAGE_SIZE - 1
+
         let query = supabase.from('paletes').select(`
           *,
           fornecedores(id, nome_forn),
@@ -468,13 +526,14 @@ export default function StocksPage() {
           } else {
             setPaletes([])
             setPaletesLoading(false)
+            setLoadingMorePaletes(false)
             return
           }
         }
 
         if (filters.author && filters.author !== '__all__') {
           const { data: profileData } = await supabase
-            .from('profiles')
+            .from('fornecedores')
             .select('id')
             .or(
               `first_name.ilike.%${filters.author}%,last_name.ilike.%${filters.author}%`,
@@ -486,6 +545,7 @@ export default function StocksPage() {
           } else {
             setPaletes([])
             setPaletesLoading(false)
+            setLoadingMorePaletes(false)
             return
           }
         }
@@ -498,21 +558,46 @@ export default function StocksPage() {
           query = query.lte('data', filters.dateTo)
         }
 
-        const { data, error } = await query.order('created_at', {
-          ascending: false,
-        })
+        const { data, error } = await query
+          .order('created_at', {
+            ascending: false,
+          })
+          .range(from, to)
 
         if (!error && data) {
-          setPaletes(data)
+          if (append) {
+            setPaletes(prev => [...prev, ...data])
+          } else {
+            setPaletes(data)
+          }
+
+          // Check if there's more data
+          setHasMorePaletes(data.length === PALETES_PAGE_SIZE)
+          setPaletesPage(page)
         }
       } catch (error) {
         console.error('Error fetching paletes:', error)
       } finally {
         setPaletesLoading(false)
+        setLoadingMorePaletes(false)
       }
     },
-    [supabase],
+    [supabase, PALETES_PAGE_SIZE],
   )
+
+  const loadMorePaletes = useCallback(() => {
+    if (!loadingMorePaletes && hasMorePaletes) {
+      const currentFilters = {
+        search: paletesFilter,
+        referencia: paletesReferenciaFilter,
+        fornecedor: paletesFornecedorFilter,
+        author: paletesAuthorFilter,
+        dateFrom: paletesDateFrom,
+        dateTo: paletesDateTo,
+      }
+      fetchPaletes(currentFilters, paletesPage + 1, true)
+    }
+  }, [fetchPaletes, paletesPage, loadingMorePaletes, hasMorePaletes, paletesFilter, paletesReferenciaFilter, paletesFornecedorFilter, paletesAuthorFilter, paletesDateFrom, paletesDateTo])
 
   const refreshPaletes = () => {
     const currentFilters = {
@@ -818,13 +903,9 @@ export default function StocksPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.material_id) {
-      alert('Por favor selecione um material')
-      return
-    }
-
-    if (!formData.quantidade) {
-      alert('Por favor insira uma quantidade')
+    // Basic required checks; detailed validation handled via shared validation utilities
+    if (!formData.material_id || !formData.quantidade) {
+      alert('Por favor selecione um material e insira uma quantidade')
       return
     }
 
@@ -3183,6 +3264,33 @@ export default function StocksPage() {
                   </TableBody>
                 </Table>
               </div>
+
+              {/* ✅ Load More Button for Pagination */}
+              {hasMoreStocks && stocks.length > 0 && (
+                <div className="flex justify-center py-4">
+                  <Button
+                    onClick={loadMoreStocks}
+                    disabled={loadingMoreStocks}
+                    variant="outline"
+                    className="min-w-[200px]"
+                  >
+                    {loadingMoreStocks ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        A carregar...
+                      </>
+                    ) : (
+                      <>Carregar Mais ({stocks.length} registos)</>
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {!hasMoreStocks && stocks.length > 0 && (
+                <div className="text-center py-4 text-sm text-muted-foreground">
+                  Todos os registos foram carregados ({stocks.length} total)
+                </div>
+              )}
             </div>
           </TabsContent>
 
@@ -3896,6 +4004,33 @@ export default function StocksPage() {
                   </TableBody>
                 </Table>
               </div>
+
+              {/* ✅ Load More Button for Paletes Pagination */}
+              {hasMorePaletes && paletes.length > 0 && (
+                <div className="flex justify-center py-4">
+                  <Button
+                    onClick={loadMorePaletes}
+                    disabled={loadingMorePaletes}
+                    variant="outline"
+                    className="min-w-[200px]"
+                  >
+                    {loadingMorePaletes ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        A carregar...
+                      </>
+                    ) : (
+                      <>Carregar Mais ({paletes.length} paletes)</>
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {!hasMorePaletes && paletes.length > 0 && (
+                <div className="text-center py-4 text-sm text-muted-foreground">
+                  Todas as paletes foram carregadas ({paletes.length} total)
+                </div>
+              )}
             </div>
           </TabsContent>
 

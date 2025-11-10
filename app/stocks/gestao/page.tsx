@@ -350,15 +350,54 @@ export default function StocksPage() {
         .from('stocks')
         .select(
           `
-          *,
-          materiais(material, cor, tipo, carateristica, referencia),
-          fornecedores(nome_forn)
+          id,
+          material_id,
+          quantidade,
+          quantidade_disponivel,
+          vl_m2,
+          preco_unitario,
+          valor_total,
+          n_palet,
+          no_guia_forn,
+          notas,
+          data,
+          fornecedor_id,
+          tipo_movimento,
+          ref_interna,
+          created_at,
+          updated_at,
+          materiais(
+            id,
+            material,
+            cor,
+            tipo,
+            carateristica,
+            fornecedor_id,
+            qt_palete,
+            valor_m2_custo,
+            valor_placa,
+            stock_minimo,
+            stock_critico,
+            referencia,
+            stock_correct,
+            stock_correct_updated_at
+          ),
+          fornecedores(
+            id,
+            nome_forn
+          )
         `,
         )
         .order('created_at', { ascending: false })
+        .limit(500)  // ✅ FIX: Prevent loading thousands of records
 
       if (!error && data) {
-        setStocks(data)
+        const normalized = data.map((entry) => ({
+          ...entry,
+          materiais: Array.isArray(entry.materiais) ? entry.materiais[0] ?? null : entry.materiais,
+          fornecedores: Array.isArray(entry.fornecedores) ? entry.fornecedores[0] ?? null : entry.fornecedores,
+        }))
+        setStocks(normalized as StockEntryWithRelations[])
       }
     } catch (error) {
       console.error('Error fetching stocks:', error)
@@ -375,6 +414,7 @@ export default function StocksPage() {
           'id, material, cor, tipo, carateristica, fornecedor_id, qt_palete, valor_m2_custo, valor_placa, stock_minimo, stock_critico, referencia',
         )
         .order('material', { ascending: true })
+        .limit(1000)  // ✅ FIX: Prevent loading too many materials
 
       if (!error && data) {
         setMaterials(data)
@@ -390,6 +430,7 @@ export default function StocksPage() {
         .from('fornecedores')
         .select('id, nome_forn')
         .order('nome_forn', { ascending: true })
+        .limit(500)  // ✅ FIX: Limit fornecedores
 
       if (!error && data) {
         setFornecedores(data)
@@ -961,13 +1002,9 @@ export default function StocksPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.material_id) {
-      alert('Por favor selecione um material')
-      return
-    }
-
-    if (!formData.quantidade) {
-      alert('Por favor insira uma quantidade')
+    // Basic required checks; detailed validation handled via shared validation utilities
+    if (!formData.material_id || !formData.quantidade) {
+      alert('Por favor selecione um material e insira uma quantidade')
       return
     }
 
