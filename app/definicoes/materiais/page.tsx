@@ -807,10 +807,10 @@ export default function MateriaisPage() {
                     size="icon"
                     onClick={() =>
                       fetchMateriais({
-                        tipoFilter: effectiveTipoFilter,
-                        materialFilter: effectiveMaterialFilter,
-                        caracteristicaFilter: effectiveCaracteristicaFilter,
-                        corFilter: effectiveCorFilter,
+                        tipoFilter: tipoFilter,
+                        materialFilter: materialFilter,
+                        caracteristicaFilter: caracteristicaFilter,
+                        corFilter: corFilter,
                       })
                     }
                   >

@@ -8,6 +8,7 @@ export const ROLES = {
 export type RoleId = (typeof ROLES)[keyof typeof ROLES]
 
 export const PERMISSIONS = {
+  PAGE_ALL: 'page:*',
   PAGE_DASHBOARD: 'page:dashboard',
   PAGE_STOCKS: 'page:stocks',
   PAGE_STOCKS_GESTAO: 'page:stocks/gestao',

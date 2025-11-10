@@ -75,7 +75,7 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
           ? data.actionPermissions
           : []
 
-        const mappedRoles: RoleId[] = nextRoles.includes('7c53a7a2-ab07-4ba3-8c1a-7e8e215cadf0')
+        const mappedRoles: RoleId[] = (nextRoles as string[]).includes('7c53a7a2-ab07-4ba3-8c1a-7e8e215cadf0')
           ? [ROLES.ADMIN]
           : (nextRoles as RoleId[])
 
