@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
     const ghWorkflowMap: Record<string, string> = {
       today_clients: 'today-clients-sync.yml',
       today_bo_bi: 'today-bo-bi-sync.yml',
+      today_fl: 'today-fl-sync.yml',
       today_all: 'today-all-sync.yml',
       fast_all: ghWorkflowFile,
     }
@@ -178,6 +179,7 @@ export async function POST(req: NextRequest) {
         fast_all: 'run_fast_all_tables_sync.py',
         today_clients: 'run_today_clients.py',
         today_bo_bi: 'run_today_bo_bi.py',
+        today_fl: 'run_today_fl.py',
         // today_all archived; route to fast_all which is short and safe
         today_all: 'run_fast_all_tables_sync.py',
       }

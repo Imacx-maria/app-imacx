@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createBrowserClient } from '@/utils/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { FilterInput } from '@/components/custom/FilterInput'
 import { Label } from '@/components/ui/label'
 import {
   Table,
@@ -914,47 +915,55 @@ export default function DesignerFlow() {
             {/* Filters */}
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 flex-1">
-                <Input
-                  placeholder="FO"
+                <FilterInput
                   value={foFilter}
-                  onChange={(e) => setFoFilter(e.target.value)}
+                  onChange={setFoFilter}
+                  onFilterChange={() => {}}
+                  placeholder="FO"
+                  minChars={3}
+                  debounceMs={300}
                   disabled={loading}
                   className="h-10 w-[110px] rounded-none"
-                  maxLength={6}
-                  title="Mínimo 3 caracteres para filtrar"
                 />
-                <Input
-                  placeholder="ORC"
+                <FilterInput
                   value={orcFilter}
-                  onChange={(e) => setOrcFilter(e.target.value)}
+                  onChange={setOrcFilter}
+                  onFilterChange={() => {}}
+                  placeholder="ORC"
+                  minChars={3}
+                  debounceMs={300}
                   disabled={loading}
                   className="h-10 w-[110px] rounded-none"
-                  maxLength={6}
-                  title="Mínimo 3 caracteres para filtrar"
                 />
-                <Input
-                  placeholder="Campanha"
+                <FilterInput
                   value={campaignFilter}
-                  onChange={(e) => setCampaignFilter(e.target.value)}
+                  onChange={setCampaignFilter}
+                  onFilterChange={() => {}}
+                  placeholder="Campanha"
+                  minChars={3}
+                  debounceMs={300}
                   disabled={loading}
                   className="h-10 flex-1 rounded-none"
-                  title="Mínimo 3 caracteres para filtrar"
                 />
-                <Input
-                  placeholder="Item"
+                <FilterInput
                   value={itemFilter}
-                  onChange={(e) => setItemFilter(e.target.value)}
+                  onChange={setItemFilter}
+                  onFilterChange={() => {}}
+                  placeholder="Item"
+                  minChars={3}
+                  debounceMs={300}
                   disabled={loading}
                   className="h-10 flex-1 rounded-none"
-                  title="Mínimo 3 caracteres para filtrar"
                 />
-                <Input
-                  placeholder="Código"
+                <FilterInput
                   value={codigoFilter}
-                  onChange={(e) => setCodigoFilter(e.target.value)}
+                  onChange={setCodigoFilter}
+                  onFilterChange={() => {}}
+                  placeholder="Código"
+                  minChars={3}
+                  debounceMs={300}
                   disabled={loading}
                   className="h-10 flex-1 rounded-none"
-                  title="Mínimo 3 caracteres para filtrar"
                 />
 
                 <TooltipProvider>

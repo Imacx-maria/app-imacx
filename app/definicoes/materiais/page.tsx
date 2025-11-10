@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createBrowserClient } from '@/utils/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { FilterInput } from '@/components/custom/FilterInput'
 import { Label } from '@/components/ui/label'
 import {
   Table,
@@ -28,6 +29,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Plus,
   Trash2,
@@ -104,6 +112,7 @@ export default function MateriaisPage() {
     fornecedor_id?: string | null
     ORC?: boolean | null
   }>({})
+  const [tipoFilter, setTipoFilter] = useState('')
   const [materialFilter, setMaterialFilter] = useState('')
   const [caracteristicaFilter, setCaracteristicaFilter] = useState('')
   const [corFilter, setCorFilter] = useState('')
@@ -124,14 +133,12 @@ export default function MateriaisPage() {
   const [availableTipos, setAvailableTipos] = useState<string[]>([])
 
   // Debounced filter values for performance
+  const debouncedTipoFilter = useDebounce(tipoFilter, 300)
   const debouncedMaterialFilter = useDebounce(materialFilter, 300)
   const debouncedCaracteristicaFilter = useDebounce(caracteristicaFilter, 300)
   const debouncedCorFilter = useDebounce(corFilter, 300)
 
-  // Effective filters - only activate with 3+ characters
-  const effectiveMaterialFilter = debouncedMaterialFilter.trim().length >= 3 ? debouncedMaterialFilter : ''
-  const effectiveCaracteristicaFilter = debouncedCaracteristicaFilter.trim().length >= 3 ? debouncedCaracteristicaFilter : ''
-  const effectiveCorFilter = debouncedCorFilter.trim().length >= 3 ? debouncedCorFilter : ''
+  // Effective filters - only activate with 3+ characters (or any for tipo since values are short)
 
   const supabase = createBrowserClient()
 
@@ -139,6 +146,7 @@ export default function MateriaisPage() {
   const fetchMateriais = useCallback(
     async (
       filters: {
+        tipoFilter?: string
         materialFilter?: string
         caracteristicaFilter?: string
         corFilter?: string
@@ -149,6 +157,10 @@ export default function MateriaisPage() {
         let query = supabase.from('materiais').select('*')
 
         // Apply filters at database level
+        if (filters.tipoFilter?.trim()) {
+          query = query.ilike('tipo', `%${filters.tipoFilter?.trim()}%`)
+        }
+
         if (filters.materialFilter?.trim()) {
           query = query.ilike('material', `%${filters.materialFilter?.trim()}%`)
         }
@@ -211,14 +223,16 @@ export default function MateriaisPage() {
   // Trigger search when filters change (debounced)
   useEffect(() => {
     fetchMateriais({
-      materialFilter: effectiveMaterialFilter,
-      caracteristicaFilter: effectiveCaracteristicaFilter,
-      corFilter: effectiveCorFilter,
+      tipoFilter: tipoFilter,
+      materialFilter: materialFilter,
+      caracteristicaFilter: caracteristicaFilter,
+      corFilter: corFilter,
     })
   }, [
-    effectiveMaterialFilter,
-    effectiveCaracteristicaFilter,
-    effectiveCorFilter,
+    tipoFilter,
+    materialFilter,
+    caracteristicaFilter,
+    corFilter,
     fetchMateriais,
   ])
 
@@ -226,6 +240,7 @@ export default function MateriaisPage() {
   useEffect(() => {
     if (sortColumn) {
       fetchMateriais({
+        tipoFilter: effectiveTipoFilter,
         materialFilter: effectiveMaterialFilter,
         caracteristicaFilter: effectiveCaracteristicaFilter,
         corFilter: effectiveCorFilter,
@@ -234,6 +249,7 @@ export default function MateriaisPage() {
   }, [
     sortColumn,
     sortDirection,
+    effectiveTipoFilter,
     effectiveMaterialFilter,
     effectiveCaracteristicaFilter,
     effectiveCorFilter,
@@ -262,6 +278,21 @@ export default function MateriaisPage() {
 
   useEffect(() => {
     const fetchCascadingData = async () => {
+      // Fetch distinct tipos for filter dropdown
+      const { data: tipoData } = await supabase
+        .from('materiais')
+        .select('tipo')
+        .not('tipo', 'is', null)
+
+      if (tipoData) {
+        const tipoSet = new Set(
+          tipoData
+            .map((item) => item.tipo?.trim().toUpperCase())
+            .filter(Boolean),
+        )
+        setAvailableTipos(Array.from(tipoSet).sort())
+      }
+
       // Fetch distinct materials
       const { data: materialData } = await supabase
         .from('materiais')
@@ -757,13 +788,13 @@ export default function MateriaisPage() {
                     variant="outline"
                     size="icon"
                     onClick={() => {
+                      setTipoFilter('')
                       setMaterialFilter('')
                       setCaracteristicaFilter('')
                       setCorFilter('')
                     }}
                   >
-                    <X className="h-4 w-4" />
-                  </Button>
+                    <X className="h-4 w-4" />                  </Button>
                 </TooltipTrigger>
                 <TooltipContent>Limpar Filtros</TooltipContent>
               </Tooltip>
@@ -776,6 +807,7 @@ export default function MateriaisPage() {
                     size="icon"
                     onClick={() =>
                       fetchMateriais({
+                        tipoFilter: effectiveTipoFilter,
                         materialFilter: effectiveMaterialFilter,
                         caracteristicaFilter: effectiveCaracteristicaFilter,
                         corFilter: effectiveCorFilter,
@@ -824,64 +856,48 @@ export default function MateriaisPage() {
           </div>
         </div>
 
-        {/* Filter bar - standardized */}
+        {/* Filter bar - standardized using FilterInput (3+ chars, debounced) */}
         <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <Select value={tipoFilter} onValueChange={(value) => setTipoFilter(value)}>
+              <SelectTrigger className="h-10 uppercase">
+                <SelectValue placeholder="Selecionar Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableTipos.map((tipo) => (
+                  <SelectItem key={tipo} value={tipo} className="uppercase">
+                    {tipo}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="relative flex-1">
-            <Input
-              placeholder="Material"
+            <FilterInput
               value={materialFilter}
-              onChange={(e) => setMaterialFilter(e.target.value)}
-              className="h-10 pr-10"
-              title="Mínimo 3 caracteres para filtrar"
+              onChange={setMaterialFilter}
+              onFilterChange={(effective) => setMaterialFilter(effective)}
+              placeholder="Material"
+              className="h-10"
             />
-            {materialFilter && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                onClick={() => setMaterialFilter('')}
-              >
-                <XSquare className="h-4 w-4" />
-              </Button>
-            )}
           </div>
           <div className="relative flex-1">
-            <Input
-              placeholder="Características"
+            <FilterInput
               value={caracteristicaFilter}
-              onChange={(e) => setCaracteristicaFilter(e.target.value)}
-              className="h-10 pr-10"
-              title="Mínimo 3 caracteres para filtrar"
+              onChange={setCaracteristicaFilter}
+              onFilterChange={(effective) => setCaracteristicaFilter(effective)}
+              placeholder="Características"
+              className="h-10"
             />
-            {caracteristicaFilter && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                onClick={() => setCaracteristicaFilter('')}
-              >
-                <XSquare className="h-4 w-4" />
-              </Button>
-            )}
           </div>
           <div className="relative flex-1">
-            <Input
-              placeholder="Cor"
+            <FilterInput
               value={corFilter}
-              onChange={(e) => setCorFilter(e.target.value)}
-              className="h-10 pr-10"
-              title="Mínimo 3 caracteres para filtrar"
+              onChange={setCorFilter}
+              onFilterChange={(effective) => setCorFilter(effective)}
+              placeholder="Cor"
+              className="h-10"
             />
-            {corFilter && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                onClick={() => setCorFilter('')}
-              >
-                <XSquare className="h-4 w-4" />
-              </Button>
-            )}
           </div>
           <TooltipProvider>
             <Tooltip>
@@ -891,9 +907,11 @@ export default function MateriaisPage() {
                   size="icon"
                   className="h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
                   onClick={() => {
+                    setTipoFilter('')
                     setMaterialFilter('')
                     setCaracteristicaFilter('')
                     setCorFilter('')
+                    fetchMateriais()
                   }}
                 >
                   <X className="h-4 w-4" />
@@ -911,9 +929,10 @@ export default function MateriaisPage() {
                   className="h-10 w-10"
                   onClick={() =>
                     fetchMateriais({
-                      materialFilter: effectiveMaterialFilter,
-                      caracteristicaFilter: effectiveCaracteristicaFilter,
-                      corFilter: effectiveCorFilter,
+                      tipoFilter,
+                      materialFilter,
+                      caracteristicaFilter,
+                      corFilter,
                     })
                   }
                 >

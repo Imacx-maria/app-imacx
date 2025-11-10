@@ -2,262 +2,132 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { createBrowserClient } from '@/utils/supabase'
+import { ROLES, type RoleId, type PermissionId } from '@/types/permissions'
 
 interface PermissionsContextType {
-  permissions: string[]
-  pagePermissions: string[]
-  role: string | null
+  roles: RoleId[]
+  pagePermissions: PermissionId[]
+  actionPermissions: PermissionId[]
   loading: boolean
-  isAdmin: boolean
-  isDesigner: boolean
-  hasPermission: (permission: string) => boolean
-  hasRole: (roleId: string) => boolean
+  hasRole: (role: RoleId) => boolean
+  hasAnyRole: (roles: RoleId[]) => boolean
+  hasPermission: (perm: PermissionId) => boolean
+  hasAllPermissions: (perms: PermissionId[]) => boolean
   canAccessPage: (page: string) => boolean
 }
 
 const PermissionsContext = createContext<PermissionsContextType>({
-  permissions: [],
+  roles: [],
   pagePermissions: [],
-  role: null,
+  actionPermissions: [],
   loading: true,
-  isAdmin: false,
-  isDesigner: false,
-  hasPermission: () => false,
   hasRole: () => false,
+  hasAnyRole: () => false,
+  hasPermission: () => false,
+  hasAllPermissions: () => false,
   canAccessPage: () => false,
 })
 
 export const usePermissions = () => useContext(PermissionsContext)
 
-const DESIGNER_ROLE_ID = '3132fced-ae83-4f56-9d15-c92c3ef6b6ae'
-const ADMIN_ROLE_ID = '7c53a7a2-ab07-4ba3-8c1a-7e8e215cadf0'
-
-export function PermissionsProvider({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const [permissions, setPermissions] = useState<string[]>([])
-  const [pagePermissions, setPagePermissions] = useState<string[]>([])
-  const [role, setRole] = useState<string | null>(null)
+export function PermissionsProvider({ children }: { children: React.ReactNode }) {
+  const [roles, setRoles] = useState<RoleId[]>([])
+  const [pagePermissions, setPagePermissions] = useState<PermissionId[]>([])
+  const [actionPermissions, setActionPermissions] = useState<PermissionId[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const supabase = createBrowserClient()
-    let isMounted = true
-    let retryTimeout: NodeJS.Timeout | null = null
-    let activeController: AbortController | null = null
 
-    const MAX_RETRIES = 5
-    const RETRY_DELAY_MS = 800
-
-    const clearRetry = () => {
-      if (retryTimeout) {
-        clearTimeout(retryTimeout)
-        retryTimeout = null
-      }
-    }
-
-    const cancelActiveRequest = () => {
-      if (activeController) {
-        activeController.abort()
-        activeController = null
-      }
-    }
-
-    const fallbackToDashboard = () => {
-      cancelActiveRequest()
-      clearRetry()
-      if (!isMounted) return
-      setPermissions([])
-      setPagePermissions(['dashboard'])
-      setRole(null)
-      setLoading(false)
-    }
-
-    const scheduleRetry = (nextAttempt: number, reason?: string) => {
-      if (!isMounted) return
-      clearRetry()
-      retryTimeout = setTimeout(() => {
-        fetchPermissions(nextAttempt).catch((error) => {
-          console.error('[PermissionsProvider] Retry attempt failed', error)
-        })
-      }, RETRY_DELAY_MS)
-      if (reason) {
-        console.warn(
-          '[PermissionsProvider] Scheduling retry due to:',
-          reason,
-          'attempt',
-          nextAttempt,
-        )
-      }
-    }
-
-    const fetchPermissions = async (attempt = 0): Promise<void> => {
-      console.log('[PermissionsProvider] Fetch attempt', attempt)
-
+    const fetchPermissions = async () => {
+      setLoading(true)
       try {
-        if (!isMounted) {
-          console.log('[PermissionsProvider] Unmounted before fetch started')
+        const res = await fetch('/api/permissions/me', { cache: 'no-store' })
+
+        if (res.status === 401) {
+          setRoles([])
+          setPagePermissions([])
+          setActionPermissions([])
+          setLoading(false)
           return
         }
 
-        if (attempt === 0) {
-          setLoading(true)
-        }
-
-        cancelActiveRequest()
-        const controller = new AbortController()
-        activeController = controller
-
-        const response = await fetch('/api/permissions/me', {
-          cache: 'no-store',
-          signal: controller.signal,
-        })
-
-        if (!isMounted || controller.signal.aborted) {
-          console.log(
-            '[PermissionsProvider] Ignoring response - unmounted or aborted',
-          )
+        if (!res.ok) {
+          console.error('[PermissionsProvider] permissions error', res.status)
+          setRoles([])
+          setPagePermissions([])
+          setActionPermissions([])
+          setLoading(false)
           return
         }
 
-        if (response.status === 401) {
-          console.log('[PermissionsProvider] No session from API response')
-          fallbackToDashboard()
-          return
+        const data = await res.json() as {
+          roles?: RoleId[]
+          pagePermissions?: PermissionId[]
+          actionPermissions?: PermissionId[]
         }
 
-        if (!response.ok) {
-          throw new Error(
-            `Permissions API responded with status ${response.status}`,
-          )
-        }
-
-        const payload = (await response.json()) as {
-          roleId: string | null
-          permissions: string[]
-          shouldRetry?: boolean
-          reason?: string
-        }
-
-        const normalizedPermissions = Array.isArray(payload.permissions)
-          ? payload.permissions.map((p) => p.toLowerCase())
+        const nextRoles = Array.isArray(data.roles) ? data.roles : []
+        const nextPagePerms = Array.isArray(data.pagePermissions)
+          ? data.pagePermissions
+          : []
+        const nextActionPerms = Array.isArray(data.actionPermissions)
+          ? data.actionPermissions
           : []
 
-        if (
-          (payload.shouldRetry ||
-            !payload.roleId ||
-            normalizedPermissions.length === 0) &&
-          attempt < MAX_RETRIES
-        ) {
-          scheduleRetry(attempt + 1, payload.reason)
-          return
-        }
+        const mappedRoles: RoleId[] = nextRoles.includes('7c53a7a2-ab07-4ba3-8c1a-7e8e215cadf0')
+          ? [ROLES.ADMIN]
+          : (nextRoles as RoleId[])
 
-        if (!payload.roleId || normalizedPermissions.length === 0) {
-          console.warn(
-            '[PermissionsProvider] Permissions unavailable after retries, falling back to dashboard',
-            payload.reason,
-          )
-          fallbackToDashboard()
-          return
-        }
-
-        clearRetry()
-        activeController = null
-        setRole(payload.roleId)
-        setPermissions(normalizedPermissions)
-        setPagePermissions(normalizedPermissions)
+        setRoles(mappedRoles)
+        setPagePermissions(nextPagePerms)
+        setActionPermissions(nextActionPerms)
+      } catch (e) {
+        console.error('[PermissionsProvider] fetch failed', e)
+        setRoles([])
+        setPagePermissions([])
+        setActionPermissions([])
+      } finally {
         setLoading(false)
-        console.log(
-          '[PermissionsProvider] Permissions loaded',
-          normalizedPermissions,
-        )
-      } catch (error) {
-        if (!isMounted) {
-          console.log('[PermissionsProvider] Error after unmount ignored')
-          return
-        }
-
-        if (error instanceof DOMException && error.name === 'AbortError') {
-          console.log('[PermissionsProvider] Fetch aborted')
-          return
-        }
-
-        console.error('[PermissionsProvider] Exception in fetchPermissions', error)
-
-        if (attempt < MAX_RETRIES) {
-          scheduleRetry(attempt + 1)
-        } else {
-          fallbackToDashboard()
-        }
       }
     }
 
-    fetchPermissions().catch((error) => {
-      console.error('[PermissionsProvider] Initial fetch failed', error)
-    })
+    fetchPermissions()
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event) => {
-      console.log('[PermissionsProvider] Auth state changed', event)
-
-      if (event === 'INITIAL_SESSION') {
-        return
-      }
-
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        clearRetry()
-        await fetchPermissions().catch((error) => {
-          console.error('[PermissionsProvider] Fetch after auth change failed', error)
-        })
-      } else if (event === 'SIGNED_OUT') {
-        clearRetry()
-        cancelActiveRequest()
-        if (!isMounted) return
-        setPermissions([])
-        setPagePermissions([])
-        setRole(null)
-        setLoading(false)
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      fetchPermissions()
     })
 
     return () => {
-      console.log('[PermissionsProvider] Cleaning up')
-      isMounted = false
-      clearRetry()
-      cancelActiveRequest()
       subscription.unsubscribe()
     }
   }, [])
 
-  const hasPermission = (permission: string) => permissions.includes(permission)
-  const hasRole = (roleId: string) => role === roleId
-  
-  // Check if user can access a page based on page_permissions
-  const canAccessPage = (page: string): boolean => {
-    // Normalize for case-insensitive comparison
-    const normalizedPage = page.toLowerCase()
+  const hasRole = (role: RoleId) => roles.includes(role)
+  const hasAnyRole = (rs: RoleId[]) => rs.some(r => roles.includes(r))
+  const hasPermission = (perm: PermissionId) => hasRole(ROLES.ADMIN) || actionPermissions.includes(perm)
+  const hasAllPermissions = (perms: PermissionId[]) => perms.every(p => hasPermission(p))
 
-    if (pagePermissions.includes('*')) return true // Admin has access to all
-
-    const directMatch = pagePermissions.includes(normalizedPage)
-    const parentMatch = pagePermissions.some(perm => normalizedPage.startsWith(perm + '/'))
-
-    return directMatch || parentMatch
+  const canAccessPage = (path: string) => {
+    if (hasRole(ROLES.ADMIN)) return true
+    const normalized = path.toLowerCase()
+    return pagePermissions.some(p => {
+      if (p === 'page:*') return true
+      if (!p.startsWith('page:')) return false
+      const base = p.replace('page:', '').toLowerCase()
+      return normalized === base || normalized.startsWith(base + '/')
+    })
   }
 
   const value: PermissionsContextType = {
-    permissions,
+    roles,
     pagePermissions,
-    role,
+    actionPermissions,
     loading,
-    isAdmin: role === ADMIN_ROLE_ID,
-    isDesigner: role === DESIGNER_ROLE_ID,
-    hasPermission,
     hasRole,
+    hasAnyRole,
+    hasPermission,
+    hasAllPermissions,
     canAccessPage,
   }
 

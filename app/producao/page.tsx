@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { FilterInput } from '@/components/custom/FilterInput'
 import { Progress } from '@/components/ui/progress'
 import { Checkbox } from '@/components/ui/checkbox'
 
@@ -226,6 +227,13 @@ export default function ProducaoPage() {
   const [itemF, setItemF] = useState('')
   const [codeF, setCodeF] = useState('')
   const [clientF, setClientF] = useState('')
+
+  const [effectiveFoF, setEffectiveFoF] = useState('')
+  const [effectiveOrcF, setEffectiveOrcF] = useState('')
+  const [effectiveCampF, setEffectiveCampF] = useState('')
+  const [effectiveItemF, setEffectiveItemF] = useState('')
+  const [effectiveCodeF, setEffectiveCodeF] = useState('')
+  const [effectiveClientF, setEffectiveClientF] = useState('')
   // F (fatura) toggle: false = show F false, true = show F true
   const [showFatura, setShowFatura] = useState(false)
 
@@ -244,21 +252,8 @@ export default function ProducaoPage() {
   })
   const [showTotals, setShowTotals] = useState(false)
 
-  // Debounced filter values for performance
-  const debouncedFoF = useDebounce(foF, 300)
-  const debouncedOrcF = useDebounce(orcF, 300)
-  const debouncedCampF = useDebounce(campF, 300)
-  const debouncedItemF = useDebounce(itemF, 300)
-  const debouncedCodeF = useDebounce(codeF, 300)
 
-  // Apply 3-character minimum filter requirement
-  const effectiveFoF = debouncedFoF.trim().length >= 3 ? debouncedFoF : ''
-  const effectiveOrcF = debouncedOrcF.trim().length >= 3 ? debouncedOrcF : ''
-  const effectiveCampF = debouncedCampF.trim().length >= 3 ? debouncedCampF : ''
-  const effectiveItemF = debouncedItemF.trim().length >= 3 ? debouncedItemF : ''
-  const effectiveCodeF = debouncedCodeF.trim().length >= 3 ? debouncedCodeF : ''
-
-  // Debug: Track when codeF and debounced value changes
+  // Debug: Track when codeF and effectiveCodeF changes
   useEffect(() => {
     console.log(
       '🔤 codeF state changed to:',
@@ -266,24 +261,7 @@ export default function ProducaoPage() {
       'length:',
       codeF.length,
     )
-    // Log stack trace to see what's causing the change
-    if (codeF === '' && debouncedCodeF !== '') {
-      console.warn(
-        '⚠️ CodeF was unexpectedly cleared! Previous value was:',
-        debouncedCodeF,
-      )
-      console.trace('Stack trace for codeF clear:')
-    }
-  }, [codeF, debouncedCodeF])
-
-  useEffect(() => {
-    console.log(
-      '⏱️ debouncedCodeF changed to:',
-      `"${debouncedCodeF}"`,
-      'length:',
-      debouncedCodeF.length,
-    )
-  }, [debouncedCodeF])
+  }, [codeF, effectiveCodeF])
 
   // Diagnostic logging: Track drawer state changes
   useEffect(() => {
@@ -343,10 +321,6 @@ export default function ProducaoPage() {
     }
   }, [openId])
 
-  const debouncedClientF = useDebounce(clientF, 300)
-
-  // Add effectiveClientF
-  const effectiveClientF = debouncedClientF.trim().length >= 3 ? debouncedClientF : ''
 
   /* sorting */
   type SortableJobKey =
@@ -1062,6 +1036,12 @@ export default function ProducaoPage() {
         itemF?: string
         codeF?: string
         clientF?: string
+        effectiveFoF?: string
+        effectiveOrcF?: string
+        effectiveCampF?: string
+        effectiveItemF?: string
+        effectiveCodeF?: string
+        effectiveClientF?: string
         showFatura?: boolean
         activeTab?: 'em_curso' | 'concluidos' | 'pendentes'
       } = {},
@@ -1347,20 +1327,27 @@ export default function ProducaoPage() {
           }
 
           // Direct field filters using real column names
-          if (filters.foF && filters.foF.trim() !== '') {
-            query = query.ilike('Numero_do_', `%${filters.foF.trim()}%`)
+          const {
+            effectiveFoF = '',
+            effectiveOrcF = '',
+            effectiveCampF = '',
+            effectiveClientF = '',
+          } = filters
+
+          if (effectiveFoF) {
+            query = query.ilike('Numero_do_', `%${effectiveFoF}%`)
           }
 
-          if (filters.orcF && filters.orcF.trim() !== '') {
-            query = query.ilike('numero_orc', `%${filters.orcF.trim()}%`)
+          if (effectiveOrcF) {
+            query = query.ilike('numero_orc', `%${effectiveOrcF}%`)
           }
 
-          if (filters.campF && filters.campF.trim() !== '') {
-            query = query.ilike('Trabalho', `%${filters.campF.trim()}%`)
+          if (effectiveCampF) {
+            query = query.ilike('Trabalho', `%${effectiveCampF}%`)
           }
 
-          if (filters.clientF && filters.clientF.trim() !== '') {
-            query = query.ilike('Nome', `%${filters.clientF.trim()}%`)
+          if (effectiveClientF) {
+            query = query.ilike('Nome', `%${effectiveClientF}%`)
           }
 
           // Note: 'fatura' column does not exist in schema; skipping fatura filter
@@ -2181,11 +2168,11 @@ export default function ProducaoPage() {
   const loadMoreJobs = useCallback(() => {
     if (!loading.jobs && hasMoreJobs) {
       fetchJobs(currentPage + 1, false, {
-        foF: debouncedFoF,
-        campF: debouncedCampF,
-        itemF: debouncedItemF,
-        codeF: debouncedCodeF,
-        clientF: debouncedClientF,
+        effectiveFoF,
+        effectiveCampF,
+        effectiveItemF,
+        effectiveCodeF,
+        effectiveClientF,
         showFatura,
         activeTab,
       })
@@ -2195,11 +2182,11 @@ export default function ProducaoPage() {
     hasMoreJobs,
     currentPage,
     fetchJobs,
-    debouncedFoF,
-    debouncedCampF,
-    debouncedItemF,
-    debouncedCodeF,
-    debouncedClientF,
+    effectiveFoF,
+    effectiveCampF,
+    effectiveItemF,
+    effectiveCodeF,
+    effectiveClientF,
     showFatura,
     activeTab,
   ])
@@ -2392,128 +2379,58 @@ export default function ProducaoPage() {
           <h1 className="text-2xl font-bold text-foreground">Gestão de Produção</h1>
           <div className="flex items-center gap-2">
             <div className="relative w-28">
-              <Input
+              <FilterInput
                 placeholder="FO"
-                className="h-10 pr-10"
+                className="h-10"
                 value={foF}
-                onChange={(e) => setFoF(e.target.value)}
-                title="Mínimo 3 caracteres para filtrar"
+                onChange={setFoF}
+                onFilterChange={setEffectiveFoF}
               />
-              {foF && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                  onClick={() => setFoF('')}
-                >
-                  <XSquare className="h-4 w-4" />
-                </Button>
-              )}
             </div>
             <div className="relative w-28">
-              <Input
+              <FilterInput
                 placeholder="ORC"
-                className="h-10 pr-10"
+                className="h-10"
                 value={orcF}
-                onChange={(e) => setOrcF(e.target.value)}
-                title="Mínimo 3 caracteres para filtrar"
+                onChange={setOrcF}
+                onFilterChange={setEffectiveOrcF}
               />
-              {orcF && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                  onClick={() => setOrcF('')}
-                >
-                  <XSquare className="h-4 w-4" />
-                </Button>
-              )}
             </div>
             <div className="relative flex-1">
-              <Input
+              <FilterInput
                 placeholder="Nome Campanha"
-                className="h-10 pr-10"
+                className="h-10"
                 value={campF}
-                onChange={(e) => setCampF(e.target.value)}
-                title="Mínimo 3 caracteres para filtrar"
+                onChange={setCampF}
+                onFilterChange={setEffectiveCampF}
               />
-              {campF && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                  onClick={() => setCampF('')}
-                >
-                  <XSquare className="h-4 w-4" />
-                </Button>
-              )}
             </div>
             <div className="relative flex-1">
-              <Input
+              <FilterInput
                 placeholder="Item"
-                className="h-10 pr-10"
+                className="h-10"
                 value={itemF}
-                onChange={(e) => setItemF(e.target.value)}
-                title="Mínimo 3 caracteres para filtrar"
+                onChange={setItemF}
+                onFilterChange={setEffectiveItemF}
               />
-              {itemF && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                  onClick={() => setItemF('')}
-                >
-                  <XSquare className="h-4 w-4" />
-                </Button>
-              )}
             </div>
             <div className="relative w-40">
-              <Input
+              <FilterInput
                 placeholder="Código"
-                className="h-10 pr-10"
+                className="h-10"
                 value={codeF}
-                onChange={(e) => {
-                  console.log('🔤 Code input changed:', e.target.value)
-                  setCodeF(e.target.value)
-                }}
-                onBlur={(e) => {
-                  // Prevent accidental clearing on blur
-                  console.log(
-                    '🔤 Code field blur, keeping value:',
-                    e.target.value,
-                  )
-                }}
-                title="Mínimo 3 caracteres para filtrar"
+                onChange={setCodeF}
+                onFilterChange={setEffectiveCodeF}
               />
-              {codeF && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                  onClick={() => setCodeF('')}
-                >
-                  <XSquare className="h-4 w-4" />
-                </Button>
-              )}
             </div>
             <div className="relative flex-1">
-              <Input
+              <FilterInput
                 placeholder="Cliente"
-                className="h-10 pr-10"
+                className="h-10"
                 value={clientF}
-                onChange={(e) => setClientF(e.target.value)}
-                title="Mínimo 3 caracteres para filtrar"
+                onChange={setClientF}
+                onFilterChange={setEffectiveClientF}
               />
-              {clientF && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                  onClick={() => setClientF('')}
-                >
-                  <XSquare className="h-4 w-4" />
-                </Button>
-              )}
             </div>
 
             <TooltipProvider>
@@ -2530,8 +2447,28 @@ export default function ProducaoPage() {
                       setItemF('')
                       setCodeF('')
                       setClientF('')
+                      setEffectiveFoF('')
+                      setEffectiveOrcF('')
+                      setEffectiveCampF('')
+                      setEffectiveItemF('')
+                      setEffectiveCodeF('')
+                      setEffectiveClientF('')
+                      fetchJobs(0, true, { activeTab })
                     }}
-                    disabled={!foF && !orcF && !campF && !itemF && !codeF && !clientF}
+                    disabled={
+                      !foF &&
+                      !orcF &&
+                      !campF &&
+                      !itemF &&
+                      !codeF &&
+                      !clientF &&
+                      !effectiveFoF &&
+                      !effectiveOrcF &&
+                      !effectiveCampF &&
+                      !effectiveItemF &&
+                      !effectiveCodeF &&
+                      !effectiveClientF
+                    }
                   >
                     <XSquare className="h-4 w-4" />
                   </Button>
@@ -2574,11 +2511,11 @@ export default function ProducaoPage() {
                         setCurrentPage(0)
                         setHasMoreJobs(true)
                         await fetchJobs(0, true, {
-                          foF: debouncedFoF,
-                          campF: debouncedCampF,
-                          itemF: debouncedItemF,
-                          codeF: debouncedCodeF,
-                          clientF: debouncedClientF,
+                          effectiveFoF,
+                          effectiveCampF,
+                          effectiveItemF,
+                          effectiveCodeF,
+                          effectiveClientF,
                           showFatura,
                           activeTab,
                         })
@@ -2633,11 +2570,11 @@ export default function ProducaoPage() {
                         setCurrentPage(0)
                         setHasMoreJobs(true)
                         await fetchJobs(0, true, {
-                          foF: debouncedFoF,
-                          campF: debouncedCampF,
-                          itemF: debouncedItemF,
-                          codeF: debouncedCodeF,
-                          clientF: debouncedClientF,
+                          effectiveFoF,
+                          effectiveCampF,
+                          effectiveItemF,
+                          effectiveCodeF,
+                          effectiveClientF,
                           showFatura,
                           activeTab,
                         })

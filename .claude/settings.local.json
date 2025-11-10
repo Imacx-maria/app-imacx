@@ -49,7 +49,9 @@
       "Bash(curl:*)",
       "Bash(if exist .next echo \"Build complete\")",
       "Bash(npx tsc:*)",
-      "Bash(powershell -Command:*)"
+      "Bash(powershell -Command:*)",
+      "Bash(tree:*)",
+      "Bash(copy \"app\\stocks\\page.tsx\" \"app\\stocks\\gestao\\page.tsx\")"
     ],
     "deny": [],
     "ask": []

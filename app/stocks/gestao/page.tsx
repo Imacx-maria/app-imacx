@@ -1,10 +1,9 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createBrowserClient } from '@/utils/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { FilterInput } from '@/components/custom/FilterInput'
 import { Label } from '@/components/ui/label'
 import {
   Table,
@@ -165,15 +164,6 @@ export default function StocksPage() {
   const [currentStockFilter, setCurrentStockFilter] = useState('')
   const [currentStockReferenciaFilter, setCurrentStockReferenciaFilter] =
     useState('')
-
-  const [effectiveMaterialFilter, setEffectiveMaterialFilter] = useState('')
-  const [effectiveReferenciaFilter, setEffectiveReferenciaFilter] = useState('')
-  const [effectiveCurrentStockFilter, setEffectiveCurrentStockFilter] =
-    useState('')
-  const [
-    effectiveCurrentStockReferenciaFilter,
-    setEffectiveCurrentStockReferenciaFilter,
-  ] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [editingMaterial, setEditingMaterial] = useState<string | null>(null)
 
@@ -231,7 +221,60 @@ export default function StocksPage() {
     total: number
   } | null>(null)
 
+  // NE (Encomenda a Fornecedor) lookup state
+  const [neNumber, setNeNumber] = useState('')
+  const [neFetching, setNeFetching] = useState(false)
+  const [neError, setNeError] = useState<string | null>(null)
+  const neInputRef = useRef<HTMLInputElement>(null)
+  const shouldRefocusNE = useRef(false)
+
+  // ETL refresh state
+  const [etlSyncing, setEtlSyncing] = useState<'bo_bi' | 'fl' | null>(null)
+  const [etlMessage, setEtlMessage] = useState<string | null>(null)
+  const [etlError, setEtlError] = useState<string | null>(null)
+
   const supabase = createBrowserClient()
+
+  // Trigger ETL sync
+  const triggerEtlSync = useCallback(
+    async (syncType: 'today_bo_bi' | 'today_fl') => {
+      setEtlSyncing(syncType === 'today_bo_bi' ? 'bo_bi' : 'fl')
+      setEtlMessage(null)
+      setEtlError(null)
+
+      try {
+        const response = await fetch('/api/etl/incremental', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: syncType }),
+        })
+
+        const data = await response.json()
+
+        if (!response.ok || !data.success) {
+          setEtlError(data.message || 'Erro ao sincronizar')
+          return
+        }
+
+        setEtlMessage(
+          syncType === 'today_bo_bi'
+            ? '✅ Sincronização de NE/BO completada!'
+            : '✅ Sincronização de Fornecedores completada!'
+        )
+
+        // Refresh the page data after a short delay
+        setTimeout(() => {
+          setEtlMessage(null)
+          // Optionally reload materials/stocks data here
+        }, 2000)
+      } catch (error) {
+        setEtlError(`Erro ao sincronizar: ${error instanceof Error ? error.message : 'erro desconhecido'}`)
+      } finally {
+        setEtlSyncing(null)
+      }
+    },
+    [],
+  )
 
   useEffect(() => {
     const handleAriaHiddenFix = () => {
@@ -275,6 +318,22 @@ export default function StocksPage() {
     const cleanup = handleAriaHiddenFix()
     return cleanup
   }, [])
+
+  // Refocus NE input after adding entries
+  useEffect(() => {
+    if (shouldRefocusNE.current && neInputRef.current) {
+      shouldRefocusNE.current = false
+      // Use double requestAnimationFrame to ensure it happens after all renders
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (neInputRef.current) {
+            neInputRef.current.focus()
+            neInputRef.current.select()
+          }
+        })
+      })
+    }
+  }, [inlineEntries])
 
   const fetchStocks = useCallback(async () => {
     setLoading(true)
@@ -331,6 +390,89 @@ export default function StocksPage() {
       console.error('Error fetching fornecedores:', error)
     }
   }, [supabase])
+
+  // Fetch NE (Encomenda a Fornecedor) data from PHC BO and BI tables
+  const fetchNEData = useCallback(
+    async (ne: string) => {
+      if (!ne.trim()) {
+        return // Silent return if empty
+      }
+
+      setNeFetching(true)
+      setNeError(null)
+      try {
+        // Step 1: Get the BO header for this NE
+        const { data: boData, error: boError } = await supabase
+          .schema('phc')
+          .from('bo')
+          .select('document_id, document_number, observacoes')
+          .eq('document_type', 'Encomenda a Fornecedor')
+          .eq('document_number', ne.trim())
+          .limit(1)
+
+        if (boError) throw boError
+        if (!boData || boData.length === 0) {
+          setNeError(`NE ${ne} não encontrada`)
+          return
+        }
+
+        const boHeader = boData[0]
+        console.log('✅ NE encontrada:', boHeader)
+
+        // Step 2: Get the BI lines for this document
+        const { data: biData, error: biError } = await supabase
+          .schema('phc')
+          .from('bi')
+          .select('description, quantity, unit_price, line_total, item_reference')
+          .eq('document_id', boHeader.document_id)
+          .gt('quantity', 0) // Only include lines with quantity > 0
+
+        if (biError) throw biError
+        if (!biData || biData.length === 0) {
+          setNeError(`Nenhuma linha encontrada para NE ${ne}`)
+          return
+        }
+
+        console.log(`✅ ${biData.length} linhas encontradas para NE ${ne}:`, biData)
+
+        // Step 3: Convert BI lines to inline entries format
+        const newEntries = biData.map((line, index) => ({
+          id: `ne_${boHeader.document_number}_${index}`,
+          material_id: '',
+          material_name: line.description || '',
+          referencia: line.item_reference || line.description || '',
+          fornecedor_id: '',
+          fornecedor_name: '',
+          quantidade: Number(line.quantity) || 0,
+          no_guia_forn: ne.trim(),
+          no_palete: '',
+          num_paletes: 0,
+          size_x: 0,
+          size_y: 0,
+          preco_unitario: Number(line.unit_price) || 0,
+          valor_total: Number(line.line_total) || 0,
+          isSaving: false,
+        }))
+
+        // Step 4: Add new entries to existing ones (instead of replacing)
+        shouldRefocusNE.current = true
+        setInlineEntries((prev) => [...prev, ...newEntries])
+        console.log(`✅ ${newEntries.length} linhas importadas da NE ${ne}`)
+
+        // Show success message briefly
+        setEtlMessage(`✅ ${newEntries.length} linhas importadas da NE ${ne}`)
+        setTimeout(() => setEtlMessage(null), 2000)
+      } catch (error) {
+        console.error('Erro ao buscar dados da NE:', error)
+        setNeError(`NE ${ne}: ${error instanceof Error ? error.message : 'erro desconhecido'}`)
+        // Clear error message after 3 seconds
+        setTimeout(() => setNeError(null), 3000)
+      } finally {
+        setNeFetching(false)
+      }
+    },
+    [supabase],
+  )
 
   const fetchCurrentStocksManual = useCallback(async () => {
     try {
@@ -625,12 +767,12 @@ export default function StocksPage() {
     const materialSearchText = `${materialName} ${materialCor}`.toLowerCase()
     const referenciaSearchText = referencia.toLowerCase()
 
-    const matchesMaterial = effectiveMaterialFilter
-      ? materialSearchText.includes(effectiveMaterialFilter.toLowerCase())
-      : true
-    const matchesReferencia = effectiveReferenciaFilter
-      ? referenciaSearchText.includes(effectiveReferenciaFilter.toLowerCase())
-      : true
+    const matchesMaterial = materialSearchText.includes(
+      materialFilter.toLowerCase(),
+    )
+    const matchesReferencia = referenciaSearchText.includes(
+      referenciaFilter.toLowerCase(),
+    )
 
     return matchesMaterial && matchesReferencia
   })
@@ -642,14 +784,12 @@ export default function StocksPage() {
     const materialSearchText = `${materialName} ${materialCor}`.toLowerCase()
     const referenciaSearchText = referencia.toLowerCase()
 
-    const matchesMaterial = effectiveCurrentStockFilter
-      ? materialSearchText.includes(effectiveCurrentStockFilter.toLowerCase())
-      : true
-    const matchesReferencia = effectiveCurrentStockReferenciaFilter
-      ? referenciaSearchText.includes(
-          effectiveCurrentStockReferenciaFilter.toLowerCase(),
-        )
-      : true
+    const matchesMaterial = materialSearchText.includes(
+      currentStockFilter.toLowerCase(),
+    )
+    const matchesReferencia = referenciaSearchText.includes(
+      currentStockReferenciaFilter.toLowerCase(),
+    )
 
     return matchesMaterial && matchesReferencia
   })
@@ -2114,345 +2254,6 @@ export default function StocksPage() {
     )
   }
 
-  // Inline Stock Input Component
-  const InlineStockInput = () => (
-    <Card className="mb-4">
-      <CardHeader className="py-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium">Entrada Rápida de Stock</h3>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setShowInlineInput(false)}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <Table>
-          <TableBody>
-            {inlineEntries.map((entry, index) => (
-              <React.Fragment key={entry.id}>
-                <TableRow className="border-b-0">
-                <TableCell className="w-[140px]">
-                  <div className="text-xs text-muted-foreground font-medium mb-1">Referência</div>
-                  <ReferenceCombobox
-                    value={entry.referencia}
-                    onSelect={(ref, material) =>
-                      handleReferenciaSelect(index, ref, material)
-                    }
-                  />
-                </TableCell>
-                <TableCell className="min-w-[400px]">
-                  <div className="text-xs text-muted-foreground font-medium mb-1">Material</div>
-                  <MaterialCombobox
-                    value={entry.material_id}
-                    onSelect={(material) =>
-                      handleMaterialSelect(index, material)
-                    }
-                  />
-                </TableCell>
-                <TableCell className="w-[120px]">
-                  <div className="text-xs text-muted-foreground font-medium mb-1">QTD UNIT.</div>
-                  <input
-                    key={`${entry.id}-quantidade`}
-                    type="text"
-                    inputMode="numeric"
-                    defaultValue={entry.quantidade || ''}
-                    onBlur={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, '')
-                      updateEntry(index, 'quantidade', val ? parseInt(val) : 0)
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        const val = e.currentTarget.value.replace(/[^0-9]/g, '')
-                        updateEntry(index, 'quantidade', val ? parseInt(val) : 0)
-                      }
-                    }}
-                    maxLength={6}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    placeholder="0"
-                  />
-                </TableCell>
-                <TableCell className="w-[120px]">
-                  <div className="text-xs text-muted-foreground font-medium mb-1">SIZE X</div>
-                  <input
-                    key={`${entry.id}-size_x`}
-                    type="text"
-                    inputMode="numeric"
-                    defaultValue={entry.size_x || ''}
-                    onBlur={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, '')
-                      updateEntry(index, 'size_x', val ? parseInt(val) : 0)
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        const val = e.currentTarget.value.replace(/[^0-9]/g, '')
-                        updateEntry(index, 'size_x', val ? parseInt(val) : 0)
-                      }
-                    }}
-                    maxLength={5}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    placeholder="3000"
-                  />
-                </TableCell>
-                <TableCell className="w-[120px]">
-                  <div className="text-xs text-muted-foreground font-medium mb-1">SIZE Y</div>
-                  <input
-                    key={`${entry.id}-size_y`}
-                    type="text"
-                    inputMode="numeric"
-                    defaultValue={entry.size_y || ''}
-                    onBlur={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, '')
-                      updateEntry(index, 'size_y', val ? parseInt(val) : 0)
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        const val = e.currentTarget.value.replace(/[^0-9]/g, '')
-                        updateEntry(index, 'size_y', val ? parseInt(val) : 0)
-                      }
-                    }}
-                    maxLength={5}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    placeholder="2000"
-                  />
-                </TableCell>
-                <TableCell className="w-[120px]">
-                  <div className="text-xs text-muted-foreground font-medium mb-1">PREÇO UNIT.</div>
-                  <input
-                    key={`${entry.id}-preco_unitario`}
-                    type="text"
-                    inputMode="decimal"
-                    defaultValue={entry.preco_unitario ? entry.preco_unitario.toFixed(2) : ''}
-                    onFocus={(e) => {
-                      if (!entry.quantidade || entry.quantidade <= 0) {
-                        e.preventDefault()
-                        e.target.blur()
-                        alert('Tem que introduzir a quantidade primeiro')
-                      }
-                    }}
-                    onChange={(e) => {
-                      if (entry.quantidade > 0) {
-                        const val = parseFloat(e.target.value) || 0
-                        // Calculate VL TOTAL = PREÇO UNIT × quantidade
-                        const valorTotal = val * entry.quantidade
-                        // Update both values together
-                        setInlineEntries(prev => prev.map((ent, i) =>
-                          i === index
-                            ? { ...ent, preco_unitario: val, valor_total: valorTotal }
-                            : ent
-                        ))
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        e.currentTarget.blur()
-                      }
-                    }}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    placeholder="0.00"
-                  />
-                </TableCell>
-                <TableCell className="w-[150px]">
-                  <div className="text-xs text-muted-foreground font-medium mb-1">VL TOT.</div>
-                  <input
-                    key={`${entry.id}-valor_total`}
-                    type="text"
-                    inputMode="decimal"
-                    defaultValue={entry.valor_total ? entry.valor_total.toFixed(2) : ''}
-                    onFocus={(e) => {
-                      if (!entry.quantidade || entry.quantidade <= 0) {
-                        e.preventDefault()
-                        e.target.blur()
-                        alert('Tem que introduzir a quantidade primeiro')
-                      }
-                    }}
-                    onChange={(e) => {
-                      if (entry.quantidade > 0) {
-                        const val = parseFloat(e.target.value) || 0
-                        // Calculate PREÇO UNIT = VL TOTAL / quantidade
-                        const precoUnit = val / entry.quantidade
-                        // Update both values together
-                        setInlineEntries(prev => prev.map((ent, i) =>
-                          i === index
-                            ? { ...ent, valor_total: val, preco_unitario: precoUnit }
-                            : ent
-                        ))
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        e.currentTarget.blur()
-                      }
-                    }}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    placeholder="0.00"
-                  />
-                </TableCell>
-                <TableCell className="w-[100px]">
-                  <div className="text-xs text-muted-foreground font-medium mb-1">Ações</div>
-                  <div className="flex gap-1">
-                    <Button
-                      size="sm"
-                      onClick={async () => {
-                        const result = await handleSaveEntry(index)
-                        if (result) {
-                          removeEntry(index)
-                          // Refresh the tables
-                          fetchStocks()
-                          fetchPaletes()
-                          // Add new empty row if this was the last one
-                          if (inlineEntries.length === 1) {
-                            addNewRow()
-                          }
-                        }
-                      }}
-                      disabled={
-                        !entry.material_id ||
-                        entry.quantidade <= 0 ||
-                        entry.isSaving
-                      }
-                    >
-                      {entry.isSaving ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Check className="h-4 w-4" />
-                      )}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => removeEntry(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-              <TableRow className="border-t-0">
-                <TableCell className="pt-0 min-w-[400px]" colSpan={2}>
-                  <div className="text-xs text-muted-foreground font-medium mb-1">REF PAL (OPCIONAL)</div>
-                  <input
-                    key={`${entry.id}-no_palete-row2`}
-                    type="text"
-                    defaultValue={entry.no_palete || ''}
-                    onBlur={(e) =>
-                      updateEntry(index, 'no_palete', e.target.value)
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        updateEntry(index, 'no_palete', e.currentTarget.value)
-                      }
-                    }}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    placeholder="P100 ou P100,P101,P102 (Opcional)"
-                  />
-                </TableCell>
-                <TableCell className="pt-0 w-[120px]">
-                  <div className="text-xs text-muted-foreground font-medium mb-1">NºPAL</div>
-                  <input
-                    key={`${entry.id}-num_paletes-row2`}
-                    type="text"
-                    inputMode="numeric"
-                    defaultValue={entry.num_paletes || 1}
-                    onBlur={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, '')
-                      updateEntry(index, 'num_paletes', val ? parseInt(val) : 1)
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        const val = e.currentTarget.value.replace(/[^0-9]/g, '')
-                        updateEntry(index, 'num_paletes', val ? parseInt(val) : 1)
-                      }
-                    }}
-                    maxLength={3}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                </TableCell>
-                <TableCell className="pt-0 w-[150px]">
-                  <div className="text-xs text-muted-foreground font-medium mb-1">Nº Guia</div>
-                  <input
-                    key={`${entry.id}-no_guia_forn-row2`}
-                    type="text"
-                    defaultValue={entry.no_guia_forn || ''}
-                    onBlur={(e) =>
-                      updateEntry(index, 'no_guia_forn', e.target.value)
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        updateEntry(index, 'no_guia_forn', e.currentTarget.value)
-                      }
-                    }}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    placeholder="Opcional"
-                  />
-                </TableCell>
-                <TableCell className="pt-0" colSpan={4}></TableCell>
-              </TableRow>
-              </React.Fragment>
-            ))}
-          </TableBody>
-        </Table>
-        <div className="p-2 border-t space-y-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={addNewRow}
-            className="w-full"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Adicionar Linha (Ctrl+N)
-          </Button>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              onClick={handleSaveAll}
-              disabled={
-                isSavingBatch ||
-                inlineEntries.filter(
-                  (e) =>
-                    e.material_id &&
-                    e.quantidade > 0,
-                ).length === 0
-              }
-              className="flex-1"
-            >
-              {isSavingBatch ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  A guardar...
-                </>
-              ) : (
-                <>
-                  <Check className="h-4 w-4 mr-2" />
-                  Guardar Tudo (
-                  {
-                    inlineEntries.filter(
-                      (e) =>
-                        e.material_id &&
-                        e.quantidade > 0,
-                    ).length
-                  }{' '}
-                  entradas)
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-
   return (
     <PermissionGuard>
       <div className="w-full space-y-6">
@@ -2846,7 +2647,530 @@ export default function StocksPage() {
                   Adicionar Stock (Modo Rápido)
                 </Button>
               ) : (
-                <InlineStockInput />
+                <Card className="mb-4">
+                  <CardHeader className="py-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-sm font-medium">
+                        Entrada Rápida de Stock
+                      </h3>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => triggerEtlSync('today_bo_bi')}
+                          disabled={etlSyncing !== null}
+                          className="text-xs"
+                        >
+                          {etlSyncing === 'bo_bi' ? (
+                            <>
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              Sincronizando...
+                            </>
+                          ) : (
+                            <>
+                              <RotateCw className="h-3 w-3 mr-1" />
+                              Atualizar NE
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => triggerEtlSync('today_fl')}
+                          disabled={etlSyncing !== null}
+                          className="text-xs"
+                        >
+                          {etlSyncing === 'fl' ? (
+                            <>
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              Sincronizando...
+                            </>
+                          ) : (
+                            <>
+                              <RotateCw className="h-3 w-3 mr-1" />
+                              LSO
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setShowInlineInput(false)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    {etlMessage && (
+                      <p className="text-xs text-green-600 mt-2">{etlMessage}</p>
+                    )}
+                    {etlError && (
+                      <p className="text-xs text-red-600 mt-2">{etlError}</p>
+                    )}
+                  </CardHeader>
+                  <CardContent className="p-3 border-b">
+                    <div className="flex gap-2 items-end">
+                      <div className="flex-1">
+                        <Label className="text-xs font-medium mb-1 block">
+                          NE (Encomenda a Fornecedor)
+                        </Label>
+                        <div className="flex gap-2">
+                          <Input
+                            ref={neInputRef}
+                            placeholder="Digite o número da NE"
+                            value={neNumber}
+                            onChange={(e) => setNeNumber(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                              }
+                            }}
+                            disabled={neFetching}
+                            className="flex-1"
+                          />
+                          <Button
+                            onClick={() => fetchNEData(neNumber)}
+                            disabled={neFetching || !neNumber.trim()}
+                            size="sm"
+                          >
+                            {neFetching ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Carregando...
+                              </>
+                            ) : (
+                              'Importar'
+                            )}
+                          </Button>
+                        </div>
+                        {neError && (
+                          <p className="text-xs text-red-500 mt-1">{neError}</p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableBody>
+                        {inlineEntries.map((entry, index) => (
+                          <React.Fragment key={entry.id}>
+                            <TableRow className="border-b-0">
+                              <TableCell className="w-[140px]">
+                                <div className="text-xs text-muted-foreground font-medium mb-1">
+                                  Referência
+                                </div>
+                                <ReferenceCombobox
+                                  value={entry.referencia}
+                                  onSelect={(ref, material) =>
+                                    handleReferenciaSelect(index, ref, material)
+                                  }
+                                />
+                              </TableCell>
+                              <TableCell className="min-w-[400px]">
+                                <div className="text-xs text-muted-foreground font-medium mb-1">
+                                  Material
+                                </div>
+                                <MaterialCombobox
+                                  value={entry.material_id}
+                                  onSelect={(material) =>
+                                    handleMaterialSelect(index, material)
+                                  }
+                                />
+                              </TableCell>
+                              <TableCell className="w-[120px]">
+                                <div className="text-xs text-muted-foreground font-medium mb-1">
+                                  QTD UNIT.
+                                </div>
+                                <input
+                                  key={`${entry.id}-quantidade`}
+                                  type="text"
+                                  inputMode="numeric"
+                                  defaultValue={entry.quantidade || ''}
+                                  onBlur={(e) => {
+                                    const val = e.target.value.replace(
+                                      /[^0-9]/g,
+                                      '',
+                                    )
+                                    updateEntry(
+                                      index,
+                                      'quantidade',
+                                      val ? parseInt(val) : 0,
+                                    )
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault()
+                                      const val =
+                                        e.currentTarget.value.replace(
+                                          /[^0-9]/g,
+                                          '',
+                                        )
+                                      updateEntry(
+                                        index,
+                                        'quantidade',
+                                        val ? parseInt(val) : 0,
+                                      )
+                                    }
+                                  }}
+                                  maxLength={6}
+                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                  placeholder="0"
+                                />
+                              </TableCell>
+                              <TableCell className="w-[120px]">
+                                <div className="text-xs text-muted-foreground font-medium mb-1">
+                                  SIZE X
+                                </div>
+                                <input
+                                  key={`${entry.id}-size_x`}
+                                  type="text"
+                                  inputMode="numeric"
+                                  defaultValue={entry.size_x || ''}
+                                  onBlur={(e) => {
+                                    const val = e.target.value.replace(
+                                      /[^0-9]/g,
+                                      '',
+                                    )
+                                    updateEntry(
+                                      index,
+                                      'size_x',
+                                      val ? parseInt(val) : 0,
+                                    )
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault()
+                                      const val =
+                                        e.currentTarget.value.replace(
+                                          /[^0-9]/g,
+                                          '',
+                                        )
+                                      updateEntry(
+                                        index,
+                                        'size_x',
+                                        val ? parseInt(val) : 0,
+                                      )
+                                    }
+                                  }}
+                                  maxLength={5}
+                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                  placeholder="3000"
+                                />
+                              </TableCell>
+                              <TableCell className="w-[120px]">
+                                <div className="text-xs text-muted-foreground font-medium mb-1">
+                                  SIZE Y
+                                </div>
+                                <input
+                                  key={`${entry.id}-size_y`}
+                                  type="text"
+                                  inputMode="numeric"
+                                  defaultValue={entry.size_y || ''}
+                                  onBlur={(e) => {
+                                    const val = e.target.value.replace(
+                                      /[^0-9]/g,
+                                      '',
+                                    )
+                                    updateEntry(
+                                      index,
+                                      'size_y',
+                                      val ? parseInt(val) : 0,
+                                    )
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault()
+                                      const val =
+                                        e.currentTarget.value.replace(
+                                          /[^0-9]/g,
+                                          '',
+                                        )
+                                      updateEntry(
+                                        index,
+                                        'size_y',
+                                        val ? parseInt(val) : 0,
+                                      )
+                                    }
+                                  }}
+                                  maxLength={5}
+                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                  placeholder="2000"
+                                />
+                              </TableCell>
+                              <TableCell className="w-[120px]">
+                                <div className="text-xs text-muted-foreground font-medium mb-1">
+                                  PREÇO UNIT.
+                                </div>
+                                <input
+                                  key={`${entry.id}-preco_unitario`}
+                                  type="text"
+                                  inputMode="decimal"
+                                  defaultValue={
+                                    entry.preco_unitario
+                                      ? entry.preco_unitario.toFixed(2)
+                                      : ''
+                                  }
+                                  onFocus={(e) => {
+                                    if (!entry.quantidade || entry.quantidade <= 0) {
+                                      e.preventDefault()
+                                      e.target.blur()
+                                      alert('Tem que introduzir a quantidade primeiro')
+                                    }
+                                  }}
+                                  onChange={(e) => {
+                                    if (entry.quantidade > 0) {
+                                      const val = parseFloat(e.target.value) || 0
+                                      const valorTotal = val * entry.quantidade
+                                      setInlineEntries((prev) =>
+                                        prev.map((ent, i) =>
+                                          i === index
+                                            ? {
+                                                ...ent,
+                                                preco_unitario: val,
+                                                valor_total: valorTotal,
+                                              }
+                                            : ent,
+                                        ),
+                                      )
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault()
+                                      e.currentTarget.blur()
+                                    }
+                                  }}
+                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                  placeholder="0.00"
+                                />
+                              </TableCell>
+                              <TableCell className="w-[150px]">
+                                <div className="text-xs text-muted-foreground font-medium mb-1">
+                                  VL TOT.
+                                </div>
+                                <input
+                                  key={`${entry.id}-valor_total`}
+                                  type="text"
+                                  inputMode="decimal"
+                                  defaultValue={
+                                    entry.valor_total
+                                      ? entry.valor_total.toFixed(2)
+                                      : ''
+                                  }
+                                  onFocus={(e) => {
+                                    if (!entry.quantidade || entry.quantidade <= 0) {
+                                      e.preventDefault()
+                                      e.target.blur()
+                                      alert('Tem que introduzir a quantidade primeiro')
+                                    }
+                                  }}
+                                  onChange={(e) => {
+                                    if (entry.quantidade > 0) {
+                                      const val = parseFloat(e.target.value) || 0
+                                      const precoUnit = val / entry.quantidade
+                                      setInlineEntries((prev) =>
+                                        prev.map((ent, i) =>
+                                          i === index
+                                            ? {
+                                                ...ent,
+                                                valor_total: val,
+                                                preco_unitario: precoUnit,
+                                              }
+                                            : ent,
+                                        ),
+                                      )
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault()
+                                      e.currentTarget.blur()
+                                    }
+                                  }}
+                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                  placeholder="0.00"
+                                />
+                              </TableCell>
+                              <TableCell className="w-[100px]">
+                                <div className="text-xs text-muted-foreground font-medium mb-1">
+                                  Ações
+                                </div>
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    onClick={async () => {
+                                      const result = await handleSaveEntry(index)
+                                      if (result) {
+                                        removeEntry(index)
+                                        fetchStocks()
+                                        fetchPaletes()
+                                        if (inlineEntries.length === 1) {
+                                          addNewRow()
+                                        }
+                                      }
+                                    }}
+                                    disabled={
+                                      !entry.material_id ||
+                                      entry.quantidade <= 0 ||
+                                      entry.isSaving
+                                    }
+                                  >
+                                    {entry.isSaving ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Check className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => removeEntry(index)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                            <TableRow className="border-t-0">
+                              <TableCell className="pt-0 min-w-[400px]" colSpan={2}>
+                                <div className="text-xs text-muted-foreground font-medium mb-1">
+                                  REF PAL (OPCIONAL)
+                                </div>
+                                <input
+                                  key={`${entry.id}-no_palete-row2`}
+                                  type="text"
+                                  defaultValue={entry.no_palete || ''}
+                                  onBlur={(e) =>
+                                    updateEntry(index, 'no_palete', e.target.value)
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault()
+                                      updateEntry(
+                                        index,
+                                        'no_palete',
+                                        e.currentTarget.value,
+                                      )
+                                    }
+                                  }}
+                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                  placeholder="P100 ou P100,P101,P102 (Opcional)"
+                                />
+                              </TableCell>
+                              <TableCell className="pt-0 w-[120px]">
+                                <div className="text-xs text-muted-foreground font-medium mb-1">
+                                  NºPAL
+                                </div>
+                                <input
+                                  key={`${entry.id}-num_paletes-row2`}
+                                  type="text"
+                                  inputMode="numeric"
+                                  defaultValue={entry.num_paletes || 1}
+                                  onBlur={(e) => {
+                                    const val = e.target.value.replace(
+                                      /[^0-9]/g,
+                                      '',
+                                    )
+                                    updateEntry(
+                                      index,
+                                      'num_paletes',
+                                      val ? parseInt(val) : 1,
+                                    )
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault()
+                                      const val =
+                                        e.currentTarget.value.replace(
+                                          /[^0-9]/g,
+                                          '',
+                                        )
+                                      updateEntry(
+                                        index,
+                                        'num_paletes',
+                                        val ? parseInt(val) : 1,
+                                      )
+                                    }
+                                  }}
+                                  maxLength={3}
+                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                />
+                              </TableCell>
+                              <TableCell className="pt-0 w-[150px]">
+                                <div className="text-xs text-muted-foreground font-medium mb-1">
+                                  Nº Guia
+                                </div>
+                                <input
+                                  key={`${entry.id}-no_guia_forn-row2`}
+                                  type="text"
+                                  defaultValue={entry.no_guia_forn || ''}
+                                  onBlur={(e) =>
+                                    updateEntry(index, 'no_guia_forn', e.target.value)
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault()
+                                      updateEntry(
+                                        index,
+                                        'no_guia_forn',
+                                        e.currentTarget.value,
+                                      )
+                                    }
+                                  }}
+                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                  placeholder="Opcional"
+                                />
+                              </TableCell>
+                              <TableCell className="pt-0" colSpan={4}></TableCell>
+                            </TableRow>
+                          </React.Fragment>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    <div className="p-2 border-t space-y-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={addNewRow}
+                        className="w-full"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Adicionar Linha (Ctrl+N)
+                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={handleSaveAll}
+                          disabled={
+                            isSavingBatch ||
+                            inlineEntries.filter(
+                              (e) => e.material_id && e.quantidade > 0,
+                            ).length === 0
+                          }
+                          className="flex-1"
+                        >
+                          {isSavingBatch ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              A guardar...
+                            </>
+                          ) : (
+                            <>
+                              <Check className="h-4 w-4 mr-2" />
+                              Guardar Tudo (
+                              {
+                                inlineEntries.filter(
+                                  (e) => e.material_id && e.quantidade > 0,
+                                ).length
+                              }{' '}
+                              entradas)
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
             </div>
 
