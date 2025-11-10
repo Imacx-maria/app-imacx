@@ -240,19 +240,19 @@ export default function MateriaisPage() {
   useEffect(() => {
     if (sortColumn) {
       fetchMateriais({
-        tipoFilter: effectiveTipoFilter,
-        materialFilter: effectiveMaterialFilter,
-        caracteristicaFilter: effectiveCaracteristicaFilter,
-        corFilter: effectiveCorFilter,
+        tipoFilter: tipoFilter,
+        materialFilter: materialFilter,
+        caracteristicaFilter: caracteristicaFilter,
+        corFilter: corFilter,
       })
     }
   }, [
     sortColumn,
     sortDirection,
-    effectiveTipoFilter,
-    effectiveMaterialFilter,
-    effectiveCaracteristicaFilter,
-    effectiveCorFilter,
+    tipoFilter,
+    materialFilter,
+    caracteristicaFilter,
+    corFilter,
     fetchMateriais,
   ])
 

@@ -1025,9 +1025,6 @@ export const DashboardLogisticaTable: React.FC<
               setFilters((prev) => ({ ...prev, numeroFo: value }))
             }
           }}
-          onFilterChange={(effective) => {
-            setFilters((prev) => ({ ...prev, numeroFo: effective }))
-          }}
           placeholder="FO"
           minChars={3}
           debounceMs={300}
@@ -1039,9 +1036,6 @@ export const DashboardLogisticaTable: React.FC<
             if (value.length <= 5) {
               setFilters((prev) => ({ ...prev, numeroOrc: value }))
             }
-          }}
-          onFilterChange={(effective) => {
-            setFilters((prev) => ({ ...prev, numeroOrc: effective }))
           }}
           placeholder="ORC"
           minChars={3}
@@ -1055,9 +1049,6 @@ export const DashboardLogisticaTable: React.FC<
               setFilters((prev) => ({ ...prev, guia: value }))
             }
           }}
-          onFilterChange={(effective) => {
-            setFilters((prev) => ({ ...prev, guia: effective }))
-          }}
           placeholder="Guia"
           minChars={3}
           debounceMs={300}
@@ -1067,9 +1058,6 @@ export const DashboardLogisticaTable: React.FC<
           value={filters.cliente}
           onChange={(value) =>
             setFilters((prev) => ({ ...prev, cliente: value }))
-          }
-          onFilterChange={(effective) =>
-            setFilters((prev) => ({ ...prev, cliente: effective }))
           }
           placeholder="Cliente"
           minChars={3}
@@ -1081,9 +1069,6 @@ export const DashboardLogisticaTable: React.FC<
           onChange={(value) =>
             setFilters((prev) => ({ ...prev, nomeCampanha: value }))
           }
-          onFilterChange={(effective) =>
-            setFilters((prev) => ({ ...prev, nomeCampanha: effective }))
-          }
           placeholder="Nome Campanha"
           minChars={3}
           debounceMs={300}
@@ -1093,9 +1078,6 @@ export const DashboardLogisticaTable: React.FC<
           value={filters.item}
           onChange={(value) =>
             setFilters((prev) => ({ ...prev, item: value }))
-          }
-          onFilterChange={(effective) =>
-            setFilters((prev) => ({ ...prev, item: effective }))
           }
           placeholder="Item"
           minChars={3}
