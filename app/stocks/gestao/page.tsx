@@ -77,6 +77,7 @@ const StockAnalyticsCharts = dynamic(() => import('@/components/StockAnalyticsCh
 })
 import { FilterWithClear } from '@/components/stocks/FilterWithClear'
 import { StockInputField } from '@/components/stocks/StockInputField'
+import { InlineEditField } from '@/components/stocks/InlineEditField'
 
 interface Palete {
   id: string
@@ -2724,39 +2725,14 @@ export default function StocksPage() {
                                 <div className="text-xs text-muted-foreground font-medium mb-1">
                                   QTD UNIT.
                                 </div>
-                                <input
-                                  key={`${entry.id}-quantidade`}
-                                  type="text"
-                                  inputMode="numeric"
+                                <InlineEditField
+                                  id={`${entry.id}-quantidade`}
+                                  type="numeric"
                                   defaultValue={entry.quantidade || ''}
-                                  onBlur={(e) => {
-                                    const val = e.target.value.replace(
-                                      /[^0-9]/g,
-                                      '',
-                                    )
-                                    updateEntry(
-                                      index,
-                                      'quantidade',
-                                      val ? parseInt(val) : 0,
-                                    )
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      e.preventDefault()
-                                      const val =
-                                        e.currentTarget.value.replace(
-                                          /[^0-9]/g,
-                                          '',
-                                        )
-                                      updateEntry(
-                                        index,
-                                        'quantidade',
-                                        val ? parseInt(val) : 0,
-                                      )
-                                    }
-                                  }}
+                                  onChange={(value) =>
+                                    updateEntry(index, 'quantidade', value)
+                                  }
                                   maxLength={6}
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                   placeholder="0"
                                 />
                               </TableCell>
@@ -2764,39 +2740,14 @@ export default function StocksPage() {
                                 <div className="text-xs text-muted-foreground font-medium mb-1">
                                   SIZE X
                                 </div>
-                                <input
-                                  key={`${entry.id}-size_x`}
-                                  type="text"
-                                  inputMode="numeric"
+                                <InlineEditField
+                                  id={`${entry.id}-size_x`}
+                                  type="numeric"
                                   defaultValue={entry.size_x || ''}
-                                  onBlur={(e) => {
-                                    const val = e.target.value.replace(
-                                      /[^0-9]/g,
-                                      '',
-                                    )
-                                    updateEntry(
-                                      index,
-                                      'size_x',
-                                      val ? parseInt(val) : 0,
-                                    )
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      e.preventDefault()
-                                      const val =
-                                        e.currentTarget.value.replace(
-                                          /[^0-9]/g,
-                                          '',
-                                        )
-                                      updateEntry(
-                                        index,
-                                        'size_x',
-                                        val ? parseInt(val) : 0,
-                                      )
-                                    }
-                                  }}
+                                  onChange={(value) =>
+                                    updateEntry(index, 'size_x', value)
+                                  }
                                   maxLength={5}
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                   placeholder="3000"
                                 />
                               </TableCell>
@@ -2804,39 +2755,14 @@ export default function StocksPage() {
                                 <div className="text-xs text-muted-foreground font-medium mb-1">
                                   SIZE Y
                                 </div>
-                                <input
-                                  key={`${entry.id}-size_y`}
-                                  type="text"
-                                  inputMode="numeric"
+                                <InlineEditField
+                                  id={`${entry.id}-size_y`}
+                                  type="numeric"
                                   defaultValue={entry.size_y || ''}
-                                  onBlur={(e) => {
-                                    const val = e.target.value.replace(
-                                      /[^0-9]/g,
-                                      '',
-                                    )
-                                    updateEntry(
-                                      index,
-                                      'size_y',
-                                      val ? parseInt(val) : 0,
-                                    )
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      e.preventDefault()
-                                      const val =
-                                        e.currentTarget.value.replace(
-                                          /[^0-9]/g,
-                                          '',
-                                        )
-                                      updateEntry(
-                                        index,
-                                        'size_y',
-                                        val ? parseInt(val) : 0,
-                                      )
-                                    }
-                                  }}
+                                  onChange={(value) =>
+                                    updateEntry(index, 'size_y', value)
+                                  }
                                   maxLength={5}
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                   placeholder="2000"
                                 />
                               </TableCell>
@@ -2979,25 +2905,13 @@ export default function StocksPage() {
                                 <div className="text-xs text-muted-foreground font-medium mb-1">
                                   REF PAL (OPCIONAL)
                                 </div>
-                                <input
-                                  key={`${entry.id}-no_palete-row2`}
-                                  type="text"
+                                <InlineEditField
+                                  id={`${entry.id}-no_palete-row2`}
                                   defaultValue={entry.no_palete || ''}
-                                  onBlur={(e) =>
-                                    updateEntry(index, 'no_palete', e.target.value)
+                                  onChange={(value) =>
+                                    updateEntry(index, 'no_palete', value)
                                   }
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      e.preventDefault()
-                                      updateEntry(
-                                        index,
-                                        'no_palete',
-                                        e.currentTarget.value,
-                                      )
-                                    }
-                                  }}
                                   maxLength={50}
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                   placeholder="P100 ou P100,P101,P102 (Opcional)"
                                 />
                               </TableCell>
@@ -3005,64 +2919,27 @@ export default function StocksPage() {
                                 <div className="text-xs text-muted-foreground font-medium mb-1">
                                   NºPAL
                                 </div>
-                                <input
-                                  key={`${entry.id}-num_paletes-row2`}
-                                  type="text"
-                                  inputMode="numeric"
+                                <InlineEditField
+                                  id={`${entry.id}-num_paletes-row2`}
+                                  type="numeric"
                                   defaultValue={entry.num_paletes || 1}
-                                  onBlur={(e) => {
-                                    const val = e.target.value.replace(
-                                      /[^0-9]/g,
-                                      '',
-                                    )
-                                    updateEntry(
-                                      index,
-                                      'num_paletes',
-                                      val ? parseInt(val) : 1,
-                                    )
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      e.preventDefault()
-                                      const val =
-                                        e.currentTarget.value.replace(
-                                          /[^0-9]/g,
-                                          '',
-                                        )
-                                      updateEntry(
-                                        index,
-                                        'num_paletes',
-                                        val ? parseInt(val) : 1,
-                                      )
-                                    }
-                                  }}
+                                  onChange={(value) =>
+                                    updateEntry(index, 'num_paletes', value)
+                                  }
                                   maxLength={3}
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 />
                               </TableCell>
                               <TableCell className="pt-0 w-[150px]">
                                 <div className="text-xs text-muted-foreground font-medium mb-1">
                                   Nº Guia
                                 </div>
-                                <input
-                                  key={`${entry.id}-no_guia_forn-row2`}
-                                  type="text"
+                                <InlineEditField
+                                  id={`${entry.id}-no_guia_forn-row2`}
                                   defaultValue={entry.no_guia_forn || ''}
-                                  onBlur={(e) =>
-                                    updateEntry(index, 'no_guia_forn', e.target.value)
+                                  onChange={(value) =>
+                                    updateEntry(index, 'no_guia_forn', value)
                                   }
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      e.preventDefault()
-                                      updateEntry(
-                                        index,
-                                        'no_guia_forn',
-                                        e.currentTarget.value,
-                                      )
-                                    }
-                                  }}
                                   maxLength={20}
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                   placeholder="Opcional"
                                 />
                               </TableCell>
