@@ -244,36 +244,6 @@ export default function ProducaoPage() {
   const [showTotals, setShowTotals] = useState(false)
 
 
-  // Debug: Track when codeF and effectiveCodeF changes
-  useEffect(() => {
-    console.log(
-      '🔤 codeF state changed to:',
-      `"${codeF}"`,
-      'length:',
-      codeF.length,
-    )
-  }, [codeF, effectiveCodeF])
-
-  // Diagnostic logging: Track drawer state changes
-  useEffect(() => {
-    console.log('🔍 [DRAWER STATE] openId changed:', openId)
-    console.log('🔍 [DRAWER STATE] Timestamp:', new Date().toISOString())
-
-    // Log inert elements
-    const inertElements = document.querySelectorAll('[inert]')
-    console.log('🔍 [DRAWER STATE] Inert elements count:', inertElements.length)
-    if (inertElements.length > 0) {
-      console.log('🔍 [DRAWER STATE] Inert elements:', Array.from(inertElements))
-    }
-
-    // Log pointer-events styles on main content
-    const mainContent = document.querySelector('.w-full.space-y-6')
-    if (mainContent) {
-      const styles = window.getComputedStyle(mainContent)
-      console.log('🔍 [DRAWER STATE] Main content pointer-events:', styles.pointerEvents)
-      console.log('🔍 [DRAWER STATE] Main content inert:', mainContent.hasAttribute('inert'))
-    }
-  }, [openId])
 
   // Cleanup effect: Force remove inert attributes when drawer closes
   useEffect(() => {
@@ -283,7 +253,6 @@ export default function ProducaoPage() {
         // Remove inert from all elements
         const inertElements = document.querySelectorAll('[inert]')
         if (inertElements.length > 0) {
-          console.log('🧹 [DRAWER CLEANUP] Removing inert from', inertElements.length, 'elements')
           inertElements.forEach(el => {
             el.removeAttribute('inert')
           })
@@ -391,7 +360,7 @@ export default function ProducaoPage() {
           insertData.customer_id = header.customer_id
         }
       }
-      console.log('💾 Insert Data (ORC):', insertData)
+
       const { data: newJob, error } = await supabase
         .from('folhas_obras')
         .insert(insertData)
@@ -399,7 +368,6 @@ export default function ProducaoPage() {
           'id, numero_fo:Numero_do_, numero_orc, nome_campanha:Trabalho, cliente:Nome',
         )
         .single()
-      console.log('📥 Returned from INSERT+SELECT (ORC):', { newJob, error })
       if (error) throw error
       if (newJob) {
         const mappedJob = {
@@ -416,7 +384,7 @@ export default function ProducaoPage() {
             : null,
           data_in: header?.folha_obra_date ?? null,
         } as Job
-        console.log('🎯 Mapped Job for UI (ORC):', mappedJob)
+
         setJobs((prev) => prev.map((j) => (j.id === tempJobId ? mappedJob : j)))
         if (phcFolhaObraId) {
           await importPhcLinesForFo(
