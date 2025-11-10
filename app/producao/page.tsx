@@ -121,6 +121,7 @@ import {
   getCColor,
 } from '@/utils/producao/statusColors'
 import { usePhcIntegration } from '@/app/producao/hooks/usePhcIntegration'
+import { useDuplicateValidation } from '@/app/producao/hooks/useDuplicateValidation'
 
 /* ---------- lazy loaded components ---------- */
 const JobDrawerContent = lazy(() =>
@@ -345,103 +346,10 @@ export default function ProducaoPage() {
     setOpenId,
   )
 
-  /* ---------- Duplicate Validation Functions ---------- */
+  /* ---------- Duplicate Validation Hook ---------- */
+  const { checkOrcDuplicate, checkFoDuplicate } = useDuplicateValidation(supabase)
 
-  // Check if ORC number already exists
-  const checkOrcDuplicate = useCallback(
-    async (orcNumber: string, currentJobId: string) => {
-      if (!orcNumber || orcNumber === '') {
-        return null
-      }
-
-      try {
-        let query = supabase
-          .from('folhas_obras')
-          .select('id, numero_orc, Numero_do_, Trabalho, Nome')
-          .eq('numero_orc', orcNumber)
-
-        // Only add the neq filter if currentJobId is not a temp job (temp jobs have string IDs like "temp-xxx")
-        if (
-          currentJobId &&
-          currentJobId.trim() !== '' &&
-          !currentJobId.startsWith('temp-')
-        ) {
-          query = query.neq('id', currentJobId)
-        }
-
-        const { data, error } = await query.limit(1)
-
-        if (error) throw error
-
-        return data && data.length > 0
-          ? ({
-              id: (data as any)[0].id,
-              numero_orc: (data as any)[0].numero_orc ?? null,
-              numero_fo: (data as any)[0].Numero_do_
-                ? String((data as any)[0].Numero_do_)
-                : '',
-              nome_campanha: (data as any)[0].Trabalho || '',
-              cliente: (data as any)[0].Nome || null,
-              data_saida: null,
-              prioridade: null,
-              notas: null,
-            } as Job)
-          : null
-      } catch (error) {
-        console.error('Error checking ORC duplicate:', error)
-        return null
-      }
-    },
-    [supabase],
-  )
-
-  // Check if FO number already exists
-  const checkFoDuplicate = useCallback(
-    async (foNumber: string, currentJobId: string) => {
-      if (!foNumber || foNumber.trim() === '') {
-        return null
-      }
-
-      try {
-        let query = supabase
-          .from('folhas_obras')
-          .select('id, Numero_do_, numero_orc, Trabalho, Nome')
-          .eq('Numero_do_', foNumber.trim())
-
-        // Only add the neq filter if currentJobId is not a temp job (temp jobs have string IDs like "temp-xxx")
-        if (
-          currentJobId &&
-          currentJobId.trim() !== '' &&
-          !currentJobId.startsWith('temp-')
-        ) {
-          query = query.neq('id', currentJobId)
-        }
-
-        const { data, error } = await query.limit(1)
-
-        if (error) throw error
-
-        return data && data.length > 0
-          ? ({
-              id: (data as any)[0].id,
-              numero_orc: (data as any)[0].numero_orc ?? null,
-              numero_fo: (data as any)[0].Numero_do_
-                ? String((data as any)[0].Numero_do_)
-                : '',
-              nome_campanha: (data as any)[0].Trabalho || '',
-              cliente: (data as any)[0].Nome || null,
-              data_saida: null,
-              prioridade: null,
-              notas: null,
-            } as Job)
-          : null
-      } catch (error) {
-        console.error('Error checking FO duplicate:', error)
-        return null
-      }
-    },
-    [supabase],
-  )
+  /* ---------- Other Functions ---------- */
 
   const prefillAndInsertFromOrc = useCallback(
     async (orcNumber: string, tempJobId: string) => {
