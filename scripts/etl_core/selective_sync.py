@@ -43,6 +43,16 @@ def get_one_year_ago_filter():
     current_year_start = _current_year_start_date().isoformat()
     return f"dataobra >= '{current_year_start}'"
 
+
+def get_one_year_ago_filter_bo():
+    """Get filter for BO table - last 1 year and exclude zero-value supplier orders."""
+    base = get_one_year_ago_filter()
+    # Exclude supplier orders with zero total value while keeping other document types untouched.
+    return (
+        f"{base} AND (nmdos <> 'Encomenda a Fornecedor' "
+        "OR COALESCE(ebo_2tvall, 0) <> 0)"
+    )
+
 def get_three_years_ago_filter():
     """Get filter for records from the last 3 years"""
     three_years_ago = (datetime.now() - timedelta(days=1095)).strftime('%Y-%m-%d')
@@ -158,7 +168,7 @@ TABLE_CONFIGS = {
             'ebo_2tvall': 'total_value',      # Clearer: ebo_2tvall → total_value
             'marca': 'last_delivery_date'     # PHC: marca → last_delivery_date (delivery date, stored as "DD.MM.YYYY" in VARCHAR)
         },
-        'filter': get_one_year_ago_filter(),  # Last 1 year from today (dynamic)
+        'filter': get_one_year_ago_filter_bo,  # Last 1 year & no zero-value supplier orders
         'description': 'Work Orders/Budgets (Last 1 Year)',
         'primary_key': 'document_id',
         'source_date_column': 'dataobra',
@@ -278,6 +288,26 @@ TABLE_CONFIGS = {
         'parent_source_key_column': 'ftstamp',
         'parent_source_date_column': 'fdata',
         'supports_incremental': True
+    },
+
+    'fl': {
+        'columns': {
+            'no': 'INTEGER NOT NULL',         # PHC: no - Supplier number
+            'nome': 'TEXT',                   # PHC: nome - Supplier name
+            'ccusto': 'TEXT',                 # PHC: ccusto - Cost center
+            'inactivo': 'BOOLEAN'             # PHC: inactivo - Inactive flag
+        },
+        'column_mappings': {
+            'no': 'supplier_id',              # Clearer: no → supplier_id
+            'nome': 'supplier_name',          # Clearer: nome → supplier_name
+            'ccusto': 'cost_center',          # Clearer: ccusto → cost_center
+            'inactivo': 'is_inactive'         # Clearer: inactivo → is_inactive
+        },
+        'filter': "inactivo = 0",             # Import only active suppliers (INACTIVO = false)
+        'description': 'Active Suppliers',
+        'primary_key': 'supplier_id',
+        'source_date_column': None,
+        'supports_incremental': False
     }
 }
 
@@ -779,7 +809,7 @@ class SelectiveSync:
             self.close_connections()
 
     def sync_fast_all_tables_3days(self, overlap_days: int = 3, retention_months: int = 12) -> dict:
-        """Run a fast incremental sync for ALL tables (CL, BO, BI, FT, FO, FI) using watermarks."""
+        """Run a fast incremental sync for ALL tables (CL, BO, BI, FT, FO, FI, FL) using watermarks."""
         logger.info("[FAST] Fast watermarked sync for ALL tables (overlap=%s days)", overlap_days)
 
         if not self.connect_phc() or not self.connect_supabase():
@@ -788,15 +818,26 @@ class SelectiveSync:
         try:
             self._ensure_watermark_table()
             results = {}
-            for table_name in ('cl', 'bo', 'bi', 'ft', 'fo', 'fi'):
+            for table_name in ('cl', 'bo', 'bi', 'ft', 'fo', 'fi', 'fl'):
                 config = TABLE_CONFIGS.get(table_name)
                 if not config:
                     logger.warning("Config for table %s not found; skipping", table_name)
                     continue
-                
+
                 # Skip CL if synced in last 24h - rarely changes
                 if table_name == 'cl' and self._should_skip_table('cl', skip_hours=24):
                     logger.info("[SKIP] CL: Skipped (synced within last 24h)")
+                    results[table_name] = {
+                        'success': True,
+                        'rows': 0,
+                        'description': config.get('description'),
+                        'skipped': True,
+                    }
+                    continue
+
+                # Skip FL if synced in last 24h - rarely changes (same as CL)
+                if table_name == 'fl' and self._should_skip_table('fl', skip_hours=24):
+                    logger.info("[SKIP] FL: Skipped (synced within last 24h)")
                     results[table_name] = {
                         'success': True,
                         'rows': 0,
@@ -867,7 +908,7 @@ class SelectiveSync:
     def sync_today_clients(self) -> dict:
         """Sync clients only from today 00:00:00"""
         logger.info("[TODAY] Today-only sync for clients")
-        
+
         if not self.connect_phc() or not self.connect_supabase():
             return {}
 
@@ -876,31 +917,60 @@ class SelectiveSync:
             config = TABLE_CONFIGS.get('cl')
             if not config:
                 return {}
-            
+
             result = self._run_today_sync_for_table('cl', config)
             return {'cl': result}
         finally:
             self.close_connections()
 
+    def sync_today_fl(self) -> dict:
+        """Sync suppliers (FL table) only from today 00:00:00"""
+        logger.info("[TODAY] Today-only sync for suppliers (FL)")
+
+        if not self.connect_phc() or not self.connect_supabase():
+            return {}
+
+        try:
+            self._ensure_watermark_table()
+            config = TABLE_CONFIGS.get('fl')
+            if not config:
+                return {}
+
+            result = self._run_today_sync_for_table('fl', config)
+            return {'fl': result}
+        finally:
+            self.close_connections()
+
     def sync_today_all_tables(self) -> dict:
-        """Sync ALL tables (CL, BO, BI, FT, FO, FI) from today 00:00:00"""
+        """Sync ALL tables (CL, BO, BI, FT, FO, FI, FL) from today 00:00:00"""
         logger.info("[TODAY] Today-only sync for ALL tables (from midnight)")
-        
+
         if not self.connect_phc() or not self.connect_supabase():
             return {}
 
         try:
             self._ensure_watermark_table()
             results = {}
-            for table_name in ('cl', 'bo', 'bi', 'ft', 'fo', 'fi'):
+            for table_name in ('cl', 'bo', 'bi', 'ft', 'fo', 'fi', 'fl'):
                 config = TABLE_CONFIGS.get(table_name)
                 if not config:
                     logger.warning("Config for table %s not found; skipping", table_name)
                     continue
-                
+
                 # Skip CL if synced in last 6 hours - rarely changes during the day
                 if table_name == 'cl' and self._should_skip_table('cl', skip_hours=6):
                     logger.info("[SKIP] CL: Skipped (synced within last 6h)")
+                    results[table_name] = {
+                        'success': True,
+                        'rows': 0,
+                        'description': config.get('description'),
+                        'skipped': True,
+                    }
+                    continue
+
+                # Skip FL if synced in last 6 hours - rarely changes during the day
+                if table_name == 'fl' and self._should_skip_table('fl', skip_hours=6):
+                    logger.info("[SKIP] FL: Skipped (synced within last 6h)")
                     results[table_name] = {
                         'success': True,
                         'rows': 0,
@@ -1039,16 +1109,27 @@ class SelectiveSync:
 
         try:
             self._ensure_watermark_table()
-            tables = ['cl', 'bo', 'bi', 'ft', 'fo', 'fi']
+            tables = ['cl', 'bo', 'bi', 'ft', 'fo', 'fi', 'fl']
             results = {}
             for table_name in tables:
                 config = TABLE_CONFIGS.get(table_name)
                 if not config:
                     continue
-                
+
                 # Skip CL (customers) if synced in last 24h - rarely changes
                 if table_name == 'cl' and self._should_skip_table('cl', skip_hours=24):
                     logger.info("[SKIP] CL: Skipped (synced within last 24h)")
+                    results[table_name] = {
+                        'success': True,
+                        'rows': 0,
+                        'description': config.get('description'),
+                        'skipped': True,
+                    }
+                    continue
+
+                # Skip FL (suppliers) if synced in last 24h - rarely changes
+                if table_name == 'fl' and self._should_skip_table('fl', skip_hours=24):
+                    logger.info("[SKIP] FL: Skipped (synced within last 24h)")
                     results[table_name] = {
                         'success': True,
                         'rows': 0,

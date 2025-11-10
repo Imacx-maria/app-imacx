@@ -10,6 +10,7 @@ import {
   TableCell,
 } from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
+import { FilterInput } from '@/components/custom/FilterInput'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -1017,71 +1018,71 @@ export const DashboardLogisticaTable: React.FC<
     <div className="w-full">
       {/* Filter Bar */}
       <div className="mb-4 flex items-center gap-2">
-        <Input
-          placeholder="FO"
-          className="w-[90px]"
-          maxLength={5}
+        <FilterInput
           value={filters.numeroFo}
-          onChange={(e) => {
-            const value = e.target.value
+          onChange={(value) => {
             if (value.length <= 5) {
               setFilters((prev) => ({ ...prev, numeroFo: value }))
             }
           }}
-          title="Mínimo 3 caracteres para filtrar"
-        />
-        <Input
-          placeholder="ORC"
+          placeholder="FO"
+          minChars={3}
+          debounceMs={300}
           className="w-[90px]"
-          maxLength={5}
+        />
+        <FilterInput
           value={filters.numeroOrc}
-          onChange={(e) => {
-            const value = e.target.value
+          onChange={(value) => {
             if (value.length <= 5) {
               setFilters((prev) => ({ ...prev, numeroOrc: value }))
             }
           }}
-          title="Mínimo 3 caracteres para filtrar"
-        />
-        <Input
-          placeholder="Guia"
+          placeholder="ORC"
+          minChars={3}
+          debounceMs={300}
           className="w-[90px]"
-          maxLength={5}
+        />
+        <FilterInput
           value={filters.guia}
-          onChange={(e) => {
-            const value = e.target.value
+          onChange={(value) => {
             if (value.length <= 5) {
               setFilters((prev) => ({ ...prev, guia: value }))
             }
           }}
-          title="Mínimo 3 caracteres para filtrar"
+          placeholder="Guia"
+          minChars={3}
+          debounceMs={300}
+          className="w-[90px]"
         />
-        <Input
-          placeholder="Cliente"
-          className="w-[200px]"
+        <FilterInput
           value={filters.cliente}
-          onChange={(e) =>
-            setFilters((prev) => ({ ...prev, cliente: e.target.value }))
+          onChange={(value) =>
+            setFilters((prev) => ({ ...prev, cliente: value }))
           }
-          title="Mínimo 3 caracteres para filtrar"
+          placeholder="Cliente"
+          minChars={3}
+          debounceMs={300}
+          className="w-[200px]"
         />
-        <Input
-          placeholder="Nome Campanha"
-          className="flex-1"
+        <FilterInput
           value={filters.nomeCampanha}
-          onChange={(e) =>
-            setFilters((prev) => ({ ...prev, nomeCampanha: e.target.value }))
+          onChange={(value) =>
+            setFilters((prev) => ({ ...prev, nomeCampanha: value }))
           }
-          title="Mínimo 3 caracteres para filtrar"
-        />
-        <Input
-          placeholder="Item"
+          placeholder="Nome Campanha"
+          minChars={3}
+          debounceMs={300}
           className="flex-1"
+        />
+        <FilterInput
           value={filters.item}
-          onChange={(e) =>
-            setFilters((prev) => ({ ...prev, item: e.target.value }))
+          onChange={(value) =>
+            setFilters((prev) => ({ ...prev, item: value }))
           }
-          title="Mínimo 3 caracteres para filtrar"
+          placeholder="Item"
+          minChars={3}
+          debounceMs={300}
+          className="flex-1"
         />
 
         {/* Date filter buttons */}

@@ -80,6 +80,7 @@ const menuItems: MenuItem[] = [
     pageId: 'stocks',
     submenu: [
       { title: 'Resumo', href: '/stocks', icon: <Warehouse className="h-4 w-4" />, pageId: 'stocks' },
+      { title: 'Gestão de Stocks', href: '/stocks/gestao', icon: <Warehouse className="h-4 w-4" />, pageId: 'stocks/gestao' },
       { title: 'Gestão de Materiais', href: '/definicoes/materiais', icon: <Package className="h-4 w-4" />, pageId: 'definicoes/materiais' },
       { title: 'Gestão de Máquinas', href: '/definicoes/maquinas', icon: <Factory className="h-4 w-4" />, pageId: 'definicoes/maquinas' },
     ],
@@ -114,7 +115,7 @@ export function Navigation() {
   const pathname = usePathname()
   const router = useRouter()
   const { theme, setTheme } = useTheme()
-  const { canAccessPage, pagePermissions, loading: permissionsLoading } = usePermissions()
+  const { canAccessPage, loading: permissionsLoading } = usePermissions()
   const [mounted, setMounted] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false) // Always start expanded on SSR
   const [openSubmenus, setOpenSubmenus] = useState<string[]>([])
@@ -216,14 +217,13 @@ export function Navigation() {
       // If no pageId specified, show by default
       if (!item.pageId) return true
 
-      // Check if user has direct permission for this page
-      if (canAccessPage(item.pageId)) return true
+      // Check if user can access linked page path
+      if (item.href && canAccessPage(item.href)) return true
 
-      // If item has submenu, check if user has access to ANY child page
-      // This ensures parent menus are visible if user has child permissions
+      // If item has submenu, check if user has access to ANY child page by href
       if (item.submenu && item.submenu.length > 0) {
         return item.submenu.some(subItem =>
-          subItem.pageId ? canAccessPage(subItem.pageId) : false
+          subItem.href ? canAccessPage(subItem.href) : false
         )
       }
 

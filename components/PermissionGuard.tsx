@@ -2,23 +2,33 @@
 
 import { ReactNode } from 'react'
 import { usePermissions } from '@/providers/PermissionsProvider'
+import { type PermissionId, type RoleId } from '@/types/permissions'
 
 interface PermissionGuardProps {
   children: ReactNode
-  requiredPermission?: string
-  requiredRole?: string
+  requiredPermission?: PermissionId
+  requiredPermissionsAll?: PermissionId[]
+  requiredRole?: RoleId
+  requiredAnyRole?: RoleId[]
   fallback?: ReactNode
 }
 
-export default function PermissionGuard({ 
-  children, 
-  requiredPermission, 
+export default function PermissionGuard({
+  children,
+  requiredPermission,
+  requiredPermissionsAll,
   requiredRole,
-  fallback
+  requiredAnyRole,
+  fallback,
 }: PermissionGuardProps) {
-  const { hasPermission, hasRole, loading } = usePermissions()
+  const {
+    hasPermission,
+    hasAllPermissions,
+    hasRole,
+    hasAnyRole,
+    loading,
+  } = usePermissions()
 
-  // Show loading state
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -27,36 +37,44 @@ export default function PermissionGuard({
     )
   }
 
-  // If no requirements specified, allow access
-  if (!requiredPermission && !requiredRole) {
+  if (
+    !requiredPermission &&
+    !requiredPermissionsAll &&
+    !requiredRole &&
+    !requiredAnyRole
+  ) {
     return <>{children}</>
   }
 
-  // Check permissions
   if (requiredPermission && !hasPermission(requiredPermission)) {
-    if (fallback) return <>{fallback}</>
-    return (
-      <div className="p-8 text-center">
-        <h2 className="text-2xl font-bold text-foreground">Access Denied</h2>
-        <p className="mt-2 text-muted-foreground">
-          You don&apos;t have permission to access this resource.
-        </p>
-      </div>
-    )
+    return <>{fallback ?? <DefaultDenied />}</>
   }
 
-  // Check roles
+  if (
+    requiredPermissionsAll &&
+    !hasAllPermissions(requiredPermissionsAll)
+  ) {
+    return <>{fallback ?? <DefaultDenied />}</>
+  }
+
   if (requiredRole && !hasRole(requiredRole)) {
-    if (fallback) return <>{fallback}</>
-    return (
-      <div className="p-8 text-center">
-        <h2 className="text-2xl font-bold text-foreground">Access Denied</h2>
-        <p className="mt-2 text-muted-foreground">
-          You don&apos;t have the required role to access this resource.
-        </p>
-      </div>
-    )
+    return <>{fallback ?? <DefaultDenied />}</>
+  }
+
+  if (requiredAnyRole && !hasAnyRole(requiredAnyRole)) {
+    return <>{fallback ?? <DefaultDenied />}</>
   }
 
   return <>{children}</>
+}
+
+function DefaultDenied() {
+  return (
+    <div className="p-8 text-center">
+      <h2 className="text-2xl font-bold text-foreground">Access Denied</h2>
+      <p className="mt-2 text-muted-foreground">
+        You don&apos;t have permission to access this resource.
+      </p>
+    </div>
+  )
 }

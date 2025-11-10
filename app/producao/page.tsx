@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { FilterInput } from '@/components/custom/FilterInput'
 import { Progress } from '@/components/ui/progress'
 import { Checkbox } from '@/components/ui/checkbox'
 
@@ -68,9 +69,7 @@ import {
   FolderSync,
   FileUser,
 } from 'lucide-react'
-import CreatableClienteCombobox, {
-  ClienteOption,
-} from '@/components/forms/CreatableClienteCombobox'
+import CreatableClienteCombobox from '@/components/forms/CreatableClienteCombobox'
 import SimpleNotasPopover from '@/components/custom/SimpleNotasPopover'
 import {
   Tooltip,
@@ -91,9 +90,21 @@ import {
 import LogisticaTableWithCreatable from '@/components/custom/LogisticaTableWithCreatable'
 import { LogisticaRecord, Cliente } from '@/types/logistica'
 import { useLogisticaData } from '@/utils/useLogisticaData'
-import { exportProducaoToExcel } from '@/utils/exportProducaoToExcel'
+// PERFORMANCE: ExcelJS is lazy loaded (500KB) - only loads when user exports
 import { Suspense } from 'react'
-import type { Job, Item, LoadingState } from '@/types/producao'
+import type {
+  Job,
+  Item,
+  LoadingState,
+  Holiday,
+  SortableJobKey,
+  PhcFoHeader,
+  ClienteOption,
+  DuplicateDialogState,
+  FOTotals,
+  ProducaoTab,
+  SortDirection,
+} from '@/types/producao'
 import { useDebounce } from '@/hooks/useDebounce'
 import {
   parseDateFromYYYYMMDD,
@@ -107,6 +118,12 @@ import {
   getAColor,
   getCColor,
 } from '@/utils/producao/statusColors'
+import { usePhcIntegration } from '@/app/producao/hooks/usePhcIntegration'
+import { useDuplicateValidation } from '@/app/producao/hooks/useDuplicateValidation'
+import { useProducaoJobs } from '@/app/producao/hooks/useProducaoJobs'
+import { useJobStatus } from '@/app/producao/hooks/useJobStatus'
+import { useItemsData } from '@/app/producao/hooks/useItemsData'
+import { useReferenceData } from '@/app/producao/hooks/useReferenceData'
 
 /* ---------- lazy loaded components ---------- */
 const JobDrawerContent = lazy(() =>
@@ -150,13 +167,6 @@ const ErrorMessage = ({
 
 /* ---------- Performance optimizations complete ---------- */
 
-/* ---------- Holiday interface ---------- */
-interface Holiday {
-  id: string
-  holiday_date: string
-  description?: string
-}
-
 /* ---------- main page ---------- */
 export default function ProducaoPage() {
   const supabase = useMemo(() => createBrowserClient(), [])
@@ -167,13 +177,11 @@ export default function ProducaoPage() {
   const [allOperacoes, setAllOperacoes] = useState<any[]>([])
   const [allDesignerItems, setAllDesignerItems] = useState<any[]>([])
   const [openId, setOpenId] = useState<string | null>(null)
-  const [clientes, setClientes] = useState<{ value: string; label: string }[]>(
-    [],
-  )
+  const [clientes, setClientes] = useState<ClienteOption[]>([])
   const [holidays, setHolidays] = useState<Holiday[]>([])
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   // Ref to access latest clientes in fetchJobs without creating dependency
-  const clientesRef = useRef<{ value: string; label: string }[]>([])
+  const clientesRef = useRef<ClienteOption[]>([])
   // Ref to track if initial load has happened
   const initialLoadDone = useRef(false)
   // Ref to track FO imports in progress to prevent duplicate imports from multiple tabs
@@ -189,16 +197,7 @@ export default function ProducaoPage() {
   )
 
   /* duplicate validation state */
-  const [duplicateDialog, setDuplicateDialog] = useState<{
-    isOpen: boolean
-    type: 'orc' | 'fo'
-    value: string | number
-    existingJob?: Job
-    currentJobId: string
-    originalValue?: string | number | null
-    onConfirm?: () => void
-    onCancel?: () => void
-  }>({
+  const [duplicateDialog, setDuplicateDialog] = useState<DuplicateDialogState>({
     isOpen: false,
     type: 'orc',
     value: '',
@@ -226,85 +225,27 @@ export default function ProducaoPage() {
   const [itemF, setItemF] = useState('')
   const [codeF, setCodeF] = useState('')
   const [clientF, setClientF] = useState('')
+
+  const [effectiveFoF, setEffectiveFoF] = useState('')
+  const [effectiveOrcF, setEffectiveOrcF] = useState('')
+  const [effectiveCampF, setEffectiveCampF] = useState('')
+  const [effectiveItemF, setEffectiveItemF] = useState('')
+  const [effectiveCodeF, setEffectiveCodeF] = useState('')
+  const [effectiveClientF, setEffectiveClientF] = useState('')
   // F (fatura) toggle: false = show F false, true = show F true
   const [showFatura, setShowFatura] = useState(false)
 
   /* tab state */
-  const [activeTab, setActiveTab] = useState<
-    'em_curso' | 'concluidos' | 'pendentes'
-  >('em_curso')
+  const [activeTab, setActiveTab] = useState<ProducaoTab>('em_curso')
 
   /* FO totals state */
-  const [foTotals, setFoTotals] = useState<{
-    em_curso: number
-    pendentes: number
-  }>({
+  const [foTotals, setFoTotals] = useState<FOTotals>({
     em_curso: 0,
     pendentes: 0,
   })
   const [showTotals, setShowTotals] = useState(false)
 
-  // Debounced filter values for performance
-  const debouncedFoF = useDebounce(foF, 300)
-  const debouncedOrcF = useDebounce(orcF, 300)
-  const debouncedCampF = useDebounce(campF, 300)
-  const debouncedItemF = useDebounce(itemF, 300)
-  const debouncedCodeF = useDebounce(codeF, 300)
 
-  // Apply 3-character minimum filter requirement
-  const effectiveFoF = debouncedFoF.trim().length >= 3 ? debouncedFoF : ''
-  const effectiveOrcF = debouncedOrcF.trim().length >= 3 ? debouncedOrcF : ''
-  const effectiveCampF = debouncedCampF.trim().length >= 3 ? debouncedCampF : ''
-  const effectiveItemF = debouncedItemF.trim().length >= 3 ? debouncedItemF : ''
-  const effectiveCodeF = debouncedCodeF.trim().length >= 3 ? debouncedCodeF : ''
-
-  // Debug: Track when codeF and debounced value changes
-  useEffect(() => {
-    console.log(
-      '🔤 codeF state changed to:',
-      `"${codeF}"`,
-      'length:',
-      codeF.length,
-    )
-    // Log stack trace to see what's causing the change
-    if (codeF === '' && debouncedCodeF !== '') {
-      console.warn(
-        '⚠️ CodeF was unexpectedly cleared! Previous value was:',
-        debouncedCodeF,
-      )
-      console.trace('Stack trace for codeF clear:')
-    }
-  }, [codeF, debouncedCodeF])
-
-  useEffect(() => {
-    console.log(
-      '⏱️ debouncedCodeF changed to:',
-      `"${debouncedCodeF}"`,
-      'length:',
-      debouncedCodeF.length,
-    )
-  }, [debouncedCodeF])
-
-  // Diagnostic logging: Track drawer state changes
-  useEffect(() => {
-    console.log('🔍 [DRAWER STATE] openId changed:', openId)
-    console.log('🔍 [DRAWER STATE] Timestamp:', new Date().toISOString())
-
-    // Log inert elements
-    const inertElements = document.querySelectorAll('[inert]')
-    console.log('🔍 [DRAWER STATE] Inert elements count:', inertElements.length)
-    if (inertElements.length > 0) {
-      console.log('🔍 [DRAWER STATE] Inert elements:', Array.from(inertElements))
-    }
-
-    // Log pointer-events styles on main content
-    const mainContent = document.querySelector('.w-full.space-y-6')
-    if (mainContent) {
-      const styles = window.getComputedStyle(mainContent)
-      console.log('🔍 [DRAWER STATE] Main content pointer-events:', styles.pointerEvents)
-      console.log('🔍 [DRAWER STATE] Main content inert:', mainContent.hasAttribute('inert'))
-    }
-  }, [openId])
 
   // Cleanup effect: Force remove inert attributes when drawer closes
   useEffect(() => {
@@ -314,7 +255,6 @@ export default function ProducaoPage() {
         // Remove inert from all elements
         const inertElements = document.querySelectorAll('[inert]')
         if (inertElements.length > 0) {
-          console.log('🧹 [DRAWER CLEANUP] Removing inert from', inertElements.length, 'elements')
           inertElements.forEach(el => {
             el.removeAttribute('inert')
           })
@@ -343,30 +283,10 @@ export default function ProducaoPage() {
     }
   }, [openId])
 
-  const debouncedClientF = useDebounce(clientF, 300)
-
-  // Add effectiveClientF
-  const effectiveClientF = debouncedClientF.trim().length >= 3 ? debouncedClientF : ''
 
   /* sorting */
-  type SortableJobKey =
-    | 'created_at'
-    | 'numero_orc'
-    | 'numero_fo'
-    | 'cliente'
-    | 'nome_campanha'
-    | 'notas'
-    | 'prioridade'
-    | 'data_concluido'
-    | 'concluido'
-    | 'saiu'
-    | 'fatura'
-    | 'pendente'
-    | 'artwork'
-    | 'corte'
-    | 'total_value'
   const [sortCol, setSortCol] = useState<SortableJobKey>('prioridade')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [sortDir, setSortDir] = useState<SortDirection>('desc')
 
   const [hasUserSorted, setHasUserSorted] = useState(false) // Track if user has manually sorted
   const toggleSort = useCallback(
@@ -381,515 +301,66 @@ export default function ProducaoPage() {
     [sortCol, sortDir],
   )
 
-  /* ---------- Duplicate Validation Functions ---------- */
-
-  // Check if ORC number already exists
-  const checkOrcDuplicate = useCallback(
-    async (orcNumber: string, currentJobId: string) => {
-      if (!orcNumber || orcNumber === '') {
-        return null
-      }
-
-      try {
-        let query = supabase
-          .from('folhas_obras')
-          .select('id, numero_orc, Numero_do_, Trabalho, Nome')
-          .eq('numero_orc', orcNumber)
-
-        // Only add the neq filter if currentJobId is not a temp job (temp jobs have string IDs like "temp-xxx")
-        if (
-          currentJobId &&
-          currentJobId.trim() !== '' &&
-          !currentJobId.startsWith('temp-')
-        ) {
-          query = query.neq('id', currentJobId)
-        }
-
-        const { data, error } = await query.limit(1)
-
-        if (error) throw error
-
-        return data && data.length > 0
-          ? ({
-              id: (data as any)[0].id,
-              numero_orc: (data as any)[0].numero_orc ?? null,
-              numero_fo: (data as any)[0].Numero_do_
-                ? String((data as any)[0].Numero_do_)
-                : '',
-              nome_campanha: (data as any)[0].Trabalho || '',
-              cliente: (data as any)[0].Nome || null,
-              data_saida: null,
-              prioridade: null,
-              notas: null,
-            } as Job)
-          : null
-      } catch (error) {
-        console.error('Error checking ORC duplicate:', error)
-        return null
-      }
-    },
-    [supabase],
+  /* ---------- PHC Integration Hook ---------- */
+  const {
+    fetchPhcHeaderByFo,
+    fetchPhcHeaderByOrc,
+    resolveClienteName,
+    importPhcLinesForFo,
+    prefillAndInsertFromFo,
+  } = usePhcIntegration(
+    supabase,
+    clientes,
+    foImportsInProgress,
+    setAllItems,
+    setJobs,
+    setOpenId,
   )
 
-  // Check if FO number already exists
-  const checkFoDuplicate = useCallback(
-    async (foNumber: string, currentJobId: string) => {
-      if (!foNumber || foNumber.trim() === '') {
-        return null
-      }
+  /* ---------- Duplicate Validation Hook ---------- */
+  const { checkOrcDuplicate, checkFoDuplicate } = useDuplicateValidation(supabase)
 
-      try {
-        let query = supabase
-          .from('folhas_obras')
-          .select('id, Numero_do_, numero_orc, Trabalho, Nome')
-          .eq('Numero_do_', foNumber.trim())
-
-        // Only add the neq filter if currentJobId is not a temp job (temp jobs have string IDs like "temp-xxx")
-        if (
-          currentJobId &&
-          currentJobId.trim() !== '' &&
-          !currentJobId.startsWith('temp-')
-        ) {
-          query = query.neq('id', currentJobId)
-        }
-
-        const { data, error } = await query.limit(1)
-
-        if (error) throw error
-
-        return data && data.length > 0
-          ? ({
-              id: (data as any)[0].id,
-              numero_orc: (data as any)[0].numero_orc ?? null,
-              numero_fo: (data as any)[0].Numero_do_
-                ? String((data as any)[0].Numero_do_)
-                : '',
-              nome_campanha: (data as any)[0].Trabalho || '',
-              cliente: (data as any)[0].Nome || null,
-              data_saida: null,
-              prioridade: null,
-              notas: null,
-            } as Job)
-          : null
-      } catch (error) {
-        console.error('Error checking FO duplicate:', error)
-        return null
-      }
-    },
-    [supabase],
+  /* ---------- Jobs Fetching Hook ---------- */
+  const { fetchJobs } = useProducaoJobs(
+    supabase,
+    clientesRef,
+    setLoading,
+    setError,
+    setJobs,
+    setHasMoreJobs,
+    setCurrentPage,
   )
 
-  // PHC header and BI lines prefill helpers
-  type PhcFoHeader = {
-    folha_obra_id: string
-    folha_obra_number?: string | null
-    orcamento_number?: string | null
-    nome_trabalho?: string | null
-    observacoes?: string | null
-    customer_id?: number | null
-    folha_obra_date?: string | null
-  }
-
-  const fetchPhcHeaderByFo = useCallback(
-    async (foNumber: string): Promise<PhcFoHeader | null> => {
-      try {
-        const { data, error } = await supabase
-          .schema('phc')
-          .from('folha_obra_with_orcamento')
-          .select(
-            'folha_obra_id, folha_obra_number, orcamento_number, nome_trabalho, observacoes, customer_id, folha_obra_date',
-          )
-          .eq('folha_obra_number', foNumber.trim())
-          .order('folha_obra_date', { ascending: false })
-          .limit(1)
-        console.log('📊 PHC Query Result:', { 
-          foNumber: foNumber.trim(), 
-          data, 
-          error,
-          dataLength: data?.length,
-          firstRow: data?.[0]
-        })
-        if (error) throw error
-        if (!data || data.length === 0) {
-          console.warn('⚠️ No PHC data found for FO:', foNumber.trim())
-          return null
-        }
-        console.log('✅ PHC Header found:', data[0])
-        return data[0] as PhcFoHeader
-      } catch (e) {
-        console.error('Error fetching PHC header by FO:', e)
-        return null
-      }
-    },
-    [supabase],
-  )
-
-  const fetchPhcHeaderByOrc = useCallback(
-    async (orcNumber: string): Promise<PhcFoHeader | null> => {
-      try {
-        const { data, error } = await supabase
-          .schema('phc')
-          .from('folha_obra_with_orcamento')
-          .select(
-            'folha_obra_id, folha_obra_number, orcamento_number, nome_trabalho, observacoes, customer_id, folha_obra_date',
-          )
-          .eq('orcamento_number', orcNumber)
-          .order('folha_obra_date', { ascending: false })
-          .limit(1)
-        console.log('📊 PHC Query Result (ORC):', { 
-          orcNumber, 
-          data, 
-          error,
-          dataLength: data?.length,
-          firstRow: data?.[0]
-        })
-        if (error) throw error
-        if (!data || data.length === 0) {
-          console.warn('⚠️ No PHC data found for ORC:', orcNumber)
-          return null
-        }
-        console.log('✅ PHC Header found (ORC):', data[0])
-        return data[0] as PhcFoHeader
-      } catch (e) {
-        console.error('Error fetching PHC header by ORC:', e)
-        return null
-      }
-    },
-    [supabase],
-  )
-
-  const resolveClienteName = useCallback(
-    async (
-      customerId: number | null | undefined,
-    ): Promise<{ id_cliente: string | null; cliente: string }> => {
-      console.log('👤 Resolving client:', { customerId, clientes_loaded: clientes.length })
-      if (customerId === null || customerId === undefined) {
-        return { id_cliente: null, cliente: '' }
-      }
-      const idStr = customerId.toString()
-      const found = clientes.find((c) => c.value === idStr)
-      if (found) {
-        const result = { id_cliente: idStr, cliente: found.label }
-        console.log('✅ Client resolved from cache:', result)
-        return result
-      }
-      try {
-        const { data, error } = await supabase
-          .schema('phc')
-          .from('cl')
-          .select('customer_name')
-          .eq('customer_id', customerId)
-          .limit(1)
-        if (!error && data && data.length > 0) {
-          const result = { id_cliente: idStr, cliente: data[0].customer_name }
-          console.log('✅ Client resolved from PHC:', result)
-          return result
-        }
-      } catch (e) {
-        console.warn('Could not resolve customer name from PHC:', e)
-      }
-      console.log('⚠️ Client not found, returning empty:', { customerId })
-      return { id_cliente: idStr, cliente: '' }
-    },
-    [clientes, supabase],
-  )
-
-  const importPhcLinesForFo = useCallback(
-    async (
-      phcFolhaObraId: string,
-      newJobId: string,
-      folhaObraNumber?: string | null,
-    ) => {
-      try {
-        // Trim the document_id to remove trailing spaces (common issue in PHC data)
-        const trimmedDocumentId = phcFolhaObraId?.trim() || phcFolhaObraId
-        console.log('🔍 Querying PHC BI with document_id:', { original: phcFolhaObraId, trimmed: trimmedDocumentId })
-        
-        const { data: lines, error } = await supabase
-          .schema('phc')
-          .from('bi')
-          .select('line_id, document_id, description, quantity, item_reference')
-          .eq('document_id', trimmedDocumentId)
-          .gt('quantity', 0)
-        if (error) throw error
-        
-        console.log('✅ PHC BI query returned:', lines?.length || 0, 'lines')
-        if (!lines || lines.length === 0) {
-          console.warn('⚠️ No items found in PHC BI for document_id:', trimmedDocumentId)
-          return
-        }
-
-        const rows = lines.map((l: any) => ({
-          folha_obra_id: newJobId,
-          descricao: l.description || '',
-          codigo: l.item_reference || null,
-          quantidade:
-            l.quantity !== null && l.quantity !== undefined
-              ? Math.round(Number(l.quantity))
-              : null,
-          brindes: false,
-        }))
-
-        console.log('📥 Inserting', rows.length, 'items from PHC bi lines')
-        const { data: inserted, error: insErr } = await supabase
-          .from('items_base')
-          .insert(rows)
-          .select('id, folha_obra_id, descricao, codigo, quantidade, brindes')
-        if (insErr) {
-          console.error('❌ Error inserting items_base:', insErr)
-          throw insErr
-        }
-        console.log(
-          '✅ Inserted',
-          inserted?.length || 0,
-          'items into items_base',
-        )
-
-        // Create designer_items and logistica_entregas for each inserted item
-        if (inserted && inserted.length > 0) {
-          console.log(
-            '🎨 Creating designer_items entries for',
-            inserted.length,
-            'items',
-          )
-          const designerRows = inserted.map((item: any) => ({
-            item_id: item.id,
-            em_curso: true,
-            duvidas: false,
-            maquete_enviada1: false,
-            paginacao: false,
-          }))
-
-          const { data: designerInserted, error: designerErr } = await supabase
-            .from('designer_items')
-            .insert(designerRows)
-            .select('*')
-
-          if (designerErr) {
-            console.error('❌ Error inserting designer_items:', designerErr)
-          } else {
-            console.log(
-              '✅ Created',
-              designerInserted?.length || 0,
-              'designer_items entries',
-            )
-          }
-
-          console.log(
-            '🚚 Creating logistica_entregas entries for',
-            inserted.length,
-            'items',
-          )
-          const logisticaRows = inserted.map((item: any) => ({
-            item_id: item.id,
-            descricao: item.descricao || '',
-            quantidade: item.quantidade || null,
-            data: new Date().toISOString().split('T')[0],
-            is_entrega: true,
-            id_local_recolha: null,  // Explicitly null to avoid FK constraint violation
-            id_local_entrega: null,  // Explicitly null to avoid FK constraint violation
-          }))
-
-          const { data: logisticaInserted, error: logisticaErr } =
-            await supabase
-              .from('logistica_entregas')
-              .insert(logisticaRows)
-              .select('*')
-
-          if (logisticaErr) {
-            console.error(
-              '❌ Error inserting logistica_entregas:',
-              logisticaErr,
-            )
-          } else {
-            console.log(
-              '✅ Created',
-              logisticaInserted?.length || 0,
-              'logistica_entregas entries',
-            )
-          }
-        }
-        // Regardless of returned rows, fetch authoritative list for this job and replace in state
-        const { data: fetchedItems, error: fetchErr } = await supabase
-          .from('items_base')
-          .select('id, folha_obra_id, descricao, codigo, quantidade, brindes')
-          .eq('folha_obra_id', newJobId)
-        if (!fetchErr && fetchedItems) {
-          setAllItems((prev) => {
-            const withoutJob = prev.filter((i) => i.folha_obra_id !== newJobId)
-            const mapped = fetchedItems.map((it: any) => ({
-              id: it.id,
-              folha_obra_id: it.folha_obra_id,
-              descricao: it.descricao ?? '',
-              codigo: it.codigo ?? '',
-              quantidade: it.quantidade ?? null,
-              paginacao: false,
-              brindes: it.brindes ?? false,
-              concluido: false,
-            }))
-            return [...withoutJob, ...mapped]
-          })
-        }
-
-        // Also mirror minimal data into public.folhas_obras_linhas for FO reporting
-        // supabase_docs.json shows columns: Numero_do_ (integer), Quant_ (integer)
-        if (folhaObraNumber) {
-          const foInt = parseInt(String(folhaObraNumber), 10)
-          if (!Number.isNaN(foInt)) {
-            // Avoid duplicates if this import is triggered multiple times
-            try {
-              const { error: delErr } = await supabase
-                .schema('public')
-                .from('folhas_obras_linhas')
-                .delete()
-                .eq('Numero_do_', foInt)
-              if (delErr) {
-                console.warn(
-                  'Warning deleting existing linhas for FO:',
-                  foInt,
-                  delErr,
-                )
-              }
-            } catch (delEx) {
-              console.warn(
-                'Delete exception folhas_obras_linhas for FO:',
-                foInt,
-                delEx,
-              )
-            }
-
-            const linhasRows = lines.map((l: any) => ({
-              Numero_do_: foInt,
-              Quant_:
-                l.quantity !== null && l.quantity !== undefined
-                  ? Math.round(Number(l.quantity))
-                  : null,
-            }))
-
-            try {
-              const { data: linhasInserted, error: linhasErr } = await supabase
-                .schema('public')
-                .from('folhas_obras_linhas')
-                .insert(linhasRows)
-                .select('Numero_do_, Quant_')
-              if (linhasErr) {
-                console.warn(
-                  'Warning inserting folhas_obras_linhas:',
-                  linhasErr,
-                )
-              } else {
-                console.log(
-                  'Mirrored folhas_obras_linhas rows:',
-                  linhasInserted?.length || 0,
-                )
-              }
-            } catch (insEx) {
-              console.warn('Insert exception folhas_obras_linhas:', insEx)
-            }
-          }
-        }
-      } catch (e) {
-        console.error('Error importing PHC BI lines:', e)
-      }
-    },
-    [supabase],
-  )
-
-  const prefillAndInsertFromFo = useCallback(
-    async (foNumber: string, tempJobId: string) => {
-      // Prevent duplicate imports from multiple tabs
-      const importKey = `${foNumber}-${tempJobId}`
-      if (foImportsInProgress.current.has(importKey)) {
-        console.log('⚠️ Import already in progress for FO:', foNumber, 'job:', tempJobId)
-        return
-      }
-      foImportsInProgress.current.add(importKey)
-      
-      try {
-        const header = await fetchPhcHeaderByFo(foNumber)
-      console.log('🔍 PHC Header Response:', {
-        foNumber,
-        header,
-        nome_trabalho: header?.nome_trabalho,
-        observacoes: header?.observacoes,
-        orcamento_number: header?.orcamento_number,
-        customer_id: header?.customer_id,
-      })
-      let phcFolhaObraId: string | null = null
-      let insertData: any = {
-        Numero_do_: foNumber,
-        Trabalho: '',
-        Nome: '',
-        numero_orc: null,
-        customer_id: null,
-      }
-      if (header) {
-        phcFolhaObraId = header.folha_obra_id
-        // Use nome_trabalho if available, otherwise fall back to observacoes
-        const campaignName = header.nome_trabalho || header.observacoes
-        if (campaignName) insertData.Trabalho = campaignName
-        if (header.orcamento_number) {
-          // numero_orc is now TEXT - store as string
-          insertData.numero_orc = String(header.orcamento_number)
-        }
-        const { id_cliente, cliente } = await resolveClienteName(
-          header.customer_id ?? null,
-        )
-        insertData.Nome = cliente
-        // Store customer_id from PHC directly
-        if (header.customer_id) {
-          insertData.customer_id = header.customer_id
-        }
-      }
-      console.log('💾 Insert Data:', insertData)
-      const { data: newJob, error } = await supabase
-        .from('folhas_obras')
-        .insert(insertData)
-        .select(
-          'id, numero_fo:Numero_do_, numero_orc, nome_campanha:Trabalho, cliente:Nome',
-        )
-        .single()
-      console.log('📥 Returned from INSERT+SELECT:', { newJob, error })
-      if (error) throw error
-      if (newJob) {
-        const mappedJob = {
-          id: (newJob as any).id,
-          numero_fo: (newJob as any).numero_fo || foNumber,
-          numero_orc: (newJob as any).numero_orc ?? null,
-          nome_campanha: (newJob as any).nome_campanha || '',
-          cliente: (newJob as any).cliente || '',
-          data_saida: null,
-          prioridade: null,
-          notas: null,
-          id_cliente: header
-            ? (await resolveClienteName(header.customer_id ?? null)).id_cliente
-            : null,
-          data_in: header?.folha_obra_date ?? null,
-        } as Job
-        console.log('🎯 Mapped Job for UI:', mappedJob)
-        setJobs((prev) => prev.map((j) => (j.id === tempJobId ? mappedJob : j)))
-        if (phcFolhaObraId) {
-          await importPhcLinesForFo(
-            phcFolhaObraId,
-            (newJob as any).id,
-            foNumber,
-          )
-          setOpenId((newJob as any).id)
-        }
-      }
-      } finally {
-        // Always remove the import key from the set
-        foImportsInProgress.current.delete(importKey)
-      }
-    },
-    [
-      fetchPhcHeaderByFo,
-      resolveClienteName,
-      importPhcLinesForFo,
+  /* ---------- Job Status Hook ---------- */
+  const { fetchJobsSaiuStatus, fetchJobsCompletionStatus, fetchJobTotalValues } =
+    useJobStatus(
       supabase,
-      setJobs,
-    ],
+      setJobsSaiuStatus,
+      setJobsCompletionStatus,
+      setJobTotalValues,
+    )
+
+  /* ---------- Items Data Hook ---------- */
+  const { fetchItems, fetchOperacoes, fetchDesignerItems } = useItemsData(
+    supabase,
+    setLoading,
+    setError,
+    setAllItems,
+    setAllOperacoes,
+    setAllDesignerItems,
+    allItems,
   )
+
+  /* ---------- Reference Data Hook ---------- */
+  const { fetchClientes, fetchHolidays } = useReferenceData(
+    supabase,
+    setLoading,
+    setError,
+    setClientes,
+    setHolidays,
+  )
+
+  /* ---------- Other Functions ---------- */
 
   const prefillAndInsertFromOrc = useCallback(
     async (orcNumber: string, tempJobId: string) => {
@@ -931,7 +402,7 @@ export default function ProducaoPage() {
           insertData.customer_id = header.customer_id
         }
       }
-      console.log('💾 Insert Data (ORC):', insertData)
+
       const { data: newJob, error } = await supabase
         .from('folhas_obras')
         .insert(insertData)
@@ -939,7 +410,6 @@ export default function ProducaoPage() {
           'id, numero_fo:Numero_do_, numero_orc, nome_campanha:Trabalho, cliente:Nome',
         )
         .single()
-      console.log('📥 Returned from INSERT+SELECT (ORC):', { newJob, error })
       if (error) throw error
       if (newJob) {
         const mappedJob = {
@@ -956,7 +426,7 @@ export default function ProducaoPage() {
             : null,
           data_in: header?.folha_obra_date ?? null,
         } as Job
-        console.log('🎯 Mapped Job for UI (ORC):', mappedJob)
+
         setJobs((prev) => prev.map((j) => (j.id === tempJobId ? mappedJob : j)))
         if (phcFolhaObraId) {
           await importPhcLinesForFo(
@@ -983,62 +453,6 @@ export default function ProducaoPage() {
 
   /* ---------- Optimized Data Fetching ---------- */
 
-  // Fetch clientes (static data - can be cached client-side)
-  const fetchClientes = useCallback(async () => {
-    setLoading((prev) => ({ ...prev, clientes: true }))
-    try {
-      const { data: clientesData, error } = await supabase
-        .schema('phc')
-        .from('cl')
-        .select('customer_id, customer_name')
-        .order('customer_name', { ascending: true })
-
-      if (error) throw error
-
-      if (clientesData) {
-        const clienteOptions = clientesData.map((c: any) => ({
-          value: c.customer_id.toString(),
-          label: c.customer_name,
-        }))
-        setClientes(clienteOptions)
-      }
-    } catch (error) {
-      console.error('Error fetching clientes:', error)
-      setError('Failed to load client data')
-    } finally {
-      setLoading((prev) => ({ ...prev, clientes: false }))
-    }
-  }, [supabase])
-
-  const fetchHolidays = useCallback(async () => {
-    try {
-      const today = new Date()
-      const startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1)
-      const endDate = new Date(today.getFullYear(), today.getMonth() + 2, 0)
-
-      const startDateStr = startDate.toISOString().split('T')[0]
-      const endDateStr = endDate.toISOString().split('T')[0]
-
-      const { data, error } = await supabase
-        .from('feriados')
-        .select('id, holiday_date, description')
-        .gte('holiday_date', startDateStr)
-        .lte('holiday_date', endDateStr)
-        .order('holiday_date', { ascending: true })
-
-      if (error) {
-        console.error('Error fetching holidays:', error)
-        return
-      }
-
-      if (data) {
-        setHolidays(data)
-      }
-    } catch (error) {
-      console.error('Error fetching holidays:', error)
-    }
-  }, [supabase])
-
   // Keep clientesRef in sync with clientes state
   useEffect(() => {
     clientesRef.current = clientes
@@ -1046,799 +460,6 @@ export default function ProducaoPage() {
 
   // Note: Backfill effect removed - customer_id is now stored in database,
   // so id_cliente is properly loaded from the database query in fetchJobs
-
-  // Fetch jobs with database-level filtering
-  // Note: Tab filtering (em_curso vs concluidos) is now based on logistics completion status
-  // - em_curso: Shows jobs where NOT ALL logistics entries have concluido=true
-  // - concluidos: Shows jobs where ALL logistics entries have concluido=true for ALL items
-  const fetchJobs = useCallback(
-    async (
-      page = 0,
-      reset = false,
-      filters: {
-        foF?: string
-        orcF?: string
-        campF?: string
-        itemF?: string
-        codeF?: string
-        clientF?: string
-        showFatura?: boolean
-        activeTab?: 'em_curso' | 'concluidos' | 'pendentes'
-      } = {},
-    ) => {
-      setLoading((prev) => ({ ...prev, jobs: true }))
-      try {
-        // Optimized query with specific columns and proper pagination
-        const startRange = page * JOBS_PER_PAGE
-        const endRange = startRange + JOBS_PER_PAGE - 1
-
-        // Calculate 12 months ago date for completed jobs filter (extended from 2 months)
-        const twelveMonthsAgo = new Date()
-        twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12)
-        const twelveMonthsAgoString = twelveMonthsAgo.toISOString()
-
-        // STEP 1: Handle item/codigo filters FIRST (search globally)
-        let jobIds: string[] | null = null
-        const itemFiltersActive = !!(
-          filters.itemF?.trim() || filters.codeF?.trim()
-        )
-
-        if (itemFiltersActive) {
-          console.log(
-            '🔍 Item/codigo filter detected - searching ALL items in database',
-          )
-
-          const itemFilter = filters.itemF?.trim()
-          const codeFilter = filters.codeF?.trim()
-
-          // Combine all search terms
-          const searchTerms = []
-          if (itemFilter) searchTerms.push(itemFilter)
-          if (codeFilter) searchTerms.push(codeFilter)
-
-          let allJobIds: string[] = []
-
-          // Search for each term in both codigo and descricao fields
-          for (const term of searchTerms) {
-            console.log('🔍 Global search for term:', term)
-
-            const { data: itemData, error: itemErr } = await supabase
-              .from('items_base')
-              .select('folha_obra_id')
-              .or(`descricao.ilike.%${term}%,codigo.ilike.%${term}%`)
-
-            console.log(
-              '🔍 Items found for term',
-              term,
-              ':',
-              itemData?.length || 0,
-            )
-
-            if (!itemErr && itemData) {
-              const jobIdsForTerm = itemData.map(
-                (item: any) => item.folha_obra_id,
-              )
-              allJobIds = [...allJobIds, ...jobIdsForTerm]
-            }
-          }
-
-          if (allJobIds.length > 0) {
-            // Keep ALL job IDs, including duplicates if same item appears multiple times
-            const uniqueJobIds = Array.from(new Set(allJobIds))
-            console.log(
-              '🎯 Found',
-              allJobIds.length,
-              'item matches in',
-              uniqueJobIds.length,
-              'unique jobs',
-            )
-            console.log('🎯 Job IDs to retrieve:', uniqueJobIds)
-
-            jobIds = uniqueJobIds
-          } else {
-            console.log('❌ No items found matching search criteria')
-            setJobs((prev: Job[]) => (reset ? [] : prev))
-            setHasMoreJobs(false)
-            setCurrentPage(page)
-            return
-          }
-        }
-
-        // STEP 2: Pre-filter by logistics status BEFORE fetching jobs (for em_curso/concluidos tabs)
-        // This prevents truncation: we get all matching job IDs first, then fetch only those jobs
-        let logisticsFilteredJobIds: string[] | null = null
-        const itemFiltersPresent = !!(
-          filters.itemF?.trim() || filters.codeF?.trim()
-        )
-        
-        if (
-          !jobIds && // Only if we didn't already filter by items
-          !itemFiltersPresent && // Only if item filters aren't active
-          (filters.activeTab === 'em_curso' || filters.activeTab === 'concluidos')
-        ) {
-          console.log('🔄 Pre-filtering by logistics status at database level')
-          
-          // First, get all items that match the date criteria (if any)
-          let itemsQuery = supabase
-            .from('items_base')
-            .select('id, folha_obra_id')
-          
-          // Apply date filter to items via their jobs if needed
-          const hasActiveFilters = !!(
-            filters.foF?.trim() ||
-            filters.campF?.trim() ||
-            filters.clientF?.trim()
-          )
-          
-          if (!hasActiveFilters) {
-            // Get jobs from last 12 months to limit scope
-            const twelveMonthsAgo = new Date()
-            twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12)
-            const { data: recentJobs } = await supabase
-              .from('folhas_obras')
-              .select('id')
-              .gte('created_at', twelveMonthsAgo.toISOString())
-            
-            if (recentJobs && recentJobs.length > 0) {
-              const recentJobIds = recentJobs.map((j: any) => j.id)
-              itemsQuery = itemsQuery.in('folha_obra_id', recentJobIds)
-            }
-          }
-          
-          const { data: allItems, error: itemsErr } = await itemsQuery
-          
-          if (!itemsErr && allItems && allItems.length > 0) {
-            const itemIds = allItems.map((item: any) => item.id)
-            
-            // Get logistics entries for these items
-            const { data: logisticsData, error: logisticsErr } = await supabase
-              .from('logistica_entregas')
-              .select('item_id, concluido')
-              .in('item_id', itemIds)
-            
-            if (!logisticsErr && logisticsData) {
-              // Group items by job
-              const itemsByJob = new Map<string, any[]>()
-              allItems.forEach((item: any) => {
-                if (!itemsByJob.has(item.folha_obra_id)) {
-                  itemsByJob.set(item.folha_obra_id, [])
-                }
-                itemsByJob.get(item.folha_obra_id)!.push(item)
-              })
-              
-              // Filter job IDs based on logistics status
-              const matchingJobIds: string[] = []
-              
-              // Get all job IDs that have items (from itemsByJob map)
-              const jobsWithItems = Array.from(itemsByJob.keys())
-              
-              // For em_curso: also include jobs that have NO items (they're in progress)
-              if (filters.activeTab === 'em_curso') {
-                // Get all jobs from the date range to find jobs without items
-                const hasActiveFilters = !!(
-                  filters.foF?.trim() ||
-                  filters.campF?.trim() ||
-                  filters.clientF?.trim()
-                )
-                
-                let jobsQuery = supabase.from('folhas_obras').select('id')
-                if (!hasActiveFilters) {
-                  const twelveMonthsAgo = new Date()
-                  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12)
-                  jobsQuery = jobsQuery.gte('created_at', twelveMonthsAgo.toISOString())
-                }
-                const { data: allJobsInRange } = await jobsQuery
-                
-                if (allJobsInRange) {
-                  // Jobs without items should also be included in em_curso
-                  const jobsWithoutItems = allJobsInRange
-                    .map((j: any) => j.id)
-                    .filter((jobId: string) => !itemsByJob.has(jobId))
-                  
-                  matchingJobIds.push(...jobsWithoutItems)
-                }
-              }
-              
-              itemsByJob.forEach((jobItems, jobId) => {
-                if (filters.activeTab === 'em_curso') {
-                  // em_curso: job has ANY item with concluido=false or no logistics entry
-                  const hasIncomplete = jobItems.some((item) => {
-                    const logEntries = logisticsData.filter((l: any) => l.item_id === item.id)
-                    if (logEntries.length === 0) return true // No logistics entry = incomplete
-                    return logEntries.some((e: any) => e.concluido !== true)
-                  })
-                  if (hasIncomplete) matchingJobIds.push(jobId)
-                } else if (filters.activeTab === 'concluidos') {
-                  // concluidos: ALL items have ALL logistics entries with concluido=true
-                  const allCompleted = jobItems.every((item) => {
-                    const logEntries = logisticsData.filter((l: any) => l.item_id === item.id)
-                    if (logEntries.length === 0) return false // No entries = not completed
-                    return logEntries.every((e: any) => e.concluido === true)
-                  })
-                  if (allCompleted && jobItems.length > 0) matchingJobIds.push(jobId)
-                }
-              })
-              
-              if (matchingJobIds.length > 0) {
-                logisticsFilteredJobIds = matchingJobIds
-                console.log(`✅ Found ${matchingJobIds.length} jobs matching logistics criteria`)
-              } else {
-                console.log('⚠️ No jobs match logistics criteria')
-                setJobs((prev: Job[]) => (reset ? [] : prev))
-                setHasMoreJobs(false)
-                setCurrentPage(page)
-                return
-              }
-            }
-          }
-        }
-
-        // STEP 3: Build the base query - select only existing columns in schema
-        let query = supabase.from('folhas_obras').select(
-          `
-          id,
-          Numero_do_,
-          numero_orc,
-          Trabalho,
-          Data_efeti,
-          Observacoe,
-          Nome,
-          customer_id,
-          prioridade,
-          pendente,
-          created_at,
-          updated_at
-        `,
-          { count: 'exact' },
-        )
-
-        // Include both FO-only and ORC-linked jobs (no forced filter by numero_orc)
-
-        // If we have job IDs from logistics pre-filter, use those
-        if (logisticsFilteredJobIds) {
-          console.log(
-            '🎯 Logistics pre-filter active - filtering to',
-            logisticsFilteredJobIds.length,
-            'job IDs'
-          )
-          query = query.in('id', logisticsFilteredJobIds)
-        } else if (jobIds) {
-          // If we have job IDs from item search, filter by those ONLY
-          console.log(
-            '🎯 Item search active - filtering to specific job IDs:',
-            jobIds,
-          )
-          query = query.in('id', jobIds)
-          console.log('🎯 Bypassing all other filters due to item search')
-        }
-
-        // STEP 4: Apply other filters (only if no pre-filtering is active)
-        if (!logisticsFilteredJobIds && !jobIds) {
-          console.log('🔄 Applying standard filters (no pre-filtering active)')
-
-          // Check if any filters are active
-          const hasActiveFilters = !!(
-            filters.foF?.trim() ||
-            filters.campF?.trim() ||
-            filters.clientF?.trim()
-          )
-
-          // Tab-based filtering (completion status)
-          if (filters.activeTab === 'concluidos') {
-            console.log(
-              '🔄 Applying date filter for concluidos tab:',
-              twelveMonthsAgoString,
-            )
-            // For completed jobs, filter by last 12 months (extended from 2 months)
-            // Note: data_concluido is in logistica_entregas, not in folhas_obras
-            query = query.or(
-              `updated_at.gte.${twelveMonthsAgoString},created_at.gte.${twelveMonthsAgoString}`,
-            )
-          } else if (!hasActiveFilters) {
-            // For other tabs (em_curso, pendentes) with no filters: show last 12 months (extended from 4 months)
-            const twelveMonthsAgoEmCurso = new Date()
-            twelveMonthsAgoEmCurso.setMonth(twelveMonthsAgoEmCurso.getMonth() - 12)
-            const twelveMonthsAgoEmCursoString = twelveMonthsAgoEmCurso.toISOString()
-            console.log(
-              '🔄 No filters active - applying 12 month date filter:',
-              twelveMonthsAgoEmCursoString,
-            )
-            query = query.gte('created_at', twelveMonthsAgoEmCursoString)
-          }
-
-          // Direct field filters using real column names
-          if (filters.foF && filters.foF.trim() !== '') {
-            query = query.ilike('Numero_do_', `%${filters.foF.trim()}%`)
-          }
-
-          if (filters.orcF && filters.orcF.trim() !== '') {
-            query = query.ilike('numero_orc', `%${filters.orcF.trim()}%`)
-          }
-
-          if (filters.campF && filters.campF.trim() !== '') {
-            query = query.ilike('Trabalho', `%${filters.campF.trim()}%`)
-          }
-
-          if (filters.clientF && filters.clientF.trim() !== '') {
-            query = query.ilike('Nome', `%${filters.clientF.trim()}%`)
-          }
-
-          // Note: 'fatura' column does not exist in schema; skipping fatura filter
-        } else {
-          // Apply text filters even when pre-filtering (FO, campaign, client)
-          if (filters.foF && filters.foF.trim() !== '') {
-            query = query.ilike('Numero_do_', `%${filters.foF.trim()}%`)
-          }
-          if (filters.orcF && filters.orcF.trim() !== '') {
-            query = query.ilike('numero_orc', `%${filters.orcF.trim()}%`)
-          }
-          if (filters.campF && filters.campF.trim() !== '') {
-            query = query.ilike('Trabalho', `%${filters.campF.trim()}%`)
-          }
-          if (filters.clientF && filters.clientF.trim() !== '') {
-            query = query.ilike('Nome', `%${filters.clientF.trim()}%`)
-          }
-        }
-
-        // Order and pagination (use existing column)
-        query = query.order('created_at', { ascending: false })
-
-        // Only apply pagination if we're not filtering by specific job IDs
-        if (!logisticsFilteredJobIds && !jobIds) {
-          query = query.range(startRange, endRange)
-        } else {
-          // When pre-filtered, we still need pagination but on the filtered set
-          query = query.range(startRange, endRange)
-        }
-
-        // Debug: Log the full query conditions before execution
-        if (jobIds) {
-          console.log('🔍 DEBUGGING QUERY CONDITIONS:')
-          console.log('- Job IDs to find:', jobIds)
-          console.log('- Active tab:', filters.activeTab)
-          console.log('- FO filter:', filters.foF)
-          console.log('- Campaign filter:', filters.campF)
-          console.log('- Client filter:', filters.clientF)
-          console.log('- Show fatura:', filters.showFatura)
-        }
-
-        // Execute the main query
-        const { data: jobsData, error, count } = await query
-
-        if (error) {
-          console.error('Supabase error details:', error)
-          throw error
-        }
-
-        // Map database columns to Job interface
-        console.log('📦 Raw jobsData length:', jobsData?.length ?? 0)
-        console.log('📦 Clientes available in ref:', clientesRef.current.length)
-        
-        let filteredJobs: Job[] = (jobsData || []).map((row: any) => {
-          const clienteName = row.Nome || ''
-          const customerId = row.customer_id
-          
-          // Find the cliente name from the ID if not in Nome field
-          let resolvedClienteName = clienteName
-          let resolvedClienteId: string | null = null
-          
-          console.log(`📋 Processing FO ${row.Numero_do_}:`, {
-            clienteName,
-            customerId,
-            clientesRefLength: clientesRef.current.length
-          })
-          
-          if (customerId) {
-            // Use customer_id to find the cliente name and ID
-            const matchedCliente = clientesRef.current.find((c) => c.value === customerId.toString())
-            console.log(`  🔍 Searching for customer_id ${customerId} in clientes:`, matchedCliente ? `✅ FOUND ${matchedCliente.label}` : '❌ NOT FOUND')
-            if (matchedCliente) {
-              resolvedClienteName = matchedCliente.label
-              resolvedClienteId = matchedCliente.value
-              if (customerId && !clienteName) {
-                console.log(`✅ Cliente resolved from customer_id ${customerId}: "${matchedCliente.label}"`)
-              }
-            }
-          } else if (clienteName) {
-            // Fallback: if no customer_id, try to match by name
-            const matchedCliente = clientesRef.current.find((c) => c.label === clienteName)
-            if (matchedCliente) {
-              resolvedClienteId = matchedCliente.value
-              console.log(`✅ Cliente matched by name for FO ${row.Numero_do_}: "${clienteName}" -> ${matchedCliente.value}`)
-            } else if (clientesRef.current.length > 0) {
-              console.warn(`⚠️ Cliente not found for FO ${row.Numero_do_}: "${clienteName}"`)
-              console.log(`  Available clientes: ${clientesRef.current.slice(0, 3).map(c => c.label).join(', ')}`)
-            }
-          }
-          
-          return {
-            id: row.id,
-            numero_fo: row.Numero_do_ ? String(row.Numero_do_) : '',
-            numero_orc: row.numero_orc ?? null,
-            nome_campanha: row.Trabalho || '',
-            data_saida: row.Data_efeti ?? null,
-            prioridade: row.prioridade ?? false,
-            pendente: row.pendente ?? false,
-            notas: row.Observacoe ?? null,
-            concluido: null,
-            saiu: null,
-            fatura: null,
-            created_at: row.created_at ?? null,
-            data_in: row.Data_efeti ?? null,
-            cliente: resolvedClienteName,
-            id_cliente: resolvedClienteId,
-            customer_id: customerId,
-            data_concluido: null,
-            updated_at: row.updated_at ?? null,
-          }
-        })
-        console.log('📊 Query result: jobs found:', filteredJobs.length)
-
-        // Enrich data_in with authoritative date from PHC view when available
-        try {
-          const foNumbers = Array.from(
-            new Set(
-              filteredJobs
-                .map((j) => j.numero_fo)
-                .filter((n): n is string => !!n && n.trim() !== ''),
-            ),
-          )
-          if (foNumbers.length > 0) {
-            // Query folha_obra_with_orcamento view for document dates
-            const { data: phcDates, error: phcErr } = await supabase
-              .schema('phc')
-              .from('folha_obra_with_orcamento')
-              .select('folha_obra_number, folha_obra_date')
-              .in('folha_obra_number', foNumbers)
-            if (!phcErr && phcDates) {
-              const dateMap = new Map<string, string | null>()
-              phcDates.forEach((r: any) => {
-                if (r?.folha_obra_number) {
-                  dateMap.set(String(r.folha_obra_number), r.folha_obra_date || null)
-                }
-              })
-              filteredJobs = filteredJobs.map((j) => ({
-                ...j,
-                data_in: dateMap.get(j.numero_fo) ?? j.data_in ?? null,
-              }))
-            } else if (phcErr) {
-              console.warn('PHC date fetch failed:', phcErr)
-            }
-          }
-        } catch (e) {
-          console.warn('PHC date enrichment error:', e)
-        }
-
-        // Apply pendente filtering for pendentes tab (this is a simple field filter, no logistics needed)
-        if (filters.activeTab === 'pendentes') {
-          filteredJobs = filteredJobs.filter((job) => job.pendente === true)
-        } else if (filters.activeTab === 'em_curso') {
-          // For em_curso tab, exclude pendente jobs (they're already filtered out by pre-filtering)
-          filteredJobs = filteredJobs.filter((job) => job.pendente !== true)
-        } else if (filters.activeTab === 'concluidos') {
-          // For concluidos tab, exclude pendente jobs
-          filteredJobs = filteredJobs.filter((job) => job.pendente !== true)
-        }
-
-        // Item/codigo filtering is now handled at the beginning of the function
-
-        // Note: Do NOT filter by numero_orc; show FO-only and ORC-linked jobs
-
-        if (filteredJobs) {
-          console.log('📊 Final jobs to display:', filteredJobs.length, 'jobs')
-          console.log(
-            '📊 Sample job IDs:',
-            filteredJobs.slice(0, 3).map((j) => j.numero_fo),
-          )
-          setJobs((prev) => (reset ? filteredJobs : [...prev, ...filteredJobs]))
-          
-          // Calculate hasMoreJobs - if we pre-filtered by logistics, count is already accurate
-          // Otherwise use the normal count check
-          if (logisticsFilteredJobIds) {
-            // When pre-filtered, count is the total matching jobs, and we paginate those
-            setHasMoreJobs((count || 0) > endRange + 1)
-          } else {
-            // Normal pagination check
-            setHasMoreJobs((count || 0) > endRange + 1)
-          }
-          setCurrentPage(page)
-        }
-      } catch (error) {
-        console.error('Error fetching jobs:', error)
-        setError(
-          `Failed to load production jobs: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        )
-      } finally {
-        setLoading((prev) => ({ ...prev, jobs: false }))
-      }
-    },
-    [supabase],
-  )
-
-  // Fetch saiu status for jobs by checking if ALL items have saiu=true in logistica_entregas
-  const fetchJobsSaiuStatus = useCallback(
-    async (jobIds: string[]) => {
-      if (jobIds.length === 0) return
-
-      try {
-        // First get all items for these jobs
-        const { data: itemsData, error: itemsError } = await supabase
-          .from('items_base')
-          .select('id, folha_obra_id')
-          .in('folha_obra_id', jobIds)
-
-        if (itemsError) throw itemsError
-
-        if (itemsData && itemsData.length > 0) {
-          const itemIds = itemsData.map((item) => item.id)
-
-          // Get logistics entries for these items
-          const { data: logisticsData, error: logisticsError } = await supabase
-            .from('logistica_entregas')
-            .select('item_id, saiu')
-            .in('item_id', itemIds)
-
-          if (logisticsError) throw logisticsError
-
-          // Calculate saiu status for each job
-          const jobSaiuStatus: Record<string, boolean> = {}
-
-          jobIds.forEach((jobId) => {
-            const jobItems = itemsData.filter(
-              (item) => item.folha_obra_id === jobId,
-            )
-
-            if (jobItems.length === 0) {
-              jobSaiuStatus[jobId] = false
-              return
-            }
-
-            // Check if all items have logistics entries with saiu=true
-            const allItemsSaiu = jobItems.every((item) => {
-              const logisticsEntry = logisticsData?.find(
-                (l) => l.item_id === item.id,
-              )
-              return logisticsEntry && logisticsEntry.saiu === true
-            })
-
-            jobSaiuStatus[jobId] = allItemsSaiu
-          })
-
-          setJobsSaiuStatus(jobSaiuStatus)
-        }
-      } catch (error) {
-        console.error('Error fetching jobs saiu status:', error)
-      }
-    },
-    [supabase],
-  )
-
-  // Fetch completion status for jobs by checking logistics entries
-  const fetchJobsCompletionStatus = useCallback(
-    async (jobIds: string[]) => {
-      if (jobIds.length === 0) return
-
-      try {
-        // First get all items for these jobs
-        const { data: itemsData, error: itemsError } = await supabase
-          .from('items_base')
-          .select('id, folha_obra_id')
-          .in('folha_obra_id', jobIds)
-
-        if (itemsError) throw itemsError
-
-        if (itemsData && itemsData.length > 0) {
-          const itemIds = itemsData.map((item) => item.id)
-
-          // Get logistics entries for these items
-          const { data: logisticsData, error: logisticsError } = await supabase
-            .from('logistica_entregas')
-            .select('item_id, concluido')
-            .in('item_id', itemIds)
-
-          if (logisticsError) throw logisticsError
-
-          // Calculate completion status for each job
-          const jobCompletionStatus: Record<
-            string,
-            { completed: boolean; percentage: number }
-          > = {}
-
-          jobIds.forEach((jobId) => {
-            const jobItems = itemsData.filter(
-              (item) => item.folha_obra_id === jobId,
-            )
-
-            if (jobItems.length === 0) {
-              jobCompletionStatus[jobId] = { completed: false, percentage: 0 }
-              return
-            }
-
-            // Calculate completion percentage based on logistics entries with concluido=true
-            const completedItems = jobItems.filter((item) => {
-              const logisticsEntry = logisticsData?.find(
-                (l) => l.item_id === item.id,
-              )
-              return logisticsEntry && logisticsEntry.concluido === true
-            })
-
-            const percentage = Math.round(
-              (completedItems.length / jobItems.length) * 100,
-            )
-            const allCompleted = completedItems.length === jobItems.length
-
-            jobCompletionStatus[jobId] = { completed: allCompleted, percentage }
-          })
-
-          setJobsCompletionStatus(jobCompletionStatus)
-        }
-      } catch (error) {
-        console.error('Error fetching jobs completion status:', error)
-      }
-    },
-    [supabase],
-  )
-
-  // Fetch items for loaded jobs only
-  const fetchItems = useCallback(
-    async (jobIds: string[]) => {
-      if (jobIds.length === 0) return
-
-      setLoading((prev) => ({ ...prev, items: true }))
-      try {
-        // Optimized query: only fetch items for loaded jobs
-        const { data: itemsData, error } = await supabase
-          .from('items_base')
-          .select(
-            `
-          id, folha_obra_id, descricao, codigo, 
-          quantidade, brindes
-        `,
-          )
-          .in('folha_obra_id', jobIds)
-          .limit(ITEMS_FETCH_LIMIT)
-
-        if (error) throw error
-
-        // Fetch designer items data separately for better performance
-        const { data: designerData, error: designerError } = await supabase
-          .from('designer_items')
-          .select('item_id, paginacao')
-          .in('item_id', itemsData?.map((item) => item.id) || [])
-
-        if (designerError) throw designerError
-
-        // Fetch logistics data for completion status
-        const { data: logisticsData, error: logisticsError } = await supabase
-          .from('logistica_entregas')
-          .select('item_id, concluido')
-          .in('item_id', itemsData?.map((item) => item.id) || [])
-
-        if (logisticsError) throw logisticsError
-
-        if (itemsData) {
-          // Merge designer data and logistics data with items data
-          const itemsWithDesigner = itemsData.map((item: any) => {
-            const designer = designerData?.find((d) => d.item_id === item.id)
-            const logistics = logisticsData?.find((l) => l.item_id === item.id)
-            return {
-              id: item.id,
-              folha_obra_id: item.folha_obra_id,
-              descricao: item.descricao ?? '',
-              codigo: item.codigo ?? '',
-              quantidade: item.quantidade ?? null,
-              paginacao: designer?.paginacao ?? false,
-              brindes: item.brindes ?? false,
-              concluido: logistics?.concluido ?? false,
-            }
-          })
-
-          setAllItems((prev) => {
-            // Replace items for these jobs to avoid duplicates
-            const filtered = prev.filter(
-              (item) => !jobIds.includes(item.folha_obra_id),
-            )
-            return [...filtered, ...itemsWithDesigner]
-          })
-
-          // Update designer items state for the color calculations
-          if (designerData) {
-            setAllDesignerItems((prev) => {
-              // Replace designer items for these jobs to avoid duplicates
-              const filtered = prev.filter(
-                (designer) =>
-                  !itemsData.some((item) => item.id === designer.item_id),
-              )
-              return [...filtered, ...designerData]
-            })
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching items:', error)
-        setError('Failed to load production items')
-      } finally {
-        setLoading((prev) => ({ ...prev, items: false }))
-      }
-    },
-    [supabase],
-  )
-
-  // Fetch operacoes for loaded jobs
-  const fetchOperacoes = useCallback(
-    async (jobIds: string[]) => {
-      if (jobIds.length === 0) return
-
-      setLoading((prev) => ({ ...prev, operacoes: true }))
-      try {
-        const { data: operacoesData, error } = await supabase
-          .from('producao_operacoes')
-          .select('id, folha_obra_id, concluido')
-          .in('folha_obra_id', jobIds)
-
-        if (error) throw error
-
-        if (operacoesData) {
-          setAllOperacoes((prev) => {
-            // Replace operacoes for these jobs to avoid duplicates
-            const filtered = prev.filter(
-              (op) => !jobIds.includes(op.folha_obra_id),
-            )
-            return [...filtered, ...operacoesData]
-          })
-        }
-      } catch (error) {
-        console.error('Error fetching operacoes:', error)
-        setError('Failed to load production operations')
-      } finally {
-        setLoading((prev) => ({ ...prev, operacoes: false }))
-      }
-    },
-    [supabase],
-  )
-
-  const fetchDesignerItems = useCallback(
-    async (jobIds: string[]) => {
-      if (jobIds.length === 0) return
-
-      // Get item IDs for these jobs first (exclude pending items)
-      const jobItemIds = allItems
-        .filter(
-          (item) =>
-            jobIds.includes(item.folha_obra_id) && !item.id.startsWith('temp-'),
-        )
-        .map((item) => item.id)
-
-      // If no items are loaded yet, skip designer items fetch
-      // This prevents the race condition on initial page load
-      if (jobItemIds.length === 0) return
-
-      setLoading((prev) => ({ ...prev, operacoes: true })) // Reuse loading state
-      try {
-        const { data: designerData, error } = await supabase
-          .from('designer_items')
-          .select('id, item_id, paginacao')
-          .in('item_id', jobItemIds)
-
-        if (error) throw error
-
-        if (designerData) {
-          setAllDesignerItems((prev) => {
-            // Replace designer items for these jobs to avoid duplicates
-            const filtered = prev.filter(
-              (designer) => !jobItemIds.includes(designer.item_id),
-            )
-            return [...filtered, ...designerData]
-          })
-        }
-      } catch (error) {
-        console.error('Error fetching designer items:', error)
-        setError('Failed to load designer items')
-      } finally {
-        setLoading((prev) => ({ ...prev, operacoes: false }))
-      }
-    },
-    [supabase, allItems],
-  )
 
   // Fetch FO totals for Em curso and Pendentes tabs
   const fetchFoTotals = useCallback(async () => {
@@ -1948,62 +569,6 @@ export default function ProducaoPage() {
       console.error('Error fetching FO totals:', error)
     }
   }, [supabase])
-
-  // Fetch individual job total values from PHC BO table
-  const fetchJobTotalValues = useCallback(
-    async (jobIds: string[]) => {
-      if (jobIds.length === 0) return
-
-      try {
-        // Get all jobs with their FO numbers
-        const { data: jobsData, error: jobsError } = await supabase
-          .from('folhas_obras')
-          .select('id, Numero_do_')
-          .in('id', jobIds)
-          .not('Numero_do_', 'is', null)
-
-        if (jobsError) throw jobsError
-
-        // Extract FO numbers
-        const foNumbers = jobsData
-          ?.map((job) => String(job.Numero_do_))
-          .filter((fo) => fo && fo !== 'null' && fo !== 'undefined') || []
-
-        if (foNumbers.length === 0) {
-          setJobTotalValues({})
-          return
-        }
-
-        // Fetch values from PHC BO table
-        const { data: boData, error: boError } = await supabase
-          .schema('phc')
-          .from('bo')
-          .select('document_number, total_value')
-          .eq('document_type', 'Folha de Obra')
-          .in('document_number', foNumbers)
-
-        if (boError) throw boError
-
-        // Create a map of FO number -> total_value
-        const foValueMap: Record<string, number> = {}
-        boData?.forEach((row) => {
-          foValueMap[String(row.document_number)] = Number(row.total_value) || 0
-        })
-
-        // Create a map of job ID -> total_value by matching FO numbers
-        const jobValuesMap: Record<string, number> = {}
-        jobsData?.forEach((job) => {
-          const foValue = foValueMap[String(job.Numero_do_)] || 0
-          jobValuesMap[job.id] = foValue
-        })
-
-        setJobTotalValues(jobValuesMap)
-      } catch (error) {
-        console.error('Error fetching job total values:', error)
-      }
-    },
-    [supabase],
-  )
 
   // Initial data load - only on mount
   useEffect(() => {
@@ -2181,11 +746,11 @@ export default function ProducaoPage() {
   const loadMoreJobs = useCallback(() => {
     if (!loading.jobs && hasMoreJobs) {
       fetchJobs(currentPage + 1, false, {
-        foF: debouncedFoF,
-        campF: debouncedCampF,
-        itemF: debouncedItemF,
-        codeF: debouncedCodeF,
-        clientF: debouncedClientF,
+        effectiveFoF,
+        effectiveCampF,
+        effectiveItemF,
+        effectiveCodeF,
+        effectiveClientF,
         showFatura,
         activeTab,
       })
@@ -2195,11 +760,11 @@ export default function ProducaoPage() {
     hasMoreJobs,
     currentPage,
     fetchJobs,
-    debouncedFoF,
-    debouncedCampF,
-    debouncedItemF,
-    debouncedCodeF,
-    debouncedClientF,
+    effectiveFoF,
+    effectiveCampF,
+    effectiveItemF,
+    effectiveCodeF,
+    effectiveClientF,
     showFatura,
     activeTab,
   ])
@@ -2392,128 +957,58 @@ export default function ProducaoPage() {
           <h1 className="text-2xl font-bold text-foreground">Gestão de Produção</h1>
           <div className="flex items-center gap-2">
             <div className="relative w-28">
-              <Input
+              <FilterInput
                 placeholder="FO"
-                className="h-10 pr-10"
+                className="h-10"
                 value={foF}
-                onChange={(e) => setFoF(e.target.value)}
-                title="Mínimo 3 caracteres para filtrar"
+                onChange={setFoF}
+                onFilterChange={setEffectiveFoF}
               />
-              {foF && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                  onClick={() => setFoF('')}
-                >
-                  <XSquare className="h-4 w-4" />
-                </Button>
-              )}
             </div>
             <div className="relative w-28">
-              <Input
+              <FilterInput
                 placeholder="ORC"
-                className="h-10 pr-10"
+                className="h-10"
                 value={orcF}
-                onChange={(e) => setOrcF(e.target.value)}
-                title="Mínimo 3 caracteres para filtrar"
+                onChange={setOrcF}
+                onFilterChange={setEffectiveOrcF}
               />
-              {orcF && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                  onClick={() => setOrcF('')}
-                >
-                  <XSquare className="h-4 w-4" />
-                </Button>
-              )}
             </div>
             <div className="relative flex-1">
-              <Input
+              <FilterInput
                 placeholder="Nome Campanha"
-                className="h-10 pr-10"
+                className="h-10"
                 value={campF}
-                onChange={(e) => setCampF(e.target.value)}
-                title="Mínimo 3 caracteres para filtrar"
+                onChange={setCampF}
+                onFilterChange={setEffectiveCampF}
               />
-              {campF && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                  onClick={() => setCampF('')}
-                >
-                  <XSquare className="h-4 w-4" />
-                </Button>
-              )}
             </div>
             <div className="relative flex-1">
-              <Input
+              <FilterInput
                 placeholder="Item"
-                className="h-10 pr-10"
+                className="h-10"
                 value={itemF}
-                onChange={(e) => setItemF(e.target.value)}
-                title="Mínimo 3 caracteres para filtrar"
+                onChange={setItemF}
+                onFilterChange={setEffectiveItemF}
               />
-              {itemF && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                  onClick={() => setItemF('')}
-                >
-                  <XSquare className="h-4 w-4" />
-                </Button>
-              )}
             </div>
             <div className="relative w-40">
-              <Input
+              <FilterInput
                 placeholder="Código"
-                className="h-10 pr-10"
+                className="h-10"
                 value={codeF}
-                onChange={(e) => {
-                  console.log('🔤 Code input changed:', e.target.value)
-                  setCodeF(e.target.value)
-                }}
-                onBlur={(e) => {
-                  // Prevent accidental clearing on blur
-                  console.log(
-                    '🔤 Code field blur, keeping value:',
-                    e.target.value,
-                  )
-                }}
-                title="Mínimo 3 caracteres para filtrar"
+                onChange={setCodeF}
+                onFilterChange={setEffectiveCodeF}
               />
-              {codeF && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                  onClick={() => setCodeF('')}
-                >
-                  <XSquare className="h-4 w-4" />
-                </Button>
-              )}
             </div>
             <div className="relative flex-1">
-              <Input
+              <FilterInput
                 placeholder="Cliente"
-                className="h-10 pr-10"
+                className="h-10"
                 value={clientF}
-                onChange={(e) => setClientF(e.target.value)}
-                title="Mínimo 3 caracteres para filtrar"
+                onChange={setClientF}
+                onFilterChange={setEffectiveClientF}
               />
-              {clientF && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                  onClick={() => setClientF('')}
-                >
-                  <XSquare className="h-4 w-4" />
-                </Button>
-              )}
             </div>
 
             <TooltipProvider>
@@ -2530,8 +1025,28 @@ export default function ProducaoPage() {
                       setItemF('')
                       setCodeF('')
                       setClientF('')
+                      setEffectiveFoF('')
+                      setEffectiveOrcF('')
+                      setEffectiveCampF('')
+                      setEffectiveItemF('')
+                      setEffectiveCodeF('')
+                      setEffectiveClientF('')
+                      fetchJobs(0, true, { activeTab })
                     }}
-                    disabled={!foF && !orcF && !campF && !itemF && !codeF && !clientF}
+                    disabled={
+                      !foF &&
+                      !orcF &&
+                      !campF &&
+                      !itemF &&
+                      !codeF &&
+                      !clientF &&
+                      !effectiveFoF &&
+                      !effectiveOrcF &&
+                      !effectiveCampF &&
+                      !effectiveItemF &&
+                      !effectiveCodeF &&
+                      !effectiveClientF
+                    }
                   >
                     <XSquare className="h-4 w-4" />
                   </Button>
@@ -2574,11 +1089,11 @@ export default function ProducaoPage() {
                         setCurrentPage(0)
                         setHasMoreJobs(true)
                         await fetchJobs(0, true, {
-                          foF: debouncedFoF,
-                          campF: debouncedCampF,
-                          itemF: debouncedItemF,
-                          codeF: debouncedCodeF,
-                          clientF: debouncedClientF,
+                          effectiveFoF,
+                          effectiveCampF,
+                          effectiveItemF,
+                          effectiveCodeF,
+                          effectiveClientF,
                           showFatura,
                           activeTab,
                         })
@@ -2633,11 +1148,11 @@ export default function ProducaoPage() {
                         setCurrentPage(0)
                         setHasMoreJobs(true)
                         await fetchJobs(0, true, {
-                          foF: debouncedFoF,
-                          campF: debouncedCampF,
-                          itemF: debouncedItemF,
-                          codeF: debouncedCodeF,
-                          clientF: debouncedClientF,
+                          effectiveFoF,
+                          effectiveCampF,
+                          effectiveItemF,
+                          effectiveCodeF,
+                          effectiveClientF,
                           showFatura,
                           activeTab,
                         })
@@ -3057,7 +1572,8 @@ export default function ProducaoPage() {
                           }
                         }
 
-                        // Call the export function with both datasets
+                        // PERFORMANCE: Lazy load ExcelJS (500KB) only when user clicks export
+                        const { exportProducaoToExcel } = await import('@/utils/exportProducaoToExcel')
                         exportProducaoToExcel({
                           filteredRecords: emCursoRows,
                           pendentesRecords: pendentesRows,

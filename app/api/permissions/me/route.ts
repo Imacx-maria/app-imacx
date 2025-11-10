@@ -4,8 +4,11 @@ import { createServerClient } from '@/utils/supabase'
 import { createAdminClient } from '@/utils/supabaseAdmin'
 
 type PermissionsResponse = {
-  roleId: string | null
-  permissions: string[]
+  roles?: string[]
+  pagePermissions?: string[]
+  actionPermissions?: string[]
+  roleId?: string | null
+  permissions?: string[]
   shouldRetry?: boolean
   reason?: string
 }
@@ -28,25 +31,11 @@ export async function GET() {
         '[API /permissions/me] Failed to read session:',
         sessionError,
       )
-      return json(
-        {
-          roleId: null,
-          permissions: ['dashboard'],
-          reason: 'session-error',
-        },
-        { status: 500 },
-      )
+      return NextResponse.json({ message: 'session-error' }, { status: 500 })
     }
 
     if (!session) {
-      return json(
-        {
-          roleId: null,
-          permissions: ['dashboard'],
-          reason: 'no-session',
-        },
-        { status: 401 },
-      )
+      return NextResponse.json({ message: 'no-session' }, { status: 401 })
     }
 
     const adminClient = createAdminClient()
@@ -61,16 +50,8 @@ export async function GET() {
       .single()
 
     if (profileError) {
-      console.warn(
-        '[API /permissions/me] Profile lookup failed:',
-        profileError,
-      )
-      return json({
-        roleId: null,
-        permissions: ['dashboard'],
-        shouldRetry: true,
-        reason: 'missing-profile',
-      })
+      console.warn('[API /permissions/me] Profile lookup failed:', profileError)
+      return NextResponse.json({ message: 'missing-profile' }, { status: 403 })
     }
 
     const roleId = profile?.role_id ?? null
@@ -81,9 +62,9 @@ export async function GET() {
         session.user.id,
       )
       return json({
-        roleId: null,
-        permissions: ['dashboard'],
-        shouldRetry: true,
+        roles: [],
+        pagePermissions: ['page:dashboard'],
+        actionPermissions: [],
         reason: 'missing-role',
       })
     }
@@ -98,14 +79,11 @@ export async function GET() {
       .single()
 
     if (roleError) {
-      console.warn(
-        '[API /permissions/me] Role lookup failed:',
-        roleError,
-      )
+      console.warn('[API /permissions/me] Role lookup failed:', roleError)
       return json({
-        roleId,
-        permissions: ['dashboard'],
-        shouldRetry: true,
+        roles: [roleId],
+        pagePermissions: ['page:dashboard'],
+        actionPermissions: [],
         reason: 'missing-role-permissions',
       })
     }
@@ -120,26 +98,20 @@ export async function GET() {
         roleId,
       )
       return json({
-        roleId,
-        permissions: ['dashboard'],
-        shouldRetry: true,
+        roles: [roleId],
+        pagePermissions: ['page:dashboard'],
+        actionPermissions: [],
         reason: 'empty-permissions',
       })
     }
 
     return json({
-      roleId,
-      permissions: pagePermissions,
+      roles: [roleId],
+      pagePermissions: pagePermissions.map((p) => `page:${p}`),
+      actionPermissions: [],
     })
   } catch (error) {
     console.error('[API /permissions/me] Unexpected exception:', error)
-    return json(
-      {
-        roleId: null,
-        permissions: ['dashboard'],
-        reason: 'unexpected-error',
-      },
-      { status: 500 },
-    )
+    return NextResponse.json({ message: 'unexpected-error' }, { status: 500 })
   }
 }
