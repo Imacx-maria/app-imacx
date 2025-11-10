@@ -75,6 +75,9 @@ const StockAnalyticsCharts = dynamic(() => import('@/components/StockAnalyticsCh
   loading: () => <div className="p-8 text-center text-muted-foreground">Loading analytics...</div>,
   ssr: false
 })
+import { FilterWithClear } from '@/components/stocks/FilterWithClear'
+import { StockInputField } from '@/components/stocks/StockInputField'
+import { InlineEditField } from '@/components/stocks/InlineEditField'
 
 interface Palete {
   id: string
@@ -2284,121 +2287,57 @@ export default function StocksPage() {
                 className="h-10 flex-1"
               />
             ) : (
-              <div className="relative flex-1">
-                <Input
-                  placeholder="Material"
-                  value={
-                    activeTab === 'entries' ? materialFilter : currentStockFilter
-                  }
-                  onChange={(e) => {
-                    if (activeTab === 'entries') {
-                      setMaterialFilter(e.target.value)
-                    } else {
-                      setCurrentStockFilter(e.target.value)
-                    }
-                  }}
-                  className="h-10 pr-10 rounded-none"
-                />
-                {((activeTab === 'entries' && materialFilter) || (activeTab === 'current' && currentStockFilter)) && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                    onClick={() => {
-                      if (activeTab === 'entries') {
-                        setMaterialFilter('')
-                      } else {
-                        setCurrentStockFilter('')
-                      }
-                    }}
-                  >
-                    <XSquare className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            )}
-            <div className="relative flex-1">
-              <Input
-                placeholder="Referência"
-                value={
-                  activeTab === 'entries'
-                    ? referenciaFilter
-                    : activeTab === 'current'
-                      ? currentStockReferenciaFilter
-                      : paletesReferenciaFilter
-                }
-                onChange={(e) => {
+              <FilterWithClear
+                placeholder="Material"
+                value={activeTab === 'entries' ? materialFilter : currentStockFilter}
+                onChange={(value) => {
                   if (activeTab === 'entries') {
-                    setReferenciaFilter(e.target.value)
-                  } else if (activeTab === 'current') {
-                    setCurrentStockReferenciaFilter(e.target.value)
+                    setMaterialFilter(value)
                   } else {
-                    setPaletesReferenciaFilter(e.target.value)
+                    setCurrentStockFilter(value)
                   }
                 }}
-                className="h-10 pr-10 rounded-none"
               />
-              {((activeTab === 'entries' && referenciaFilter) ||
-                (activeTab === 'current' && currentStockReferenciaFilter) ||
-                (activeTab === 'palettes' && paletesReferenciaFilter)) && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                  onClick={() => {
-                    if (activeTab === 'entries') {
-                      setReferenciaFilter('')
-                    } else if (activeTab === 'current') {
-                      setCurrentStockReferenciaFilter('')
-                    } else {
-                      setPaletesReferenciaFilter('')
-                    }
-                  }}
-                >
-                  <XSquare className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
+            )}
+            <FilterWithClear
+              placeholder="Referência"
+              value={
+                activeTab === 'entries'
+                  ? referenciaFilter
+                  : activeTab === 'current'
+                    ? currentStockReferenciaFilter
+                    : paletesReferenciaFilter
+              }
+              onChange={(value) => {
+                if (activeTab === 'entries') {
+                  setReferenciaFilter(value)
+                } else if (activeTab === 'current') {
+                  setCurrentStockReferenciaFilter(value)
+                } else {
+                  setPaletesReferenciaFilter(value)
+                }
+              }}
+            />
 
             {activeTab === 'palettes' && (
               <>
-                <div className="relative w-[130px]">
-                  <Input
+                <div className="w-[130px]">
+                  <FilterWithClear
                     type="date"
                     placeholder="DATA INÍCIO"
                     value={paletesDateFrom}
-                    onChange={(e) => setPaletesDateFrom(e.target.value)}
+                    onChange={setPaletesDateFrom}
                     className="h-10 pr-10 rounded-none"
                   />
-                  {paletesDateFrom && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                      onClick={() => setPaletesDateFrom('')}
-                    >
-                      <XSquare className="h-4 w-4" />
-                    </Button>
-                  )}
                 </div>
-                <div className="relative w-[130px]">
-                  <Input
+                <div className="w-[130px]">
+                  <FilterWithClear
                     type="date"
                     placeholder="DATA FIM"
                     value={paletesDateTo}
-                    onChange={(e) => setPaletesDateTo(e.target.value)}
+                    onChange={setPaletesDateTo}
                     className="h-10 pr-10 rounded-none"
                   />
-                  {paletesDateTo && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                      onClick={() => setPaletesDateTo('')}
-                    >
-                      <XSquare className="h-4 w-4" />
-                    </Button>
-                  )}
                 </div>
                 <Select
                   value={paletesFornecedorFilter}
@@ -2786,39 +2725,14 @@ export default function StocksPage() {
                                 <div className="text-xs text-muted-foreground font-medium mb-1">
                                   QTD UNIT.
                                 </div>
-                                <input
-                                  key={`${entry.id}-quantidade`}
-                                  type="text"
-                                  inputMode="numeric"
+                                <InlineEditField
+                                  id={`${entry.id}-quantidade`}
+                                  type="numeric"
                                   defaultValue={entry.quantidade || ''}
-                                  onBlur={(e) => {
-                                    const val = e.target.value.replace(
-                                      /[^0-9]/g,
-                                      '',
-                                    )
-                                    updateEntry(
-                                      index,
-                                      'quantidade',
-                                      val ? parseInt(val) : 0,
-                                    )
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      e.preventDefault()
-                                      const val =
-                                        e.currentTarget.value.replace(
-                                          /[^0-9]/g,
-                                          '',
-                                        )
-                                      updateEntry(
-                                        index,
-                                        'quantidade',
-                                        val ? parseInt(val) : 0,
-                                      )
-                                    }
-                                  }}
+                                  onChange={(value) =>
+                                    updateEntry(index, 'quantidade', value)
+                                  }
                                   maxLength={6}
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                   placeholder="0"
                                 />
                               </TableCell>
@@ -2826,39 +2740,14 @@ export default function StocksPage() {
                                 <div className="text-xs text-muted-foreground font-medium mb-1">
                                   SIZE X
                                 </div>
-                                <input
-                                  key={`${entry.id}-size_x`}
-                                  type="text"
-                                  inputMode="numeric"
+                                <InlineEditField
+                                  id={`${entry.id}-size_x`}
+                                  type="numeric"
                                   defaultValue={entry.size_x || ''}
-                                  onBlur={(e) => {
-                                    const val = e.target.value.replace(
-                                      /[^0-9]/g,
-                                      '',
-                                    )
-                                    updateEntry(
-                                      index,
-                                      'size_x',
-                                      val ? parseInt(val) : 0,
-                                    )
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      e.preventDefault()
-                                      const val =
-                                        e.currentTarget.value.replace(
-                                          /[^0-9]/g,
-                                          '',
-                                        )
-                                      updateEntry(
-                                        index,
-                                        'size_x',
-                                        val ? parseInt(val) : 0,
-                                      )
-                                    }
-                                  }}
+                                  onChange={(value) =>
+                                    updateEntry(index, 'size_x', value)
+                                  }
                                   maxLength={5}
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                   placeholder="3000"
                                 />
                               </TableCell>
@@ -2866,39 +2755,14 @@ export default function StocksPage() {
                                 <div className="text-xs text-muted-foreground font-medium mb-1">
                                   SIZE Y
                                 </div>
-                                <input
-                                  key={`${entry.id}-size_y`}
-                                  type="text"
-                                  inputMode="numeric"
+                                <InlineEditField
+                                  id={`${entry.id}-size_y`}
+                                  type="numeric"
                                   defaultValue={entry.size_y || ''}
-                                  onBlur={(e) => {
-                                    const val = e.target.value.replace(
-                                      /[^0-9]/g,
-                                      '',
-                                    )
-                                    updateEntry(
-                                      index,
-                                      'size_y',
-                                      val ? parseInt(val) : 0,
-                                    )
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      e.preventDefault()
-                                      const val =
-                                        e.currentTarget.value.replace(
-                                          /[^0-9]/g,
-                                          '',
-                                        )
-                                      updateEntry(
-                                        index,
-                                        'size_y',
-                                        val ? parseInt(val) : 0,
-                                      )
-                                    }
-                                  }}
+                                  onChange={(value) =>
+                                    updateEntry(index, 'size_y', value)
+                                  }
                                   maxLength={5}
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                   placeholder="2000"
                                 />
                               </TableCell>
@@ -3041,25 +2905,13 @@ export default function StocksPage() {
                                 <div className="text-xs text-muted-foreground font-medium mb-1">
                                   REF PAL (OPCIONAL)
                                 </div>
-                                <input
-                                  key={`${entry.id}-no_palete-row2`}
-                                  type="text"
+                                <InlineEditField
+                                  id={`${entry.id}-no_palete-row2`}
                                   defaultValue={entry.no_palete || ''}
-                                  onBlur={(e) =>
-                                    updateEntry(index, 'no_palete', e.target.value)
+                                  onChange={(value) =>
+                                    updateEntry(index, 'no_palete', value)
                                   }
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      e.preventDefault()
-                                      updateEntry(
-                                        index,
-                                        'no_palete',
-                                        e.currentTarget.value,
-                                      )
-                                    }
-                                  }}
                                   maxLength={50}
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                   placeholder="P100 ou P100,P101,P102 (Opcional)"
                                 />
                               </TableCell>
@@ -3067,64 +2919,27 @@ export default function StocksPage() {
                                 <div className="text-xs text-muted-foreground font-medium mb-1">
                                   NºPAL
                                 </div>
-                                <input
-                                  key={`${entry.id}-num_paletes-row2`}
-                                  type="text"
-                                  inputMode="numeric"
+                                <InlineEditField
+                                  id={`${entry.id}-num_paletes-row2`}
+                                  type="numeric"
                                   defaultValue={entry.num_paletes || 1}
-                                  onBlur={(e) => {
-                                    const val = e.target.value.replace(
-                                      /[^0-9]/g,
-                                      '',
-                                    )
-                                    updateEntry(
-                                      index,
-                                      'num_paletes',
-                                      val ? parseInt(val) : 1,
-                                    )
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      e.preventDefault()
-                                      const val =
-                                        e.currentTarget.value.replace(
-                                          /[^0-9]/g,
-                                          '',
-                                        )
-                                      updateEntry(
-                                        index,
-                                        'num_paletes',
-                                        val ? parseInt(val) : 1,
-                                      )
-                                    }
-                                  }}
+                                  onChange={(value) =>
+                                    updateEntry(index, 'num_paletes', value)
+                                  }
                                   maxLength={3}
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 />
                               </TableCell>
                               <TableCell className="pt-0 w-[150px]">
                                 <div className="text-xs text-muted-foreground font-medium mb-1">
                                   Nº Guia
                                 </div>
-                                <input
-                                  key={`${entry.id}-no_guia_forn-row2`}
-                                  type="text"
+                                <InlineEditField
+                                  id={`${entry.id}-no_guia_forn-row2`}
                                   defaultValue={entry.no_guia_forn || ''}
-                                  onBlur={(e) =>
-                                    updateEntry(index, 'no_guia_forn', e.target.value)
+                                  onChange={(value) =>
+                                    updateEntry(index, 'no_guia_forn', value)
                                   }
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      e.preventDefault()
-                                      updateEntry(
-                                        index,
-                                        'no_guia_forn',
-                                        e.currentTarget.value,
-                                      )
-                                    }
-                                  }}
                                   maxLength={20}
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                   placeholder="Opcional"
                                 />
                               </TableCell>
@@ -3648,7 +3463,7 @@ export default function StocksPage() {
                             {Math.round(stock.total_consumido)}
                           </TableCell>
                           <TableCell>
-                            <Input
+                            <StockInputField
                               value={
                                 stockMinimoValueMap[stock.id] ??
                                 (stock.stock_minimo !== null &&
@@ -3656,10 +3471,10 @@ export default function StocksPage() {
                                   ? stock.stock_minimo.toString()
                                   : '')
                               }
-                              onChange={(e) =>
+                              onChange={(value) =>
                                 setStockMinimoValueMap((prev) => ({
                                   ...prev,
-                                  [stock.id]: e.target.value,
+                                  [stock.id]: value,
                                 }))
                               }
                               onBlur={() =>
@@ -3671,7 +3486,7 @@ export default function StocksPage() {
                             />
                           </TableCell>
                           <TableCell>
-                            <Input
+                            <StockInputField
                               value={
                                 stockCriticoValueMap[stock.id] ??
                                 (stock.stock_critico !== null &&
@@ -3679,10 +3494,10 @@ export default function StocksPage() {
                                   ? stock.stock_critico.toString()
                                   : '')
                               }
-                              onChange={(e) =>
+                              onChange={(value) =>
                                 setStockCriticoValueMap((prev) => ({
                                   ...prev,
-                                  [stock.id]: e.target.value,
+                                  [stock.id]: value,
                                 }))
                               }
                               onBlur={() =>
@@ -3694,7 +3509,7 @@ export default function StocksPage() {
                             />
                           </TableCell>
                           <TableCell>
-                            <Input
+                            <StockInputField
                               value={
                                 stockCorrectValueMap[stock.id] ??
                                 (stock.stock_correct !== null &&
@@ -3702,10 +3517,10 @@ export default function StocksPage() {
                                   ? stock.stock_correct.toString()
                                   : '')
                               }
-                              onChange={(e) =>
+                              onChange={(value) =>
                                 setStockCorrectValueMap((prev) => ({
                                   ...prev,
-                                  [stock.id]: e.target.value,
+                                  [stock.id]: value,
                                 }))
                               }
                               onBlur={() =>
@@ -3759,17 +3574,16 @@ export default function StocksPage() {
               {showNewPaleteRow && (
                 <div className="mb-4 border p-4">
                   <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
-                    <Input
+                    <StockInputField
                       placeholder="Nº Palete"
                       value={newPaleteData.no_palete}
-                      onChange={(e) =>
+                      onChange={(value) =>
                         setNewPaleteData((prev) => ({
                           ...prev,
-                          no_palete: e.target.value,
+                          no_palete: value,
                         }))
                       }
                       defaultValue={getNextPaleteNumber()}
-                      className="h-10"
                     />
                     <Select
                       value={newPaleteData.fornecedor_id}
@@ -3791,54 +3605,50 @@ export default function StocksPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <Input
+                    <StockInputField
                       placeholder="Nº Guia"
                       value={newPaleteData.no_guia_forn}
-                      onChange={(e) =>
+                      onChange={(value) =>
                         setNewPaleteData((prev) => ({
                           ...prev,
-                          no_guia_forn: e.target.value,
+                          no_guia_forn: value,
                         }))
                       }
                       maxLength={20}
-                      className="h-10"
                     />
-                    <Input
+                    <StockInputField
                       placeholder="Ref. Cartão"
                       value={newPaleteData.ref_cartao}
-                      onChange={(e) =>
+                      onChange={(value) =>
                         setNewPaleteData((prev) => ({
                           ...prev,
-                          ref_cartao: e.target.value,
+                          ref_cartao: value,
                         }))
                       }
                       maxLength={30}
-                      className="h-10"
                     />
-                    <Input
+                    <StockInputField
                       placeholder="Qt. Palete"
                       type="number"
                       value={newPaleteData.qt_palete}
-                      onChange={(e) =>
+                      onChange={(value) =>
                         setNewPaleteData((prev) => ({
                           ...prev,
-                          qt_palete: e.target.value,
+                          qt_palete: value,
                         }))
                       }
                       maxLength={6}
                       max={999999}
-                      className="h-10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
-                    <Input
+                    <StockInputField
                       type="date"
                       value={newPaleteData.data}
-                      onChange={(e) =>
+                      onChange={(value) =>
                         setNewPaleteData((prev) => ({
                           ...prev,
-                          data: e.target.value,
+                          data: value,
                         }))
                       }
-                      className="h-10"
                     />
                     <Select
                       value={newPaleteData.author_id}
@@ -4088,17 +3898,17 @@ export default function StocksPage() {
                           </TableCell>
                           <TableCell>
                             {editingPaleteId === palete.id ? (
-                              <Input
+                              <StockInputField
                                 type="number"
                                 value={
                                   editingPaleteData[palete.id]?.qt_palete || ''
                                 }
-                                onChange={(e) =>
+                                onChange={(value) =>
                                   setEditingPaleteData((prev) => ({
                                     ...prev,
                                     [palete.id]: {
                                       ...prev[palete.id],
-                                      qt_palete: e.target.value,
+                                      qt_palete: value,
                                     },
                                   }))
                                 }
@@ -4110,17 +3920,17 @@ export default function StocksPage() {
                           </TableCell>
                           <TableCell>
                             {editingPaleteId === palete.id ? (
-                              <Input
+                              <StockInputField
                                 type="date"
                                 value={
                                   editingPaleteData[palete.id]?.data || ''
                                 }
-                                onChange={(e) =>
+                                onChange={(value) =>
                                   setEditingPaleteData((prev) => ({
                                     ...prev,
                                     [palete.id]: {
                                       ...prev[palete.id],
-                                      data: e.target.value,
+                                      data: value,
                                     },
                                   }))
                                 }
