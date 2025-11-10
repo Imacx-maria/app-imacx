@@ -59,49 +59,70 @@ export async function GET(request: Request) {
 
     console.log('✅ [API /users/list] Admin verified, fetching users...')
 
-    // Fetch all profiles (single source of truth)
+    // PERFORMANCE FIX: Use parallel queries with joins instead of N+1 pattern
+    // Query 1: Fetch all profiles with their siglas in ONE query using join
     const { data: profiles, error: profilesError } = await adminClient
       .from('profiles')
-      .select('*')
+      .select(`
+        *,
+        user_siglas (
+          sigla
+        )
+      `)
 
     if (profilesError) {
       console.error('❌ [API /users/list] Error fetching profiles:', profilesError)
       throw profilesError
     }
 
-    console.log('✅ [API /users/list] Fetched profiles:', profiles?.length || 0)
+    console.log('✅ [API /users/list] Fetched profiles with siglas:', profiles?.length || 0)
 
-    // Fetch auth data for each profile to get email
-    const combinedUsers = await Promise.all(
-      (profiles || []).map(async (profile) => {
-        // Fetch siglas for this profile
-        const { data: siglasData } = await adminClient
-          .from('user_siglas')
-          .select('sigla')
-          .eq('profile_id', profile.id)
+    // Query 2: Fetch ALL auth users in ONE batch call (instead of N getUserById calls)
+    const { data: authData, error: authError } = await adminClient.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000, // Adjust if you have more users
+    })
 
-        // Get auth user email (fallback to profile email if auth fetch fails)
-        let authEmail = profile.email
-        try {
-          const { data: authUser } = await adminClient.auth.admin.getUserById(profile.user_id)
-          if (authUser?.user) {
-            authEmail = authUser.user.email || profile.email
-          }
-        } catch (error) {
-          console.warn(`⚠️ Could not fetch auth user for ${profile.user_id}, using profile email`)
-        }
+    if (authError) {
+      console.warn('⚠️ [API /users/list] Could not fetch auth users, will use profile emails')
+    }
 
-        return {
-          ...profile,
-          siglas: siglasData?.map((s) => s.sigla) || [],
-          auth_user_id: profile.user_id,
-          email: authEmail,
-          has_profile: true,
-        }
-      })
+    console.log('✅ [API /users/list] Fetched auth users:', authData?.users?.length || 0)
+
+    // Create lookup map for O(1) email retrieval
+    const authEmailMap = new Map(
+      (authData?.users || []).map((user) => [user.id, user.email])
     )
 
+    // Combine data in memory (no more database queries!)
+    const combinedUsers = (profiles || []).map((profile: any) => {
+      // Get siglas from the joined data
+      const siglas = (profile.user_siglas || []).map((s: any) => s.sigla)
+
+      // Get email from auth map with O(1) lookup
+      const authEmail = authEmailMap.get(profile.user_id) || profile.email
+
+      return {
+        id: profile.id,
+        user_id: profile.user_id,
+        auth_user_id: profile.user_id,
+        first_name: profile.first_name,
+        last_name: profile.last_name,
+        email: authEmail,
+        phone: profile.phone,
+        notes: profile.notes,
+        role_id: profile.role_id,
+        departamento_id: profile.departamento_id,
+        created_at: profile.created_at,
+        updated_at: profile.updated_at,
+        active: profile.active,
+        siglas,
+        has_profile: true,
+      }
+    })
+
     console.log('✅ [API /users/list] Combined users prepared:', combinedUsers.length)
+    console.log('🎯 [API /users/list] Performance: Reduced from N+1 queries to 2 total queries')
 
     return NextResponse.json({
       users: combinedUsers,
