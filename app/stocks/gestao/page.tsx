@@ -3058,6 +3058,7 @@ export default function StocksPage() {
                                       )
                                     }
                                   }}
+                                  maxLength={50}
                                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                   placeholder="P100 ou P100,P101,P102 (Opcional)"
                                 />
@@ -3122,6 +3123,7 @@ export default function StocksPage() {
                                       )
                                     }
                                   }}
+                                  maxLength={20}
                                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                   placeholder="Opcional"
                                 />
@@ -3798,6 +3800,7 @@ export default function StocksPage() {
                           no_guia_forn: e.target.value,
                         }))
                       }
+                      maxLength={20}
                       className="h-10"
                     />
                     <Input
@@ -3809,6 +3812,7 @@ export default function StocksPage() {
                           ref_cartao: e.target.value,
                         }))
                       }
+                      maxLength={30}
                       className="h-10"
                     />
                     <Input
@@ -3821,6 +3825,8 @@ export default function StocksPage() {
                           qt_palete: e.target.value,
                         }))
                       }
+                      maxLength={6}
+                      max={999999}
                       className="h-10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <Input

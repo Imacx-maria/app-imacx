@@ -3474,6 +3474,7 @@ export default function StocksPage() {
                           no_guia_forn: e.target.value,
                         }))
                       }
+                      maxLength={20}
                       className="h-10"
                     />
                     <Input
@@ -3485,6 +3486,7 @@ export default function StocksPage() {
                           ref_cartao: e.target.value,
                         }))
                       }
+                      maxLength={30}
                       className="h-10"
                     />
                     <Input
@@ -3497,6 +3499,8 @@ export default function StocksPage() {
                           qt_palete: e.target.value,
                         }))
                       }
+                      maxLength={6}
+                      max={999999}
                       className="h-10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <Input
