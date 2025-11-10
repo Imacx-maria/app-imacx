@@ -21,20 +21,21 @@ export async function GET() {
     const cookieStore = cookies()
     const supabase = await createServerClient(cookieStore)
 
+    // SECURITY: Use getUser() instead of getSession() for server-side validation
     const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession()
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
 
-    if (sessionError) {
+    if (authError) {
       console.error(
-        '[API /permissions/me] Failed to read session:',
-        sessionError,
+        '[API /permissions/me] Auth error:',
+        authError.message,
       )
-      return NextResponse.json({ message: 'session-error' }, { status: 500 })
+      return NextResponse.json({ message: 'auth-error' }, { status: 500 })
     }
 
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ message: 'no-session' }, { status: 401 })
     }
 
@@ -46,7 +47,7 @@ export async function GET() {
     } = await adminClient
       .from('profiles')
       .select('role_id')
-      .eq('user_id', session.user.id)
+      .eq('user_id', user.id)
       .single()
 
     if (profileError) {
@@ -59,7 +60,7 @@ export async function GET() {
     if (!roleId) {
       console.warn(
         '[API /permissions/me] Profile found but role_id missing for user',
-        session.user.id,
+        user.id,
       )
       return json({
         roles: [],

@@ -38,10 +38,13 @@ export async function middleware(request: NextRequest) {
   try {
     const { supabase, response } = await createMiddlewareClient(request)
 
+    // SECURITY: Use getUser() instead of getSession() for server-side validation
+    // getSession() reads from cookies without server verification (insecure)
+    // getUser() validates the session with Supabase Auth server (secure)
     const {
-      data: { session },
+      data: { user },
       error,
-    } = await supabase.auth.getSession()
+    } = await supabase.auth.getUser()
 
     const url = request.nextUrl.clone()
     const pathname = url.pathname
@@ -62,14 +65,14 @@ export async function middleware(request: NextRequest) {
     )
 
     if (error) {
-      console.error('[Middleware] Session error:', error)
+      console.error('[Middleware] Auth error:', error.message)
       if (isProtectedRoute) {
         url.pathname = '/login'
         return NextResponse.redirect(url)
       }
     }
 
-    if (!session) {
+    if (!user) {
       if (isProtectedRoute) {
         url.pathname = '/login'
         return NextResponse.redirect(url)
@@ -82,46 +85,35 @@ export async function middleware(request: NextRequest) {
 
       // Check page permissions for protected routes (skip dashboard)
       if (isProtectedRoute && pathname !== '/dashboard') {
-        // Fetch user permissions from cache header or database
+        // SECURITY NOTE: Removed header-based permission caching
+        // Always fetch fresh permissions to prevent cache poisoning
+        // TODO: Consider server-side Redis cache with proper invalidation
+        
         let userPermissions: string[] = []
 
-        // Try to get from cache header first
-        const cachedPermissions = request.headers.get('x-user-permissions')
-        const cacheTimestamp = request.headers.get('x-permissions-timestamp')
-        const now = Date.now()
-        const cacheValid = cacheTimestamp && (now - parseInt(cacheTimestamp)) < 5 * 60 * 1000 // 5 minutes
+        // Fetch from database (always fresh)
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role_id')
+          .eq('user_id', user.id)
+          .single()
 
-        if (cachedPermissions && cacheValid) {
-          userPermissions = JSON.parse(cachedPermissions)
-        } else {
-          // Fetch from database
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('role_id')
-            .eq('user_id', session.user.id)
+        if (profile?.role_id) {
+          const { data: roleData } = await supabase
+            .from('roles')
+            .select('page_permissions')
+            .eq('id', profile.role_id)
             .single()
 
-          if (profile?.role_id) {
-            const { data: roleData } = await supabase
-              .from('roles')
-              .select('page_permissions')
-              .eq('id', profile.role_id)
-              .single()
-
-            if (roleData?.page_permissions && Array.isArray(roleData.page_permissions)) {
-              userPermissions = roleData.page_permissions as string[]
-            } else {
-              // No permissions set = only dashboard access
-              userPermissions = ['dashboard']
-            }
+          if (roleData?.page_permissions && Array.isArray(roleData.page_permissions)) {
+            userPermissions = roleData.page_permissions as string[]
           } else {
-            // No role = only dashboard access
+            // No permissions set = only dashboard access
             userPermissions = ['dashboard']
           }
-
-          // Cache permissions in response header
-          response.headers.set('x-user-permissions', JSON.stringify(userPermissions))
-          response.headers.set('x-permissions-timestamp', now.toString())
+        } else {
+          // No role = only dashboard access
+          userPermissions = ['dashboard']
         }
 
         // Check if user has access to this path

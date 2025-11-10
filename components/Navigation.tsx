@@ -25,7 +25,8 @@ import {
   Warehouse,
   LogIn,
   LogOut,
-  User
+  User,
+  Loader2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -34,6 +35,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
+import { createBrowserClient } from '@/utils/supabase'
 import { usePermissions } from '@/providers/PermissionsProvider'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -120,6 +122,7 @@ export function Navigation() {
   const [isCollapsed, setIsCollapsed] = useState(false) // Always start expanded on SSR
   const [openSubmenus, setOpenSubmenus] = useState<string[]>([])
   const [user, setUser] = useState<any>(null)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
 
   useEffect(() => {
@@ -189,14 +192,52 @@ export function Navigation() {
   }
 
   const handleLogout = async () => {
+    if (isLoggingOut) return
+    setIsLoggingOut(true)
     try {
-      const { createBrowserClient } = await import('@/utils/supabase')
-      const supabase = createBrowserClient()
-      await supabase.auth.signOut()
+      // Clear localStorage first to prevent auth state listeners from refetching
+      if (typeof window !== 'undefined') {
+        const keys = Object.keys(window.localStorage)
+        keys.forEach((key) => {
+          if (
+            key.startsWith('sb-') ||
+            key.includes('supabase') ||
+            key === 'rememberedEmail' ||
+            key === 'rememberMe'
+          ) {
+            window.localStorage.removeItem(key)
+          }
+        })
+      }
+
       setUser(null)
-      router.push('/login')
-    } catch (error) {
-      console.error('Error logging out:', error)
+
+      // Sign out from server (clears cookie-based session) - do this first
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Cache-Control': 'no-cache',
+          },
+        })
+      } catch (serverError) {
+        // Ignore server logout errors - cookies will be cleared anyway
+      }
+
+      const supabase = createBrowserClient()
+      
+      // Sign out from browser client (clears any remaining session data)
+      await supabase.auth.signOut({ scope: 'local' })
+
+      // Small delay to let any auth state changes settle
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Hard redirect to login page (forces full page reload to clear all state)
+      window.location.href = '/login'
+    } catch (err) {
+      console.error('[Logout] Unexpected error:', err)
+      // Even if logout fails, redirect to login
+      window.location.href = '/login'
     }
   }
 
@@ -467,12 +508,17 @@ export function Navigation() {
                       variant="ghost"
                       size="icon"
                       onClick={handleLogout}
+                      disabled={isLoggingOut}
                       className={cn(
                         'w-full justify-start gap-3 text-destructive hover:bg-destructive/10',
                         'justify-center'
                       )}
                     >
-                      <LogOut className="h-5 w-5" />
+                      {isLoggingOut ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <LogOut className="h-5 w-5" />
+                      )}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="right">Sair</TooltipContent>
@@ -483,12 +529,17 @@ export function Navigation() {
                 variant="ghost"
                 size={'default'}
                 onClick={handleLogout}
+                disabled={isLoggingOut}
                 className={cn(
                   'w-full justify-start gap-3 text-destructive hover:bg-destructive/10'
                 )}
               >
-                <LogOut className="h-5 w-5" />
-                <span>Sair</span>
+                {isLoggingOut ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <LogOut className="h-5 w-5" />
+                )}
+                <span>{isLoggingOut ? 'A sair...' : 'Sair'}</span>
               </Button>
             )}
           </div>

@@ -38,12 +38,35 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     const supabase = createBrowserClient()
+    const abortController = new AbortController()
+    let isSubscribed = true
 
     const fetchPermissions = async () => {
+      // Don't fetch if component is unmounting or navigating away
+      if (!isSubscribed || abortController.signal.aborted) return
+
+      // Check if there's a session first to avoid unnecessary requests
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        setRoles([])
+        setPagePermissions([])
+        setActionPermissions([])
+        setLoading(false)
+        return
+      }
+
       setLoading(true)
       try {
-        const res = await fetch('/api/permissions/me', { cache: 'no-store' })
+        const res = await fetch('/api/permissions/me', { 
+          cache: 'no-store',
+          credentials: 'same-origin',
+          signal: abortController.signal,
+        })
 
+        // Check again before updating state
+        if (!isSubscribed) return
+
+        // User is not authenticated (logged out) - this is expected
         if (res.status === 401) {
           setRoles([])
           setPagePermissions([])
@@ -53,7 +76,10 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
         }
 
         if (!res.ok) {
-          console.error('[PermissionsProvider] permissions error', res.status)
+          // Only log unexpected errors (not 401/403 which are normal during logout)
+          if (res.status !== 403) {
+            console.error('[PermissionsProvider] Unexpected permissions error:', res.status)
+          }
           setRoles([])
           setPagePermissions([])
           setActionPermissions([])
@@ -66,6 +92,9 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
           pagePermissions?: PermissionId[]
           actionPermissions?: PermissionId[]
         }
+
+        // Check once more before setting state
+        if (!isSubscribed) return
 
         const nextRoles = Array.isArray(data.roles) ? data.roles : []
         const nextPagePerms = Array.isArray(data.pagePermissions)
@@ -83,12 +112,32 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
         setPagePermissions(nextPagePerms)
         setActionPermissions(nextActionPerms)
       } catch (e) {
-        console.error('[PermissionsProvider] fetch failed', e)
-        setRoles([])
-        setPagePermissions([])
-        setActionPermissions([])
+        // Don't log errors if the request was aborted (component unmounted/logout)
+        if (e instanceof DOMException && e.name === 'AbortError') {
+          // Silently ignore - this is expected during logout/navigation
+          return
+        }
+        
+        // Network errors or fetch failures - suppress if likely due to logout/navigation
+        if (e instanceof TypeError && (e.message.includes('fetch') || e.message.includes('Failed to fetch'))) {
+          // Likely a navigation/abort during logout - don't log
+          return
+        }
+        
+        // Only log truly unexpected errors
+        if (isSubscribed) {
+          console.error('[PermissionsProvider] Unexpected fetch error:', e)
+        }
+        
+        if (isSubscribed) {
+          setRoles([])
+          setPagePermissions([])
+          setActionPermissions([])
+        }
       } finally {
-        setLoading(false)
+        if (isSubscribed) {
+          setLoading(false)
+        }
       }
     }
 
@@ -99,6 +148,8 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
     })
 
     return () => {
+      isSubscribed = false
+      abortController.abort()
       subscription.unsubscribe()
     }
   }, [])
