@@ -217,13 +217,13 @@ export function Navigation() {
       // If no pageId specified, show by default
       if (!item.pageId) return true
 
-      // Check if user can access linked page path
-      if (item.href && canAccessPage(item.href)) return true
+      // Check if user can access the page using the pageId (not href)
+      if (item.pageId && canAccessPage(item.pageId)) return true
 
-      // If item has submenu, check if user has access to ANY child page by href
+      // If item has submenu, check if user has access to ANY child page by pageId
       if (item.submenu && item.submenu.length > 0) {
         return item.submenu.some(subItem =>
-          subItem.href ? canAccessPage(subItem.href) : false
+          subItem.pageId ? canAccessPage(subItem.pageId) : false
         )
       }
 
