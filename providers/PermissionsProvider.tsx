@@ -75,9 +75,21 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
           ? data.actionPermissions
           : []
 
-        const mappedRoles: RoleId[] = (nextRoles as string[]).includes('7c53a7a2-ab07-4ba3-8c1a-7e8e215cadf0')
-          ? [ROLES.ADMIN]
-          : (nextRoles as RoleId[])
+        // Map role names from API to our ROLES enum
+        const roleName = (nextRoles as string[])[0] // API returns single role
+        let mappedRole: RoleId | null = null
+        
+        if (roleName === 'admin') {
+          mappedRole = ROLES.ADMIN
+        } else if (roleName === 'designer') {
+          mappedRole = ROLES.DESIGNER
+        } else if (roleName === 'op_stocks') {
+          mappedRole = ROLES.OP_STOCKS
+        } else if (roleName === 'op_producao') {
+          mappedRole = ROLES.OP_PRODUCAO
+        }
+        
+        const mappedRoles: RoleId[] = mappedRole ? [mappedRole] : []
 
         setRoles(mappedRoles)
         setPagePermissions(nextPagePerms)

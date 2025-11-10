@@ -74,20 +74,31 @@ export async function GET() {
       error: roleError,
     } = await adminClient
       .from('roles')
-      .select('page_permissions')
+      .select('name, page_permissions')
       .eq('id', roleId)
       .single()
 
     if (roleError) {
       console.warn('[API /permissions/me] Role lookup failed:', roleError)
       return json({
-        roles: [roleId],
+        roles: [],
         pagePermissions: ['page:dashboard'],
         actionPermissions: [],
         reason: 'missing-role-permissions',
       })
     }
 
+    if (!roleData) {
+      console.warn('[API /permissions/me] Role not found:', roleId)
+      return json({
+        roles: [],
+        pagePermissions: ['page:dashboard'],
+        actionPermissions: [],
+        reason: 'role-not-found',
+      })
+    }
+
+    const roleName = roleData.name
     const pagePermissions = Array.isArray(roleData?.page_permissions)
       ? (roleData.page_permissions as string[])
       : []
@@ -98,7 +109,7 @@ export async function GET() {
         roleId,
       )
       return json({
-        roles: [roleId],
+        roles: [roleName],
         pagePermissions: ['page:dashboard'],
         actionPermissions: [],
         reason: 'empty-permissions',
@@ -106,7 +117,7 @@ export async function GET() {
     }
 
     return json({
-      roles: [roleId],
+      roles: [roleName],
       pagePermissions: pagePermissions.map((p) => `page:${p}`),
       actionPermissions: [],
     })
