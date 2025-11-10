@@ -76,6 +76,7 @@ const StockAnalyticsCharts = dynamic(() => import('@/components/StockAnalyticsCh
   ssr: false
 })
 import { FilterWithClear } from '@/components/stocks/FilterWithClear'
+import { StockInputField } from '@/components/stocks/StockInputField'
 
 interface Palete {
   id: string
@@ -3585,7 +3586,7 @@ export default function StocksPage() {
                             {Math.round(stock.total_consumido)}
                           </TableCell>
                           <TableCell>
-                            <Input
+                            <StockInputField
                               value={
                                 stockMinimoValueMap[stock.id] ??
                                 (stock.stock_minimo !== null &&
@@ -3593,10 +3594,10 @@ export default function StocksPage() {
                                   ? stock.stock_minimo.toString()
                                   : '')
                               }
-                              onChange={(e) =>
+                              onChange={(value) =>
                                 setStockMinimoValueMap((prev) => ({
                                   ...prev,
-                                  [stock.id]: e.target.value,
+                                  [stock.id]: value,
                                 }))
                               }
                               onBlur={() =>
@@ -3608,7 +3609,7 @@ export default function StocksPage() {
                             />
                           </TableCell>
                           <TableCell>
-                            <Input
+                            <StockInputField
                               value={
                                 stockCriticoValueMap[stock.id] ??
                                 (stock.stock_critico !== null &&
@@ -3616,10 +3617,10 @@ export default function StocksPage() {
                                   ? stock.stock_critico.toString()
                                   : '')
                               }
-                              onChange={(e) =>
+                              onChange={(value) =>
                                 setStockCriticoValueMap((prev) => ({
                                   ...prev,
-                                  [stock.id]: e.target.value,
+                                  [stock.id]: value,
                                 }))
                               }
                               onBlur={() =>
@@ -3631,7 +3632,7 @@ export default function StocksPage() {
                             />
                           </TableCell>
                           <TableCell>
-                            <Input
+                            <StockInputField
                               value={
                                 stockCorrectValueMap[stock.id] ??
                                 (stock.stock_correct !== null &&
@@ -3639,10 +3640,10 @@ export default function StocksPage() {
                                   ? stock.stock_correct.toString()
                                   : '')
                               }
-                              onChange={(e) =>
+                              onChange={(value) =>
                                 setStockCorrectValueMap((prev) => ({
                                   ...prev,
-                                  [stock.id]: e.target.value,
+                                  [stock.id]: value,
                                 }))
                               }
                               onBlur={() =>
@@ -3696,17 +3697,16 @@ export default function StocksPage() {
               {showNewPaleteRow && (
                 <div className="mb-4 border p-4">
                   <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
-                    <Input
+                    <StockInputField
                       placeholder="Nº Palete"
                       value={newPaleteData.no_palete}
-                      onChange={(e) =>
+                      onChange={(value) =>
                         setNewPaleteData((prev) => ({
                           ...prev,
-                          no_palete: e.target.value,
+                          no_palete: value,
                         }))
                       }
                       defaultValue={getNextPaleteNumber()}
-                      className="h-10"
                     />
                     <Select
                       value={newPaleteData.fornecedor_id}
@@ -3728,54 +3728,50 @@ export default function StocksPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <Input
+                    <StockInputField
                       placeholder="Nº Guia"
                       value={newPaleteData.no_guia_forn}
-                      onChange={(e) =>
+                      onChange={(value) =>
                         setNewPaleteData((prev) => ({
                           ...prev,
-                          no_guia_forn: e.target.value,
+                          no_guia_forn: value,
                         }))
                       }
                       maxLength={20}
-                      className="h-10"
                     />
-                    <Input
+                    <StockInputField
                       placeholder="Ref. Cartão"
                       value={newPaleteData.ref_cartao}
-                      onChange={(e) =>
+                      onChange={(value) =>
                         setNewPaleteData((prev) => ({
                           ...prev,
-                          ref_cartao: e.target.value,
+                          ref_cartao: value,
                         }))
                       }
                       maxLength={30}
-                      className="h-10"
                     />
-                    <Input
+                    <StockInputField
                       placeholder="Qt. Palete"
                       type="number"
                       value={newPaleteData.qt_palete}
-                      onChange={(e) =>
+                      onChange={(value) =>
                         setNewPaleteData((prev) => ({
                           ...prev,
-                          qt_palete: e.target.value,
+                          qt_palete: value,
                         }))
                       }
                       maxLength={6}
                       max={999999}
-                      className="h-10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
-                    <Input
+                    <StockInputField
                       type="date"
                       value={newPaleteData.data}
-                      onChange={(e) =>
+                      onChange={(value) =>
                         setNewPaleteData((prev) => ({
                           ...prev,
-                          data: e.target.value,
+                          data: value,
                         }))
                       }
-                      className="h-10"
                     />
                     <Select
                       value={newPaleteData.author_id}
@@ -4025,17 +4021,17 @@ export default function StocksPage() {
                           </TableCell>
                           <TableCell>
                             {editingPaleteId === palete.id ? (
-                              <Input
+                              <StockInputField
                                 type="number"
                                 value={
                                   editingPaleteData[palete.id]?.qt_palete || ''
                                 }
-                                onChange={(e) =>
+                                onChange={(value) =>
                                   setEditingPaleteData((prev) => ({
                                     ...prev,
                                     [palete.id]: {
                                       ...prev[palete.id],
-                                      qt_palete: e.target.value,
+                                      qt_palete: value,
                                     },
                                   }))
                                 }
@@ -4047,17 +4043,17 @@ export default function StocksPage() {
                           </TableCell>
                           <TableCell>
                             {editingPaleteId === palete.id ? (
-                              <Input
+                              <StockInputField
                                 type="date"
                                 value={
                                   editingPaleteData[palete.id]?.data || ''
                                 }
-                                onChange={(e) =>
+                                onChange={(value) =>
                                   setEditingPaleteData((prev) => ({
                                     ...prev,
                                     [palete.id]: {
                                       ...prev[palete.id],
-                                      data: e.target.value,
+                                      data: value,
                                     },
                                   }))
                                 }
