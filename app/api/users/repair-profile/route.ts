@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/utils/supabaseAdmin'
-import { createServerClient } from '@/utils/supabase'
-import { cookies } from 'next/headers'
+import { NextRequest, NextResponse } from "next/server";
+import { createAdminClient } from "@/utils/supabaseAdmin";
+import { createServerClient } from "@/utils/supabase";
+import { cookies } from "next/headers";
 
 /**
  * POST /api/users/repair-profile
@@ -21,75 +21,91 @@ import { cookies } from 'next/headers'
 export async function POST(request: NextRequest) {
   try {
     // Verify the requesting user is authenticated
-    const cookieStore = await cookies()
-    const supabase = await createServerClient(cookieStore)
-    const { data: { session } } = await supabase.auth.getSession()
+    const cookieStore = await cookies();
+    const supabase = await createServerClient(cookieStore);
 
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // SECURITY: Use getUser() instead of getSession() for server-side validation
+    // getSession() reads from cookies without server verification (insecure)
+    // getUser() validates the session with Supabase Auth server (secure)
+    const {
+      data: { user },
+      error: userAuthError,
+    } = await supabase.auth.getUser();
+
+    if (userAuthError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Get request body
-    const body = await request.json()
-    const { auth_user_id, email, first_name, last_name, role_id, departamento_id } = body
+    const body = await request.json();
+    const {
+      auth_user_id,
+      email,
+      first_name,
+      last_name,
+      role_id,
+      departamento_id,
+    } = body;
 
     // Validate required fields
     if (!auth_user_id || !email || !first_name || !last_name || !role_id) {
       return NextResponse.json(
-        { error: 'Missing required fields: auth_user_id, email, first_name, last_name, role_id' },
-        { status: 400 }
-      )
+        {
+          error:
+            "Missing required fields: auth_user_id, email, first_name, last_name, role_id",
+        },
+        { status: 400 },
+      );
     }
 
     // Create admin client for privileged operations
-    const adminClient = createAdminClient()
+    const adminClient = createAdminClient();
 
     // Verify auth user exists
-    const { data: authUser, error: authError } = await adminClient.auth.admin.getUserById(
-      auth_user_id
-    )
+    const { data: authUser, error: authError } =
+      await adminClient.auth.admin.getUserById(auth_user_id);
 
     if (authError || !authUser) {
       return NextResponse.json(
         { error: `Auth user not found: ${authError?.message}` },
-        { status: 404 }
-      )
+        { status: 404 },
+      );
     }
 
     // Check if profile already exists
     const { data: existingProfile } = await adminClient
-      .from('profiles')
-      .select('id, user_id')
-      .eq('user_id', auth_user_id)
-      .single()
+      .from("profiles")
+      .select("id, user_id")
+      .eq("user_id", auth_user_id)
+      .single();
 
     if (existingProfile) {
       return NextResponse.json(
         {
-          error: 'Profile already exists for this user',
+          error: "Profile already exists for this user",
           profile_id: existingProfile.id,
         },
-        { status: 409 }
-      )
+        { status: 409 },
+      );
     }
 
     // Verify role exists
     const { data: role, error: roleError } = await adminClient
-      .from('roles')
-      .select('id, name')
-      .eq('id', role_id)
-      .single()
+      .from("roles")
+      .select("id, name")
+      .eq("id", role_id)
+      .single();
 
     if (roleError || !role) {
       return NextResponse.json(
         { error: `Role not found: ${roleError?.message}` },
-        { status: 404 }
-      )
+        { status: 404 },
+      );
     }
 
     // Create the profile
     const { data: newProfile, error: profileError } = await adminClient
-      .from('profiles')
+      .from("profiles")
       .insert({
         user_id: auth_user_id,
         email: email.toLowerCase().trim(),
@@ -102,27 +118,27 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .select()
-      .single()
+      .single();
 
     if (profileError) {
-      console.error('Error creating profile:', profileError)
+      console.error("Error creating profile:", profileError);
       return NextResponse.json(
         { error: `Failed to create profile: ${profileError.message}` },
-        { status: 500 }
-      )
+        { status: 500 },
+      );
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Profile created successfully',
+      message: "Profile created successfully",
       profile: newProfile,
       role: role.name,
-    })
+    });
   } catch (error: any) {
-    console.error('Repair profile error:', error)
+    console.error("Repair profile error:", error);
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
-      { status: 500 }
-    )
+      { error: error.message || "Internal server error" },
+      { status: 500 },
+    );
   }
 }

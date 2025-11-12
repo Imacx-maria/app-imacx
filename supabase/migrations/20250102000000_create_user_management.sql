@@ -1,6 +1,9 @@
+-- Enable UUID extension (Supabase uses pgcrypto by default)
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
 -- Create user_roles table
 CREATE TABLE IF NOT EXISTS user_roles (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nome TEXT NOT NULL UNIQUE,
   descricao TEXT,
   permissoes JSONB DEFAULT '{}'::jsonb,
@@ -11,7 +14,7 @@ CREATE TABLE IF NOT EXISTS user_roles (
 
 -- Create user_profiles table
 CREATE TABLE IF NOT EXISTS user_profiles (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   auth_user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL UNIQUE,
   nome_completo TEXT NOT NULL,

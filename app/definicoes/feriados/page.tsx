@@ -238,7 +238,7 @@ export default function FeriadosPage() {
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
+                  className="h-10 w-10"
                   onClick={() => setDescriptionFilter('')}
                 >
                   <X className="h-4 w-4" />

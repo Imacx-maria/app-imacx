@@ -1,15 +1,23 @@
-import React from 'react'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { XSquare } from 'lucide-react'
+import React from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { XSquare } from "lucide-react";
 
 interface FilterWithClearProps {
-  value: string
-  onChange: (value: string) => void
-  placeholder?: string
-  className?: string
-  type?: 'text' | 'date' | 'number'
-  inputMode?: 'none' | 'text' | 'decimal' | 'numeric' | 'tel' | 'search' | 'email' | 'url'
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  className?: string;
+  type?: "text" | "date" | "number";
+  inputMode?:
+    | "none"
+    | "text"
+    | "decimal"
+    | "numeric"
+    | "tel"
+    | "search"
+    | "email"
+    | "url";
 }
 
 /**
@@ -19,9 +27,9 @@ interface FilterWithClearProps {
 export function FilterWithClear({
   value,
   onChange,
-  placeholder = '',
-  className = 'h-10 pr-10 rounded-none',
-  type = 'text',
+  placeholder = "",
+  className = "h-10 pr-10 rounded-none",
+  type = "text",
   inputMode,
 }: FilterWithClearProps) {
   return (
@@ -36,15 +44,15 @@ export function FilterWithClear({
       />
       {value && (
         <Button
-          variant="ghost"
+          variant="default"
           size="icon"
-          className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-          onClick={() => onChange('')}
+          className="absolute right-0 top-0 h-10 w-10"
+          onClick={() => onChange("")}
           type="button"
         >
           <XSquare className="h-4 w-4" />
         </Button>
       )}
     </div>
-  )
+  );
 }

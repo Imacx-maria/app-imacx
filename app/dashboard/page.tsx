@@ -11,6 +11,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { DashboardHelpDialog } from '@/components/dashboard/DashboardHelpDialog'
 
 interface Holiday {
   id: string
@@ -129,9 +130,12 @@ export default function DashboardPage() {
   return (
     <div className="w-full space-y-8 px-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl">Painel de Controlo</h1>
-        <p className="mt-2">Bem-vindo ao Sistema de Gestão de Produção IMACX</p>
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h1 className="text-3xl">Painel de Controlo</h1>
+          <p className="mt-2">Bem-vindo ao Sistema de Gestão de Produção IMACX</p>
+        </div>
+        <DashboardHelpDialog />
       </div>
 
       {/* Calendar */}

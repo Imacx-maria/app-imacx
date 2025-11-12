@@ -176,10 +176,10 @@ export function useJobStatus(
       if (jobIds.length === 0) return
 
       try {
-        // Get all jobs with their FO numbers
-        const { data: jobsData, error: jobsError } = await supabase
+        // Get all jobs with their FO numbers and existing PHC values
+        const { data: jobsData, error: jobsError} = await supabase
           .from('folhas_obras')
-          .select('id, Numero_do_')
+          .select('id, Numero_do_, Euro__tota')
           .in('id', jobIds)
           .not('Numero_do_', 'is', null)
 
@@ -211,14 +211,33 @@ export function useJobStatus(
           foValueMap[String(row.document_number)] = Number(row.total_value) || 0
         })
 
-        // Create a map of job ID -> total_value by matching FO numbers
+        // Create a map of job ID -> total_value
+        // Priority: Use PHC cache first (always fresh), then Euro__tota only if manually refreshed (> 0)
         const jobValuesMap: Record<string, number> = {}
-        jobsData?.forEach((job) => {
-          const foValue = foValueMap[String(job.Numero_do_)] || 0
-          jobValuesMap[job.id] = foValue
+        jobsData?.forEach((job: any) => {
+          const phcCacheValue = foValueMap[String(job.Numero_do_)] || 0
+          const euroTotaValue = job.Euro__tota || 0
+          let finalValue = 0
+
+          // Prefer PHC cache if available, otherwise use Euro__tota if it was manually refreshed
+          if (phcCacheValue > 0) {
+            finalValue = phcCacheValue
+            console.log(`💰 PHC value for FO ${job.Numero_do_} (cache):`, finalValue)
+          } else if (euroTotaValue > 0) {
+            finalValue = euroTotaValue
+            console.log(`💰 PHC value for FO ${job.Numero_do_} (from Euro__tota):`, finalValue)
+          } else {
+            console.log(`⚠️ No value found for FO ${job.Numero_do_}`)
+          }
+
+          jobValuesMap[job.id] = finalValue
         })
 
-        setJobTotalValues(jobValuesMap)
+        console.log('💰 Updating job values (merging):', jobValuesMap)
+
+        // CRITICAL: Merge with existing values instead of replacing the entire state
+        // This prevents wiping out values for other jobs when refreshing a single job
+        setJobTotalValues(prev => ({ ...prev, ...jobValuesMap }))
       } catch (error) {
         console.error('Error fetching job total values:', error)
       }

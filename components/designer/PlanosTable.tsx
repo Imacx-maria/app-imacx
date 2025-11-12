@@ -1,16 +1,16 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -18,33 +18,38 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import { Trash2, Plus } from 'lucide-react'
-import { useMaterialsCascading } from '@/hooks/useMaterialsCascading'
-import { useTableData } from '@/hooks/useTableData'
-import { useCoresImpressao } from '@/hooks/useCoresImpressao'
-import Combobox from '@/components/ui/Combobox'
+} from "@/components/ui/table";
+import { Trash2, Plus } from "lucide-react";
+import { useMaterialsCascading } from "@/hooks/useMaterialsCascading";
+import { useTableData } from "@/hooks/useTableData";
+import { useCoresImpressao } from "@/hooks/useCoresImpressao";
+import Combobox from "@/components/ui/Combobox";
+import {
+  DeleteButton,
+  ActionColumn,
+  AddButton,
+} from "@/components/custom/ActionButtons";
 
 export interface DesignerPlano {
-  id?: string
-  plano_nome: string
-  tipo_operacao: 'Impressao' | 'Corte' | 'Impressao_Flexiveis'
-  maquina?: string
-  material?: string
-  caracteristicas?: string
-  cor?: string
-  material_id?: string | null
-  cores?: string
-  quantidade?: number
-  notas?: string
-  plano_ordem?: number
+  id?: string;
+  plano_nome: string;
+  tipo_operacao: "Impressao" | "Corte" | "Impressao_Flexiveis";
+  maquina?: string;
+  material?: string;
+  caracteristicas?: string;
+  cor?: string;
+  material_id?: string | null;
+  cores?: string;
+  quantidade?: number;
+  notas?: string;
+  plano_ordem?: number;
 }
 
 interface PlanosTableProps {
-  itemId: string
-  planos: DesignerPlano[]
-  onPlanosChange: (planos: DesignerPlano[]) => void
-  supabase: any
+  itemId: string;
+  planos: DesignerPlano[];
+  onPlanosChange: (planos: DesignerPlano[]) => void;
+  supabase: any;
 }
 
 export default function PlanosTable({
@@ -53,222 +58,267 @@ export default function PlanosTable({
   onPlanosChange,
   supabase,
 }: PlanosTableProps) {
-  const { materialOptions, getCaracteristicaOptions, getCorOptions, getMaterialId } =
-    useMaterialsCascading()
-  const { machines } = useTableData()
-  const { cores: coresOptions, loading: coresLoading, error: coresError } = useCoresImpressao()
+  const {
+    materialOptions,
+    getCaracteristicaOptions,
+    getCorOptions,
+    getMaterialId,
+  } = useMaterialsCascading();
+  const { machines } = useTableData();
+  const {
+    cores: coresOptions,
+    loading: coresLoading,
+    error: coresError,
+  } = useCoresImpressao();
 
   // Debug log for cores options
   useEffect(() => {
-    console.log('🎨 [PlanosTable] Cores options updated:', coresOptions)
-    console.log('🎨 [PlanosTable] Cores loading:', coresLoading)
-    console.log('🎨 [PlanosTable] Cores error:', coresError)
-  }, [coresOptions, coresLoading, coresError])
+    console.log("🎨 [PlanosTable] Cores options updated:", coresOptions);
+    console.log("🎨 [PlanosTable] Cores loading:", coresLoading);
+    console.log("🎨 [PlanosTable] Cores error:", coresError);
+  }, [coresOptions, coresLoading, coresError]);
 
   // Convert machines to combobox format (value = UUID, label = name)
   const machineOptions = machines.map((m) => ({
     value: m.value, // UUID from database
     label: m.label.toUpperCase(),
-  }))
+  }));
 
   const [materialSelections, setMaterialSelections] = useState<{
-    [key: string]: { material?: string; caracteristicas?: string; cor?: string }
-  }>({})
+    [key: string]: {
+      material?: string;
+      caracteristicas?: string;
+      cor?: string;
+    };
+  }>({});
 
   // Debounce timers for text inputs
-  const debounceTimers = useRef<{ [key: string]: NodeJS.Timeout }>({})
+  const debounceTimers = useRef<{ [key: string]: NodeJS.Timeout }>({});
 
   // Initialize material selections from existing planos
   useEffect(() => {
-    const selections: typeof materialSelections = {}
+    const selections: typeof materialSelections = {};
     planos.forEach((plano) => {
       if (plano.id) {
         selections[plano.id] = {
           material: plano.material?.toUpperCase(),
           caracteristicas: plano.caracteristicas?.toUpperCase(),
           cor: plano.cor?.toUpperCase(),
-        }
+        };
       }
-    })
-    setMaterialSelections(selections)
-  }, [planos])
+    });
+    setMaterialSelections(selections);
+  }, [planos]);
 
   // Cleanup debounce timers on unmount
   useEffect(() => {
     return () => {
-      const timers = Object.values(debounceTimers.current)
-      timers.forEach((timer) => clearTimeout(timer))
-    }
-  }, [])
+      const timers = Object.values(debounceTimers.current);
+      timers.forEach((timer) => clearTimeout(timer));
+    };
+  }, []);
 
   const handleAddPlano = async () => {
-    const nextOrdem = Math.max(0, ...planos.map((p) => p.plano_ordem || 0)) + 1
-    const planoLetter = String.fromCharCode(64 + nextOrdem) // A, B, C, etc.
+    const nextOrdem = Math.max(0, ...planos.map((p) => p.plano_ordem || 0)) + 1;
+    const planoLetter = String.fromCharCode(64 + nextOrdem); // A, B, C, etc.
 
     try {
       const planoData = {
         plano_nome: `Plano ${planoLetter}`,
-        tipo_operacao: 'Impressao' as const,
+        tipo_operacao: "Impressao" as const,
         plano_ordem: nextOrdem,
         item_id: itemId,
         quantidade: 0,
-      }
+      };
 
       const { data, error } = await supabase
-        .from('designer_planos')
+        .from("designer_planos")
         .insert([planoData])
         .select()
-        .single()
+        .single();
 
-      if (error) throw error
+      if (error) throw error;
 
-      onPlanosChange([...planos, data])
+      onPlanosChange([...planos, data]);
     } catch (error) {
-      console.error('Error creating plano:', error)
-      alert('Erro ao criar plano')
+      console.error("Error creating plano:", error);
+      alert("Erro ao criar plano");
     }
-  }
+  };
 
   const handleUpdateField = useCallback(
-    async (planoId: string, field: keyof DesignerPlano, value: any, debounce = false) => {
+    async (
+      planoId: string,
+      field: keyof DesignerPlano,
+      value: any,
+      debounce = false,
+    ) => {
       // Update local state immediately for responsiveness
-      onPlanosChange(planos.map((p) => (p.id === planoId ? { ...p, [field]: value } : p)))
+      onPlanosChange(
+        planos.map((p) => (p.id === planoId ? { ...p, [field]: value } : p)),
+      );
 
       const updateDatabase = async () => {
         try {
-          const updates: Record<string, any> = { [field]: value }
+          const updates: Record<string, any> = { [field]: value };
 
           // If updating material selections, also update material_id
-          if (field === 'material' || field === 'caracteristicas' || field === 'cor') {
-            const selections = materialSelections[planoId] || {}
-            const material = field === 'material' ? value : selections.material
-            const caracteristicas = field === 'caracteristicas' ? value : selections.caracteristicas
-            const cor = field === 'cor' ? value : selections.cor
+          if (
+            field === "material" ||
+            field === "caracteristicas" ||
+            field === "cor"
+          ) {
+            const selections = materialSelections[planoId] || {};
+            const material = field === "material" ? value : selections.material;
+            const caracteristicas =
+              field === "caracteristicas" ? value : selections.caracteristicas;
+            const cor = field === "cor" ? value : selections.cor;
 
-            updates.material = material
-            updates.caracteristicas = caracteristicas
-            updates.cor = cor
-            updates.material_id = material && caracteristicas && cor
-              ? getMaterialId(material, caracteristicas, cor)
-              : null
+            updates.material = material;
+            updates.caracteristicas = caracteristicas;
+            updates.cor = cor;
+            updates.material_id =
+              material && caracteristicas && cor
+                ? getMaterialId(material, caracteristicas, cor)
+                : null;
           }
 
           const { error } = await supabase
-            .from('designer_planos')
+            .from("designer_planos")
             .update(updates)
-            .eq('id', planoId)
+            .eq("id", planoId);
 
-          if (error) throw error
+          if (error) throw error;
         } catch (error) {
-          console.error('Error updating plano:', error)
+          console.error("Error updating plano:", error);
         }
-      }
+      };
 
       if (debounce) {
         // Clear existing timer for this field
-        const timerKey = `${planoId}-${field}`
+        const timerKey = `${planoId}-${field}`;
         if (debounceTimers.current[timerKey]) {
-          clearTimeout(debounceTimers.current[timerKey])
+          clearTimeout(debounceTimers.current[timerKey]);
         }
         // Set new timer
-        debounceTimers.current[timerKey] = setTimeout(updateDatabase, 800)
+        debounceTimers.current[timerKey] = setTimeout(updateDatabase, 800);
       } else {
         // Update immediately
-        await updateDatabase()
+        await updateDatabase();
       }
     },
-    [planos, onPlanosChange, supabase, materialSelections, getMaterialId]
-  )
+    [planos, onPlanosChange, supabase, materialSelections, getMaterialId],
+  );
 
   const handleDeletePlano = async (planoId: string) => {
-    if (!confirm('Tem certeza que deseja eliminar este plano?')) return
+    if (!confirm("Tem certeza que deseja eliminar este plano?")) return;
 
     try {
-      const { error } = await supabase.from('designer_planos').delete().eq('id', planoId)
+      const { error } = await supabase
+        .from("designer_planos")
+        .delete()
+        .eq("id", planoId);
 
-      if (error) throw error
+      if (error) throw error;
 
-      onPlanosChange(planos.filter((p) => p.id !== planoId))
+      onPlanosChange(planos.filter((p) => p.id !== planoId));
     } catch (error) {
-      console.error('Error deleting plano:', error)
-      alert('Erro ao eliminar plano')
+      console.error("Error deleting plano:", error);
+      alert("Erro ao eliminar plano");
     }
-  }
+  };
 
   const handleMaterialChange = (
     planoId: string,
-    field: 'material' | 'caracteristicas' | 'cor',
-    value: string
+    field: "material" | "caracteristicas" | "cor",
+    value: string,
   ) => {
     setMaterialSelections((prev) => {
-      const current = prev[planoId] || {}
+      const current = prev[planoId] || {};
 
-      if (field === 'material') {
-        return { ...prev, [planoId]: { material: value } }
-      } else if (field === 'caracteristicas') {
+      if (field === "material") {
+        return { ...prev, [planoId]: { material: value } };
+      } else if (field === "caracteristicas") {
         return {
           ...prev,
           [planoId]: { ...current, caracteristicas: value, cor: undefined },
-        }
+        };
       } else {
-        return { ...prev, [planoId]: { ...current, cor: value } }
+        return { ...prev, [planoId]: { ...current, cor: value } };
       }
-    })
+    });
 
     // Auto-save the material change
-    handleUpdateField(planoId, field, value, false)
-  }
+    handleUpdateField(planoId, field, value, false);
+  };
 
   const renderMaterialInputs = (planoId: string) => {
-    const selection = materialSelections[planoId] || {}
+    const selection = materialSelections[planoId] || {};
 
     console.log(`[PlanosTable] renderMaterialInputs for ${planoId}:`, {
       selection,
       materialOptionsCount: materialOptions.length,
       caracteristicasCount: getCaracteristicaOptions(selection.material).length,
-      coresCount: getCorOptions(selection.material, selection.caracteristicas).length,
-    })
+      coresCount: getCorOptions(selection.material, selection.caracteristicas)
+        .length,
+    });
 
     return (
       <div className="flex gap-2">
         <Combobox
           options={materialOptions}
-          value={selection.material || ''}
-          onChange={(value) => handleMaterialChange(planoId, 'material', value)}
+          value={selection.material || ""}
+          onChange={(value) => handleMaterialChange(planoId, "material", value)}
           placeholder="Material"
           className="w-[150px]"
-          emptyMessage={materialOptions.length === 0 ? 'Nenhum material disponível' : 'Nenhuma opção encontrada.'}
+          emptyMessage={
+            materialOptions.length === 0
+              ? "Nenhum material disponível"
+              : "Nenhuma opção encontrada."
+          }
         />
         <Combobox
           options={getCaracteristicaOptions(selection.material)}
-          value={selection.caracteristicas || ''}
-          onChange={(value) => handleMaterialChange(planoId, 'caracteristicas', value)}
+          value={selection.caracteristicas || ""}
+          onChange={(value) =>
+            handleMaterialChange(planoId, "caracteristicas", value)
+          }
           placeholder="Caract."
           disabled={!selection.material}
           className="w-[125px]"
-          emptyMessage={selection.material && getCaracteristicaOptions(selection.material).length === 0 ? 'Nenhuma característica' : 'Selecione material'}
+          emptyMessage={
+            selection.material &&
+            getCaracteristicaOptions(selection.material).length === 0
+              ? "Nenhuma característica"
+              : "Selecione material"
+          }
         />
         <Combobox
           options={getCorOptions(selection.material, selection.caracteristicas)}
-          value={selection.cor || ''}
-          onChange={(value) => handleMaterialChange(planoId, 'cor', value)}
+          value={selection.cor || ""}
+          onChange={(value) => handleMaterialChange(planoId, "cor", value)}
           placeholder="Cor"
           disabled={!selection.caracteristicas}
           className="w-[150px]"
-          emptyMessage={selection.caracteristicas && getCorOptions(selection.material, selection.caracteristicas).length === 0 ? 'Nenhuma cor' : 'Selecione caract.'}
+          emptyMessage={
+            selection.caracteristicas &&
+            getCorOptions(selection.material, selection.caracteristicas)
+              .length === 0
+              ? "Nenhuma cor"
+              : "Selecione caract."
+          }
         />
       </div>
-    )
-  }
+    );
+  };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h4 className="font-semibold">Planos de Produção</h4>
-        <Button size="sm" onClick={handleAddPlano}>
-          <Plus className="mr-2 h-4 w-4" />
-          Adicionar Plano
-        </Button>
+        <AddButton onClick={handleAddPlano} size="sm">
+          ADICIONAR PLANO
+        </AddButton>
       </div>
 
       <div className="rounded-md border">
@@ -288,8 +338,12 @@ export default function PlanosTable({
           <TableBody>
             {planos.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground">
-                  Nenhum plano criado. Clique em &quot;Adicionar Plano&quot; para começar.
+                <TableCell
+                  colSpan={8}
+                  className="text-center text-muted-foreground"
+                >
+                  Nenhum plano criado. Clique em &quot;Adicionar Plano&quot;
+                  para começar.
                 </TableCell>
               </TableRow>
             )}
@@ -300,13 +354,13 @@ export default function PlanosTable({
                   <Input
                     value={plano.plano_nome}
                     onChange={(e) => {
-                      const value = e.target.value
+                      const value = e.target.value;
                       onPlanosChange(
                         planos.map((p) =>
-                          p.id === plano.id ? { ...p, plano_nome: value } : p
-                        )
-                      )
-                      handleUpdateField(plano.id!, 'plano_nome', value, true)
+                          p.id === plano.id ? { ...p, plano_nome: value } : p,
+                        ),
+                      );
+                      handleUpdateField(plano.id!, "plano_nome", value, true);
                     }}
                     className="w-full h-9 text-sm"
                   />
@@ -317,10 +371,17 @@ export default function PlanosTable({
                     onValueChange={(value: any) => {
                       onPlanosChange(
                         planos.map((p) =>
-                          p.id === plano.id ? { ...p, tipo_operacao: value } : p
-                        )
-                      )
-                      handleUpdateField(plano.id!, 'tipo_operacao', value, false)
+                          p.id === plano.id
+                            ? { ...p, tipo_operacao: value }
+                            : p,
+                        ),
+                      );
+                      handleUpdateField(
+                        plano.id!,
+                        "tipo_operacao",
+                        value,
+                        false,
+                      );
                     }}
                   >
                     <SelectTrigger className="h-9">
@@ -329,21 +390,23 @@ export default function PlanosTable({
                     <SelectContent>
                       <SelectItem value="Impressao">Impressão</SelectItem>
                       <SelectItem value="Corte">Corte</SelectItem>
-                      <SelectItem value="Impressao_Flexiveis">Flexíveis</SelectItem>
+                      <SelectItem value="Impressao_Flexiveis">
+                        Flexíveis
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </TableCell>
                 <TableCell>
                   <Combobox
                     options={machineOptions}
-                    value={plano.maquina || ''}
+                    value={plano.maquina || ""}
                     onChange={(value) => {
                       onPlanosChange(
                         planos.map((p) =>
-                          p.id === plano.id ? { ...p, maquina: value } : p
-                        )
-                      )
-                      handleUpdateField(plano.id!, 'maquina', value, false)
+                          p.id === plano.id ? { ...p, maquina: value } : p,
+                        ),
+                      );
+                      handleUpdateField(plano.id!, "maquina", value, false);
                     }}
                     placeholder="Máquina"
                     className="w-full"
@@ -353,14 +416,14 @@ export default function PlanosTable({
                 <TableCell>
                   <Combobox
                     options={coresOptions}
-                    value={plano.cores || ''}
+                    value={plano.cores || ""}
                     onChange={(value) => {
                       onPlanosChange(
                         planos.map((p) =>
-                          p.id === plano.id ? { ...p, cores: value } : p
-                        )
-                      )
-                      handleUpdateField(plano.id!, 'cores', value, false)
+                          p.id === plano.id ? { ...p, cores: value } : p,
+                        ),
+                      );
+                      handleUpdateField(plano.id!, "cores", value, false);
                     }}
                     placeholder="Cores"
                     className="w-[140px]"
@@ -371,62 +434,61 @@ export default function PlanosTable({
                     type="number"
                     step="0.1"
                     min="0"
-                    value={plano.quantidade || ''}
+                    value={plano.quantidade || ""}
                     onChange={(e) => {
-                      const value = e.target.value
+                      const value = e.target.value;
                       // Validate: allow max 1 decimal place
-                      if (value === '' || /^\d+(\.\d{0,1})?$/.test(value)) {
-                        const numValue = value === '' ? 0 : parseFloat(value)
+                      if (value === "" || /^\d+(\.\d{0,1})?$/.test(value)) {
+                        const numValue = value === "" ? 0 : parseFloat(value);
                         onPlanosChange(
                           planos.map((p) =>
                             p.id === plano.id
                               ? { ...p, quantidade: numValue }
-                              : p
-                          )
-                        )
+                              : p,
+                          ),
+                        );
                       }
                     }}
                     onBlur={(e) => {
-                      const value = e.target.value
-                      const numValue = value === '' ? 0 : parseFloat(value)
-                      handleUpdateField(plano.id!, 'quantidade', numValue, false)
+                      const value = e.target.value;
+                      const numValue = value === "" ? 0 : parseFloat(value);
+                      handleUpdateField(
+                        plano.id!,
+                        "quantidade",
+                        numValue,
+                        false,
+                      );
                     }}
                     className="w-[70px] h-9 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </TableCell>
                 <TableCell>
                   <Input
-                    value={plano.notas || ''}
+                    value={plano.notas || ""}
                     onChange={(e) => {
-                      const value = e.target.value
+                      const value = e.target.value;
                       onPlanosChange(
                         planos.map((p) =>
-                          p.id === plano.id ? { ...p, notas: value } : p
-                        )
-                      )
-                      handleUpdateField(plano.id!, 'notas', value, true)
+                          p.id === plano.id ? { ...p, notas: value } : p,
+                        ),
+                      );
+                      handleUpdateField(plano.id!, "notas", value, true);
                     }}
                     className="h-9 text-sm"
                     placeholder="Notas..."
                   />
                 </TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handleDeletePlano(plano.id!)}
-                      className="h-8 w-8"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
+                <ActionColumn width="w-[70px]">
+                  <DeleteButton
+                    onClick={() => handleDeletePlano(plano.id!)}
+                    title="Eliminar plano"
+                  />
+                </ActionColumn>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
     </div>
-  )
+  );
 }

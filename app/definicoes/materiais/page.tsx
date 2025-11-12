@@ -1,11 +1,11 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { createBrowserClient } from '@/utils/supabase'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { FilterInput } from '@/components/custom/FilterInput'
-import { Label } from '@/components/ui/label'
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { createBrowserClient } from "@/utils/supabase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { FilterInput } from "@/components/custom/FilterInput";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -13,8 +13,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import { Checkbox } from '@/components/ui/checkbox'
+} from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Drawer,
   DrawerContent,
@@ -22,203 +22,218 @@ import {
   DrawerTitle,
   DrawerDescription,
   DrawerClose,
-} from '@/components/ui/drawer'
+} from "@/components/ui/drawer";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip'
+} from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from "@/components/ui/select";
 import {
   Plus,
   Trash2,
   X,
   Loader2,
-  Pencil,
+  Eye,
   Check,
   RotateCw,
   ArrowUp,
   ArrowDown,
   XSquare,
-} from 'lucide-react'
-import PermissionGuard from '@/components/PermissionGuard'
-import { useDebounce } from '@/hooks/useDebounce'
-import { lazy, Suspense } from 'react'
-import dynamic from 'next/dynamic'
-import Combobox from '@/components/ui/Combobox'
-import CreatableCombobox from '@/components/custom/CreatableCombobox'
+  Copy,
+} from "lucide-react";
+import PermissionGuard from "@/components/PermissionGuard";
+import { useDebounce } from "@/hooks/useDebounce";
+import { lazy, Suspense } from "react";
+import dynamic from "next/dynamic";
+import Combobox from "@/components/ui/Combobox";
+import CreatableCombobox from "@/components/custom/CreatableCombobox";
 
 interface Material {
-  id: string
-  tipo: string | null
-  referencia: string | null
-  ref_fornecedor: string | null
-  ref_cliente: string | null
-  material: string | null
-  carateristica: string | null
-  cor: string | null
-  tipo_canal: string | null
-  dimensoes: string | null
-  valor_m2_custo: number | null
-  valor_placa: number | null
-  valor_m2: number | null
-  qt_palete: number | null
-  fornecedor_id: string | null
-  fornecedor: string | null
-  stock_minimo: number | null
-  stock_critico: number | null
-  ORC: boolean | null
-  created_at: string
-  updated_at: string
+  id: string;
+  tipo: string | null;
+  referencia: string | null;
+  ref_fornecedor: string | null;
+  ref_cliente: string | null;
+  material: string | null;
+  carateristica: string | null;
+  cor: string | null;
+  tipo_canal: string | null;
+  dimensoes: string | null;
+  valor_m2_custo: number | null;
+  valor_placa: number | null;
+  valor_m2: number | null;
+  qt_palete: number | null;
+  fornecedor_id: string | null;
+  fornecedor: string | null;
+  stock_minimo: number | null;
+  stock_critico: number | null;
+
+  ORC: boolean | null;
+
+  created_at: string;
+
+  updated_at: string;
+
+  // Fields to align with MaterialEditDrawer expectations
+
+  size_x: number | null;
+
+  size_y: number | null;
+
+  m2_placa: number | null;
 }
 
 interface FornecedorOption {
-  value: string
-  label: string
+  value: string;
+  label: string;
 }
 
 export default function MateriaisPage() {
   // Lazy load the MaterialEditDrawer component
   const MaterialEditDrawer = dynamic(
-    () => import('../../../components/materiais/MaterialEditDrawer'),
+    () => import("../../../components/materiais/MaterialEditDrawer"),
     {
       ssr: false,
       loading: () => <div>Loading...</div>,
     },
-  )
-  const [materiais, setMateriais] = useState<Material[]>([])
-  const [loading, setLoading] = useState(true)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  );
+  const [materiais, setMateriais] = useState<Material[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [editRow, setEditRow] = useState<{
-    tipo?: string | null
-    referencia?: string | null
-    ref_fornecedor?: string | null
-    material?: string | null
-    carateristica?: string | null
-    cor?: string | null
-    tipo_canal?: string | null
-    dimensoes?: string | null
-    valor_m2_custo?: number | null
-    valor_placa?: number | null
-    valor_m2?: number | null | string
-    qt_palete?: number | null
-    fornecedor_id?: string | null
-    ORC?: boolean | null
-  }>({})
-  const [tipoFilter, setTipoFilter] = useState('')
-  const [materialFilter, setMaterialFilter] = useState('')
-  const [caracteristicaFilter, setCaracteristicaFilter] = useState('')
-  const [corFilter, setCorFilter] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [sortColumn, setSortColumn] = useState<string>('')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
-  const [creatingNew, setCreatingNew] = useState(false)
-  const [fornecedores, setFornecedores] = useState<FornecedorOption[]>([])
-  const [fornecedoresLoading, setFornecedoresLoading] = useState(false)
-  const [orcLoading, setOrcLoading] = useState<{ [id: string]: boolean }>({})
-  const [openDrawer, setOpenDrawer] = useState(false)
-  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null)
-  const [availableMaterials, setAvailableMaterials] = useState<string[]>([])
+    tipo?: string | null;
+    referencia?: string | null;
+    ref_fornecedor?: string | null;
+    material?: string | null;
+    carateristica?: string | null;
+    cor?: string | null;
+    tipo_canal?: string | null;
+    dimensoes?: string | null;
+    valor_m2_custo?: number | null;
+    valor_placa?: number | null;
+    valor_m2?: number | null | string;
+    qt_palete?: number | null;
+    fornecedor_id?: string | null;
+    ORC?: boolean | null;
+  }>({});
+  const [tipoFilter, setTipoFilter] = useState("");
+  const [materialFilter, setMaterialFilter] = useState("");
+  const [caracteristicaFilter, setCaracteristicaFilter] = useState("");
+  const [corFilter, setCorFilter] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [sortColumn, setSortColumn] = useState<string>("");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [creatingNew, setCreatingNew] = useState(false);
+  const [fornecedores, setFornecedores] = useState<FornecedorOption[]>([]);
+  const [fornecedoresLoading, setFornecedoresLoading] = useState(false);
+  const [orcLoading, setOrcLoading] = useState<{ [id: string]: boolean }>({});
+  const [openDrawer, setOpenDrawer] = useState(false);
+  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
+  const [availableMaterials, setAvailableMaterials] = useState<string[]>([]);
   const [availableCaracteristicas, setAvailableCaracteristicas] = useState<
     string[]
-  >([])
-  const [availableCores, setAvailableCores] = useState<string[]>([])
-  const [availableTipos, setAvailableTipos] = useState<string[]>([])
+  >([]);
+  const [availableCores, setAvailableCores] = useState<string[]>([]);
+  const [availableTipos, setAvailableTipos] = useState<string[]>([]);
 
   // Debounced filter values for performance
-  const debouncedTipoFilter = useDebounce(tipoFilter, 300)
-  const debouncedMaterialFilter = useDebounce(materialFilter, 300)
-  const debouncedCaracteristicaFilter = useDebounce(caracteristicaFilter, 300)
-  const debouncedCorFilter = useDebounce(corFilter, 300)
+  const debouncedTipoFilter = useDebounce(tipoFilter, 300);
+  const debouncedMaterialFilter = useDebounce(materialFilter, 300);
+  const debouncedCaracteristicaFilter = useDebounce(caracteristicaFilter, 300);
+  const debouncedCorFilter = useDebounce(corFilter, 300);
 
   // Effective filters - only activate with 3+ characters (or any for tipo since values are short)
 
-  const supabase = createBrowserClient()
+  const supabase = createBrowserClient();
 
   // Convert to database-level filtering
   const fetchMateriais = useCallback(
     async (
       filters: {
-        tipoFilter?: string
-        materialFilter?: string
-        caracteristicaFilter?: string
-        corFilter?: string
+        tipoFilter?: string;
+        materialFilter?: string;
+        caracteristicaFilter?: string;
+        corFilter?: string;
       } = {},
     ) => {
-      setLoading(true)
+      setLoading(true);
       try {
-        let query = supabase.from('materiais').select('*')
+        let query = supabase.from("materiais").select("*");
 
         // Apply filters at database level
         if (filters.tipoFilter?.trim()) {
-          query = query.ilike('tipo', `%${filters.tipoFilter?.trim()}%`)
+          query = query.ilike("tipo", `%${filters.tipoFilter?.trim()}%`);
         }
 
         if (filters.materialFilter?.trim()) {
-          query = query.ilike('material', `%${filters.materialFilter?.trim()}%`)
+          query = query.ilike(
+            "material",
+            `%${filters.materialFilter?.trim()}%`,
+          );
         }
 
         if (filters.caracteristicaFilter?.trim()) {
           query = query.ilike(
-            'carateristica',
+            "carateristica",
             `%${filters.caracteristicaFilter?.trim()}%`,
-          )
+          );
         }
 
         if (filters.corFilter?.trim()) {
-          query = query.ilike('cor', `%${filters.corFilter?.trim()}%`)
+          query = query.ilike("cor", `%${filters.corFilter?.trim()}%`);
         }
 
         // Apply sorting at database level
         if (sortColumn) {
-          const ascending = sortDirection === 'asc'
+          const ascending = sortDirection === "asc";
           if (
-            sortColumn === 'valor_m2' ||
-            sortColumn === 'valor_m2_custo' ||
-            sortColumn === 'valor_placa' ||
-            sortColumn === 'qt_palete'
+            sortColumn === "valor_m2" ||
+            sortColumn === "valor_m2_custo" ||
+            sortColumn === "valor_placa" ||
+            sortColumn === "qt_palete"
           ) {
-            query = query.order(sortColumn, { ascending, nullsFirst: false })
-          } else if (sortColumn === 'ORC') {
-            query = query.order(sortColumn, { ascending, nullsFirst: false })
+            query = query.order(sortColumn, { ascending, nullsFirst: false });
+          } else if (sortColumn === "ORC") {
+            query = query.order(sortColumn, { ascending, nullsFirst: false });
           } else {
-            query = query.order(sortColumn, { ascending, nullsFirst: false })
+            query = query.order(sortColumn, { ascending, nullsFirst: false });
           }
         } else {
-          query = query.order('material', { ascending: true })
+          query = query.order("material", { ascending: true });
         }
 
-        const { data, error } = await query
-        console.log('Materiais fetch result:', { data, error })
+        const { data, error } = await query;
+        console.log("Materiais fetch result:", { data, error });
 
         if (error) {
-          console.error('Supabase error fetching materiais:', error)
-          alert(`Error fetching materiais: ${error.message}`)
+          console.error("Supabase error fetching materiais:", error);
+          alert(`Error fetching materiais: ${error.message}`);
         } else if (data) {
-          console.log('Successfully fetched materiais:', data)
-          setMateriais(data)
+          console.log("Successfully fetched materiais:", data);
+          setMateriais(data);
         }
       } catch (error) {
-        console.error('JavaScript error fetching materiais:', error)
-        alert(`JavaScript error: ${error}`)
+        console.error("JavaScript error fetching materiais:", error);
+        alert(`JavaScript error: ${error}`);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     },
     [sortColumn, sortDirection, supabase],
-  )
+  );
 
   // Initial load
   useEffect(() => {
-    fetchMateriais()
-  }, [fetchMateriais])
+    fetchMateriais();
+  }, [fetchMateriais]);
 
   // Trigger search when filters change (debounced)
   useEffect(() => {
@@ -227,14 +242,14 @@ export default function MateriaisPage() {
       materialFilter: materialFilter,
       caracteristicaFilter: caracteristicaFilter,
       corFilter: corFilter,
-    })
+    });
   }, [
     tipoFilter,
     materialFilter,
     caracteristicaFilter,
     corFilter,
     fetchMateriais,
-  ])
+  ]);
 
   // Trigger search when sorting changes
   useEffect(() => {
@@ -244,7 +259,7 @@ export default function MateriaisPage() {
         materialFilter: materialFilter,
         caracteristicaFilter: caracteristicaFilter,
         corFilter: corFilter,
-      })
+      });
     }
   }, [
     sortColumn,
@@ -254,27 +269,27 @@ export default function MateriaisPage() {
     caracteristicaFilter,
     corFilter,
     fetchMateriais,
-  ])
+  ]);
 
   useEffect(() => {
     const fetchFornecedores = async () => {
-      setFornecedoresLoading(true)
+      setFornecedoresLoading(true);
       const { data, error } = await supabase
-        .from('fornecedores')
-        .select('id, nome_forn')
-        .order('nome_forn', { ascending: true })
+        .from("fornecedores")
+        .select("id, nome_forn")
+        .order("nome_forn", { ascending: true });
       if (!error && data) {
         const mappedFornecedores = data.map((f: any) => ({
           value: String(f.id),
           label: f.nome_forn,
-        }))
-        setFornecedores(mappedFornecedores)
+        }));
+        setFornecedores(mappedFornecedores);
       }
-      setFornecedoresLoading(false)
-    }
-    fetchFornecedores()
+      setFornecedoresLoading(false);
+    };
+    fetchFornecedores();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, []);
 
   useEffect(() => {
     const fetchCascadingData = async () => {
@@ -283,135 +298,137 @@ export default function MateriaisPage() {
       // NEW: 1 query with specific fields, compute distinct values in-memory
 
       const { data: allFieldsData, error } = await supabase
-        .from('materiais')
-        .select('tipo, material, carateristica, cor')
+        .from("materiais")
+        .select("tipo, material, carateristica, cor");
 
       if (error) {
-        console.error('Error fetching cascading data:', error)
-        return
+        console.error("Error fetching cascading data:", error);
+        return;
       }
 
       if (allFieldsData) {
         // Compute distinct values in-memory (very fast for typical dataset sizes)
-        const tipoSet = new Set<string>()
-        const materialSet = new Set<string>()
-        const caracteristicaSet = new Set<string>()
-        const corSet = new Set<string>()
+        const tipoSet = new Set<string>();
+        const materialSet = new Set<string>();
+        const caracteristicaSet = new Set<string>();
+        const corSet = new Set<string>();
 
         // Single loop through data to populate all sets
         allFieldsData.forEach((item) => {
           if (item.tipo?.trim()) {
-            tipoSet.add(item.tipo.trim().toUpperCase())
+            tipoSet.add(item.tipo.trim().toUpperCase());
           }
           if (item.material) {
-            materialSet.add(item.material.toUpperCase())
+            materialSet.add(item.material.toUpperCase());
           }
           if (item.carateristica) {
-            caracteristicaSet.add(item.carateristica.toUpperCase())
+            caracteristicaSet.add(item.carateristica.toUpperCase());
           }
           if (item.cor) {
-            corSet.add(item.cor.toUpperCase())
+            corSet.add(item.cor.toUpperCase());
           }
-        })
+        });
 
         // Set state with sorted arrays
-        setAvailableTipos(Array.from(tipoSet).sort())
-        setAvailableMaterials(Array.from(materialSet).sort())
-        setAvailableCaracteristicas(Array.from(caracteristicaSet).sort())
-        setAvailableCores(Array.from(corSet).sort())
+        setAvailableTipos(Array.from(tipoSet).sort());
+        setAvailableMaterials(Array.from(materialSet).sort());
+        setAvailableCaracteristicas(Array.from(caracteristicaSet).sort());
+        setAvailableCores(Array.from(corSet).sort());
 
-        console.log('🎯 [MATERIAIS] Performance: Reduced 4 queries to 1 query')
-        console.log(`📊 [MATERIAIS] Loaded ${tipoSet.size} tipos, ${materialSet.size} materials, ${caracteristicaSet.size} caracteristicas, ${corSet.size} cores`)
+        console.log("🎯 [MATERIAIS] Performance: Reduced 4 queries to 1 query");
+        console.log(
+          `📊 [MATERIAIS] Loaded ${tipoSet.size} tipos, ${materialSet.size} materials, ${caracteristicaSet.size} caracteristicas, ${corSet.size} cores`,
+        );
       }
-    }
+    };
 
-    fetchCascadingData()
+    fetchCascadingData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, []);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
-      setSortColumn(column)
-      setSortDirection('asc')
+      setSortColumn(column);
+      setSortDirection("asc");
     }
-  }
+  };
 
   const getSortIcon = (column: string) => {
-    if (sortColumn !== column) return null
-    return sortDirection === 'asc' ? (
+    if (sortColumn !== column) return null;
+    return sortDirection === "asc" ? (
       <ArrowUp className="ml-1 h-4 w-4" />
     ) : (
       <ArrowDown className="ml-1 h-4 w-4" />
-    )
-  }
+    );
+  };
 
   const handleEdit = (material: Material) => {
-    setEditingMaterial(material)
-    setOpenDrawer(true)
-  }
+    setEditingMaterial(material);
+    setOpenDrawer(true);
+  };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este material?')) return
+    if (!confirm("Tem certeza que deseja excluir este material?")) return;
 
     try {
-      const { error } = await supabase.from('materiais').delete().eq('id', id)
+      const { error } = await supabase.from("materiais").delete().eq("id", id);
 
       if (!error) {
-        setMateriais((prev) => prev.filter((m) => m.id !== id))
+        setMateriais((prev) => prev.filter((m) => m.id !== id));
       }
     } catch (error) {
-      console.error('Error deleting material:', error)
+      console.error("Error deleting material:", error);
     }
-  }
+  };
 
   const handleCancel = () => {
-    setEditingId(null)
-    setEditRow({})
-  }
+    setEditingId(null);
+    setEditRow({});
+  };
 
   const formatCurrency = (value: number | null | undefined) => {
-    if (value === null || value === undefined) return '-'
-    return new Intl.NumberFormat('pt-PT', {
-      style: 'currency',
-      currency: 'EUR',
-    }).format(value)
-  }
+    if (value === null || value === undefined) return "-";
+    return new Intl.NumberFormat("pt-PT", {
+      style: "currency",
+      currency: "EUR",
+    }).format(value);
+  };
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
-    const { name, value } = e.target
+    const { name, value } = e.target;
     if (
       e.target instanceof window.HTMLInputElement &&
-      e.target.type === 'checkbox'
+      e.target.type === "checkbox"
     ) {
       setEditRow((prev) => ({
         ...prev,
         [name]: (e.target as HTMLInputElement).checked,
-      }))
+      }));
     } else {
       setEditRow((prev) => ({
         ...prev,
         [name]: value,
-      }))
+      }));
     }
-  }
+  };
 
   const handleDrawerClose = () => {
-    setOpenDrawer(false)
-    setEditingId(null)
-    setEditingMaterial(null)
-    setEditRow({})
-  }
+    setOpenDrawer(false);
+    setEditingId(null);
+    setEditingMaterial(null);
+    setEditRow({});
+  };
 
   const handleSaveDrawer = async () => {
-    if (!editingMaterial) return
+    if (!editingMaterial) return;
 
     try {
       const { error } = await supabase
-        .from('materiais')
+        .from("materiais")
         .update({
           tipo: editingMaterial.tipo,
           material: editingMaterial.material,
@@ -432,28 +449,28 @@ export default function MateriaisPage() {
           stock_minimo: editingMaterial.stock_minimo,
           stock_critico: editingMaterial.stock_critico,
         })
-        .eq('id', editingMaterial.id)
+        .eq("id", editingMaterial.id);
 
       if (!error) {
         // Update local state
         setMateriais((prev) =>
           prev.map((m) => (m.id === editingMaterial.id ? editingMaterial : m)),
-        )
-        setOpenDrawer(false)
-        setEditingMaterial(null)
+        );
+        setOpenDrawer(false);
+        setEditingMaterial(null);
       }
     } catch (error) {
-      console.error('Error updating material:', error)
+      console.error("Error updating material:", error);
     }
-  }
+  };
 
   const handleDrawerInputChange = (
     field: keyof Material,
     value: string | number | boolean | null,
   ) => {
-    if (!editingMaterial) return
-    setEditingMaterial((prev) => (prev ? { ...prev, [field]: value } : null))
-  }
+    if (!editingMaterial) return;
+    setEditingMaterial((prev) => (prev ? { ...prev, [field]: value } : null));
+  };
 
   const handleFornecedorChange = async (
     materialId: string,
@@ -461,95 +478,95 @@ export default function MateriaisPage() {
   ) => {
     // Update in DB
     await supabase
-      .from('materiais')
+      .from("materiais")
       .update({ fornecedor_id: fornecedorId })
-      .eq('id', materialId)
+      .eq("id", materialId);
     // Update in local state
     setMateriais((prev) =>
       prev.map((m) =>
         m.id === materialId ? { ...m, fornecedor_id: fornecedorId } : m,
       ),
-    )
-  }
+    );
+  };
 
   // Handler to toggle ORC value
   const handleOrcToggle = async (
     id: string,
     currentValue: boolean | null | undefined,
   ) => {
-    setOrcLoading((prev) => ({ ...prev, [id]: true }))
+    setOrcLoading((prev) => ({ ...prev, [id]: true }));
     try {
       const { error } = await supabase
-        .from('materiais')
+        .from("materiais")
         .update({ ORC: !currentValue })
-        .eq('id', id)
+        .eq("id", id);
       if (!error) {
         setMateriais((prev) =>
           prev.map((m) => (m.id === id ? { ...m, ORC: !currentValue } : m)),
-        )
+        );
       }
     } finally {
-      setOrcLoading((prev) => ({ ...prev, [id]: false }))
+      setOrcLoading((prev) => ({ ...prev, [id]: false }));
     }
-  }
+  };
 
   const handleMaterialChange = async (selectedMaterial: string) => {
-    handleDrawerInputChange('material', selectedMaterial.toUpperCase())
+    handleDrawerInputChange("material", selectedMaterial.toUpperCase());
 
     // Reset dependent fields
-    handleDrawerInputChange('carateristica', '')
-    handleDrawerInputChange('cor', '')
+    handleDrawerInputChange("carateristica", "");
+    handleDrawerInputChange("cor", "");
 
     // Fetch characteristics for selected material
     const { data } = await supabase
-      .from('materiais')
-      .select('carateristica')
-      .eq('material', selectedMaterial)
-      .not('carateristica', 'is', null)
+      .from("materiais")
+      .select("carateristica")
+      .eq("material", selectedMaterial)
+      .not("carateristica", "is", null);
 
     if (data) {
       const caracteristicaSet = new Set(
         data.map((item) => item.carateristica?.toUpperCase()).filter(Boolean),
-      )
-      setAvailableCaracteristicas(Array.from(caracteristicaSet))
+      );
+      setAvailableCaracteristicas(Array.from(caracteristicaSet));
     }
-  }
+  };
 
   const handleCaracteristicaChange = async (selectedCaracteristica: string) => {
     handleDrawerInputChange(
-      'carateristica',
+      "carateristica",
       selectedCaracteristica.toUpperCase(),
-    )
+    );
 
     // Reset dependent field
-    handleDrawerInputChange('cor', '')
+    handleDrawerInputChange("cor", "");
 
     // Fetch colors for selected material + characteristic
     const { data } = await supabase
-      .from('materiais')
-      .select('cor')
-      .eq('material', editingMaterial?.material)
-      .eq('carateristica', selectedCaracteristica)
-      .not('cor', 'is', null)
+      .from("materiais")
+      .select("cor")
+      .eq("material", editingMaterial?.material)
+      .eq("carateristica", selectedCaracteristica)
+      .not("cor", "is", null);
 
     if (data) {
       const corSet = new Set(
         data.map((item) => item.cor?.toUpperCase()).filter(Boolean),
-      )
-      setAvailableCores(Array.from(corSet))
+      );
+      setAvailableCores(Array.from(corSet));
     }
-  }
+  };
 
   const handleCorChange = (selectedCor: string) => {
-    handleDrawerInputChange('cor', selectedCor.toUpperCase())
-  }
+    handleDrawerInputChange("cor", selectedCor.toUpperCase());
+  };
 
   // --- Cascading Combo Fetchers ---
   const fetchTipos = async () => {
     const { data } = await supabase
-      .from('materiais')
-      .select('tipo')
-      .not('tipo', 'is', null)
+      .from("materiais")
+      .select("tipo")
+      .not("tipo", "is", null);
     // Ensure unique, trimmed, uppercased values only
     const tipos = Array.from(
       new Set(
@@ -557,24 +574,24 @@ export default function MateriaisPage() {
           ?.map((item) => item.tipo && item.tipo.trim().toUpperCase())
           .filter(Boolean),
       ),
-    )
-    console.log('Fetched tipos from materiais:', tipos)
-    setAvailableTipos(tipos)
-  }
+    );
+    console.log("Fetched tipos from materiais:", tipos);
+    setAvailableTipos(tipos);
+  };
 
   const fetchMaterials = async (tipo: string) => {
     const { data } = await supabase
-      .from('materiais')
-      .select('material, tipo')
-      .not('material', 'is', null)
-      .not('tipo', 'is', null)
+      .from("materiais")
+      .select("material, tipo")
+      .not("material", "is", null)
+      .not("tipo", "is", null);
     // Only include materials with matching normalized tipo
     const filtered = data?.filter(
       (item) =>
         item.tipo &&
-        typeof item.tipo === 'string' &&
+        typeof item.tipo === "string" &&
         item.tipo.trim().toUpperCase() === tipo,
-    )
+    );
     setAvailableMaterials(
       Array.from(
         new Set(
@@ -583,51 +600,51 @@ export default function MateriaisPage() {
             .filter(Boolean),
         ),
       ),
-    )
-  }
+    );
+  };
 
   const fetchCaracteristicas = async (tipo: string, material: string) => {
     console.log(
-      'Fetching características for tipo:',
+      "Fetching características for tipo:",
       tipo,
-      'material:',
+      "material:",
       material,
-    )
+    );
     const { data } = await supabase
-      .from('materiais')
-      .select('carateristica, tipo, material')
-      .not('carateristica', 'is', null)
-      .not('tipo', 'is', null)
-      .not('material', 'is', null)
-    console.log('Raw características data:', data)
+      .from("materiais")
+      .select("carateristica, tipo, material")
+      .not("carateristica", "is", null)
+      .not("tipo", "is", null)
+      .not("material", "is", null);
+    console.log("Raw características data:", data);
     // Only include carateristicas with matching normalized tipo and material
     const filtered = data?.filter((item) => {
       const itemTipo =
         item.tipo &&
-        typeof item.tipo === 'string' &&
-        item.tipo.trim().toUpperCase()
+        typeof item.tipo === "string" &&
+        item.tipo.trim().toUpperCase();
       const itemMaterial =
         item.material &&
-        typeof item.material === 'string' &&
-        item.material.trim().toUpperCase()
-      const match = itemTipo === tipo && itemMaterial === material
+        typeof item.material === "string" &&
+        item.material.trim().toUpperCase();
+      const match = itemTipo === tipo && itemMaterial === material;
       if (!match) {
         console.log(
-          'Skipping:',
+          "Skipping:",
           item.carateristica,
-          'tipo:',
+          "tipo:",
           itemTipo,
-          'vs',
+          "vs",
           tipo,
-          'material:',
+          "material:",
           itemMaterial,
-          'vs',
+          "vs",
           material,
-        )
+        );
       }
-      return match
-    })
-    console.log('Filtered características:', filtered)
+      return match;
+    });
+    console.log("Filtered características:", filtered);
     const caracteristicas = Array.from(
       new Set(
         filtered
@@ -637,10 +654,10 @@ export default function MateriaisPage() {
           )
           .filter(Boolean),
       ),
-    )
-    console.log('Final características options:', caracteristicas)
-    setAvailableCaracteristicas(caracteristicas)
-  }
+    );
+    console.log("Final características options:", caracteristicas);
+    setAvailableCaracteristicas(caracteristicas);
+  };
 
   const fetchCores = async (
     tipo: string,
@@ -648,25 +665,25 @@ export default function MateriaisPage() {
     carateristica: string,
   ) => {
     const { data } = await supabase
-      .from('materiais')
-      .select('cor, tipo, material, carateristica')
-      .not('cor', 'is', null)
-      .not('tipo', 'is', null)
-      .not('material', 'is', null)
-      .not('carateristica', 'is', null)
+      .from("materiais")
+      .select("cor, tipo, material, carateristica")
+      .not("cor", "is", null)
+      .not("tipo", "is", null)
+      .not("material", "is", null)
+      .not("carateristica", "is", null);
     // Only include cores with matching normalized tipo, material, and carateristica
     const filtered = data?.filter(
       (item) =>
         item.tipo &&
-        typeof item.tipo === 'string' &&
+        typeof item.tipo === "string" &&
         item.tipo.trim().toUpperCase() === tipo &&
         item.material &&
-        typeof item.material === 'string' &&
+        typeof item.material === "string" &&
         item.material.trim().toUpperCase() === material &&
         item.carateristica &&
-        typeof item.carateristica === 'string' &&
+        typeof item.carateristica === "string" &&
         item.carateristica.trim().toUpperCase() === carateristica,
-    )
+    );
     setAvailableCores(
       Array.from(
         new Set(
@@ -675,62 +692,64 @@ export default function MateriaisPage() {
             .filter(Boolean),
         ),
       ),
-    )
-  }
+    );
+  };
 
   // --- Drawer Combo Handlers ---
   const handleTipoChange = async (selectedTipo: string) => {
-    const normalizedTipo = selectedTipo.trim().toUpperCase()
-    handleDrawerInputChange('tipo', normalizedTipo)
-    handleDrawerInputChange('material', '')
-    handleDrawerInputChange('carateristica', '')
-    handleDrawerInputChange('cor', '')
-    await fetchMaterials(normalizedTipo)
-    setAvailableCaracteristicas([])
-    setAvailableCores([])
-  }
+    const normalizedTipo = selectedTipo.trim().toUpperCase();
+    handleDrawerInputChange("tipo", normalizedTipo);
+    handleDrawerInputChange("material", "");
+    handleDrawerInputChange("carateristica", "");
+    handleDrawerInputChange("cor", "");
+    await fetchMaterials(normalizedTipo);
+    setAvailableCaracteristicas([]);
+    setAvailableCores([]);
+  };
 
   const handleMaterialComboChange = async (selectedMaterial: string) => {
-    const normalizedMaterial = selectedMaterial.trim().toUpperCase()
-    handleDrawerInputChange('material', normalizedMaterial)
-    handleDrawerInputChange('carateristica', '')
-    handleDrawerInputChange('cor', '')
+    const normalizedMaterial = selectedMaterial.trim().toUpperCase();
+    handleDrawerInputChange("material", normalizedMaterial);
+    handleDrawerInputChange("carateristica", "");
+    handleDrawerInputChange("cor", "");
     await fetchCaracteristicas(
-      editingMaterial?.tipo?.trim().toUpperCase() ?? '',
+      editingMaterial?.tipo?.trim().toUpperCase() ?? "",
       normalizedMaterial,
-    )
-    setAvailableCores([])
-  }
+    );
+    setAvailableCores([]);
+  };
 
   const handleCaracteristicaComboChange = async (
     selectedCaracteristica: string,
   ) => {
-    const normalizedCaracteristica = selectedCaracteristica.trim().toUpperCase()
-    handleDrawerInputChange('carateristica', normalizedCaracteristica)
-    handleDrawerInputChange('cor', '')
+    const normalizedCaracteristica = selectedCaracteristica
+      .trim()
+      .toUpperCase();
+    handleDrawerInputChange("carateristica", normalizedCaracteristica);
+    handleDrawerInputChange("cor", "");
     await fetchCores(
-      editingMaterial?.tipo?.trim().toUpperCase() ?? '',
-      editingMaterial?.material?.trim().toUpperCase() ?? '',
+      editingMaterial?.tipo?.trim().toUpperCase() ?? "",
+      editingMaterial?.material?.trim().toUpperCase() ?? "",
       normalizedCaracteristica,
-    )
-  }
+    );
+  };
 
   const handleCorComboChange = (selectedCor: string) => {
-    const normalizedCor = selectedCor.trim().toUpperCase()
-    handleDrawerInputChange('cor', normalizedCor)
-  }
+    const normalizedCor = selectedCor.trim().toUpperCase();
+    handleDrawerInputChange("cor", normalizedCor);
+  };
 
   // --- Open Drawer: fetch tipos and reset combos ---
   useEffect(() => {
     if (openDrawer) {
-      fetchTipos()
-      setAvailableMaterials([])
-      setAvailableCaracteristicas([])
-      setAvailableCores([])
+      fetchTipos();
+      setAvailableMaterials([]);
+      setAvailableCaracteristicas([]);
+      setAvailableCores([]);
       // If editing, prefetch next combos
-      if (editingMaterial?.tipo) fetchMaterials(editingMaterial.tipo)
+      if (editingMaterial?.tipo) fetchMaterials(editingMaterial.tipo);
       if (editingMaterial?.tipo && editingMaterial?.material)
-        fetchCaracteristicas(editingMaterial.tipo, editingMaterial.material)
+        fetchCaracteristicas(editingMaterial.tipo, editingMaterial.material);
       if (
         editingMaterial?.tipo &&
         editingMaterial?.material &&
@@ -740,10 +759,10 @@ export default function MateriaisPage() {
           editingMaterial.tipo,
           editingMaterial.material,
           editingMaterial.carateristica,
-        )
+        );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openDrawer])
+  }, [openDrawer]);
 
   // Convert string arrays to MaterialOption arrays
   const materialOptions: FornecedorOption[] = availableMaterials.map(
@@ -751,18 +770,18 @@ export default function MateriaisPage() {
       value: material,
       label: material,
     }),
-  )
+  );
 
   const caracteristicaOptions: FornecedorOption[] =
     availableCaracteristicas.map((caracteristica) => ({
       value: caracteristica,
       label: caracteristica,
-    }))
+    }));
 
   const corOptions: FornecedorOption[] = availableCores.map((cor) => ({
     value: cor,
     label: cor,
-  }))
+  }));
 
   return (
     <PermissionGuard>
@@ -777,13 +796,14 @@ export default function MateriaisPage() {
                     variant="outline"
                     size="icon"
                     onClick={() => {
-                      setTipoFilter('')
-                      setMaterialFilter('')
-                      setCaracteristicaFilter('')
-                      setCorFilter('')
+                      setTipoFilter("");
+                      setMaterialFilter("");
+                      setCaracteristicaFilter("");
+                      setCorFilter("");
                     }}
                   >
-                    <X className="h-4 w-4" />                  </Button>
+                    <X className="h-4 w-4" />{" "}
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent>Limpar Filtros</TooltipContent>
               </Tooltip>
@@ -814,24 +834,24 @@ export default function MateriaisPage() {
                 <TooltipTrigger asChild>
                   <Button
                     onClick={() => {
-                      setCreatingNew(true)
-                      setEditingId('new')
+                      setCreatingNew(true);
+                      setEditingId("new");
                       setEditRow({
-                        tipo: '',
-                        referencia: '',
-                        ref_fornecedor: '',
-                        material: '',
-                        carateristica: '',
-                        cor: '',
-                        tipo_canal: '',
-                        dimensoes: '',
+                        tipo: "",
+                        referencia: "",
+                        ref_fornecedor: "",
+                        material: "",
+                        carateristica: "",
+                        cor: "",
+                        tipo_canal: "",
+                        dimensoes: "",
                         valor_m2_custo: null,
                         valor_placa: null,
                         valor_m2: null,
                         qt_palete: null,
                         fornecedor_id: null,
                         ORC: false,
-                      })
+                      });
                     }}
                     variant="default"
                     size="icon"
@@ -848,7 +868,10 @@ export default function MateriaisPage() {
         {/* Filter bar - standardized using FilterInput (3+ chars, debounced) */}
         <div className="flex items-center gap-2">
           <div className="flex-1">
-            <Select value={tipoFilter} onValueChange={(value) => setTipoFilter(value)}>
+            <Select
+              value={tipoFilter}
+              onValueChange={(value) => setTipoFilter(value)}
+            >
               <SelectTrigger className="h-10 uppercase">
                 <SelectValue placeholder="Selecionar Tipo" />
               </SelectTrigger>
@@ -894,13 +917,13 @@ export default function MateriaisPage() {
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
+                  className="h-10 w-10"
                   onClick={() => {
-                    setTipoFilter('')
-                    setMaterialFilter('')
-                    setCaracteristicaFilter('')
-                    setCorFilter('')
-                    fetchMateriais()
+                    setTipoFilter("");
+                    setMaterialFilter("");
+                    setCaracteristicaFilter("");
+                    setCorFilter("");
+                    fetchMateriais();
                   }}
                 >
                   <X className="h-4 w-4" />
@@ -941,57 +964,57 @@ export default function MateriaisPage() {
                 <TableRow>
                   <TableHead
                     className="sticky top-0 z-10 cursor-pointer border-b text-center uppercase"
-                    onClick={() => handleSort('referencia')}
+                    onClick={() => handleSort("referencia")}
                   >
                     <span className="inline-flex items-center gap-1">
-                      Referência {getSortIcon('referencia')}
+                      Referência {getSortIcon("referencia")}
                     </span>
                   </TableHead>
                   <TableHead
                     className="sticky top-0 z-10 w-[250px] min-w-[250px] cursor-pointer border-b text-center uppercase"
-                    onClick={() => handleSort('material')}
+                    onClick={() => handleSort("material")}
                   >
                     <span className="inline-flex items-center gap-1">
-                      Material {getSortIcon('material')}
+                      Material {getSortIcon("material")}
                     </span>
                   </TableHead>
                   <TableHead
                     className="sticky top-0 z-10 w-[250px] min-w-[250px] cursor-pointer border-b text-center uppercase"
-                    onClick={() => handleSort('carateristica')}
+                    onClick={() => handleSort("carateristica")}
                   >
                     <span className="inline-flex items-center gap-1">
-                      Características {getSortIcon('carateristica')}
+                      Características {getSortIcon("carateristica")}
                     </span>
                   </TableHead>
                   <TableHead
                     className="sticky top-0 z-10 cursor-pointer border-b text-center uppercase"
-                    onClick={() => handleSort('cor')}
+                    onClick={() => handleSort("cor")}
                   >
                     <span className="inline-flex items-center gap-1">
-                      Cor {getSortIcon('cor')}
+                      Cor {getSortIcon("cor")}
                     </span>
                   </TableHead>
                   <TableHead
                     className="sticky top-0 z-10 w-[100px] cursor-pointer border-b text-right uppercase"
-                    onClick={() => handleSort('qt_palete')}
+                    onClick={() => handleSort("qt_palete")}
                   >
                     <span className="inline-flex items-center gap-1">
-                      QT PAL {getSortIcon('qt_palete')}
+                      QT PAL {getSortIcon("qt_palete")}
                     </span>
                   </TableHead>
                   <TableHead
                     className="sticky top-0 z-10 cursor-pointer border-b text-right uppercase"
-                    onClick={() => handleSort('valor_m2')}
+                    onClick={() => handleSort("valor_m2")}
                   >
                     <span className="inline-flex items-center gap-1">
-                      Valor/m² {getSortIcon('valor_m2')}
+                      Valor/m² {getSortIcon("valor_m2")}
                     </span>
                   </TableHead>
                   <TableHead
                     className="sticky top-0 z-10 w-[80px] cursor-pointer border-b text-center uppercase"
-                    onClick={() => handleSort('ORC')}
+                    onClick={() => handleSort("ORC")}
                   >
-                    ORC {getSortIcon('ORC')}
+                    ORC {getSortIcon("ORC")}
                   </TableHead>
                   <TableHead className="sticky top-0 z-10 w-[90px] border-b text-center uppercase">
                     Ações
@@ -999,12 +1022,12 @@ export default function MateriaisPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {creatingNew && editingId === 'new' && (
+                {creatingNew && editingId === "new" && (
                   <TableRow key="new-material-row">
                     <TableCell className="uppercase">
                       <Input
                         name="referencia"
-                        value={editRow.referencia ?? ''}
+                        value={editRow.referencia ?? ""}
                         onChange={handleInputChange}
                         className="h-10 border-0 text-sm outline-0 focus:border-0 focus:ring-0"
                       />
@@ -1012,7 +1035,7 @@ export default function MateriaisPage() {
                     <TableCell className="w-[250px] font-medium uppercase">
                       <Input
                         name="material"
-                        value={editRow.material ?? ''}
+                        value={editRow.material ?? ""}
                         onChange={handleInputChange}
                         required
                         className="h-10 w-full border-0 text-sm outline-0 focus:border-0 focus:ring-0"
@@ -1021,7 +1044,7 @@ export default function MateriaisPage() {
                     <TableCell className="w-[250px] uppercase">
                       <Input
                         name="carateristica"
-                        value={editRow.carateristica ?? ''}
+                        value={editRow.carateristica ?? ""}
                         onChange={handleInputChange}
                         className="h-10 border-0 text-sm outline-0 focus:border-0 focus:ring-0"
                       />
@@ -1029,7 +1052,7 @@ export default function MateriaisPage() {
                     <TableCell className="uppercase">
                       <Input
                         name="cor"
-                        value={editRow.cor ?? ''}
+                        value={editRow.cor ?? ""}
                         onChange={handleInputChange}
                         className="h-10 border-0 text-sm outline-0 focus:border-0 focus:ring-0"
                       />
@@ -1038,7 +1061,7 @@ export default function MateriaisPage() {
                       <Input
                         name="qt_palete"
                         type="number"
-                        value={editRow.qt_palete ?? ''}
+                        value={editRow.qt_palete ?? ""}
                         onChange={handleInputChange}
                         className="h-10 border-0 text-right text-sm outline-0 focus:border-0 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
@@ -1050,9 +1073,9 @@ export default function MateriaisPage() {
                         inputMode="decimal"
                         pattern="[0-9.,]*"
                         value={
-                          typeof editRow.valor_m2 === 'number'
+                          typeof editRow.valor_m2 === "number"
                             ? String(editRow.valor_m2)
-                            : (editRow.valor_m2 ?? '')
+                            : (editRow.valor_m2 ?? "")
                         }
                         onChange={handleInputChange}
                         className="h-10 border-0 text-right text-sm outline-0 focus:border-0 focus:ring-0"
@@ -1071,15 +1094,15 @@ export default function MateriaisPage() {
                     <TableCell className="flex justify-center gap-2">
                       <Button
                         onClick={async () => {
-                          setSubmitting(true)
+                          setSubmitting(true);
                           try {
-                            let valorStr = String(editRow.valor_m2 ?? '')
-                            valorStr = valorStr.replace(',', '.')
+                            let valorStr = String(editRow.valor_m2 ?? "");
+                            valorStr = valorStr.replace(",", ".");
                             const valorM2 = valorStr
                               ? parseFloat(valorStr)
-                              : null
+                              : null;
                             const { data, error } = await supabase
-                              .from('materiais')
+                              .from("materiais")
                               .insert({
                                 tipo: editRow.tipo || null,
                                 referencia: editRow.referencia || null,
@@ -1096,17 +1119,17 @@ export default function MateriaisPage() {
                                 fornecedor_id: editRow.fornecedor_id || null,
                                 ORC: editRow.ORC ?? false,
                               })
-                              .select('*')
+                              .select("*");
                             if (!error && data && data[0]) {
-                              setMateriais((prev) => [data[0], ...prev])
-                              setCreatingNew(false)
-                              setEditingId(null)
-                              setEditRow({})
+                              setMateriais((prev) => [data[0], ...prev]);
+                              setCreatingNew(false);
+                              setEditingId(null);
+                              setEditRow({});
                             }
                           } catch (error) {
-                            console.error('Error creating material:', error)
+                            console.error("Error creating material:", error);
                           } finally {
-                            setSubmitting(false)
+                            setSubmitting(false);
                           }
                         }}
                         disabled={submitting}
@@ -1117,9 +1140,9 @@ export default function MateriaisPage() {
                       <Button
                         variant="outline"
                         onClick={() => {
-                          setCreatingNew(false)
-                          setEditingId(null)
-                          setEditRow({})
+                          setCreatingNew(false);
+                          setEditingId(null);
+                          setEditRow({});
                         }}
                         className="h-10"
                       >
@@ -1149,29 +1172,29 @@ export default function MateriaisPage() {
                 ) : (
                   materiais.map((material) => (
                     <TableRow key={material.id}>
-                      <TableCell>{material.referencia ?? '-'}</TableCell>
+                      <TableCell>{material.referencia ?? "-"}</TableCell>
                       <TableCell className="w-[250px]">
                         {material.material
                           ? material.material.length > 25
-                            ? material.material.slice(0, 25) + '...'
+                            ? material.material.slice(0, 25) + "..."
                             : material.material
-                          : '-'}
+                          : "-"}
                       </TableCell>
                       <TableCell className="w-[250px]">
                         {material.carateristica
                           ? material.carateristica.length > 25
-                            ? material.carateristica.slice(0, 25) + '...'
+                            ? material.carateristica.slice(0, 25) + "..."
                             : material.carateristica
-                          : '-'}
+                          : "-"}
                       </TableCell>
-                      <TableCell>{material.cor ?? '-'}</TableCell>
+                      <TableCell>{material.cor ?? "-"}</TableCell>
                       <TableCell className="text-right">
-                        {material.qt_palete ?? '-'}
+                        {material.qt_palete ?? "-"}
                       </TableCell>
                       <TableCell className="text-right">
-                        {typeof material.valor_m2 === 'number'
+                        {typeof material.valor_m2 === "number"
                           ? formatCurrency(material.valor_m2)
-                          : '-'}
+                          : "-"}
                       </TableCell>
                       <TableCell className="text-center">
                         <Checkbox
@@ -1192,10 +1215,54 @@ export default function MateriaisPage() {
                                 size="icon"
                                 onClick={() => handleEdit(material)}
                               >
-                                <Pencil className="h-4 w-4" />
+                                <Eye className="h-4 w-4" />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>Editar</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="default"
+                                size="icon"
+                                onClick={async () => {
+                                  try {
+                                    const {
+                                      id,
+                                      created_at,
+                                      updated_at,
+                                      ...rest
+                                    } = material;
+
+                                    const { data, error } = await supabase
+                                      .from("materiais")
+                                      .insert({
+                                        ...rest,
+                                        referencia: rest.referencia
+                                          ? `${rest.referencia}-COPY`
+                                          : null,
+                                      })
+                                      .select("*")
+                                      .single();
+
+                                    if (!error && data) {
+                                      setMateriais((prev) => [data, ...prev]);
+                                    }
+                                  } catch (err) {
+                                    console.error(
+                                      "Error duplicating material:",
+                                      err,
+                                    );
+                                    alert("Erro ao duplicar material.");
+                                  }
+                                }}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Duplicar</TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                         <TooltipProvider>
@@ -1231,5 +1298,5 @@ export default function MateriaisPage() {
         )}
       </div>
     </PermissionGuard>
-  )
+  );
 }

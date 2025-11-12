@@ -46,6 +46,7 @@ import { ComplexidadeCombobox } from '@/components/ui/ComplexidadeCombobox'
 import { useComplexidades } from '@/hooks/useComplexidades'
 import type { Job, Item, Designer, UpdateItemParams } from './types'
 import { getAColor } from '@/utils/producao/statusColors'
+import { DesignerFlowHelpDialog } from '@/components/designer/DesignerFlowHelpDialog'
 
 // Priority color mapping
 const PRIORITY_COLORS = {
@@ -899,9 +900,15 @@ export default function DesignerFlow() {
   )
 
   return (
-    <div className="w-full space-y-6">
-      <div className="space-y-4">
-        <h1 className="text-2xl font-bold">Designer Flow</h1>
+    <div className="w-full px-6 py-6 space-y-6">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h1 className="text-2xl">FLUXO DO DESIGNER</h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            GESTÃO DE PROPOSTAS, APROVAÇÕES, PAGINAÇÃO E PLANOS DE PRODUÇÃO POR FOLHA DE OBRA.
+          </p>
+        </div>
+        <DesignerFlowHelpDialog />
       </div>
 
       <Tabs value={activeTab} onValueChange={(value: any) => setActiveTab(value)} className="w-full">
@@ -972,7 +979,7 @@ export default function DesignerFlow() {
                       <Button
                         variant="outline"
                         size="icon"
-                        className="h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
+                        className="h-10 w-10"
                         onClick={() => {
                           setFoFilter('')
                           setOrcFilter('')

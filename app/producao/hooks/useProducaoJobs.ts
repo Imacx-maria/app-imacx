@@ -264,7 +264,8 @@ export function useProducaoJobs(
           prioridade,
           pendente,
           created_at,
-          updated_at
+          updated_at,
+          Euro__tota
         `,
           { count: 'exact' },
         )
@@ -408,6 +409,7 @@ export function useProducaoJobs(
             customer_id: customerId,
             data_concluido: null,
             updated_at: row.updated_at ?? null,
+            euro_tota: row.Euro__tota ?? null,  // PHC value (from existing column)
           }
         })
 

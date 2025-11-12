@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import React, { useState, useEffect } from 'react'
-import { Check, ChevronsUpDown } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import React, { useState, useEffect } from "react";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -10,89 +10,89 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from '@/components/ui/command'
+} from "@/components/ui/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover'
-import { cn } from '@/lib/utils'
-import { useDebounce } from '@/hooks/useDebounce'
-import { Label } from '@/components/ui/label'
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { useDebounce } from "@/hooks/useDebounce";
+import { Label } from "@/components/ui/label";
 
 export interface ComboboxOption {
-  value: string
-  label: string
+  value: string;
+  label: string;
 }
 
 export interface ComboboxProps {
-  value: string
-  onChange: (value: string) => void
-  options: ComboboxOption[]
-  placeholder?: string
-  label?: string
-  disabled?: boolean
-  loading?: boolean
-  error?: string | null
-  className?: string
-  buttonClassName?: string
-  searchPlaceholder?: string
-  emptyMessage?: string
-  loadingMessage?: string
-  maxWidth?: string
+  value: string;
+  onChange: (value: string) => void;
+  options: ComboboxOption[];
+  placeholder?: string;
+  label?: string;
+  disabled?: boolean;
+  loading?: boolean;
+  error?: string | null;
+  className?: string;
+  buttonClassName?: string;
+  searchPlaceholder?: string;
+  emptyMessage?: string;
+  loadingMessage?: string;
+  maxWidth?: string;
 }
 
 const Combobox: React.FC<ComboboxProps> = ({
   value,
   onChange,
   options,
-  placeholder = 'Selecionar',
+  placeholder = "Selecionar",
   label,
   disabled = false,
   loading = false,
   error = null,
-  className = '',
-  buttonClassName = '',
+  className = "",
+  buttonClassName = "",
   searchPlaceholder,
-  emptyMessage = 'Nenhuma opção encontrada.',
-  loadingMessage = 'Procurando...',
-  maxWidth = '160px',
+  emptyMessage = "Nenhuma opção encontrada.",
+  loadingMessage = "Procurando...",
+  maxWidth = "160px",
 }) => {
-  const [open, setOpen] = useState(false)
-  const [search, setSearch] = useState('')
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const [filteredOptions, setFilteredOptions] =
-    useState<ComboboxOption[]>(options)
+    useState<ComboboxOption[]>(options);
 
   // Get the selected item's label from the value
   const selectedLabel = value
-    ? options.find((option) => option.value === value)?.label || ''
-    : ''
+    ? options.find((option) => option.value === value)?.label || ""
+    : "";
 
   // Filter options as user types
   useEffect(() => {
-    if (!open) return
+    if (!open) return;
 
-    const searchValue = search?.trim() || ''
+    const searchValue = search?.trim() || "";
     const filtered = searchValue
       ? options.filter((opt) => {
-          const label = opt.label.toLowerCase()
-          const searchTerm = searchValue.toLowerCase()
+          const label = opt.label.toLowerCase();
+          const searchTerm = searchValue.toLowerCase();
           return (
             label.startsWith(searchTerm) || label.includes(` ${searchTerm}`)
-          )
+          );
         })
-      : options
+      : options;
 
-    setFilteredOptions(filtered)
-  }, [search, open, options])
+    setFilteredOptions(filtered);
+  }, [search, open, options]);
 
   // Debounce search updates to prevent too many re-renders
-  const debouncedSetSearch = useDebounce((val: string) => setSearch(val), 300)
+  const debouncedSetSearch = useDebounce((val: string) => setSearch(val), 300);
 
   // Generate IDs for accessibility
-  const comboboxId = React.useId()
-  const labelId = label ? `${comboboxId}-label` : undefined
-  const errorId = error ? `${comboboxId}-error` : undefined
+  const comboboxId = React.useId();
+  const labelId = label ? `${comboboxId}-label` : undefined;
+  const errorId = error ? `${comboboxId}-error` : undefined;
 
   return (
     <div className={className}>
@@ -116,8 +116,8 @@ const Combobox: React.FC<ComboboxProps> = ({
               aria-invalid={!!error}
               aria-describedby={errorId}
               className={cn(
-                'w-full justify-between border',
-                error ? 'border-destructive' : 'border-border',
+                "w-full justify-between",
+                error ? "border-destructive" : "",
                 buttonClassName,
               )}
               disabled={disabled || loading}
@@ -142,7 +142,7 @@ const Combobox: React.FC<ComboboxProps> = ({
                   searchPlaceholder ||
                   (placeholder
                     ? `Pesquisar ${placeholder.toLowerCase()}...`
-                    : 'Pesquisar...')
+                    : "Pesquisar...")
                 }
                 className="h-9"
                 onValueChange={debouncedSetSearch}
@@ -157,16 +157,16 @@ const Combobox: React.FC<ComboboxProps> = ({
                       key={option.value}
                       value={option.label}
                       onSelect={() => {
-                        onChange(option.value)
-                        setOpen(false)
+                        onChange(option.value);
+                        setOpen(false);
                       }}
                       className="text-sm"
                     >
                       <span className="truncate">{option.label}</span>
                       <Check
                         className={cn(
-                          'ml-auto h-4 w-4',
-                          value === option.value ? 'opacity-100' : 'opacity-0',
+                          "ml-auto h-4 w-4",
+                          value === option.value ? "opacity-100" : "opacity-0",
                         )}
                       />
                     </CommandItem>
@@ -178,13 +178,16 @@ const Combobox: React.FC<ComboboxProps> = ({
         </Popover>
       </div>
       {error && (
-        <div id={errorId} className="mt-1 text-sm text-destructive" role="alert">
+        <div
+          id={errorId}
+          className="mt-1 text-sm text-destructive"
+          role="alert"
+        >
           {error}
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default Combobox
-
+export default Combobox;

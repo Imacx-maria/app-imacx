@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -9,292 +9,420 @@
    ============================================ */
 
 @layer base {
-  /* Font family - universal */
-  * {
-    @apply border-border;
-    font-family: 'Atkinson Hyperlegible', sans-serif !important;
-  }
-  
-  body {
-    @apply bg-background text-foreground;
-  }
-  
-  /* ALL TEXT UPPERCASE - UNIVERSAL RULE */
-  * {
-    text-transform: uppercase !important;
-  }
-  
-  /* EXCEPTION: Login page uses normal case */
-  [data-page="login"] *,
-  [data-page="login"] input,
-  [data-page="login"] button {
-    text-transform: none !important;
-  }
-  
-  /* NO BOLD TEXT - UNIVERSAL RULE */
-  * {
-    font-weight: 400 !important;
-  }
-  
-  /* EXCEPTION: Calendar holidays need to be bold */
-  .calendar-wrapper [data-holiday="true"],
-  .calendar-wrapper button[data-holiday="true"],
-  .rdp [data-holiday="true"],
-  .rdp button[data-holiday="true"] {
-    font-weight: 700 !important;
-  }
-  
-  /* No rounded corners anywhere */
-  * {
-    border-radius: 0 !important;
-  }
-  
-  /* ============================================
+    /* Font family - universal */
+    * {
+        @apply border-border;
+        font-family: "Atkinson Hyperlegible", sans-serif !important;
+    }
+
+    body {
+        @apply bg-background text-foreground;
+    }
+
+    /* ALL TEXT UPPERCASE - UNIVERSAL RULE */
+    * {
+        text-transform: uppercase !important;
+    }
+
+    /* EXCEPTION: Login page uses normal case */
+    [data-page="login"] *,
+    [data-page="login"] input,
+    [data-page="login"] button {
+        text-transform: none !important;
+    }
+
+    /* NO BOLD TEXT - UNIVERSAL RULE */
+    * {
+        font-weight: 400 !important;
+    }
+
+    /* EXCEPTION: Calendar holidays need to be bold */
+    .calendar-wrapper [data-holiday="true"],
+    .calendar-wrapper button[data-holiday="true"],
+    .rdp [data-holiday="true"],
+    .rdp button[data-holiday="true"] {
+        font-weight: 700 !important;
+    }
+
+    /* No rounded corners anywhere */
+    * {
+        border-radius: 0 !important;
+    }
+
+    /* ============================================
      INPUT FIELDS - USE VARIABLES
      ============================================ */
-  
-  input[type="text"],
-  input[type="number"],
-  input[type="email"],
-  input[type="password"],
-  input[type="search"],
-  input[type="url"],
-  input[type="tel"],
-  input[type="date"],
-  input:not([type]),
-  textarea {
-    background-color: var(--input) !important;
-    border: 1px solid var(--border) !important;
-    color: var(--foreground) !important;
-    outline: none !important;
-    box-shadow: none !important;
-  }
-  
-  /* Command/Combobox search inputs - NO OUTLINE */
-  [cmdk-input-wrapper] input,
-  [cmdk-input],
-  [cmdk-input-wrapper] input:focus,
-  [cmdk-input]:focus,
-  [cmdk-input-wrapper] input:focus-visible,
-  [cmdk-input]:focus-visible {
-    outline: none !important;
-    box-shadow: none !important;
-    border: none !important;
-  }
-  
-  /* Hover: slightly lighter/darker background */
-  input[type="text"]:hover,
-  input[type="number"]:hover,
-  input[type="email"]:hover,
-  input[type="password"]:hover,
-  input[type="search"]:hover,
-  input[type="url"]:hover,
-  input[type="tel"]:hover,
-  input[type="date"]:hover,
-  input:not([type]):hover,
-  textarea:hover {
-    background-color: var(--background) !important;
-    color: var(--foreground) !important;
-  }
-  
-  /* ============================================
+
+    input[type="text"],
+    input[type="number"],
+    input[type="email"],
+    input[type="password"],
+    input[type="search"],
+    input[type="url"],
+    input[type="tel"],
+    input[type="date"],
+    input:not([type]),
+    textarea {
+        background-color: var(--input) !important;
+        border: 1px solid var(--border) !important;
+        color: var(--foreground) !important;
+        outline: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Command/Combobox search inputs - NO OUTLINE */
+    [cmdk-input-wrapper] input,
+    [cmdk-input],
+    [cmdk-input-wrapper] input:focus,
+    [cmdk-input]:focus,
+    [cmdk-input-wrapper] input:focus-visible,
+    [cmdk-input]:focus-visible {
+        outline: none !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+
+    /* Hover: slightly lighter/darker background */
+    input[type="text"]:hover,
+    input[type="number"]:hover,
+    input[type="email"]:hover,
+    input[type="password"]:hover,
+    input[type="search"]:hover,
+    input[type="url"]:hover,
+    input[type="tel"]:hover,
+    input[type="date"]:hover,
+    input:not([type]):hover,
+    textarea:hover {
+        background-color: var(--background) !important;
+        color: var(--foreground) !important;
+    }
+
+    /* ============================================
+     COMBOBOX BUTTONS - SAME BACKGROUND AS INPUTS
+     ============================================ */
+
+    button[role="combobox"] {
+        background-color: var(--input) !important;
+    }
+
+    /* ============================================
+     TABS - SAME BACKGROUND AS INPUTS (LIGHT MODE ONLY)
+     ============================================ */
+
+    button[role="tab"]:not([data-state="active"]) {
+        background-color: var(--input) !important;
+    }
+
+    /* ============================================
+     TABS - DARK MODE (LIST + INACTIVE)
+     ============================================ */
+
+    /* TabsList container: match requested dark tone */
+    .dark [role="tablist"] {
+        background-color: oklch(0.26 0 0) !important;
+    }
+
+    /* Inactive tab triggers: same as TabsList */
+    .dark button[role="tab"]:not([data-state="active"]) {
+        background-color: oklch(0.26 0 0) !important;
+    }
+
+    /* ============================================
+     TABLE ROW HOVER - SAME BACKGROUND AS INPUTS
+     ============================================ */
+
+    tr:hover {
+        background-color: var(--input) !important;
+    }
+
+    /* ============================================
+     TABLE & CELL BORDERS - GLOBAL
+     Use subtle theme border color for all table dividers
+     ============================================ */
+
+    table,
+    th,
+    td {
+        border-color: var(--border) !important;
+    }
+
+    /* Dark mode: hard-enforce subtle border color on all table elements */
+    .dark table,
+    .dark table tr,
+    .dark table th,
+    .dark table td {
+        border-color: var(--border) !important;
+    }
+
+    table {
+        border-collapse: collapse;
+    }
+
+    thead tr {
+        border-bottom: 1px solid var(--border) !important;
+    }
+
+    tbody tr {
+        border-top: 1px solid var(--border) !important;
+    }
+
+    /* Dark mode: keep a single subtle divider, closer to background than foreground */
+
+    .dark tbody tr {
+        border-top: 1px solid oklch(0.4 0 0) !important;
+
+        border-bottom: none !important;
+    }
+
+    /* ============================================
      CHECKBOXES
      ============================================ */
-  
-  /* Light mode: Black outline for visibility */
-  button[role="checkbox"] {
-    border-color: var(--foreground) !important;
-  }
-  
-  /* When checked: Keep yellow background with black outline */
-  button[role="checkbox"][data-state="checked"] {
-    background-color: var(--primary) !important;
-    border-color: var(--foreground) !important;
-    color: var(--primary-foreground) !important;
-  }
-  
-  input[type="checkbox"] {
-    outline: none !important;
-    box-shadow: none !important;
-  }
-  
-  input[type="checkbox"]:focus,
-  input[type="checkbox"]:focus-visible {
-    outline: none !important;
-    box-shadow: none !important;
-  }
-  
-  /* ============================================
+
+    /* Light mode: Black outline for visibility */
+    button[role="checkbox"] {
+        border-color: var(--foreground) !important;
+    }
+
+    button[role="checkbox"][data-state="checked"] {
+        background-color: var(--primary) !important;
+
+        border-color: var(--foreground) !important;
+
+        color: var(--primary-foreground) !important;
+    }
+
+    input[type="checkbox"] {
+        outline: none !important;
+        box-shadow: none !important;
+    }
+
+    input[type="checkbox"]:focus,
+    input[type="checkbox"]:focus-visible {
+        outline: none !important;
+        box-shadow: none !important;
+    }
+
+    /* ============================================
      TABLE HEADERS
      ============================================ */
-  
-  th {
-    background-color: var(--primary) !important;
-    color: var(--primary-foreground) !important;
-  }
-  
-  /* ============================================
+
+    th {
+        background-color: var(--primary) !important;
+        color: var(--primary-foreground) !important;
+    }
+
+    /* ============================================
      YELLOW/BEIGE BACKGROUNDS = BLACK TEXT
      ============================================ */
-  
-  .bg-primary,
-  .bg-primary *,
-  .hover\:bg-accent:hover,
-  .hover\:bg-accent:hover * {
-    color: var(--primary-foreground) !important;
-  }
-  
-  /* Exception: Buttons keep their own variant colors */
-  button.bg-primary,
-  button.bg-primary *,
-  .hover\:bg-accent:hover button.bg-primary,
-  .hover\:bg-accent:hover button.bg-primary * {
-    color: var(--primary-foreground) !important;
-  }
-  
-  button.bg-destructive,
-  button.bg-destructive *,
-  .hover\:bg-accent:hover button.bg-destructive,
-  .hover\:bg-accent:hover button.bg-destructive * {
-    color: var(--destructive-foreground) !important;
-  }
-  
-  button.bg-secondary,
-  button.bg-secondary *,
-  .hover\:bg-accent:hover button.bg-secondary,
-  .hover\:bg-accent:hover button.bg-secondary * {
-    color: var(--secondary-foreground) !important;
-  }
 
-  /* Orange text rule removed to avoid side effects outside Calendar */
-  
-  /* ============================================
+    .bg-primary,
+    .bg-primary *,
+    .hover\:bg-accent:hover,
+    .hover\:bg-accent:hover * {
+        color: var(--primary-foreground) !important;
+    }
+
+    /* Exception: Buttons keep their own variant colors */
+    button.bg-primary,
+    button.bg-primary *,
+    .hover\:bg-accent:hover button.bg-primary,
+    .hover\:bg-accent:hover button.bg-primary * {
+        color: var(--primary-foreground) !important;
+    }
+
+    button.bg-destructive,
+    button.bg-destructive *,
+    .hover\:bg-accent:hover button.bg-destructive,
+    .hover\:bg-accent:hover button.bg-destructive * {
+        color: var(--destructive-foreground) !important;
+    }
+
+    button.bg-secondary,
+    button.bg-secondary *,
+    .hover\:bg-accent:hover button.bg-secondary,
+    .hover\:bg-accent:hover button.bg-secondary * {
+        color: var(--secondary-foreground) !important;
+    }
+
+    /* Orange text rule removed to avoid side effects outside Calendar */
+
+    /* ============================================
      BUTTON ICONS - BLACK ON COLORED BACKGROUNDS
      ============================================ */
-  
-  /* Button icons are black when button has a background color */
-  button.bg-yellow-400 svg,
-  button.bg-yellow-400 svg *,
-  button.bg-yellow-400 path,
-  button.bg-yellow-400 circle,
-  button.bg-yellow-400 rect,
-  button.bg-yellow-400 line,
-  button.bg-yellow-400 polyline,
-  button.bg-yellow-400 polygon,
-  button.bg-primary svg,
-  button.bg-primary svg *,
-  button.bg-primary path,
-  button.bg-primary circle,
-  button.bg-primary rect,
-  button.bg-primary line,
-  button.bg-primary polyline,
-  button.bg-primary polygon {
-    color: oklch(0% 0 0) !important;
-    stroke: oklch(0% 0 0) !important;
-  }
-  
-  /* ============================================
+
+    /* Button icons are black when button has a background color */
+    button.bg-yellow-400 svg,
+    button.bg-yellow-400 svg *,
+    button.bg-yellow-400 path,
+    button.bg-yellow-400 circle,
+    button.bg-yellow-400 rect,
+    button.bg-yellow-400 line,
+    button.bg-yellow-400 polyline,
+    button.bg-yellow-400 polygon,
+    button.bg-primary svg,
+    button.bg-primary svg *,
+    button.bg-primary path,
+    button.bg-primary circle,
+    button.bg-primary rect,
+    button.bg-primary line,
+    button.bg-primary polyline,
+    button.bg-primary polygon {
+        color: oklch(0% 0 0) !important;
+        stroke: oklch(0% 0 0) !important;
+    }
+
+    /* ============================================
      DARK MODE OVERRIDES
      ============================================ */
-  
-  /* Dark mode: accent hover (dark gray) needs light text */
-  .dark .hover\:bg-accent:hover,
-  .dark .hover\:bg-accent:hover * {
-    color: var(--accent-foreground) !important;
-  }
-  
-  /* Dark mode: yellow/primary still gets black text */
-  .dark .bg-primary,
-  .dark .bg-primary *,
-  .dark .hover\:bg-primary:hover,
-  .dark .hover\:bg-primary:hover * {
-    color: var(--primary-foreground) !important;
-  }
-  
-  /* Exception: Buttons keep their own variant colors in dark mode */
-  .dark button.bg-primary,
-  .dark button.bg-primary *,
-  .dark .hover\:bg-accent:hover button.bg-primary,
-  .dark .hover\:bg-accent:hover button.bg-primary * {
-    color: var(--primary-foreground) !important;
-  }
-  
-  .dark button.bg-destructive,
-  .dark button.bg-destructive *,
-  .dark .hover\:bg-accent:hover button.bg-destructive,
-  .dark .hover\:bg-accent:hover button.bg-destructive * {
-    color: var(--destructive-foreground) !important;
-  }
-  
-  /* Dark mode: Checkboxes use yellow outline */
-  .dark button[role="checkbox"] {
-    border-color: var(--primary) !important;
-  }
-  
-  .dark button[role="checkbox"][data-state="checked"] {
-    background-color: var(--primary) !important;
-    border-color: var(--primary) !important;
-    color: var(--primary-foreground) !important;
-  }
-  
-  /* Sidebar navigation */
-  .dark nav button:not(.bg-primary):not(:hover),
-  .dark nav button:not(.bg-primary):not(:hover) *,
-  .dark nav a:not(.bg-primary):not(:hover),
-  .dark nav a:not(.bg-primary):not(:hover) * {
-    color: var(--muted-foreground) !important;
-  }
-  
-  .dark nav button:hover,
-  .dark nav button:hover *,
-  .dark nav a:hover,
-  .dark nav a:hover * {
-    color: var(--accent-foreground) !important;
-  }
-  
-  .dark nav .bg-primary,
-  .dark nav .bg-primary * {
-    color: var(--primary-foreground) !important;
-  }
-  
-  .dark .border-t button.text-destructive,
-  .dark .border-t button.text-destructive * {
-    color: var(--destructive) !important;
-  }
-  
-  /* Dark mode: icons on colored backgrounds stay black */
-  .dark button.bg-yellow-400 svg,
-  .dark button.bg-yellow-400 svg *,
-  .dark button.bg-yellow-400 path,
-  .dark button.bg-yellow-400 circle,
-  .dark button.bg-yellow-400 rect,
-  .dark button.bg-yellow-400 line,
-  .dark button.bg-yellow-400 polyline,
-  .dark button.bg-yellow-400 polygon,
-  .dark button.bg-primary svg,
-  .dark button.bg-primary svg *,
-  .dark button.bg-primary path,
-  .dark button.bg-primary circle,
-  .dark button.bg-primary rect,
-  .dark button.bg-primary line,
-  .dark button.bg-primary polyline,
-  .dark button.bg-primary polygon {
-    color: oklch(0% 0 0) !important;
-    stroke: oklch(0% 0 0) !important;
-  }
-  
-  /* Dark mode: icons on transparent/outline buttons are light */
-  .dark button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(.bg-secondary) svg,
-  .dark button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(.bg-secondary) svg *,
-  .dark button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(.bg-secondary) path,
-  .dark button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(.bg-secondary) circle,
-  .dark button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(.bg-secondary) rect,
-  .dark button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(.bg-secondary) line,
-  .dark button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(.bg-secondary) polyline,
-  .dark button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(.bg-secondary) polygon {
-    color: var(--foreground) !important;
-    stroke: var(--foreground) !important;
-  }
+
+    /* Dark mode: accent hover (dark gray) needs light text */
+    .dark .hover\:bg-accent:hover,
+    .dark .hover\:bg-accent:hover * {
+        color: var(--accent-foreground) !important;
+    }
+
+    /* Dark mode: yellow/primary still gets black text */
+    .dark .bg-primary,
+    .dark .bg-primary *,
+    .dark .hover\:bg-primary:hover,
+    .dark .hover\:bg-primary:hover * {
+        color: var(--primary-foreground) !important;
+    }
+
+    /* Exception: Buttons keep their own variant colors in dark mode */
+    .dark button.bg-primary,
+    .dark button.bg-primary *,
+    .dark .hover\:bg-accent:hover button.bg-primary,
+    .dark .hover\:bg-accent:hover button.bg-primary * {
+        color: var(--primary-foreground) !important;
+    }
+
+    .dark button.bg-destructive,
+    .dark button.bg-destructive *,
+    .dark .hover\:bg-accent:hover button.bg-destructive,
+    .dark .hover\:bg-accent:hover button.bg-destructive * {
+        color: var(--destructive-foreground) !important;
+    }
+
+    .dark button[role="checkbox"] {
+        border-color: var(--primary) !important;
+    }
+
+    /* ============================================
+     INPUTS, SELECTS & OUTLINE BUTTONS - DARK MODE BORDERS
+     Ensure all components using border-input use the subtle theme border color
+     ============================================ */
+
+    .dark .border-input,
+    .dark input.border-input,
+    .dark select.border-input,
+    .dark textarea.border-input,
+    .dark button.border-input {
+        border-color: var(--border) !important;
+    }
+
+    /* Combobox triggers (role=combobox) should also align with subtle borders in dark mode */
+    .dark button[role="combobox"] {
+        border-color: var(--border) !important;
+    }
+
+    .dark button[role="checkbox"][data-state="checked"] {
+        background-color: var(--primary) !important;
+        border-color: var(--primary) !important;
+        color: var(--primary-foreground) !important;
+    }
+
+    /* Sidebar navigation */
+    .dark nav button:not(.bg-primary):not(:hover),
+    .dark nav button:not(.bg-primary):not(:hover) *,
+    .dark nav a:not(.bg-primary):not(:hover),
+    .dark nav a:not(.bg-primary):not(:hover) * {
+        color: var(--muted-foreground) !important;
+    }
+
+    .dark nav button:hover,
+    .dark nav button:hover *,
+    .dark nav a:hover,
+    .dark nav a:hover * {
+        color: var(--accent-foreground) !important;
+    }
+
+    .dark nav .bg-primary,
+    .dark nav .bg-primary * {
+        color: var(--primary-foreground) !important;
+    }
+
+    .dark .border-t button.text-destructive,
+    .dark .border-t button.text-destructive * {
+        color: var(--destructive) !important;
+    }
+
+    /* Dark mode: icons on colored backgrounds stay black */
+    .dark button.bg-yellow-400 svg,
+    .dark button.bg-yellow-400 svg *,
+    .dark button.bg-yellow-400 path,
+    .dark button.bg-yellow-400 circle,
+    .dark button.bg-yellow-400 rect,
+    .dark button.bg-yellow-400 line,
+    .dark button.bg-yellow-400 polyline,
+    .dark button.bg-yellow-400 polygon,
+    .dark button.bg-primary svg,
+    .dark button.bg-primary svg *,
+    .dark button.bg-primary path,
+    .dark button.bg-primary circle,
+    .dark button.bg-primary rect,
+    .dark button.bg-primary line,
+    .dark button.bg-primary polyline,
+    .dark button.bg-primary polygon {
+        color: oklch(0% 0 0) !important;
+        stroke: oklch(0% 0 0) !important;
+    }
+
+    /* Dark mode: icons on transparent/outline buttons are light */
+    .dark
+        button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(
+            .bg-secondary
+        )
+        svg,
+    .dark
+        button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(
+            .bg-secondary
+        )
+        svg
+        *,
+    .dark
+        button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(
+            .bg-secondary
+        )
+        path,
+    .dark
+        button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(
+            .bg-secondary
+        )
+        circle,
+    .dark
+        button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(
+            .bg-secondary
+        )
+        rect,
+    .dark
+        button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(
+            .bg-secondary
+        )
+        line,
+    .dark
+        button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(
+            .bg-secondary
+        )
+        polyline,
+    .dark
+        button:not(.bg-yellow-400):not(.bg-primary):not(.bg-destructive):not(
+            .bg-secondary
+        )
+        polygon {
+        color: var(--foreground) !important;
+        stroke: var(--foreground) !important;
+    }
 }
 
 /* ============================================
@@ -302,130 +430,136 @@
    ============================================ */
 
 :root {
-  --background: oklch(0.94 0.01 95.04);
-  --foreground: oklch(0% 0 0);
-  --main: oklch(84.08% 0.1725 84.2);
-  --border: oklch(0% 0 0);
-  
-  /* Shadcn compatibility */
-  --primary: oklch(84.08% 0.1725 84.2);
-  --primary-foreground: oklch(0% 0 0);
-  --card: oklch(0.94 0.01 95.04);
-  --card-foreground: oklch(0% 0 0);
-  --popover: oklch(0.94 0.01 95.04);
-  --popover-foreground: oklch(0% 0 0);
-  --secondary: oklch(0.8947 0.0111 95.18);
-  --secondary-foreground: oklch(0% 0 0);
-  --muted: oklch(0.8947 0.0111 95.18);
-  --muted-foreground: oklch(0.5 0 0);
-  --accent: oklch(0.8947 0.0111 95.18);
-  --accent-foreground: oklch(0% 0 0);
-  --destructive: oklch(0.63 0.23 25);
-  --destructive-foreground: oklch(0% 0 0);
-  --input: oklch(0.8947 0.0111 95.18);
-  --ring: oklch(0% 0 0);
-  --success: 0.72 0.12 145;
-  --success-foreground: 0.28 0.03 145;
-  --warning: 0.82 0.18 75;
-  --warning-foreground: 0.28 0.04 75;
-  --info: 0.68 0.09 235;
-  --info-foreground: 0.28 0.02 235;
-  --overlay: 0.18 0 0 / 0.72;
-  --radius: 0px;
-  
-  /* Calendar Colors */
-  --secondary-background: oklch(0.8947 0.0111 95.18);
-  --orange: oklch(0.70 0.17 50);
-  --color-accent-foreground: oklch(0% 0 0);
-  /* Calendar specific grays */
-  --calendar-holiday-bg: oklch(0.86 0.02 98.5); /* darker than weekend/input */
-  
-  /* Chart Colors - Material Types */
-  --chart-cartao: oklch(0.87 0.1 95);        /* Soft pastel yellow */
-  --chart-rigidos: oklch(0.47 0.08 230);     /* Muted teal blue */
-  --chart-flexiveis: oklch(0.65 0.1 140);    /* Earthy green */
-  --chart-neutral: oklch(0.77 0.02 75);      /* Warm beige */
-  --chart-critical: oklch(0.28 0.01 35);     /* Dark charcoal brown */
-  --chart-good: oklch(0.65 0.1 140);         /* Earthy green (same as flexiveis) */
-  
-  /* Chart Colors - Multi-purpose Palette */
-  --chart-1: oklch(0.47 0.08 230);           /* Muted teal blue */
-  --chart-2: oklch(0.65 0.1 140);            /* Earthy green */
-  --chart-3: oklch(0.87 0.1 95);             /* Soft pastel yellow */
-  --chart-4: oklch(0.77 0.02 75);            /* Warm beige */
-  --chart-5: oklch(0.28 0.01 35);            /* Dark charcoal brown */
-  --chart-6: oklch(0.62 0.1 235);            /* Sky blue */
-  --chart-7: oklch(0.58 0.15 35);            /* Burnt orange */
-  --chart-8: oklch(0.52 0.08 285);           /* Purple */
-  --chart-9: oklch(0.68 0.12 155);           /* Light green */
-  --chart-10: oklch(0.72 0.15 55);           /* Orange */
-  --chart-11: oklch(0.62 0.18 25);           /* Red-orange */
-  --chart-12: oklch(0.42 0.06 245);          /* Navy blue */
-  
-  color-scheme: light;
+    --background: oklch(0.94 0.01 95.04);
+    --foreground: oklch(0% 0 0);
+    --main: oklch(84.08% 0.1725 84.2);
+    --border: oklch(0% 0 0);
+
+    /* Shadcn compatibility */
+    --primary: oklch(84.08% 0.1725 84.2);
+    --primary-foreground: oklch(0% 0 0);
+    --card: oklch(0.94 0.01 95.04);
+    --card-foreground: oklch(0% 0 0);
+    --popover: oklch(0.94 0.01 95.04);
+    --popover-foreground: oklch(0% 0 0);
+    --secondary: oklch(0.8947 0.0111 95.18);
+    --secondary-foreground: oklch(0% 0 0);
+    --muted: oklch(0.8947 0.0111 95.18);
+    --muted-foreground: oklch(0.5 0 0);
+    --accent: oklch(0.8947 0.0111 95.18);
+    --accent-foreground: oklch(0% 0 0);
+    --destructive: oklch(0.63 0.23 25);
+    --destructive-foreground: oklch(0% 0 0);
+    --input: oklch(0.87 0.03 83.3 / 0.3); /* Input background - brownish tone */
+    --ring: oklch(0% 0 0);
+    --section-bg: transparent; /* Section background color */
+    --success: 0.72 0.12 145;
+    --success-foreground: 0.28 0.03 145;
+    --warning: 0.82 0.18 75;
+    --warning-foreground: 0.28 0.04 75;
+    --info: 0.68 0.09 235;
+    --info-foreground: 0.28 0.02 235;
+    --overlay: 0.18 0 0 / 0.72;
+    --radius: 0px;
+
+    /* Calendar Colors */
+    --secondary-background: oklch(0.8947 0.0111 95.18);
+    --orange: oklch(0.7 0.17 50);
+    --color-accent-foreground: oklch(0% 0 0);
+    /* Calendar specific grays */
+    --calendar-holiday-bg: oklch(
+        0.86 0.02 98.5
+    ); /* darker than weekend/input */
+
+    /* Chart Colors - Material Types */
+    --chart-cartao: oklch(0.87 0.1 95); /* Soft pastel yellow */
+    --chart-rigidos: oklch(0.47 0.08 230); /* Muted teal blue */
+    --chart-flexiveis: oklch(0.65 0.1 140); /* Earthy green */
+    --chart-neutral: oklch(0.77 0.02 75); /* Warm beige */
+    --chart-critical: oklch(0.28 0.01 35); /* Dark charcoal brown */
+    --chart-good: oklch(0.65 0.1 140); /* Earthy green (same as flexiveis) */
+
+    /* Chart Colors - Multi-purpose Palette */
+    --chart-1: oklch(0.47 0.08 230); /* Muted teal blue */
+    --chart-2: oklch(0.65 0.1 140); /* Earthy green */
+    --chart-3: oklch(0.87 0.1 95); /* Soft pastel yellow */
+    --chart-4: oklch(0.77 0.02 75); /* Warm beige */
+    --chart-5: oklch(0.28 0.01 35); /* Dark charcoal brown */
+    --chart-6: oklch(0.62 0.1 235); /* Sky blue */
+    --chart-7: oklch(0.58 0.15 35); /* Burnt orange */
+    --chart-8: oklch(0.52 0.08 285); /* Purple */
+    --chart-9: oklch(0.68 0.12 155); /* Light green */
+    --chart-10: oklch(0.72 0.15 55); /* Orange */
+    --chart-11: oklch(0.62 0.18 25); /* Red-orange */
+    --chart-12: oklch(0.42 0.06 245); /* Navy blue */
+
+    color-scheme: light;
 }
 
 .dark {
-  --background: oklch(0.31 0 0);
-  --foreground: oklch(0.85 0 0);
-  --main: oklch(84.08% 0.1725 84.2);
-  --border: oklch(0.50 0 0);
-  
-  /* Shadcn compatibility */
-  --primary: oklch(84.08% 0.1725 84.2);
-  --primary-foreground: oklch(0% 0 0);
-  --card: oklch(0.31 0 0);
-  
-  /* Calendar Colors */
-  --secondary-background: oklch(0.26 0 0 / 87.46%);
-  --orange: oklch(0.70 0.17 50);
-  --color-accent-foreground: oklch(0.85 0 0);
-  /* Calendar specific grays */
-  --calendar-holiday-bg: oklch(0.72 0.02 98.5); /* darker than weekend/input in dark */
-  --card-foreground: oklch(0.85 0 0);
-  --popover: oklch(0.31 0 0);
-  --popover-foreground: oklch(0.85 0 0);
-  --secondary: oklch(0.26 0 0 / 87.46%);
-  --secondary-foreground: oklch(0.85 0 0);
-  --muted: oklch(0.26 0 0 / 87.46%);
-  --muted-foreground: oklch(0.65 0 0);
-  --accent: oklch(0.40 0 0);
-  --accent-foreground: oklch(0.85 0 0);
-  --destructive: oklch(0.63 0.23 25);
-  --destructive-foreground: oklch(0% 0 0);
-  --input: oklch(0.45 0 0);
-  --ring: oklch(0.85 0 0);
-  --success: 0.7 0.12 145;
-  --success-foreground: 0.28 0.03 145;
-  --warning: 0.78 0.18 75;
-  --warning-foreground: 0.18 0.03 75;
-  --info: 0.66 0.09 235;
-  --info-foreground: 0.28 0.02 235;
-  --overlay: 0.2 0 0 / 0.7;
-  
-  /* Chart Colors - Material Types (same as light mode) */
-  --chart-cartao: oklch(0.87 0.1 95);
-  --chart-rigidos: oklch(0.47 0.08 230);
-  --chart-flexiveis: oklch(0.65 0.1 140);
-  --chart-neutral: oklch(0.77 0.02 75);
-  --chart-critical: oklch(0.28 0.01 35);
-  --chart-good: oklch(0.65 0.1 140);
-  
-  /* Chart Colors - Multi-purpose Palette (same as light mode) */
-  --chart-1: oklch(0.47 0.08 230);
-  --chart-2: oklch(0.65 0.1 140);
-  --chart-3: oklch(0.87 0.1 95);
-  --chart-4: oklch(0.77 0.02 75);
-  --chart-5: oklch(0.28 0.01 35);
-  --chart-6: oklch(0.62 0.1 235);
-  --chart-7: oklch(0.58 0.15 35);
-  --chart-8: oklch(0.52 0.08 285);
-  --chart-9: oklch(0.68 0.12 155);
-  --chart-10: oklch(0.72 0.15 55);
-  --chart-11: oklch(0.62 0.18 25);
-  --chart-12: oklch(0.42 0.06 245);
-  
-  color-scheme: dark;
+    --background: oklch(0.24 0 0);
+    --foreground: oklch(0.85 0 0);
+    --main: oklch(84.08% 0.1725 84.2);
+    --border: oklch(0.5 0 0);
+
+    /* Shadcn compatibility */
+    --primary: oklch(84.08% 0.1725 84.2);
+    --primary-foreground: oklch(0% 0 0);
+    --card: oklch(0.31 0 0);
+
+    /* Calendar Colors */
+    --secondary-background: oklch(0.26 0 0 / 87.46%);
+    --orange: oklch(0.7 0.17 50);
+    --color-accent-foreground: oklch(0.85 0 0);
+    /* Calendar specific grays */
+    --calendar-holiday-bg: oklch(
+        0.72 0.02 98.5
+    ); /* darker than weekend/input in dark */
+    --card-foreground: oklch(0.85 0 0);
+    --popover: oklch(0.31 0 0);
+    --popover-foreground: oklch(0.85 0 0);
+    --secondary: oklch(0.26 0 0 / 87.46%);
+    --secondary-foreground: oklch(0.85 0 0);
+    --muted: oklch(0.24 0 0 / 87.46%);
+    --muted-foreground: oklch(0.65 0 0);
+    --accent: oklch(0.4 0 0);
+    --accent-foreground: oklch(0.85 0 0);
+    --destructive: oklch(0.63 0.23 25);
+    --destructive-foreground: oklch(0% 0 0);
+    --input: oklch(0.34 0 0);
+    --ring: oklch(0.85 0 0);
+    --section-bg: transparent; /* Section background color (dark mode) */
+    --success: 0.7 0.12 145;
+    --success-foreground: 0.28 0.03 145;
+    --warning: 0.78 0.18 75;
+    --warning-foreground: 0.18 0.03 75;
+    --info: 0.66 0.09 235;
+    --info-foreground: 0.28 0.02 235;
+    --overlay: 0.2 0 0 / 0.7;
+
+    /* Chart Colors - Material Types (same as light mode) */
+    --chart-cartao: oklch(0.87 0.1 95);
+    --chart-rigidos: oklch(0.47 0.08 230);
+    --chart-flexiveis: oklch(0.65 0.1 140);
+    --chart-neutral: oklch(0.77 0.02 75);
+    --chart-critical: oklch(0.28 0.01 35);
+    --chart-good: oklch(0.65 0.1 140);
+
+    /* Chart Colors - Multi-purpose Palette (same as light mode) */
+    --chart-1: oklch(0.47 0.08 230);
+    --chart-2: oklch(0.65 0.1 140);
+    --chart-3: oklch(0.87 0.1 95);
+    --chart-4: oklch(0.77 0.02 75);
+    --chart-5: oklch(0.28 0.01 35);
+    --chart-6: oklch(0.62 0.1 235);
+    --chart-7: oklch(0.58 0.15 35);
+    --chart-8: oklch(0.52 0.08 285);
+    --chart-9: oklch(0.68 0.12 155);
+    --chart-10: oklch(0.72 0.15 55);
+    --chart-11: oklch(0.62 0.18 25);
+    --chart-12: oklch(0.42 0.06 245);
+
+    color-scheme: dark;
 }
 
 /* ============================================
@@ -433,29 +567,29 @@
    ============================================ */
 
 ::-webkit-scrollbar {
-  width: 12px;
-  background: var(--border);
+    width: 12px;
+    background: var(--border);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--main);
-  border-radius: 0;
+    background: var(--main);
+    border-radius: 0;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--primary);
+    background: var(--primary);
 }
 
 .dark ::-webkit-scrollbar {
-  background: var(--main);
+    background: var(--main);
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: var(--border);
+    background: var(--border);
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: var(--secondary);
+    background: var(--secondary);
 }
 
 /* ============================================
@@ -464,226 +598,241 @@
 
 input:-webkit-autofill,
 input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 1000px var(--input) inset !important;
-  -webkit-text-fill-color: var(--foreground) !important;
+    -webkit-box-shadow: 0 0 0 1000px var(--input) inset !important;
+    -webkit-text-fill-color: var(--foreground) !important;
 }
-
-
 
 /* ============================================
    CALENDAR STYLING
    ============================================ */
 
 .calendar-wrapper {
-  --rdp-day-height: 48px;
-  --rdp-day-width: 48px;
+    --rdp-day-height: 48px;
+    --rdp-day-width: 48px;
 }
 
 .rdp {
-  /* Ensure consistent sizing even when not wrapped */
-  --rdp-day-height: var(--rdp-day-height, 48px);
-  --rdp-day-width: var(--rdp-day-width, 48px);
-  --rdp-accent-color: var(--orange);
-  --rdp-accent-background-color: var(--orange);
-  --rdp-accent-foreground-color: oklch(0% 0 0);
-  --rdp-background-color: var(--background);
-  --rdp-outline: 0;
-  --rdp-outline-selected: 0;
-  background-color: var(--background) !important;
-  color: var(--foreground) !important;
-  border: none !important;
-  font-size: 14px;
+    /* Ensure consistent sizing even when not wrapped */
+    --rdp-day-height: var(--rdp-day-height, 48px);
+    --rdp-day-width: var(--rdp-day-width, 48px);
+    --rdp-accent-color: var(--orange);
+    --rdp-accent-background-color: var(--orange);
+    --rdp-accent-foreground-color: oklch(0% 0 0);
+    --rdp-background-color: var(--background);
+    --rdp-outline: 0;
+    --rdp-outline-selected: 0;
+    background-color: var(--background) !important;
+    color: var(--foreground) !important;
+    border: none !important;
+    font-size: 14px;
 }
 
 .rdp-months,
 .rdp-month {
-  width: auto !important;
+    width: auto !important;
 }
 
 .rdp-weekday {
-  font-size: 14px;
-  font-weight: 700;
-  color: oklch(0% 0 0) !important;
+    font-size: 14px;
+    font-weight: 700;
+    color: oklch(0% 0 0) !important;
 }
 
 .rdp-nav {
-  display: none !important;
+    display: none !important;
 }
 
 /* Show and style navigation chevrons inside date-picker popovers */
-.calendar-popover .rdp-caption { padding-right: 36px; }
+.calendar-popover .rdp-caption {
+    padding-right: 36px;
+}
 /* Add breathing room under month caption so header row aligns cleanly */
 .calendar-popover .rdp-caption,
 .calendar-wrapper .rdp-caption,
 .rdp .rdp-caption {
-  margin-bottom: 6px !important;
+    margin-bottom: 6px !important;
 }
 
 .calendar-popover .rdp-caption_label,
 .calendar-wrapper .rdp-caption_label {
-  display: inline-block;
-  padding-bottom: 2px; /* subtle visual separation from weekdays */
+    display: inline-block;
+    padding-bottom: 2px; /* subtle visual separation from weekdays */
 }
 
 /* Anchor nav to the month container so it stays aligned with caption */
-.calendar-popover .rdp-month { position: relative; }
+.calendar-popover .rdp-month {
+    position: relative;
+}
 
 .calendar-popover .rdp-nav {
-  display: flex !important;
-  position: absolute;
-  right: 6px;
-  top: 10px; /* align with month caption */
-  gap: 4px;
+    display: flex !important;
+    position: absolute;
+    right: 6px;
+    top: 10px; /* align with month caption */
+    gap: 4px;
 }
 
 .calendar-popover .rdp-nav button {
-  width: 18px;
-  height: 18px;
-  padding: 0 !important;
-  border: none !important;
-  background-color: transparent !important;
-  color: var(--foreground) !important;
-  border-radius: 0 !important;
-  outline: none !important;
-  box-shadow: none !important;
+    width: 18px;
+    height: 18px;
+    padding: 0 !important;
+    border: none !important;
+    background-color: transparent !important;
+    color: var(--foreground) !important;
+    border-radius: 0 !important;
+    outline: none !important;
+    box-shadow: none !important;
 }
 
 .calendar-popover .rdp-nav button:hover,
 .calendar-popover .rdp-nav button:active,
 .calendar-popover .rdp-nav button:focus {
-  background-color: transparent !important;
-  color: var(--foreground) !important;
+    background-color: transparent !important;
+    color: var(--foreground) !important;
 }
 
 .calendar-popover .rdp-nav button svg {
-  width: 14px;
-  height: 14px;
+    width: 14px;
+    height: 14px;
 }
 
 .calendar-popover .rdp-nav button svg,
 .calendar-popover .rdp-nav button svg *,
 .calendar-popover .rdp-nav button path {
-  color: var(--foreground) !important;
-  stroke: var(--foreground) !important;
-  fill: var(--foreground) !important;
+    color: var(--foreground) !important;
+    stroke: var(--foreground) !important;
+    fill: var(--foreground) !important;
 }
 
 .rdp-day {
-  width: var(--rdp-day-width);
-  height: var(--rdp-day-height);
-  padding: 0 !important;
-  border: none !important;
-  background-color: transparent;
+    width: var(--rdp-day-width);
+    height: var(--rdp-day-height);
+    padding: 0 !important;
+    border: none !important;
+    background-color: transparent;
 }
 
 .rdp-day_button {
-  width: 100%;
-  height: 100%;
-  border: none !important;
-  background-color: transparent !important;
-  color: var(--foreground) !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 !important;
-  font-size: 14px;
+    width: 100%;
+    height: 100%;
+    border: none !important;
+    background-color: transparent !important;
+    color: var(--foreground) !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 !important;
+    font-size: 14px;
 }
 
 .rdp-day_button:hover {
-  background-color: var(--accent) !important;
-  color: var(--foreground) !important;
+    background-color: var(--accent) !important;
+    color: var(--foreground) !important;
 }
 
-.rdp-weekend:not(.rdp-day_selected):not([data-selected='true']),
-.rdp-day_weekend:not(.rdp-day_selected):not([data-selected='true']),
-[data-weekend='true']:not([data-selected='true']) {
-  background-color: var(--input) !important;
-  color: var(--foreground) !important;
+.rdp-weekend:not(.rdp-day_selected):not([data-selected="true"]),
+.rdp-day_weekend:not(.rdp-day_selected):not([data-selected="true"]),
+[data-weekend="true"]:not([data-selected="true"]) {
+    background-color: var(--input) !important;
+    color: var(--foreground) !important;
 }
 
 .rdp-day_selected,
 .rdp-day_selected:hover,
-.rdp-day[data-selected='true'],
-.rdp-day[data-selected='true']:hover,
+.rdp-day[data-selected="true"],
+.rdp-day[data-selected="true"]:hover,
 .rdp .rdp-selected,
 .rdp .rdp-selected:hover {
-  background-color: var(--orange) !important;
-  color: oklch(0% 0 0) !important;
-  border: none !important;
+    background-color: var(--orange) !important;
+    color: oklch(0% 0 0) !important;
+    border: none !important;
 }
 
 .rdp-day_selected .rdp-day_button,
 .rdp .rdp-selected .rdp-day_button {
-  color: oklch(0% 0 0) !important;
+    color: oklch(0% 0 0) !important;
 }
 
-.rdp-holiday:not(.rdp-day_selected):not([data-selected='true']),
-.rdp-holiday:not(.rdp-day_selected):not([data-selected='true']) .rdp-day_button,
-.rdp-day_holiday:not(.rdp-day_selected):not([data-selected='true']),
-.rdp-day_holiday:not(.rdp-day_selected):not([data-selected='true']) .rdp-day_button,
-[data-holiday='true']:not([data-selected='true']),
-[data-holiday='true']:not([data-selected='true']) .rdp-day_button {
-  background-color: var(--calendar-holiday-bg) !important;
-  color: var(--foreground) !important;
-  font-weight: 700 !important;
+.rdp-holiday:not(.rdp-day_selected):not([data-selected="true"]),
+.rdp-holiday:not(.rdp-day_selected):not([data-selected="true"]) .rdp-day_button,
+.rdp-day_holiday:not(.rdp-day_selected):not([data-selected="true"]),
+.rdp-day_holiday:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button,
+[data-holiday="true"]:not([data-selected="true"]),
+[data-holiday="true"]:not([data-selected="true"]) .rdp-day_button {
+    background-color: var(--calendar-holiday-bg) !important;
+    color: var(--foreground) !important;
+    font-weight: 700 !important;
 }
 
 /* Dark mode: Holiday text should be black */
-.dark .rdp-holiday:not(.rdp-day_selected):not([data-selected='true']),
-.dark .rdp-holiday:not(.rdp-day_selected):not([data-selected='true']) .rdp-day_button,
-.dark .rdp-day_holiday:not(.rdp-day_selected):not([data-selected='true']),
-.dark .rdp-day_holiday:not(.rdp-day_selected):not([data-selected='true']) .rdp-day_button,
-.dark [data-holiday='true']:not([data-selected='true']),
-.dark [data-holiday='true']:not([data-selected='true']) .rdp-day_button {
-  color: oklch(0% 0 0) !important;
+.dark .rdp-holiday:not(.rdp-day_selected):not([data-selected="true"]),
+.dark
+    .rdp-holiday:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button,
+.dark .rdp-day_holiday:not(.rdp-day_selected):not([data-selected="true"]),
+.dark
+    .rdp-day_holiday:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button,
+.dark [data-holiday="true"]:not([data-selected="true"]),
+.dark [data-holiday="true"]:not([data-selected="true"]) .rdp-day_button {
+    color: oklch(0% 0 0) !important;
 }
 
 /* Ensure holiday wins when it coincides with weekend */
-.rdp-weekend.rdp-holiday:not(.rdp-day_selected):not([data-selected='true']),
-.rdp-weekend.rdp-holiday:not(.rdp-day_selected):not([data-selected='true']) .rdp-day_button,
+.rdp-weekend.rdp-holiday:not(.rdp-day_selected):not([data-selected="true"]),
+.rdp-weekend.rdp-holiday:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button,
 .rdp .rdp-holiday > .rdp-day_button,
 .rdp .rdp-weekend.rdp-holiday > .rdp-day_button,
-.rdp [data-weekend='true'][data-holiday='true']:not([data-selected='true']) {
-  background-color: var(--calendar-holiday-bg) !important;
-  color: var(--foreground) !important;
+.rdp [data-weekend="true"][data-holiday="true"]:not([data-selected="true"]) {
+    background-color: var(--calendar-holiday-bg) !important;
+    color: var(--foreground) !important;
 }
 
 /* Dark mode: Holiday text should be black even when coinciding with weekend */
-.dark .rdp-weekend.rdp-holiday:not(.rdp-day_selected):not([data-selected='true']),
-.dark .rdp-weekend.rdp-holiday:not(.rdp-day_selected):not([data-selected='true']) .rdp-day_button,
+.dark
+    .rdp-weekend.rdp-holiday:not(.rdp-day_selected):not([data-selected="true"]),
+.dark
+    .rdp-weekend.rdp-holiday:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button,
 .dark .rdp .rdp-holiday > .rdp-day_button,
 .dark .rdp .rdp-weekend.rdp-holiday > .rdp-day_button,
-.dark .rdp [data-weekend='true'][data-holiday='true']:not([data-selected='true']) {
-  color: oklch(0% 0 0) !important;
+.dark
+    .rdp
+    [data-weekend="true"][data-holiday="true"]:not([data-selected="true"]) {
+    color: oklch(0% 0 0) !important;
 }
 
-.rdp .rdp-today:not(.rdp-day_selected):not([data-selected='true']) {
-  background-color: var(--orange) !important;
+.rdp .rdp-today:not(.rdp-day_selected):not([data-selected="true"]) {
+    background-color: var(--orange) !important;
 }
 
-.rdp .rdp-today:not(.rdp-day_selected):not([data-selected='true']) .rdp-day_button {
-  color: oklch(0% 0 0) !important;
+.rdp
+    .rdp-today:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button {
+    color: oklch(0% 0 0) !important;
 }
 
 /* Today via ARIA attribute on the button (covers all locales/popovers) */
-.rdp [aria-current='date']:not([data-selected='true']) {
-  background-color: var(--orange) !important;
-  color: oklch(0% 0 0) !important;
+.rdp [aria-current="date"]:not([data-selected="true"]) {
+    background-color: var(--orange) !important;
+    color: oklch(0% 0 0) !important;
 }
 
 .rdp button:focus,
 .rdp button:focus-visible {
-  outline: none !important;
-  box-shadow: none !important;
+    outline: none !important;
+    box-shadow: none !important;
 }
 
 .rdp button {
-  border-radius: 0 !important;
-  background-color: transparent !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
 }
 
-.rdp button:hover:not([data-selected='true']) {
-  background-color: var(--accent) !important;
+.rdp button:hover:not([data-selected="true"]) {
+    background-color: var(--accent) !important;
 }
 
 /* ============================================
@@ -691,15 +840,17 @@ input:-webkit-autofill:focus {
    ============================================ */
 
 /* Keep TODAY color on hover the same as its base color */
-.rdp .rdp-today:not(.rdp-day_selected):not([data-selected='true']) .rdp-day_button:hover,
-.rdp [aria-current='date']:not([data-selected='true']):hover {
-  background-color: var(--orange) !important;
-  color: oklch(0% 0 0) !important;
+.rdp
+    .rdp-today:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button:hover,
+.rdp [aria-current="date"]:not([data-selected="true"]):hover {
+    background-color: var(--orange) !important;
+    color: oklch(0% 0 0) !important;
 }
 
 .text-tiny {
-  font-size: 13px !important;
-  line-height: 1.4 !important;
+    font-size: 13px !important;
+    line-height: 1.4 !important;
 }
 
 /* ============================================
@@ -708,56 +859,58 @@ input:-webkit-autofill:focus {
 
 /* Compact table density matching /producao */
 .imx-table-compact {
-  /* tailwind text-sm */
-  font-size: 0.875rem !important;
-  line-height: 1.25rem !important;
+    /* tailwind text-sm */
+    font-size: 0.875rem !important;
+    line-height: 1.25rem !important;
 }
 
 .imx-table-compact td,
 .imx-table-compact th {
-  /* px-3 py-2 */
-  padding: 0.5rem 0.75rem !important;
+    /* px-3 py-2 */
+    padding: 0.5rem 0.75rem !important;
 }
 
 /* Standard row hover behavior */
 .imx-row-hover {
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
-  transition-duration: 150ms;
+    transition-property:
+        color, background-color, border-color, text-decoration-color, fill,
+        stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+    transition-duration: 150ms;
 }
 
 .imx-row-hover:hover {
-  /* tailwind bg-accent */
-  background-color: var(--accent) !important;
+    /* tailwind bg-accent */
+    background-color: var(--accent) !important;
 }
 
 /* Ensure text color on custom hover matches accent behavior */
 .imx-row-hover:hover,
 .imx-row-hover:hover * {
-  color: var(--accent-foreground) !important;
+    color: var(--accent-foreground) !important;
 }
 
 /* Page and section spacing wrappers */
 .imx-page-stack {
-  width: 100% !important;
-  /* tailwind space-y-6 */
+    width: 100% !important;
+    /* tailwind space-y-6 */
 }
 
 .imx-page-stack > * + * {
-  margin-top: 1.5rem !important;
+    margin-top: 1.5rem !important;
 }
 
 .imx-section-stack > * + * {
-  /* tailwind space-y-4 */
-  margin-top: 1rem !important;
+    /* tailwind space-y-4 */
+    margin-top: 1rem !important;
 }
 
 .imx-table-wrap {
-  width: 100% !important;
-  background-color: var(--background) !important;
+    width: 100% !important;
+    background-color: var(--background) !important;
 }
 
 /* Center table cells that contain checkboxes (applies globally) */
 td:has([role="checkbox"]),
 th:has([role="checkbox"]) {
-  text-align: center !important;
+    text-align: center !important;
 }

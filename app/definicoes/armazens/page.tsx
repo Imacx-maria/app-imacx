@@ -251,9 +251,9 @@ export default function ArmazensPage() {
             />
             {nameFilter && (
               <Button
-                variant="ghost"
+                variant="default"
                 size="icon"
-                className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
+                className="absolute right-0 top-0 h-10 w-10"
                 onClick={() => setNameFilter('')}
               >
                 <XSquare className="h-4 w-4" />

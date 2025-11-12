@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect } from "react";
 import {
   Eye,
   CheckCircle2,
@@ -7,20 +7,20 @@ import {
   ArrowDown,
   Plus,
   Copy,
-} from 'lucide-react'
-import DatePicker from '@/components/ui/DatePicker'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Input } from '@/components/ui/input'
+} from "lucide-react";
+import DatePicker from "@/components/ui/DatePicker";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
-import SimpleNotasPopover from '@/components/custom/SimpleNotasPopover'
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import SimpleNotasPopover from "@/components/custom/SimpleNotasPopover";
 import {
   Table,
   TableBody,
@@ -28,39 +28,44 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
+} from "@/components/ui/table";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip'
-import type { ProductionOperationWithRelations } from '@/types/producao'
-import { useTableData } from '@/hooks/useTableData'
-import { useMaterialsCascading } from '@/hooks/useMaterialsCascading'
-import type { MaterialData } from '@/hooks/useMaterialsCascading'
+} from "@/components/ui/tooltip";
+import type { ProductionOperationWithRelations } from "@/types/producao";
+import { useTableData } from "@/hooks/useTableData";
+import { useMaterialsCascading } from "@/hooks/useMaterialsCascading";
+import type { MaterialData } from "@/hooks/useMaterialsCascading";
+import {
+  CopyButton,
+  DeleteButton,
+  ActionColumn,
+} from "@/components/custom/ActionButtons";
 
 interface OperationsTableProps {
-  operations: ProductionOperationWithRelations[]
-  loading: boolean
-  onEdit: (operation: ProductionOperationWithRelations) => void
-  onComplete: (operationId: string) => void
-  onDelete: (operationId: string) => void
-  sortColumn: string
-  sortDirection: 'asc' | 'desc'
-  onSort: (column: string) => void
-  onFieldChange?: (operationId: string, field: string, value: any) => void
+  operations: ProductionOperationWithRelations[];
+  loading: boolean;
+  onEdit: (operation: ProductionOperationWithRelations) => void;
+  onComplete: (operationId: string) => void;
+  onDelete: (operationId: string) => void;
+  sortColumn: string;
+  sortDirection: "asc" | "desc";
+  onSort: (column: string) => void;
+  onFieldChange?: (operationId: string, field: string, value: any) => void;
 }
 
 // Interface for tracking material selections per operation
 interface MaterialSelection {
-  material?: string
-  carateristica?: string
-  cor?: string
-  details?: MaterialData | null
+  material?: string;
+  carateristica?: string;
+  cor?: string;
+  details?: MaterialData | null;
 }
 
-type MaterialSelections = Record<string, MaterialSelection>
+type MaterialSelections = Record<string, MaterialSelection>;
 
 export const OperationsTable: React.FC<OperationsTableProps> = ({
   operations,
@@ -79,7 +84,7 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
     machines,
     loading: dataLoading,
     error: dataError,
-  } = useTableData()
+  } = useTableData();
 
   // Hook to fetch materials with cascading functionality
   const {
@@ -89,91 +94,91 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
     getMaterialId,
     loading: materialsLoading,
     materialsData, // Add this to access the raw materials data
-  } = useMaterialsCascading()
+  } = useMaterialsCascading();
 
   // State to track material selections per operation row
   const [materialSelections, setMaterialSelections] =
-    useState<MaterialSelections>({})
+    useState<MaterialSelections>({});
   const findMaterialDetails = useCallback(
     (material?: string, carateristica?: string, cor?: string) => {
-      if (!material) return null
+      if (!material) return null;
 
       return (
         materialsData.find((item) => {
-          if (item.material !== material) return false
+          if (item.material !== material) return false;
           if (carateristica && item.carateristica !== carateristica) {
-            return false
+            return false;
           }
           if (cor && item.cor !== cor) {
-            return false
+            return false;
           }
-          return true
+          return true;
         }) || null
-      )
+      );
     },
     [materialsData],
-  )
+  );
 
   // State to track input field values per operation row
   const [fieldValues, setFieldValues] = useState<{
-    [operationId: string]: { [field: string]: any }
-  }>({})
+    [operationId: string]: { [field: string]: any };
+  }>({});
 
   // Initialize material selections with existing data when operations change
   React.useEffect(() => {
-    const newSelections: MaterialSelections = {}
+    const newSelections: MaterialSelections = {};
 
     operations.forEach((operation) => {
-      const materialId = (operation as any).material_id
+      const materialId = (operation as any).material_id;
       if (materialId) {
         // Find the material data based on the stored material_id
         const foundMaterial = materialsData.find(
           (m: any) => m.id === materialId,
-        )
+        );
         if (foundMaterial) {
           newSelections[operation.id] = {
             material: foundMaterial.material ?? undefined,
             carateristica: foundMaterial.carateristica ?? undefined,
             cor: foundMaterial.cor ?? undefined,
             details: foundMaterial,
-          }
+          };
         }
       }
-    })
+    });
 
-    setMaterialSelections(newSelections)
+    setMaterialSelections(newSelections);
 
     // Initialize field values with existing data
     const newFieldValues: { [operationId: string]: { [field: string]: any } } =
-      {}
+      {};
     operations.forEach((operation) => {
       newFieldValues[operation.id] = {
         num_placas_print: (operation as any).num_placas_print || 0,
         num_placas_corte: (operation as any).num_placas_corte || 0,
-        observacoes: (operation as any).observacoes || '',
-        no_interno: (operation as any).no_interno || '',
-      }
-    })
-    setFieldValues(newFieldValues)
-  }, [operations, materialsData])
+        observacoes: (operation as any).observacoes || "",
+        no_interno: (operation as any).no_interno || "",
+      };
+    });
+    setFieldValues(newFieldValues);
+  }, [operations, materialsData]);
 
   // Handler for material selection changes
   const handleMaterialChange = useCallback(
     (
       operationId: string,
-      field: 'material' | 'carateristica' | 'cor',
+      field: "material" | "carateristica" | "cor",
       value: string,
     ) => {
       setMaterialSelections((prev) => {
-        const currentSelection = prev[operationId] || {}
+        const currentSelection = prev[operationId] || {};
 
         // When material changes, reset características and cor
-        if (field === 'material') {
-          const newSelection = { material: value }
+        if (field === "material") {
+          const newSelection = { material: value };
 
           // Also send the material ID to the database
-          const materialId = getMaterialId(value || undefined)
-          onFieldChange?.(operationId, 'material_id', materialId ?? null)
+          const materialId = getMaterialId(value || undefined);
+          onFieldChange?.(operationId, "material_id", materialId ?? null);
 
           return {
             ...prev,
@@ -183,23 +188,23 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
               cor: undefined,
               details: findMaterialDetails(value),
             },
-          }
+          };
         }
 
         // When características changes, reset cor but keep material
-        if (field === 'carateristica') {
+        if (field === "carateristica") {
           const newSelection = {
             ...currentSelection,
             carateristica: value,
             cor: undefined, // Reset color when characteristic changes
-          }
+          };
 
           // Send updated material ID based on material + characteristic
           const materialId = getMaterialId(
             currentSelection.material || undefined,
             value || undefined,
-          )
-          onFieldChange?.(operationId, 'material_id', materialId ?? null)
+          );
+          onFieldChange?.(operationId, "material_id", materialId ?? null);
 
           return {
             ...prev,
@@ -207,20 +212,20 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
               ...newSelection,
               details: findMaterialDetails(currentSelection.material, value),
             },
-          }
+          };
         }
 
         // When cor changes, keep material and características
-        if (field === 'cor') {
-          const newSelection = { ...currentSelection, cor: value }
+        if (field === "cor") {
+          const newSelection = { ...currentSelection, cor: value };
 
           // Send final material ID based on complete selection
           const materialId = getMaterialId(
             currentSelection.material || undefined,
             currentSelection.carateristica || undefined,
             value || undefined,
-          )
-          onFieldChange?.(operationId, 'material_id', materialId ?? null)
+          );
+          onFieldChange?.(operationId, "material_id", materialId ?? null);
 
           return {
             ...prev,
@@ -232,17 +237,17 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                 value,
               ),
             },
-          }
+          };
         }
 
-        return prev
-      })
+        return prev;
+      });
     },
     [findMaterialDetails, getMaterialId, onFieldChange],
-  )
+  );
   useEffect(() => {
     setMaterialSelections((prev) => {
-      const updated: MaterialSelections = {}
+      const updated: MaterialSelections = {};
       Object.entries(prev).forEach(([operationId, selection]) => {
         updated[operationId] = {
           ...selection,
@@ -251,11 +256,11 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
             selection.carateristica,
             selection.cor,
           ),
-        }
-      })
-      return updated
-    })
-  }, [findMaterialDetails, materialsData])
+        };
+      });
+      return updated;
+    });
+  }, [findMaterialDetails, materialsData]);
 
   // Handler for input field changes (maintains local state)
   const handleInputFieldChange = useCallback(
@@ -267,32 +272,32 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
           ...prev[operationId],
           [field]: value,
         },
-      }))
+      }));
 
       // Call the database update
-      onFieldChange?.(operationId, field, value)
+      onFieldChange?.(operationId, field, value);
     },
     [onFieldChange],
-  )
+  );
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-PT', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    })
-  }
+    return new Date(dateString).toLocaleDateString("pt-PT", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
 
   const formatTime = (timeString?: string | null) => {
-    if (!timeString) return '-'
-    return timeString.slice(0, 5) // HH:MM
-  }
+    if (!timeString) return "-";
+    return timeString.slice(0, 5); // HH:MM
+  };
 
   const handleComplete = (operation: ProductionOperationWithRelations) => {
     if (window.confirm(`Concluir operação ${operation.no_interno}?`)) {
-      onComplete(operation.id)
+      onComplete(operation.id);
     }
-  }
+  };
 
   const handleDelete = (operation: ProductionOperationWithRelations) => {
     if (
@@ -300,27 +305,27 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
         `Tem certeza que deseja excluir a operação ${operation.no_interno}?`,
       )
     ) {
-      onDelete(operation.id)
+      onDelete(operation.id);
     }
-  }
+  };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
         <div className="text-gray-500">Carregando...</div>
       </div>
-    )
+    );
   }
 
   return (
-    <div className="border-border border bg-white shadow">
+    <div className="border border-border bg-background shadow">
       <div className="overflow-x-auto">
         <Table className="w-full table-fixed border-0 uppercase [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
           <TableHeader className="bg-[var(--orange)]">
             <TableRow>
               <TableHead
                 className="w-[180px] cursor-pointer py-2 text-xs font-bold uppercase select-none"
-                onClick={() => onSort('data_operacao')}
+                onClick={() => onSort("data_operacao")}
               >
                 <div className="flex items-center justify-between">
                   <TooltipProvider>
@@ -334,9 +339,9 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                     </Tooltip>
                   </TooltipProvider>
 
-                  {sortColumn === 'data_operacao' && (
+                  {sortColumn === "data_operacao" && (
                     <span>
-                      {sortDirection === 'asc' ? (
+                      {sortDirection === "asc" ? (
                         <ArrowUp size={14} />
                       ) : (
                         <ArrowDown size={14} />
@@ -347,7 +352,7 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
               </TableHead>
               <TableHead
                 className="w-[100px] cursor-pointer py-2 text-xs font-bold uppercase select-none"
-                onClick={() => onSort('folhas_obras.numero_fo')}
+                onClick={() => onSort("folhas_obras.numero_fo")}
               >
                 <div className="flex items-center justify-between">
                   <TooltipProvider>
@@ -361,9 +366,9 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                     </Tooltip>
                   </TooltipProvider>
 
-                  {sortColumn === 'folhas_obras.numero_fo' && (
+                  {sortColumn === "folhas_obras.numero_fo" && (
                     <span>
-                      {sortDirection === 'asc' ? (
+                      {sortDirection === "asc" ? (
                         <ArrowUp size={14} />
                       ) : (
                         <ArrowDown size={14} />
@@ -374,7 +379,7 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
               </TableHead>
               <TableHead
                 className="w-[120px] cursor-pointer py-2 text-xs font-bold uppercase select-none"
-                onClick={() => onSort('operador_id')}
+                onClick={() => onSort("operador_id")}
               >
                 <div className="flex items-center justify-between">
                   <TooltipProvider>
@@ -388,9 +393,9 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                     </Tooltip>
                   </TooltipProvider>
 
-                  {sortColumn === 'operador_id' && (
+                  {sortColumn === "operador_id" && (
                     <span>
-                      {sortDirection === 'asc' ? (
+                      {sortDirection === "asc" ? (
                         <ArrowUp size={14} />
                       ) : (
                         <ArrowDown size={14} />
@@ -407,7 +412,7 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
               </TableHead>
               <TableHead
                 className="w-[100px] cursor-pointer py-2 text-xs font-bold uppercase select-none"
-                onClick={() => onSort('no_interno')}
+                onClick={() => onSort("no_interno")}
               >
                 <div className="flex items-center justify-between">
                   <TooltipProvider>
@@ -421,9 +426,9 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                     </Tooltip>
                   </TooltipProvider>
 
-                  {sortColumn === 'no_interno' && (
+                  {sortColumn === "no_interno" && (
                     <span>
-                      {sortDirection === 'asc' ? (
+                      {sortDirection === "asc" ? (
                         <ArrowUp size={14} />
                       ) : (
                         <ArrowDown size={14} />
@@ -467,7 +472,7 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
               </TableHead>
               <TableHead
                 className="w-[90px] cursor-pointer px-2 py-2 text-right text-xs font-bold uppercase select-none"
-                onClick={() => onSort('num_placas_print')}
+                onClick={() => onSort("num_placas_print")}
               >
                 <div className="flex items-center justify-between">
                   <TooltipProvider>
@@ -481,9 +486,9 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                     </Tooltip>
                   </TooltipProvider>
 
-                  {sortColumn === 'num_placas_print' && (
+                  {sortColumn === "num_placas_print" && (
                     <span>
-                      {sortDirection === 'asc' ? (
+                      {sortDirection === "asc" ? (
                         <ArrowUp size={14} />
                       ) : (
                         <ArrowDown size={14} />
@@ -494,7 +499,7 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
               </TableHead>
               <TableHead
                 className="w-[90px] cursor-pointer px-2 py-2 text-right text-xs font-bold uppercase select-none"
-                onClick={() => onSort('num_placas_corte')}
+                onClick={() => onSort("num_placas_corte")}
               >
                 <div className="flex items-center justify-between">
                   <TooltipProvider>
@@ -508,9 +513,9 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                     </Tooltip>
                   </TooltipProvider>
 
-                  {sortColumn === 'num_placas_corte' && (
+                  {sortColumn === "num_placas_corte" && (
                     <span>
-                      {sortDirection === 'asc' ? (
+                      {sortDirection === "asc" ? (
                         <ArrowUp size={14} />
                       ) : (
                         <ArrowDown size={14} />
@@ -524,7 +529,7 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
               </TableHead>
               <TableHead
                 className="w-[100px] cursor-pointer py-2 text-xs font-bold uppercase select-none"
-                onClick={() => onSort('concluido')}
+                onClick={() => onSort("concluido")}
               >
                 <div className="flex items-center justify-between">
                   <TooltipProvider>
@@ -538,9 +543,9 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                     </Tooltip>
                   </TooltipProvider>
 
-                  {sortColumn === 'concluido' && (
+                  {sortColumn === "concluido" && (
                     <span>
-                      {sortDirection === 'asc' ? (
+                      {sortDirection === "asc" ? (
                         <ArrowUp size={14} />
                       ) : (
                         <ArrowDown size={14} />
@@ -566,8 +571,8 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
               </TableRow>
             ) : (
               operations.map((operation) => {
-                const selection = materialSelections[operation.id] ?? {}
-                const materialDetails = selection.details
+                const selection = materialSelections[operation.id] ?? {};
+                const materialDetails = selection.details;
                 return (
                   <TableRow
                     key={operation.id}
@@ -582,7 +587,7 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                         }
                         onChange={(date) => {
                           // Handle date change
-                          console.log('Date selected:', date)
+                          console.log("Date selected:", date);
                         }}
                         placeholder="Data"
                       />
@@ -592,9 +597,9 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                     </TableCell>
                     <TableCell>
                       <Select
-                        value={operation.operador_id || ''}
+                        value={operation.operador_id || ""}
                         onValueChange={(value) =>
-                          onFieldChange?.(operation.id, 'operador_id', value)
+                          onFieldChange?.(operation.id, "operador_id", value)
                         }
                       >
                         <SelectTrigger className="h-10 w-full text-sm">
@@ -614,9 +619,9 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                     </TableCell>
                     <TableCell>
                       <Select
-                        value={(operation as any).maquina || ''}
+                        value={(operation as any).maquina || ""}
                         onValueChange={(value) =>
-                          onFieldChange?.(operation.id, 'maquina_id', value)
+                          onFieldChange?.(operation.id, "maquina_id", value)
                         }
                       >
                         <SelectTrigger className="h-10 w-full text-sm">
@@ -650,55 +655,55 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                       <Input
                         placeholder="P1236"
                         className="h-10 w-full text-sm"
-                        value={fieldValues[operation.id]?.no_interno ?? ''}
+                        value={fieldValues[operation.id]?.no_interno ?? ""}
                         onChange={(e) =>
                           handleInputFieldChange(
                             operation.id,
-                            'no_interno',
+                            "no_interno",
                             e.target.value,
                           )
                         }
                       />
                     </TableCell>
-                    <TableCell>{materialDetails?.referencia ?? '-'}</TableCell>
+                    <TableCell>{materialDetails?.referencia ?? "-"}</TableCell>
                     <TableCell>
-                      {materialDetails?.ref_fornecedor ?? '-'}
+                      {materialDetails?.ref_fornecedor ?? "-"}
                     </TableCell>
-                    <TableCell>{materialDetails?.tipo_canal ?? '-'}</TableCell>
+                    <TableCell>{materialDetails?.tipo_canal ?? "-"}</TableCell>
                     <TableCell>-</TableCell>
                     <TableCell>
-                      {typeof materialDetails?.valor_m2_custo === 'number'
+                      {typeof materialDetails?.valor_m2_custo === "number"
                         ? materialDetails.valor_m2_custo.toLocaleString(
-                            'pt-PT',
+                            "pt-PT",
                             {
-                              style: 'currency',
-                              currency: 'EUR',
+                              style: "currency",
+                              currency: "EUR",
                             },
                           )
-                        : '-'}
+                        : "-"}
                     </TableCell>
                     <TableCell>
-                      {typeof materialDetails?.valor_placa === 'number'
-                        ? materialDetails.valor_placa.toLocaleString('pt-PT', {
-                            style: 'currency',
-                            currency: 'EUR',
+                      {typeof materialDetails?.valor_placa === "number"
+                        ? materialDetails.valor_placa.toLocaleString("pt-PT", {
+                            style: "currency",
+                            currency: "EUR",
                           })
-                        : '-'}
+                        : "-"}
                     </TableCell>
                     <TableCell>
-                      {typeof materialDetails?.valor_m2 === 'number'
-                        ? materialDetails.valor_m2.toLocaleString('pt-PT', {
-                            style: 'currency',
-                            currency: 'EUR',
+                      {typeof materialDetails?.valor_m2 === "number"
+                        ? materialDetails.valor_m2.toLocaleString("pt-PT", {
+                            style: "currency",
+                            currency: "EUR",
                           })
-                        : '-'}
+                        : "-"}
                     </TableCell>
-                    <TableCell>{materialDetails?.qt_palete ?? '-'}</TableCell>
+                    <TableCell>{materialDetails?.qt_palete ?? "-"}</TableCell>
                     <TableCell className="w-[140px] px-2">
                       <Select
-                        value={selection.material ?? ''}
+                        value={selection.material ?? ""}
                         onValueChange={(value) =>
-                          handleMaterialChange(operation.id, 'material', value)
+                          handleMaterialChange(operation.id, "material", value)
                         }
                         disabled={materialsLoading}
                       >
@@ -716,11 +721,11 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                     </TableCell>
                     <TableCell className="w-[160px] px-2">
                       <Select
-                        value={selection.carateristica ?? ''}
+                        value={selection.carateristica ?? ""}
                         onValueChange={(value) =>
                           handleMaterialChange(
                             operation.id,
-                            'carateristica',
+                            "carateristica",
                             value,
                           )
                         }
@@ -731,7 +736,7 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                         </SelectTrigger>
                         <SelectContent>
                           {getCaracteristicaOptions(
-                            selection.material ?? '',
+                            selection.material ?? "",
                           ).map((option) => (
                             <SelectItem key={option.value} value={option.value}>
                               {option.label}
@@ -742,9 +747,9 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                     </TableCell>
                     <TableCell className="w-[220px] px-2">
                       <Select
-                        value={selection.cor ?? ''}
+                        value={selection.cor ?? ""}
                         onValueChange={(value) =>
-                          handleMaterialChange(operation.id, 'cor', value)
+                          handleMaterialChange(operation.id, "cor", value)
                         }
                         disabled={materialsLoading || !selection.material}
                       >
@@ -753,8 +758,8 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                         </SelectTrigger>
                         <SelectContent>
                           {getCorOptions(
-                            selection.material ?? '',
-                            selection.carateristica ?? '',
+                            selection.material ?? "",
+                            selection.carateristica ?? "",
                           ).map((option) => (
                             <SelectItem key={option.value} value={option.value}>
                               {option.label}
@@ -779,7 +784,7 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                         onChange={(e) =>
                           handleInputFieldChange(
                             operation.id,
-                            'num_placas_print',
+                            "num_placas_print",
                             e.target.value,
                           )
                         }
@@ -801,7 +806,7 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                         onChange={(e) =>
                           handleInputFieldChange(
                             operation.id,
-                            'num_placas_corte',
+                            "num_placas_corte",
                             e.target.value,
                           )
                         }
@@ -812,14 +817,14 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                         value={
                           fieldValues[operation.id]?.observacoes ??
                           (operation as any).observacoes ??
-                          ''
+                          ""
                         }
                         onSave={(value: string) => {
                           handleInputFieldChange(
                             operation.id,
-                            'observacoes',
+                            "observacoes",
                             value,
-                          )
+                          );
                         }}
                         placeholder="Adicionar notas..."
                         label="Notas"
@@ -833,42 +838,34 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
                         <Checkbox
                           checked={operation.concluido ?? false}
                           onCheckedChange={(value) => {
-                            onComplete(operation.id)
+                            onComplete(operation.id);
                           }}
                         />
                       </div>
                     </TableCell>
-                    <TableCell className="flex w-[120px] justify-center gap-2 pr-2">
-                      <Button
-                        size="icon"
-                        variant="secondary"
-                        className="flex aspect-square size-10 items-center justify-center !p-0"
+                    <ActionColumn width="w-[120px]">
+                      <CopyButton
                         onClick={() => {
                           console.log(
-                            'Duplicate button clicked for operation:',
+                            "Duplicate button clicked for operation:",
                             operation,
-                          )
+                          );
                           // onDuplicateOperation(operation); // Add this when you have the function
                         }}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="destructive"
-                        className="flex aspect-square size-10 items-center justify-center !p-0"
+                        title="Duplicar operação"
+                      />
+                      <DeleteButton
                         onClick={() => handleDelete(operation)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+                        title="Eliminar operação"
+                      />
+                    </ActionColumn>
                   </TableRow>
-                )
+                );
               })
             )}
           </TableBody>
         </Table>
       </div>
     </div>
-  )
-}
+  );
+};

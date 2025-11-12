@@ -373,6 +373,7 @@ export function usePhcIntegration(
           Nome: '',
           numero_orc: null,
           customer_id: null,
+          Euro__tota: null,
         }
 
         if (header) {
@@ -392,6 +393,27 @@ export function usePhcIntegration(
           // Store customer_id from PHC directly
           if (header.customer_id) {
             insertData.customer_id = header.customer_id
+          }
+
+          // Fetch PHC total value (Euro__tota) from BO table
+          try {
+            const { data: boData, error: boError } = await supabase
+              .schema('phc')
+              .from('bo')
+              .select('document_number, total_value')
+              .eq('document_type', 'Folha de Obra')
+              .eq('document_number', foNumber.trim())
+              .limit(1)
+
+            if (!boError && boData && boData.length > 0) {
+              const totalValue = Number(boData[0].total_value) || 0
+              insertData.Euro__tota = totalValue
+              console.log(`💰 Setting Euro__tota for FO ${foNumber}:`, totalValue)
+            } else {
+              console.log(`⚠️ No PHC BO value found for FO ${foNumber}`)
+            }
+          } catch (boErr) {
+            console.warn('Warning fetching PHC BO value for FO:', foNumber, boErr)
           }
         }
 

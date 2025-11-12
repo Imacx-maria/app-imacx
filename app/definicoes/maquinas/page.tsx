@@ -1,12 +1,12 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useCallback } from 'react'
-import { createBrowserClient } from '@/utils/supabase'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
-import Combobox from '@/components/ui/Combobox'
+import { useState, useEffect, useCallback } from "react";
+import { createBrowserClient } from "@/utils/supabase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import Combobox from "@/components/ui/Combobox";
 import {
   Table,
   TableBody,
@@ -14,7 +14,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
+} from "@/components/ui/table";
 import {
   Drawer,
   DrawerContent,
@@ -22,245 +22,265 @@ import {
   DrawerTitle,
   DrawerClose,
   DrawerDescription,
-} from '@/components/ui/drawer'
+} from "@/components/ui/drawer";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { Plus, Trash2, X, Loader2, Edit, RotateCw, XSquare } from 'lucide-react'
-import PermissionGuard from '@/components/PermissionGuard'
+} from "@/components/ui/tooltip";
+import {
+  Plus,
+  Trash2,
+  X,
+  Loader2,
+  Edit,
+  RotateCw,
+  XSquare,
+} from "lucide-react";
+import PermissionGuard from "@/components/PermissionGuard";
 // Machine types for combobox
 const MACHINE_TYPES = [
-  { value: 'Impressao', label: 'Impressão' },
-  { value: 'Corte', label: 'Corte' },
-  { value: 'Acabamento', label: 'Acabamento' },
-  { value: 'Outros', label: 'Outros' },
-]
+  { value: "Impressao", label: "Impressão" },
+  { value: "Corte", label: "Corte" },
+  { value: "Acabamento", label: "Acabamento" },
+  { value: "Outros", label: "Outros" },
+];
 
 // Value debounce hook
 function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value)
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
   useEffect(() => {
-    const handler = setTimeout(() => setDebouncedValue(value), delay)
-    return () => clearTimeout(handler)
-  }, [value, delay])
-  return debouncedValue
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
 }
 
 interface Maquina {
-  id: string
-  nome_maquina: string
-  tipo: string
-  ativa: boolean
-  valor_m2: number | null
-  valor_m2_custo: number | null
+  id: string;
+  nome_maquina: string;
+  tipo: string;
+  ativa: boolean;
+  valor_m2: number | null;
+  valor_m2_custo: number | null;
 }
 
 interface EditMachineForm {
-  nome_maquina: string
-  valor_m2: string
-  tipo: string
-  ativa: boolean
+  nome_maquina: string;
+  valor_m2: string;
+  tipo: string;
+  ativa: boolean;
 }
 
 export default function MaquinasPage() {
-  const [maquinas, setMaquinas] = useState<Maquina[]>([])
-  const [loading, setLoading] = useState(true)
-  const [nameFilter, setNameFilter] = useState('')
-  const [submitting, setSubmitting] = useState(false)
+  const [maquinas, setMaquinas] = useState<Maquina[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [nameFilter, setNameFilter] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   // Inline editing state
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null);
   const createDefaultEditData = (): EditMachineForm => ({
-    nome_maquina: '',
-    valor_m2: '',
-    tipo: '',
+    nome_maquina: "",
+    valor_m2: "",
+    tipo: "",
     ativa: true,
-  })
+  });
 
   const [editData, setEditData] = useState<EditMachineForm>(() =>
     createDefaultEditData(),
-  )
+  );
 
   // Debounced filter values for performance
-  const debouncedNameFilter = useDebounce(nameFilter, 300)
+  const debouncedNameFilter = useDebounce(nameFilter, 300);
 
   // Effective filter - only activate with 3+ characters
-  const effectiveNameFilter = debouncedNameFilter.trim().length >= 3 ? debouncedNameFilter : ''
+  const effectiveNameFilter =
+    debouncedNameFilter.trim().length >= 3 ? debouncedNameFilter : "";
 
-  const supabase = createBrowserClient()
+  const supabase = createBrowserClient();
 
   // Convert to database-level filtering
   const fetchMaquinas = useCallback(
     async (filters: { nameFilter?: string } = {}) => {
-      setLoading(true)
+      setLoading(true);
       try {
-        console.log('Fetching maquinas...', filters)
+        console.log("Fetching maquinas...", filters);
         console.log(
-          'nameFilter type:',
+          "nameFilter type:",
           typeof filters.nameFilter,
-          'value:',
+          "value:",
           filters.nameFilter,
-        )
-        let query = supabase.from('maquinas_operacao').select('*')
+        );
+        let query = supabase.from("maquinas_operacao").select("*");
 
         // Apply filters at database level
         if (
           filters.nameFilter &&
-          typeof filters.nameFilter === 'string' &&
+          typeof filters.nameFilter === "string" &&
           filters.nameFilter.trim()
         ) {
-          query = query.ilike('nome_maquina', `%${filters.nameFilter.trim()}%`)
+          query = query.ilike("nome_maquina", `%${filters.nameFilter.trim()}%`);
         }
 
-        const { data, error } = await query.order('nome_maquina', {
+        const { data, error } = await query.order("nome_maquina", {
           ascending: true,
-        })
+        });
 
-        console.log('Maquinas operacao fetch result:', { data, error })
+        console.log("Maquinas_operacao fetch result:", { data, error });
 
         if (error) {
-          console.error('Supabase error fetching maquinas_operacao:', error)
-          alert(`Error fetching maquinas: ${error.message}`)
+          console.error("Supabase error fetching maquinas_operacao:", error);
+          alert(`Error fetching maquinas: ${error.message}`);
         } else if (data) {
-          console.log('Successfully fetched maquinas_operacao:', data)
-          setMaquinas(data)
+          console.log("Successfully fetched maquinas_operacao:", data);
+          setMaquinas(data);
         }
       } catch (error) {
-        console.error('JavaScript error fetching maquinas:', error)
-        alert(`JavaScript error: ${error}`)
+        console.error("JavaScript error fetching maquinas:", error);
+        alert(`JavaScript error: ${error}`);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     },
     [supabase],
-  )
+  );
 
   // Initial load
   useEffect(() => {
-    fetchMaquinas()
-  }, [fetchMaquinas])
+    fetchMaquinas();
+  }, [fetchMaquinas]);
 
   // Trigger search when filter changes
   useEffect(() => {
-    fetchMaquinas({ nameFilter: effectiveNameFilter })
-  }, [effectiveNameFilter, fetchMaquinas])
+    fetchMaquinas({ nameFilter: effectiveNameFilter });
+  }, [effectiveNameFilter, fetchMaquinas]);
 
   // Remove client-side filtering - now using database-level filtering
-  const filteredMaquinas = maquinas
+  const filteredMaquinas = maquinas;
 
   // Add handler for inline add
   const handleAddNew = () => {
-    if (editingId !== null) return
-    setEditingId('new')
-    setEditData(createDefaultEditData())
-  }
+    if (editingId !== null) return;
+    setEditingId("new");
+    setEditData(createDefaultEditData());
+  };
 
   // Save handler for new row
   const handleAddSave = async () => {
-    if (!editData.nome_maquina.trim()) return
-    setSubmitting(true)
+    if (!editData.nome_maquina.trim()) return;
+    setSubmitting(true);
     try {
-      const valorM2 = editData.valor_m2 ? parseFloat(editData.valor_m2) : null
+      const valorM2 = editData.valor_m2 ? parseFloat(editData.valor_m2) : null;
+
       const { data, error } = await supabase
-        .from('maquinas')
+        .from("maquinas_operacao")
         .insert({
-          maquina: editData.nome_maquina,
           nome_maquina: editData.nome_maquina,
+
           valor_m2: valorM2,
+
           tipo: editData.tipo,
+
           ativa: editData.ativa,
         })
-        .select('*')
+
+        .select("*");
+
       if (!error && data && data[0]) {
-        setMaquinas((prev) => [data[0], ...prev])
+        setMaquinas((prev) => [data[0], ...prev]);
       }
-      setEditingId(null)
-      setEditData(createDefaultEditData())
+      setEditingId(null);
+      setEditData(createDefaultEditData());
     } catch (error) {
-      console.error('Error creating maquina:', error)
+      console.error("Error creating maquina:", error);
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   // Inline edit handlers
   const handleEdit = (maquina: Maquina) => {
-    setEditingId(maquina.id)
+    setEditingId(maquina.id);
     setEditData({
-      nome_maquina: maquina.nome_maquina || '',
-      tipo: maquina.tipo || '',
+      nome_maquina: maquina.nome_maquina || "",
+      tipo: maquina.tipo || "",
       ativa: maquina.ativa,
       valor_m2:
         maquina.valor_m2 !== null && maquina.valor_m2 !== undefined
           ? maquina.valor_m2.toString()
-          : '',
-    })
-  }
+          : "",
+    });
+  };
 
   // Save handler for edit
   const handleEditSave = async (id: string) => {
-    if (id === 'new') {
-      await handleAddSave()
-      return
+    if (id === "new") {
+      await handleAddSave();
+      return;
     }
-    if (!editData.nome_maquina.trim()) return
-    setSubmitting(true)
+    if (!editData.nome_maquina.trim()) return;
+    setSubmitting(true);
     try {
-      const valorM2 = editData.valor_m2 ? parseFloat(editData.valor_m2) : null
+      const valorM2 = editData.valor_m2 ? parseFloat(editData.valor_m2) : null;
       const updates = {
         maquina: editData.nome_maquina,
         nome_maquina: editData.nome_maquina,
         valor_m2: valorM2,
         tipo: editData.tipo,
         ativa: editData.ativa,
-      }
+      };
+
       const { error } = await supabase
-        .from('maquinas')
+        .from("maquinas_operacao")
         .update(updates)
-        .eq('id', id)
+
+        .eq("id", id);
+
       if (!error) {
         setMaquinas((prev) =>
           prev.map((m) => (m.id === id ? { ...m, ...updates } : m)),
-        )
+        );
       }
-      setEditingId(null)
-      setEditData(createDefaultEditData())
+      setEditingId(null);
+      setEditData(createDefaultEditData());
     } catch (error) {
-      console.error('Error updating maquina:', error)
+      console.error("Error updating maquina:", error);
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   // Cancel handler
   const handleEditCancel = () => {
-    setEditingId(null)
-    setEditData(createDefaultEditData())
-  }
+    setEditingId(null);
+    setEditData(createDefaultEditData());
+  };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta máquina?')) return
+    if (!confirm("Tem certeza que deseja excluir esta máquina?")) return;
 
     try {
-      const { error } = await supabase.from('maquinas').delete().eq('id', id)
+      const { error } = await supabase
+        .from("maquinas_operacao")
+        .delete()
+        .eq("id", id);
 
       if (!error) {
-        setMaquinas((prev) => prev.filter((m) => m.id !== id))
+        setMaquinas((prev) => prev.filter((m) => m.id !== id));
       }
     } catch (error) {
-      console.error('Error deleting maquina:', error)
+      console.error("Error deleting maquina:", error);
     }
-  }
+  };
 
   const formatCurrency = (value: number | null | undefined) => {
-    if (value === null || value === undefined) return '-'
-    return new Intl.NumberFormat('pt-PT', {
-      style: 'currency',
-      currency: 'EUR',
-    }).format(value)
-  }
+    if (value === null || value === undefined) return "-";
+    return new Intl.NumberFormat("pt-PT", {
+      style: "currency",
+      currency: "EUR",
+    }).format(value);
+  };
 
   return (
     <PermissionGuard>
@@ -314,10 +334,10 @@ export default function MaquinasPage() {
             />
             {nameFilter && (
               <Button
-                variant="ghost"
+                variant="default"
                 size="icon"
-                className="absolute right-0 top-0 h-10 w-10 bg-yellow-400 hover:bg-yellow-500 border border-black"
-                onClick={() => setNameFilter('')}
+                className="absolute right-0 top-0 h-10 w-10"
+                onClick={() => setNameFilter("")}
               >
                 <XSquare className="h-4 w-4" />
               </Button>
@@ -375,7 +395,7 @@ export default function MaquinasPage() {
                       <Loader2 className="text-muted-foreground mx-auto h-8 w-8 animate-spin" />
                     </TableCell>
                   </TableRow>
-                ) : filteredMaquinas.length === 0 && editingId !== 'new' ? (
+                ) : filteredMaquinas.length === 0 && editingId !== "new" ? (
                   <TableRow>
                     <TableCell
                       colSpan={5}
@@ -387,9 +407,9 @@ export default function MaquinasPage() {
                 ) : (
                   <>
                     {/* Inline add row at the top if editingId === 'new' */}
-                    {editingId === 'new' && (
+                    {editingId === "new" && (
                       <TableRow>
-                        <TableCell className="uppercase">-</TableCell>
+                        {/* Nome da Máquina */}
                         <TableCell className="font-medium uppercase">
                           <Input
                             value={editData.nome_maquina}
@@ -403,8 +423,43 @@ export default function MaquinasPage() {
                             autoFocus
                             required
                             disabled={submitting}
+                            placeholder="Nome da máquina"
                           />
                         </TableCell>
+
+                        {/* Tipo */}
+                        <TableCell className="uppercase">
+                          <Combobox
+                            value={editData.tipo}
+                            onChange={(value) =>
+                              setEditData((prev) => ({
+                                ...prev,
+                                tipo: value,
+                              }))
+                            }
+                            options={MACHINE_TYPES}
+                            placeholder="Selecionar tipo"
+                            disabled={submitting}
+                            className="w-full"
+                            maxWidth="120px"
+                          />
+                        </TableCell>
+
+                        {/* Ativa */}
+                        <TableCell className="text-center">
+                          <Checkbox
+                            checked={editData.ativa}
+                            onCheckedChange={(checked) =>
+                              setEditData((prev) => ({
+                                ...prev,
+                                ativa: checked === true,
+                              }))
+                            }
+                            disabled={submitting}
+                          />
+                        </TableCell>
+
+                        {/* Valor/m² */}
                         <TableCell className="text-right">
                           <Input
                             value={editData.valor_m2}
@@ -419,8 +474,11 @@ export default function MaquinasPage() {
                             step="0.01"
                             min="0"
                             disabled={submitting}
+                            placeholder="0.00"
                           />
                         </TableCell>
+
+                        {/* Ações */}
                         <TableCell className="flex justify-center gap-2">
                           {/* Save button */}
                           <TooltipProvider>
@@ -479,7 +537,7 @@ export default function MaquinasPage() {
                               disabled={submitting}
                             />
                           ) : (
-                            maquina.nome_maquina || '-'
+                            maquina.nome_maquina || "-"
                           )}
                         </TableCell>
                         <TableCell className="uppercase">
@@ -502,7 +560,7 @@ export default function MaquinasPage() {
                             MACHINE_TYPES.find((t) => t.value === maquina.tipo)
                               ?.label ||
                             maquina.tipo ||
-                            '-'
+                            "-"
                           )}
                         </TableCell>
                         <TableCell className="text-center">
@@ -653,24 +711,24 @@ export default function MaquinasPage() {
                   </TooltipProvider>
                 </div>
                 <DrawerTitle>
-                  {editingId === 'new' ? 'Nova Máquina' : 'Editar Máquina'}
+                  {editingId === "new" ? "Nova Máquina" : "Editar Máquina"}
                 </DrawerTitle>
                 <DrawerDescription>
-                  {editingId === 'new'
-                    ? 'Preencha as informações para criar uma nova máquina.'
-                    : 'Edite as informações da máquina abaixo.'}
+                  {editingId === "new"
+                    ? "Preencha as informações para criar uma nova máquina."
+                    : "Edite as informações da máquina abaixo."}
                 </DrawerDescription>
               </DrawerHeader>
 
               <div className="flex-grow overflow-y-auto">
                 <form
                   onSubmit={(e) => {
-                    e.preventDefault()
-                    if (editingId === null) return
-                    if (editingId === 'new') {
-                      handleAddSave()
+                    e.preventDefault();
+                    if (editingId === null) return;
+                    if (editingId === "new") {
+                      handleAddSave();
                     } else {
-                      handleEditSave(editingId)
+                      handleEditSave(editingId);
                     }
                   }}
                   className="space-y-6"
@@ -724,7 +782,7 @@ export default function MaquinasPage() {
                       {submitting ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : null}
-                      {editingId === 'new' ? 'Criar Máquina' : 'Guardar'}
+                      {editingId === "new" ? "Criar Máquina" : "Guardar"}
                     </Button>
                     <Button
                       type="button"
@@ -742,5 +800,5 @@ export default function MaquinasPage() {
         </Drawer>
       </div>
     </PermissionGuard>
-  )
+  );
 }

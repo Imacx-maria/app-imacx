@@ -1,40 +1,40 @@
-﻿import * as React from 'react'
-import { Check, ChevronsUpDown, Plus } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
+import * as React from "react";
+import { Check, ChevronsUpDown, Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
-} from '@/components/ui/command'
+} from "@/components/ui/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover'
+} from "@/components/ui/popover";
 
 export interface CreatableComboboxOption {
-  value: string
-  label: string
+  value: string;
+  label: string;
 }
 
 interface CreatableComboboxProps {
-  value: string
-  displayLabel?: string
-  onChange: (value: string) => void
-  onCreateNew: (inputValue: string) => Promise<CreatableComboboxOption | null>
-  options: CreatableComboboxOption[]
-  placeholder?: string
-  searchPlaceholder?: string
-  createMessage?: string
-  allowCreate?: boolean
-  disabled?: boolean
-  loading?: boolean
-  error?: string | null
-  className?: string
-  buttonClassName?: string
+  value: string;
+  displayLabel?: string;
+  onChange: (value: string) => void;
+  onCreateNew: (inputValue: string) => Promise<CreatableComboboxOption | null>;
+  options: CreatableComboboxOption[];
+  placeholder?: string;
+  searchPlaceholder?: string;
+  createMessage?: string;
+  allowCreate?: boolean;
+  disabled?: boolean;
+  loading?: boolean;
+  error?: string | null;
+  className?: string;
+  buttonClassName?: string;
 }
 
 export const CreatableCombobox: React.FC<CreatableComboboxProps> = ({
@@ -43,66 +43,68 @@ export const CreatableCombobox: React.FC<CreatableComboboxProps> = ({
   onChange,
   onCreateNew,
   options,
-  placeholder = 'Select option...',
-  searchPlaceholder = 'Search...',
-  createMessage = 'Create',
+  placeholder = "Select option...",
+  searchPlaceholder = "Search...",
+  createMessage = "Create",
   allowCreate = true,
   disabled = false,
   loading = false,
   error = null,
-  className = '',
-  buttonClassName = '',
+  className = "",
+  buttonClassName = "",
 }) => {
-  const [open, setOpen] = React.useState(false)
-  const [searchValue, setSearchValue] = React.useState('')
-  const [isCreating, setIsCreating] = React.useState(false)
+  const [open, setOpen] = React.useState(false);
+  const [searchValue, setSearchValue] = React.useState("");
+  const [isCreating, setIsCreating] = React.useState(false);
 
-  const selectedOption = options.find((option) => option.value === value)
-  
+  const selectedOption = options.find((option) => option.value === value);
+
   // Debug log when value or selectedOption changes
   React.useEffect(() => {
     if (value && !selectedOption) {
-      console.warn('⚠️ ComboBox: value provided but no matching option found', {
+      console.warn("?? ComboBox: value provided but no matching option found", {
         value,
         optionsCount: options.length,
-        sampleOptions: options.slice(0, 3).map(o => ({ value: o.value, label: o.label }))
-      })
+        sampleOptions: options
+          .slice(0, 3)
+          .map((o) => ({ value: o.value, label: o.label })),
+      });
     }
-  }, [value, selectedOption, options])
+  }, [value, selectedOption, options]);
 
   // Find by matching value from options, but also support displaying a value that's not in the list
   const findOptionByValue = React.useMemo(() => {
-    return options.find((option) => option.value === value)
-  }, [value, options])
+    return options.find((option) => option.value === value);
+  }, [value, options]);
 
   const filteredOptions = options.filter((option) =>
     option.label.toLowerCase().includes(searchValue.toLowerCase()),
-  )
+  );
 
   const exactMatch = filteredOptions.find(
     (option) => option.label.toLowerCase() === searchValue.toLowerCase(),
-  )
+  );
 
   const showCreateOption =
-    allowCreate && searchValue.trim() && !exactMatch && !isCreating
+    allowCreate && searchValue.trim() && !exactMatch && !isCreating;
 
   const handleCreateNew = async () => {
-    if (!searchValue.trim() || isCreating) return
+    if (!searchValue.trim() || isCreating) return;
 
-    setIsCreating(true)
+    setIsCreating(true);
     try {
-      const newOption = await onCreateNew(searchValue.trim())
+      const newOption = await onCreateNew(searchValue.trim());
       if (newOption) {
-        onChange(newOption.value)
-        setSearchValue('')
-        setOpen(false)
+        onChange(newOption.value);
+        setSearchValue("");
+        setOpen(false);
       }
     } catch (error) {
-      console.error('Error creating new option:', error)
+      console.error("Error creating new option:", error);
     } finally {
-      setIsCreating(false)
+      setIsCreating(false);
     }
-  }
+  };
 
   return (
     <div className={className}>
@@ -113,8 +115,8 @@ export const CreatableCombobox: React.FC<CreatableComboboxProps> = ({
             role="combobox"
             aria-expanded={open}
             className={cn(
-              'w-full justify-between',
-              !selectedOption && 'text-muted-foreground',
+              "w-full justify-between",
+              !selectedOption && "text-muted-foreground",
               buttonClassName,
             )}
             disabled={disabled || loading}
@@ -134,7 +136,9 @@ export const CreatableCombobox: React.FC<CreatableComboboxProps> = ({
               </span>
             ) : value ? (
               // If value exists but not found in options, try to display it anyway
-              <span className="truncate uppercase text-muted-foreground">Value exists</span>
+              <span className="truncate uppercase text-muted-foreground">
+                Value exists
+              </span>
             ) : (
               placeholder
             )}
@@ -173,7 +177,7 @@ export const CreatableCombobox: React.FC<CreatableComboboxProps> = ({
                     </Button>
                   </div>
                 ) : (
-                  'No results found.'
+                  "No results found."
                 )}
               </CommandEmpty>
               <CommandGroup>
@@ -182,16 +186,16 @@ export const CreatableCombobox: React.FC<CreatableComboboxProps> = ({
                     key={option.value}
                     value={option.label}
                     onSelect={() => {
-                      onChange(option.value)
-                      setOpen(false)
-                      setSearchValue('')
+                      onChange(option.value);
+                      setOpen(false);
+                      setSearchValue("");
                     }}
                     className="uppercase"
                   >
                     <Check
                       className={cn(
-                        'mr-2 h-4 w-4',
-                        value === option.value ? 'opacity-100' : 'opacity-0',
+                        "mr-2 h-4 w-4",
+                        value === option.value ? "opacity-100" : "opacity-0",
                       )}
                     />
                     {option.label}
@@ -208,8 +212,7 @@ export const CreatableCombobox: React.FC<CreatableComboboxProps> = ({
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default CreatableCombobox
-
+export default CreatableCombobox;

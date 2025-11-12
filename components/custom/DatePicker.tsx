@@ -1,57 +1,59 @@
-import * as React from 'react'
-import { Button } from '@/components/ui/button'
+import * as React from "react";
+import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover'
-import { Calendar } from '@/components/ui/calendar'
-import { Calendar as CalendarIcon } from 'lucide-react'
-import { format } from 'date-fns'
-import { cn } from '@/lib/utils'
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 export interface DatePickerProps {
-  selected: Date | undefined
-  onSelect: (date: Date | undefined) => void
-  holidays?: { holiday_date: string }[]
-  placeholder?: string
-  clearable?: boolean
-  onClear?: () => void
-  buttonClassName?: string
-  disabled?: boolean
+  selected: Date | undefined;
+  onSelect: (date: Date | undefined) => void;
+  holidays?: { holiday_date: string }[];
+  placeholder?: string;
+  clearable?: boolean;
+  onClear?: () => void;
+  buttonClassName?: string;
+  disabled?: boolean;
+  iconOnly?: boolean;
   // ...other props for Calendar
-  [key: string]: any
+  [key: string]: any;
 }
 
 export const DatePicker: React.FC<DatePickerProps> = ({
   selected,
   onSelect,
   holidays = [],
-  placeholder = 'Data',
+  placeholder = "Data",
   clearable = false,
   onClear,
-  buttonClassName = '',
+  buttonClassName = "",
   disabled = false,
+  iconOnly = false,
   ...calendarProps
 }) => {
-  const descriptionId = React.useId()
-  const calendarDescriptionId = React.useId()
-  const contentRef = React.useRef<HTMLDivElement>(null)
-  const [open, setOpen] = React.useState(false)
+  const descriptionId = React.useId();
+  const calendarDescriptionId = React.useId();
+  const contentRef = React.useRef<HTMLDivElement>(null);
+  const [open, setOpen] = React.useState(false);
 
   // Handle date selection and close popover
   const handleDateSelect = (date: Date | undefined) => {
-    onSelect(date)
-    setOpen(false) // Close the popover after selecting a date
-  }
+    onSelect(date);
+    setOpen(false); // Close the popover after selecting a date
+  };
 
   // Handle clear and close popover
   const handleClear = () => {
     if (onClear) {
-      onClear()
+      onClear();
     }
-    setOpen(false) // Close the popover after clearing
-  }
+    setOpen(false); // Close the popover after clearing
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -59,16 +61,19 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         <Button
           variant="outline"
           className={cn(
-            'w-full justify-start text-left font-normal',
-            !selected && 'text-muted-foreground',
+            iconOnly
+              ? "w-10 h-10 p-0 justify-center"
+              : "w-full justify-start text-left font-normal",
+            !selected && "text-muted-foreground",
             buttonClassName,
           )}
           disabled={disabled}
           aria-describedby={descriptionId}
           data-no-aria-hidden="true"
         >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {selected ? format(selected, 'dd/MM/yyyy') : placeholder}
+          <CalendarIcon className={iconOnly ? "h-4 w-4" : "mr-2 h-4 w-4"} />
+          {!iconOnly &&
+            (selected ? format(selected, "dd/MM/yyyy") : placeholder)}
           <span id={descriptionId} className="sr-only">
             Clique para selecionar uma data
           </span>
@@ -108,7 +113,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         </div>
       </PopoverContent>
     </Popover>
-  )
-}
+  );
+};
 
-export default DatePicker
+export default DatePicker;
