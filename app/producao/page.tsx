@@ -916,7 +916,10 @@ export default function ProducaoPage() {
       }
 
       try {
-        console.log("🔄 Refreshing PHC VALOR (live query) for FO:", job.numero_fo);
+        console.log(
+          "🔄 Refreshing PHC VALOR (live query) for FO:",
+          job.numero_fo,
+        );
 
         // Call API endpoint to query live PHC database directly
         const response = await fetch("/api/phc/fo-value", {
@@ -924,7 +927,7 @@ export default function ProducaoPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             foNumber: job.numero_fo,
-            jobId: job.id  // Pass jobId so API can persist value to Supabase
+            jobId: job.id, // Pass jobId so API can persist value to Supabase
           }),
         });
 
@@ -948,17 +951,18 @@ export default function ProducaoPage() {
           // 1. Update jobs array to persist euro_tota
           setJobs((prev) =>
             prev.map((j) =>
-              j.id === jobId
-                ? { ...j, euro_tota: result.totalValue }
-                : j
-            )
+              j.id === jobId ? { ...j, euro_tota: result.totalValue } : j,
+            ),
           );
 
           // 2. Update jobTotalValues cache for backward compatibility
           setJobTotalValues((prev) => {
             const updated = { ...prev, [jobId]: result.totalValue };
 
-            console.log("✅ Updated euro_tota and jobTotalValues for job:", jobId);
+            console.log(
+              "✅ Updated euro_tota and jobTotalValues for job:",
+              jobId,
+            );
 
             // CRITICAL: Recalculate totals immediately with the updated value
             // We do this inside setState to avoid React state timing issues
@@ -967,9 +971,10 @@ export default function ProducaoPage() {
 
             sorted.forEach((j) => {
               // Use euro_tota if this is the job we just updated, otherwise use existing values
-              const foValue = j.id === jobId
-                ? result.totalValue
-                : (j.euro_tota ?? updated[j.id] ?? 0);
+              const foValue =
+                j.id === jobId
+                  ? result.totalValue
+                  : (j.euro_tota ?? updated[j.id] ?? 0);
 
               if (j.pendente === true) {
                 pendentesTotal += foValue;
@@ -992,14 +997,21 @@ export default function ProducaoPage() {
           });
         } else {
           console.warn("⚠️ FO not found in PHC or has no value");
-          alert(`FO ${job.numero_fo} não foi encontrada no PHC ou não tem valor.`);
+          alert(
+            `FO ${job.numero_fo} não foi encontrada no PHC ou não tem valor.`,
+          );
           return;
         }
 
-        console.log("✅ PHC VALOR refreshed successfully for FO:", job.numero_fo);
+        console.log(
+          "✅ PHC VALOR refreshed successfully for FO:",
+          job.numero_fo,
+        );
       } catch (error) {
         console.error("❌ Error refreshing PHC VALOR:", error);
-        alert("Erro ao atualizar o VALOR desta FO a partir do PHC. Verifique a consola.");
+        alert(
+          "Erro ao atualizar o VALOR desta FO a partir do PHC. Verifique a consola.",
+        );
       }
     },
     [jobs, sorted],
@@ -2473,7 +2485,10 @@ export default function ProducaoPage() {
                               <TableCell className="w-[120px] text-right text-sm font-mono">
                                 {(() => {
                                   // Prefer Euro__tota (persisted), fallback to jobTotalValues (cache)
-                                  const valor = job.euro_tota ?? jobTotalValues[job.id] ?? null;
+                                  const valor =
+                                    job.euro_tota ??
+                                    jobTotalValues[job.id] ??
+                                    null;
                                   return valor !== null && valor > 0
                                     ? new Intl.NumberFormat("pt-PT", {
                                         style: "currency",
@@ -3998,7 +4013,10 @@ export default function ProducaoPage() {
                               <TableCell className="w-[120px] text-right text-sm font-mono">
                                 {(() => {
                                   // Prefer Euro__tota (persisted), fallback to jobTotalValues (cache)
-                                  const valor = job.euro_tota ?? jobTotalValues[job.id] ?? null;
+                                  const valor =
+                                    job.euro_tota ??
+                                    jobTotalValues[job.id] ??
+                                    null;
                                   return valor !== null && valor > 0
                                     ? new Intl.NumberFormat("pt-PT", {
                                         style: "currency",
@@ -4266,7 +4284,7 @@ export default function ProducaoPage() {
             shouldScaleBackground={false}
           >
             <DrawerContent
-              className="!top-20 !mt-0 max-h-[calc(100vh-80px)] !outline-none !border-none !transform-none !filter-none !backdrop-filter-none will-change-auto"
+              className="!top-20 !mt-0 max-h-[calc(100vh-80px)] !outline-none !transform-none !filter-none !backdrop-filter-none will-change-auto"
               style={{
                 transform: "none",
                 filter: "none",

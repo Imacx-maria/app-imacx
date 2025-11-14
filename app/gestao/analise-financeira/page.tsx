@@ -118,6 +118,13 @@ export default function AnaliseFinanceiraPage() {
     any | null
   >(null);
   const [costCenterSales, setCostCenterSales] = useState<any | null>(null);
+
+  // Main tab navigation
+  const [mainTab, setMainTab] = useState<
+    "visao-geral" | "centro-custo" | "vendedores" | "operacoes"
+  >("visao-geral");
+
+  // Period tab navigation (within each main tab)
   const [activeTab, setActiveTab] = useState<"mtd" | "ytd" | "qtd">("mtd");
 
   type TopCustomersSortColumn =
@@ -140,12 +147,19 @@ export default function AnaliseFinanceiraPage() {
   // ============================================================================
 
   const fetchAllData = useCallback(
-    async (tab: "mtd" | "ytd" | "qtd" = activeTab) => {
+    async (
+      tab: "mtd" | "ytd" | "qtd" = activeTab,
+      section:
+        | "visao-geral"
+        | "centro-custo"
+        | "vendedores"
+        | "operacoes" = mainTab,
+    ) => {
       setLoading(true);
       setError(null);
 
       try {
-        // 1) KPI DASHBOARD - existing behavior
+        // Always fetch KPI data (used across multiple tabs)
         const kpiResponse = await fetch(
           "/api/financial-analysis/kpi-dashboard",
         );
@@ -155,72 +169,77 @@ export default function AnaliseFinanceiraPage() {
         const kpiJson = await kpiResponse.json();
         setKpiData(kpiJson);
 
-        // 2) MONTHLY REVENUE - existing behavior (YTD series)
-        const revenueResponse = await fetch(
-          "/api/financial-analysis/monthly-revenue",
-        );
-        if (!revenueResponse.ok) {
-          throw new Error("Failed to fetch monthly revenue data");
-        }
-        const revenueJson = await revenueResponse.json();
-        setMonthlyRevenue(revenueJson);
+        // Conditional data fetching based on active section
+        if (section === "visao-geral") {
+          // VISÃO GERAL section data
+          // 2) MONTHLY REVENUE - existing behavior (YTD series)
+          const revenueResponse = await fetch(
+            "/api/financial-analysis/monthly-revenue",
+          );
+          if (!revenueResponse.ok) {
+            throw new Error("Failed to fetch monthly revenue data");
+          }
+          const revenueJson = await revenueResponse.json();
+          setMonthlyRevenue(revenueJson);
 
-        // 3) TOP CUSTOMERS
-        // MÊS ATUAL: period=mtd (monthly)
-        // ANO ATUAL: period=ytd
-        const topPeriod = tab === "mtd" ? "mtd" : "ytd";
-        const customersResponse = await fetch(
-          `/api/financial-analysis/top-customers?limit=20&period=${topPeriod}`,
-        );
-        if (!customersResponse.ok) {
-          throw new Error("Failed to fetch top customers data");
-        }
-        const customersJson = await customersResponse.json();
-        setTopCustomers(customersJson);
+          // 3) TOP CUSTOMERS
+          const topPeriod = tab === "mtd" ? "mtd" : "ytd";
+          const customersResponse = await fetch(
+            `/api/financial-analysis/top-customers?limit=20&period=${topPeriod}`,
+          );
+          if (!customersResponse.ok) {
+            throw new Error("Failed to fetch top customers data");
+          }
+          const customersJson = await customersResponse.json();
+          setTopCustomers(customersJson);
 
-        // 4) MULTI-YEAR REVENUE for VENDAS 3-year YTD chart
-        const multiYearResponse = await fetch(
-          "/api/financial-analysis/multi-year-revenue",
-        );
-        if (!multiYearResponse.ok) {
-          throw new Error("Failed to fetch multi-year revenue data");
-        }
-        const multiYearJson = await multiYearResponse.json();
-        setMultiYearRevenue(multiYearJson);
+          // 4) MULTI-YEAR REVENUE for VENDAS 3-year YTD chart
+          const multiYearResponse = await fetch(
+            "/api/financial-analysis/multi-year-revenue",
+          );
+          if (!multiYearResponse.ok) {
+            throw new Error("Failed to fetch multi-year revenue data");
+          }
+          const multiYearJson = await multiYearResponse.json();
+          setMultiYearRevenue(multiYearJson);
+        } else if (section === "centro-custo") {
+          // CENTRO CUSTO section data
+          // 5) COST CENTER PERFORMANCE (3-year comparison - MTD or YTD based on tab)
+          const costCenterPeriod = tab === "mtd" ? "mtd" : "ytd";
+          const costCenterResponse = await fetch(
+            `/api/financial-analysis/cost-center-performance?period=${costCenterPeriod}`,
+          );
+          if (!costCenterResponse.ok) {
+            console.warn("Failed to fetch cost center performance data");
+          } else {
+            const costCenterJson = await costCenterResponse.json();
+            setCostCenterPerformance(costCenterJson);
+          }
 
-        // 5) COST CENTER PERFORMANCE (3-year comparison - MTD or YTD based on tab)
-        const costCenterPeriod = tab === "mtd" ? "mtd" : "ytd";
-        const costCenterResponse = await fetch(
-          `/api/financial-analysis/cost-center-performance?period=${costCenterPeriod}`,
-        );
-        if (!costCenterResponse.ok) {
-          console.warn("Failed to fetch cost center performance data");
-        } else {
-          const costCenterJson = await costCenterResponse.json();
-          setCostCenterPerformance(costCenterJson);
+          // 7) COST CENTER SALES TABLE (MTD or YTD based on tab)
+          const costCenterSalesResponse = await fetch(
+            `/api/financial-analysis/cost-center-sales?period=${tab}`,
+          );
+          if (!costCenterSalesResponse.ok) {
+            console.warn("Failed to fetch cost center sales data");
+          } else {
+            const costCenterSalesJson = await costCenterSalesResponse.json();
+            setCostCenterSales(costCenterSalesJson);
+          }
+        } else if (section === "vendedores") {
+          // VENDEDORES section data
+          // 6) SALESPERSON PERFORMANCE
+          const salespersonResponse = await fetch(
+            "/api/financial-analysis/salesperson-performance",
+          );
+          if (!salespersonResponse.ok) {
+            console.warn("Failed to fetch salesperson performance data");
+          } else {
+            const salespersonJson = await salespersonResponse.json();
+            setSalespersonPerformance(salespersonJson);
+          }
         }
-
-        // 6) SALESPERSON PERFORMANCE
-        const salespersonResponse = await fetch(
-          "/api/financial-analysis/salesperson-performance",
-        );
-        if (!salespersonResponse.ok) {
-          console.warn("Failed to fetch salesperson performance data");
-        } else {
-          const salespersonJson = await salespersonResponse.json();
-          setSalespersonPerformance(salespersonJson);
-        }
-
-        // 7) COST CENTER SALES TABLE (MTD or YTD based on tab)
-        const costCenterSalesResponse = await fetch(
-          `/api/financial-analysis/cost-center-sales?period=${tab}`,
-        );
-        if (!costCenterSalesResponse.ok) {
-          console.warn("Failed to fetch cost center sales data");
-        } else {
-          const costCenterSalesJson = await costCenterSalesResponse.json();
-          setCostCenterSales(costCenterSalesJson);
-        }
+        // OPERACOES section has no data fetching yet (placeholder)
       } catch (err) {
         console.error("Error fetching financial analysis data:", err);
         setError(err instanceof Error ? err.message : "Failed to load data");
@@ -228,11 +247,11 @@ export default function AnaliseFinanceiraPage() {
         setLoading(false);
       }
     },
-    [activeTab],
+    [activeTab, mainTab],
   );
 
   useEffect(() => {
-    fetchAllData(activeTab);
+    fetchAllData(activeTab, mainTab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -302,7 +321,10 @@ export default function AnaliseFinanceiraPage() {
             <p className="text-foreground mb-4">
               Erro ao carregar dados: {error}
             </p>
-            <Button variant="default" onClick={() => fetchAllData(activeTab)}>
+            <Button
+              variant="default"
+              onClick={() => fetchAllData(activeTab, mainTab)}
+            >
               <RefreshCw className="h-4 w-4 mr-2" />
               Tentar novamente
             </Button>
@@ -440,7 +462,7 @@ export default function AnaliseFinanceiraPage() {
         </div>
         <Button
           variant="outline"
-          onClick={() => fetchAllData(activeTab)}
+          onClick={() => fetchAllData(activeTab, mainTab)}
           className="h-10"
         >
           <RefreshCw className="h-4 w-4 mr-2" />
@@ -448,524 +470,634 @@ export default function AnaliseFinanceiraPage() {
         </Button>
       </div>
 
-      {/* Period Tabs */}
+      {/* Main Tabs */}
       <div className="flex gap-2">
         <Button
-          variant={activeTab === "mtd" ? "default" : "outline"}
+          variant={mainTab === "visao-geral" ? "default" : "outline"}
           onClick={() => {
-            setActiveTab("mtd");
-            fetchAllData("mtd");
+            setMainTab("visao-geral");
+            fetchAllData(activeTab, "visao-geral");
           }}
           className="h-10"
         >
-          Mês Atual
+          VISÃO GERAL
         </Button>
         <Button
-          variant={activeTab === "ytd" ? "default" : "outline"}
+          variant={mainTab === "centro-custo" ? "default" : "outline"}
           onClick={() => {
-            setActiveTab("ytd");
-            fetchAllData("ytd");
+            setMainTab("centro-custo");
+            fetchAllData(activeTab, "centro-custo");
           }}
           className="h-10"
         >
-          Ano Atual
+          CENTRO CUSTO
+        </Button>
+        <Button
+          variant={mainTab === "vendedores" ? "default" : "outline"}
+          onClick={() => {
+            setMainTab("vendedores");
+            fetchAllData(activeTab, "vendedores");
+          }}
+          className="h-10"
+        >
+          VENDEDORES
+        </Button>
+        <Button
+          variant={mainTab === "operacoes" ? "default" : "outline"}
+          onClick={() => {
+            setMainTab("operacoes");
+            fetchAllData(activeTab, "operacoes");
+          }}
+          className="h-10"
+        >
+          OPERAÇÕES
         </Button>
       </div>
 
-      {/* KPI Cards */}
-      {activePeriodData && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          <MetricCard
-            title="Receita Total"
-            value={activePeriodData.revenue.current}
-            previousValue={activePeriodData.revenue.previous}
-            change={activePeriodData.revenue.change}
-            formatter={formatCurrency}
-          />
-          <MetricCard
-            title="Nº Faturas"
-            value={activePeriodData.invoices.current}
-            previousValue={activePeriodData.invoices.previous}
-            change={activePeriodData.invoices.change}
-            formatter={formatNumber}
-          />
-          <MetricCard
-            title="Nº Clientes"
-            value={activePeriodData.customers.current}
-            previousValue={activePeriodData.customers.previous}
-            change={activePeriodData.customers.change}
-            formatter={formatNumber}
-          />
-          <MetricCard
-            title="Ticket Médio"
-            value={activePeriodData.avgInvoiceValue.current}
-            previousValue={activePeriodData.avgInvoiceValue.previous}
-            change={activePeriodData.avgInvoiceValue.change}
-            formatter={formatCurrency}
-          />
-          <MetricCard
-            title="Orçamentos Valor"
-            value={activePeriodData.quoteValue.current}
-            previousValue={activePeriodData.quoteValue.previous}
-            change={activePeriodData.quoteValue.change}
-            formatter={formatCurrency}
-          />
-          <MetricCard
-            title="Orçamentos Qtd"
-            value={activePeriodData.quoteCount.current}
-            previousValue={activePeriodData.quoteCount.previous}
-            change={activePeriodData.quoteCount.change}
-            formatter={formatNumber}
-          />
-          <MetricCard
-            title="Taxa Conversão"
-            value={activePeriodData.conversionRate.current}
-            previousValue={activePeriodData.conversionRate.previous}
-            change={activePeriodData.conversionRate.change}
-            formatter={formatPercent}
-          />
-          <MetricCard
-            title="Orçamento Médio"
-            value={activePeriodData.avgQuoteValue.current}
-            previousValue={activePeriodData.avgQuoteValue.previous}
-            change={activePeriodData.avgQuoteValue.change}
-            formatter={formatCurrency}
-          />
+      {/* Period Tabs (shown for tabs that have MTD/YTD views) */}
+      {mainTab !== "operacoes" && (
+        <div className="flex gap-2">
+          <Button
+            variant={activeTab === "mtd" ? "default" : "outline"}
+            onClick={() => {
+              setActiveTab("mtd");
+              fetchAllData("mtd", mainTab);
+            }}
+            className="h-10"
+          >
+            Mês Atual
+          </Button>
+          <Button
+            variant={activeTab === "ytd" ? "default" : "outline"}
+            onClick={() => {
+              setActiveTab("ytd");
+              fetchAllData("ytd", mainTab);
+            }}
+            className="h-10"
+          >
+            Ano Atual
+          </Button>
         </div>
       )}
 
-      {/* VENDAS 3-year YTD Comparison Chart */}
-      {multiYearRevenue && multiYearChartData.length > 0 && (
-        <Card className="p-6">
-          <div className="space-y-4">
-            <h2 className="text-xl text-foreground">
-              Vendas {multiYearRevenue.years[0]} vs {multiYearRevenue.years[1]}{" "}
-              vs {multiYearRevenue.years[2]} (YTD)
-            </h2>
-            <ResponsiveContainer width="100%" height={300}>
-              {/* Add left margin so first point and Y-axis are fully visible */}
-              <LineChart
-                data={multiYearChartData}
-                margin={{ top: 10, right: 30, bottom: 20, left: 40 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                <Legend />
-                {multiYearRevenue.years.map((year, index) => {
-                  const key = `Vendas_${year}`;
-                  // Respect design system: use CSS variables only.
-                  // Original request: swap colors so 2024 is yellow and 2025 is black.
-                  const isMostRecent = index === 0; // current year
-                  const stroke = isMostRecent
-                    ? "var(--foreground)" // 2025 -> black
-                    : index === 1
-                      ? "var(--primary)" // 2024 -> yellow
-                      : "var(--orange)"; // 2023 -> orange
-                  return (
-                    <Line
-                      key={year}
-                      type="monotone"
-                      dataKey={key}
-                      stroke={stroke}
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  );
-                })}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      )}
-
-      {/* Cancellation Rate Chart removed to prioritize VENDAS multi-year chart */}
-
-      {/* Cost Center Performance Chart - 3 Year Comparison */}
-      {costCenterPerformance && costCenterPerformance.costCenters && (
-        <Card className="p-6">
-          <div className="space-y-4">
-            <h2 className="text-xl text-foreground">
-              VENDAS POR CENTRO DE CUSTO (
-              {costCenterPerformance.metadata.period.toUpperCase()}) -
-              Comparação 3 Anos
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {costCenterPerformance.metadata.period === "mtd"
-                ? `Comparação do mês de ${costCenterPerformance.metadata.periodLabel} (até dia ${costCenterPerformance.metadata.currentDay}) entre ${costCenterPerformance.years[0]}, ${costCenterPerformance.years[1]} e ${costCenterPerformance.years[2]}`
-                : `Comparação YTD (até ${costCenterPerformance.metadata.ytdEndDate}) entre ${costCenterPerformance.years[0]}, ${costCenterPerformance.years[1]} e ${costCenterPerformance.years[2]}`}
-            </p>
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart
-                data={costCenterPerformance.costCenters}
-                margin={{ top: 10, right: 30, bottom: 60, left: 80 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="costCenter"
-                  angle={-45}
-                  textAnchor="end"
-                  height={100}
-                />
-                <YAxis />
-                <Tooltip
-                  formatter={(value: any) => formatCurrency(Number(value))}
-                />
-                <Legend />
-                <Bar
-                  dataKey="currentYear"
-                  fill="var(--foreground)"
-                  name={`${costCenterPerformance.years[0]}`}
-                />
-                <Bar
-                  dataKey="previousYear"
-                  fill="var(--primary)"
-                  name={`${costCenterPerformance.years[1]}`}
-                />
-                <Bar
-                  dataKey="twoYearsAgo"
-                  fill="var(--orange)"
-                  name={`${costCenterPerformance.years[2]}`}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-              <div>
-                <p className="text-muted-foreground">
-                  Total {costCenterPerformance.years[0]}
-                </p>
-                <p className="text-lg font-normal">
-                  {formatCurrency(
-                    costCenterPerformance.costCenters.reduce(
-                      (sum, cc) => sum + cc.currentYear,
-                      0,
-                    ),
-                  )}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">
-                  Total {costCenterPerformance.years[1]}
-                </p>
-                <p className="text-lg font-normal">
-                  {formatCurrency(
-                    costCenterPerformance.costCenters.reduce(
-                      (sum, cc) => sum + cc.previousYear,
-                      0,
-                    ),
-                  )}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">
-                  Total {costCenterPerformance.years[2]}
-                </p>
-                <p className="text-lg font-normal">
-                  {formatCurrency(
-                    costCenterPerformance.costCenters.reduce(
-                      (sum, cc) => sum + cc.twoYearsAgo,
-                      0,
-                    ),
-                  )}
-                </p>
-              </div>
+      {/* ========================================== */}
+      {/* VISÃO GERAL TAB CONTENT */}
+      {/* ========================================== */}
+      {mainTab === "visao-geral" && (
+        <>
+          {/* KPI Cards */}
+          {activePeriodData && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <MetricCard
+                title="Receita Total"
+                value={activePeriodData.revenue.current}
+                previousValue={activePeriodData.revenue.previous}
+                change={activePeriodData.revenue.change}
+                formatter={formatCurrency}
+              />
+              <MetricCard
+                title="Nº Faturas"
+                value={activePeriodData.invoices.current}
+                previousValue={activePeriodData.invoices.previous}
+                change={activePeriodData.invoices.change}
+                formatter={formatNumber}
+              />
+              <MetricCard
+                title="Nº Clientes"
+                value={activePeriodData.customers.current}
+                previousValue={activePeriodData.customers.previous}
+                change={activePeriodData.customers.change}
+                formatter={formatNumber}
+              />
+              <MetricCard
+                title="Ticket Médio"
+                value={activePeriodData.avgInvoiceValue.current}
+                previousValue={activePeriodData.avgInvoiceValue.previous}
+                change={activePeriodData.avgInvoiceValue.change}
+                formatter={formatCurrency}
+              />
+              <MetricCard
+                title="Orçamentos Valor"
+                value={activePeriodData.quoteValue.current}
+                previousValue={activePeriodData.quoteValue.previous}
+                change={activePeriodData.quoteValue.change}
+                formatter={formatCurrency}
+              />
+              <MetricCard
+                title="Orçamentos Qtd"
+                value={activePeriodData.quoteCount.current}
+                previousValue={activePeriodData.quoteCount.previous}
+                change={activePeriodData.quoteCount.change}
+                formatter={formatNumber}
+              />
+              <MetricCard
+                title="Taxa Conversão"
+                value={activePeriodData.conversionRate.current}
+                previousValue={activePeriodData.conversionRate.previous}
+                change={activePeriodData.conversionRate.change}
+                formatter={formatPercent}
+              />
+              <MetricCard
+                title="Orçamento Médio"
+                value={activePeriodData.avgQuoteValue.current}
+                previousValue={activePeriodData.avgQuoteValue.previous}
+                change={activePeriodData.avgQuoteValue.change}
+                formatter={formatCurrency}
+              />
             </div>
-            {/* Individual Cost Center Details */}
-            <div className="imx-border-t pt-4">
-              <h3 className="text-sm font-normal mb-3">
-                Detalhes por Centro de Custo
-              </h3>
-              <div className="space-y-3">
-                {costCenterPerformance.costCenters.map((cc) => (
-                  <div
-                    key={cc.costCenter}
-                    className="grid grid-cols-1 md:grid-cols-5 gap-2 text-sm"
+          )}
+
+          {/* VENDAS 3-year YTD Comparison Chart */}
+          {multiYearRevenue && multiYearChartData.length > 0 && (
+            <Card className="p-6">
+              <div className="space-y-4">
+                <h2 className="text-xl text-foreground">
+                  Vendas {multiYearRevenue.years[0]} vs{" "}
+                  {multiYearRevenue.years[1]} vs {multiYearRevenue.years[2]}{" "}
+                  (YTD)
+                </h2>
+                <ResponsiveContainer width="100%" height={300}>
+                  {/* Add left margin so first point and Y-axis are fully visible */}
+                  <LineChart
+                    data={multiYearChartData}
+                    margin={{ top: 10, right: 30, bottom: 20, left: 40 }}
                   >
-                    <div className="font-normal">{cc.costCenter}</div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        {costCenterPerformance.years[0]}:{" "}
-                      </span>
-                      {formatCurrency(cc.currentYear)}
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        {costCenterPerformance.years[1]}:{" "}
-                      </span>
-                      {formatCurrency(cc.previousYear)}
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        {costCenterPerformance.years[2]}:{" "}
-                      </span>
-                      {formatCurrency(cc.twoYearsAgo)}
-                    </div>
-                    <div
-                      className={
-                        cc.yoyChangePct !== null && cc.yoyChangePct > 0
-                          ? "text-success"
-                          : cc.yoyChangePct !== null && cc.yoyChangePct < 0
-                            ? "text-destructive"
-                            : ""
-                      }
-                    >
-                      <span className="text-muted-foreground">Var YoY: </span>
-                      {cc.yoyChangePct !== null
-                        ? `${cc.yoyChangePct > 0 ? "+" : ""}${cc.yoyChangePct.toFixed(1)}%`
-                        : "N/A"}
-                    </div>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip
+                      formatter={(value) => formatCurrency(Number(value))}
+                    />
+                    <Legend />
+                    {multiYearRevenue.years.map((year, index) => {
+                      const key = `Vendas_${year}`;
+                      // Respect design system: use CSS variables only.
+                      // Original request: swap colors so 2024 is yellow and 2025 is black.
+                      const isMostRecent = index === 0; // current year
+                      const stroke = isMostRecent
+                        ? "var(--foreground)" // 2025 -> black
+                        : index === 1
+                          ? "var(--primary)" // 2024 -> yellow
+                          : "var(--orange)"; // 2023 -> orange
+                      return (
+                        <Line
+                          key={year}
+                          type="monotone"
+                          dataKey={key}
+                          stroke={stroke}
+                          strokeWidth={2}
+                          dot={false}
+                        />
+                      );
+                    })}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          )}
+
+          {/* Cancellation Rate Chart removed to prioritize VENDAS multi-year chart */}
+
+          {/* Top Customers Table */}
+          {topCustomers && (
+            <Card className="p-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl text-foreground">
+                    Top 20 Clientes YTD
+                  </h2>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span>
+                      Total:{" "}
+                      {formatCurrency(topCustomers.summary.topCustomersRevenue)}
+                    </span>
+                    <span>
+                      {formatPercent(topCustomers.summary.topCustomersSharePct)}{" "}
+                      do total
+                    </span>
                   </div>
-                ))}
+                </div>
+
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead
+                          className="w-12 cursor-pointer select-none"
+                          onClick={() => handleTopSort("rank")}
+                        >
+                          #{renderSortIcon("rank")}
+                        </TableHead>
+                        <TableHead
+                          className="cursor-pointer select-none"
+                          onClick={() => handleTopSort("customerName")}
+                        >
+                          Cliente
+                          {renderSortIcon("customerName")}
+                        </TableHead>
+                        <TableHead
+                          className="cursor-pointer select-none"
+                          onClick={() => handleTopSort("salesperson")}
+                        >
+                          Vendedor
+                          {renderSortIcon("salesperson")}
+                        </TableHead>
+                        <TableHead
+                          className="text-right cursor-pointer select-none"
+                          onClick={() => handleTopSort("invoiceCount")}
+                        >
+                          Nº Faturas
+                          {renderSortIcon("invoiceCount")}
+                        </TableHead>
+                        <TableHead
+                          className="text-right cursor-pointer select-none"
+                          onClick={() => handleTopSort("netRevenue")}
+                        >
+                          Receita
+                          {renderSortIcon("netRevenue")}
+                        </TableHead>
+                        {/* Ano Anterior (YTD only) */}
+                        {activeTab === "ytd" && (
+                          <TableHead className="text-right">
+                            Ano Anterior
+                          </TableHead>
+                        )}
+                        {/* Var % vs Ano Anterior (YTD only) */}
+                        {activeTab === "ytd" && (
+                          <TableHead className="text-right">Var %</TableHead>
+                        )}
+                        <TableHead
+                          className="text-right cursor-pointer select-none"
+                          onClick={() => handleTopSort("revenueSharePct")}
+                        >
+                          % Total
+                          {renderSortIcon("revenueSharePct")}
+                        </TableHead>
+                        <TableHead
+                          className="text-right cursor-pointer select-none"
+                          onClick={() => handleTopSort("lastInvoice")}
+                        >
+                          {activeTab === "mtd"
+                            ? "Última Fatura (Mês)"
+                            : "Última Fatura"}
+                          {renderSortIcon("lastInvoice")}
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sortedTopCustomers.map((customer) => {
+                        const isYtd = activeTab === "ytd";
+                        const prevValue =
+                          isYtd && customer.previousNetRevenue != null
+                            ? customer.previousNetRevenue
+                            : null;
+                        const deltaPct =
+                          isYtd && customer.previousDeltaPct != null
+                            ? customer.previousDeltaPct
+                            : null;
+
+                        // Color code: green if current > previous, red if current < previous
+                        const deltaClass =
+                          deltaPct == null
+                            ? ""
+                            : deltaPct > 0
+                              ? "text-success"
+                              : deltaPct < 0
+                                ? "text-destructive"
+                                : "";
+
+                        return (
+                          <TableRow key={customer.customerId}>
+                            <TableCell>{customer.rank}</TableCell>
+                            <TableCell className="font-normal">
+                              {customer.customerName}
+                            </TableCell>
+                            <TableCell>{customer.salesperson}</TableCell>
+                            <TableCell className="text-right">
+                              {formatNumber(customer.invoiceCount)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {formatCurrency(customer.netRevenue)}
+                            </TableCell>
+                            {isYtd && (
+                              <TableCell className="text-right">
+                                {prevValue != null
+                                  ? formatCurrency(prevValue)
+                                  : "-"}
+                              </TableCell>
+                            )}
+                            {isYtd && (
+                              <TableCell className={`text-right ${deltaClass}`}>
+                                {deltaPct != null
+                                  ? `${deltaPct > 0 ? "+" : ""}${deltaPct.toFixed(
+                                      1,
+                                    )}%`
+                                  : "-"}
+                              </TableCell>
+                            )}
+                            <TableCell className="text-right">
+                              {formatPercent(customer.revenueSharePct)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {customer.lastInvoice}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
-            </div>
-          </div>
-        </Card>
+            </Card>
+          )}
+        </>
       )}
 
-      {/* Cost Center Sales Table - Dynamic based on tab */}
-      {costCenterSales && costCenterSales.costCenters && (
-        <Card className="p-6">
-          <div className="space-y-4">
-            <h2 className="text-xl text-foreground">
-              {activeTab === "mtd"
-                ? "VENDAS POR CENTRO DE CUSTO - MÊS ATUAL"
-                : "VENDAS POR CENTRO DE CUSTO - ANO ATUAL"}
-            </h2>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Centro de Custo</TableHead>
-                    <TableHead className="text-right">Vendas</TableHead>
-                    <TableHead className="text-right">Var %</TableHead>
-                    <TableHead className="text-right">Nº Faturas</TableHead>
-                    <TableHead className="text-right">Nº Clientes</TableHead>
-                    <TableHead className="text-right">Ticket Médio</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {costCenterSales.costCenters.map((cc: any) => {
-                    const changeClass =
-                      cc.var_pct === null || cc.var_pct === 0
-                        ? ""
-                        : cc.var_pct > 0
-                          ? "text-success"
-                          : "text-destructive";
+      {/* ========================================== */}
+      {/* CENTRO CUSTO TAB CONTENT */}
+      {/* ========================================== */}
+      {mainTab === "centro-custo" && (
+        <>
+          {/* Cost Center Performance Chart - 3 Year Comparison */}
+          {costCenterPerformance && costCenterPerformance.costCenters && (
+            <Card className="p-6">
+              <div className="space-y-4">
+                <h2 className="text-xl text-foreground">
+                  VENDAS POR CENTRO DE CUSTO (
+                  {costCenterPerformance.metadata.period.toUpperCase()}) -
+                  Comparação 3 Anos
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {costCenterPerformance.metadata.period === "mtd"
+                    ? `Comparação do mês de ${costCenterPerformance.metadata.periodLabel} (até dia ${costCenterPerformance.metadata.currentDay}) entre ${costCenterPerformance.years[0]}, ${costCenterPerformance.years[1]} e ${costCenterPerformance.years[2]}`
+                    : `Comparação YTD (até ${costCenterPerformance.metadata.ytdEndDate}) entre ${costCenterPerformance.years[0]}, ${costCenterPerformance.years[1]} e ${costCenterPerformance.years[2]}`}
+                </p>
+                <ResponsiveContainer width="100%" height={350}>
+                  <BarChart
+                    data={costCenterPerformance.costCenters}
+                    margin={{ top: 10, right: 30, bottom: 60, left: 80 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="costCenter"
+                      angle={-45}
+                      textAnchor="end"
+                      height={100}
+                    />
+                    <YAxis />
+                    <Tooltip
+                      formatter={(value: any) => formatCurrency(Number(value))}
+                    />
+                    <Legend />
+                    <Bar
+                      dataKey="currentYear"
+                      fill="var(--foreground)"
+                      name={`${costCenterPerformance.years[0]}`}
+                    />
+                    <Bar
+                      dataKey="previousYear"
+                      fill="var(--primary)"
+                      name={`${costCenterPerformance.years[1]}`}
+                    />
+                    <Bar
+                      dataKey="twoYearsAgo"
+                      fill="var(--orange)"
+                      name={`${costCenterPerformance.years[2]}`}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">
+                      Total {costCenterPerformance.years[0]}
+                    </p>
+                    <p className="text-lg font-normal">
+                      {formatCurrency(
+                        costCenterPerformance.costCenters.reduce(
+                          (sum, cc) => sum + cc.currentYear,
+                          0,
+                        ),
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">
+                      Total {costCenterPerformance.years[1]}
+                    </p>
+                    <p className="text-lg font-normal">
+                      {formatCurrency(
+                        costCenterPerformance.costCenters.reduce(
+                          (sum, cc) => sum + cc.previousYear,
+                          0,
+                        ),
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">
+                      Total {costCenterPerformance.years[2]}
+                    </p>
+                    <p className="text-lg font-normal">
+                      {formatCurrency(
+                        costCenterPerformance.costCenters.reduce(
+                          (sum, cc) => sum + cc.twoYearsAgo,
+                          0,
+                        ),
+                      )}
+                    </p>
+                  </div>
+                </div>
+                {/* Individual Cost Center Details */}
+                <div className="imx-border-t pt-4">
+                  <h3 className="text-sm font-normal mb-3">
+                    Detalhes por Centro de Custo
+                  </h3>
+                  <div className="space-y-3">
+                    {costCenterPerformance.costCenters.map((cc) => (
+                      <div
+                        key={cc.costCenter}
+                        className="grid grid-cols-1 md:grid-cols-5 gap-2 text-sm"
+                      >
+                        <div className="font-normal">{cc.costCenter}</div>
+                        <div>
+                          <span className="text-muted-foreground">
+                            {costCenterPerformance.years[0]}:{" "}
+                          </span>
+                          {formatCurrency(cc.currentYear)}
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">
+                            {costCenterPerformance.years[1]}:{" "}
+                          </span>
+                          {formatCurrency(cc.previousYear)}
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">
+                            {costCenterPerformance.years[2]}:{" "}
+                          </span>
+                          {formatCurrency(cc.twoYearsAgo)}
+                        </div>
+                        <div
+                          className={
+                            cc.yoyChangePct !== null && cc.yoyChangePct > 0
+                              ? "text-success"
+                              : cc.yoyChangePct !== null && cc.yoyChangePct < 0
+                                ? "text-destructive"
+                                : ""
+                          }
+                        >
+                          <span className="text-muted-foreground">
+                            Var YoY:{" "}
+                          </span>
+                          {cc.yoyChangePct !== null
+                            ? `${cc.yoyChangePct > 0 ? "+" : ""}${cc.yoyChangePct.toFixed(1)}%`
+                            : "N/A"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
 
-                    return (
-                      <TableRow key={cc.centro_custo}>
-                        <TableCell className="font-normal">
-                          {cc.centro_custo}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(cc.vendas)}
-                        </TableCell>
-                        <TableCell className={`text-right ${changeClass}`}>
-                          {cc.var_pct !== null && cc.var_pct !== 0
-                            ? `${cc.var_pct > 0 ? "+" : ""}${cc.var_pct.toFixed(1)}%`
-                            : activeTab === "mtd"
-                              ? "-"
-                              : "0.0%"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatNumber(cc.num_faturas)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatNumber(cc.num_clientes)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(cc.ticket_medio)}
-                        </TableCell>
+          {/* Cost Center Sales Table - Dynamic based on tab */}
+          {costCenterSales && costCenterSales.costCenters && (
+            <Card className="p-6">
+              <div className="space-y-4">
+                <h2 className="text-xl text-foreground">
+                  {activeTab === "mtd"
+                    ? "VENDAS POR CENTRO DE CUSTO - MÊS ATUAL"
+                    : "VENDAS POR CENTRO DE CUSTO - ANO ATUAL"}
+                </h2>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Centro de Custo</TableHead>
+                        <TableHead className="text-right">Vendas</TableHead>
+                        <TableHead className="text-right">Var %</TableHead>
+                        <TableHead className="text-right">Nº Faturas</TableHead>
+                        <TableHead className="text-right">
+                          Nº Clientes
+                        </TableHead>
+                        <TableHead className="text-right">
+                          Ticket Médio
+                        </TableHead>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm imx-border-t pt-4">
-              <div>
-                <p className="text-muted-foreground">
-                  Total Vendas {activeTab === "mtd" ? "Mês Atual" : "YTD"}
-                </p>
-                <p className="text-lg font-normal">
-                  {formatCurrency(
-                    costCenterSales.costCenters.reduce(
-                      (sum: number, cc: any) => sum + cc.vendas,
-                      0,
-                    ),
-                  )}
-                </p>
+                    </TableHeader>
+                    <TableBody>
+                      {costCenterSales.costCenters.map((cc: any) => {
+                        const changeClass =
+                          cc.var_pct === null || cc.var_pct === 0
+                            ? ""
+                            : cc.var_pct > 0
+                              ? "text-success"
+                              : "text-destructive";
+
+                        return (
+                          <TableRow key={cc.centro_custo}>
+                            <TableCell className="font-normal">
+                              {cc.centro_custo}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {formatCurrency(cc.vendas)}
+                            </TableCell>
+                            <TableCell className={`text-right ${changeClass}`}>
+                              {cc.var_pct !== null && cc.var_pct !== 0
+                                ? `${cc.var_pct > 0 ? "+" : ""}${cc.var_pct.toFixed(1)}%`
+                                : activeTab === "mtd"
+                                  ? "-"
+                                  : "0.0%"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {formatNumber(cc.num_faturas)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {formatNumber(cc.num_clientes)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {formatCurrency(cc.ticket_medio)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm imx-border-t pt-4">
+                  <div>
+                    <p className="text-muted-foreground">
+                      Total Vendas {activeTab === "mtd" ? "Mês Atual" : "YTD"}
+                    </p>
+                    <p className="text-lg font-normal">
+                      {formatCurrency(
+                        costCenterSales.costCenters.reduce(
+                          (sum: number, cc: any) => sum + cc.vendas,
+                          0,
+                        ),
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Total Faturas</p>
+                    <p className="text-lg font-normal">
+                      {formatNumber(
+                        costCenterSales.costCenters.reduce(
+                          (sum: number, cc: any) => sum + cc.num_faturas,
+                          0,
+                        ),
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Centros de Custo</p>
+                    <p className="text-lg font-normal">
+                      {costCenterSales.costCenters.length}
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-muted-foreground">Total Faturas</p>
-                <p className="text-lg font-normal">
-                  {formatNumber(
-                    costCenterSales.costCenters.reduce(
-                      (sum: number, cc: any) => sum + cc.num_faturas,
-                      0,
-                    ),
-                  )}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Centros de Custo</p>
-                <p className="text-lg font-normal">
-                  {costCenterSales.costCenters.length}
-                </p>
-              </div>
-            </div>
-          </div>
-        </Card>
+            </Card>
+          )}
+        </>
       )}
 
-      {/* Top Customers Table */}
-      {topCustomers && (
-        <Card className="p-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl text-foreground">Top 20 Clientes YTD</h2>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span>
-                  Total:{" "}
-                  {formatCurrency(topCustomers.summary.topCustomersRevenue)}
-                </span>
-                <span>
-                  {formatPercent(topCustomers.summary.topCustomersSharePct)} do
-                  total
-                </span>
-              </div>
+      {/* ========================================== */}
+      {/* VENDEDORES TAB CONTENT */}
+      {/* ========================================== */}
+      {mainTab === "vendedores" && (
+        <>
+          <Card className="p-6">
+            <div className="space-y-4">
+              <h2 className="text-xl text-foreground">
+                ANÁLISE DE VENDEDORES -{" "}
+                {activeTab === "mtd" ? "MÊS ATUAL" : "ANO ATUAL"}
+              </h2>
+              <p className="text-muted-foreground">
+                Conteúdo em desenvolvimento. Esta secção apresentará análise
+                detalhada de performance por vendedor.
+              </p>
             </div>
+          </Card>
+        </>
+      )}
 
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead
-                      className="w-12 cursor-pointer select-none"
-                      onClick={() => handleTopSort("rank")}
-                    >
-                      #{renderSortIcon("rank")}
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer select-none"
-                      onClick={() => handleTopSort("customerName")}
-                    >
-                      Cliente
-                      {renderSortIcon("customerName")}
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer select-none"
-                      onClick={() => handleTopSort("salesperson")}
-                    >
-                      Vendedor
-                      {renderSortIcon("salesperson")}
-                    </TableHead>
-                    <TableHead
-                      className="text-right cursor-pointer select-none"
-                      onClick={() => handleTopSort("invoiceCount")}
-                    >
-                      Nº Faturas
-                      {renderSortIcon("invoiceCount")}
-                    </TableHead>
-                    <TableHead
-                      className="text-right cursor-pointer select-none"
-                      onClick={() => handleTopSort("netRevenue")}
-                    >
-                      Receita
-                      {renderSortIcon("netRevenue")}
-                    </TableHead>
-                    {/* Ano Anterior (YTD only) */}
-                    {activeTab === "ytd" && (
-                      <TableHead className="text-right">Ano Anterior</TableHead>
-                    )}
-                    {/* Var % vs Ano Anterior (YTD only) */}
-                    {activeTab === "ytd" && (
-                      <TableHead className="text-right">Var %</TableHead>
-                    )}
-                    <TableHead
-                      className="text-right cursor-pointer select-none"
-                      onClick={() => handleTopSort("revenueSharePct")}
-                    >
-                      % Total
-                      {renderSortIcon("revenueSharePct")}
-                    </TableHead>
-                    <TableHead
-                      className="text-right cursor-pointer select-none"
-                      onClick={() => handleTopSort("lastInvoice")}
-                    >
-                      {activeTab === "mtd"
-                        ? "Última Fatura (Mês)"
-                        : "Última Fatura"}
-                      {renderSortIcon("lastInvoice")}
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedTopCustomers.map((customer) => {
-                    const isYtd = activeTab === "ytd";
-                    const prevValue =
-                      isYtd && customer.previousNetRevenue != null
-                        ? customer.previousNetRevenue
-                        : null;
-                    const deltaPct =
-                      isYtd && customer.previousDeltaPct != null
-                        ? customer.previousDeltaPct
-                        : null;
-
-                    // Color code: green if current > previous, red if current < previous
-                    const deltaClass =
-                      deltaPct == null
-                        ? ""
-                        : deltaPct > 0
-                          ? "text-success"
-                          : deltaPct < 0
-                            ? "text-destructive"
-                            : "";
-
-                    return (
-                      <TableRow key={customer.customerId}>
-                        <TableCell>{customer.rank}</TableCell>
-                        <TableCell className="font-normal">
-                          {customer.customerName}
-                        </TableCell>
-                        <TableCell>{customer.salesperson}</TableCell>
-                        <TableCell className="text-right">
-                          {formatNumber(customer.invoiceCount)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(customer.netRevenue)}
-                        </TableCell>
-                        {isYtd && (
-                          <TableCell className="text-right">
-                            {prevValue != null
-                              ? formatCurrency(prevValue)
-                              : "-"}
-                          </TableCell>
-                        )}
-                        {isYtd && (
-                          <TableCell className={`text-right ${deltaClass}`}>
-                            {deltaPct != null
-                              ? `${deltaPct > 0 ? "+" : ""}${deltaPct.toFixed(
-                                  1,
-                                )}%`
-                              : "-"}
-                          </TableCell>
-                        )}
-                        <TableCell className="text-right">
-                          {formatPercent(customer.revenueSharePct)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {customer.lastInvoice}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+      {/* ========================================== */}
+      {/* OPERAÇÕES TAB CONTENT */}
+      {/* ========================================== */}
+      {mainTab === "operacoes" && (
+        <>
+          <Card className="p-6">
+            <div className="space-y-4">
+              <h2 className="text-xl text-foreground">MÉTRICAS OPERACIONAIS</h2>
+              <p className="text-muted-foreground">
+                Conteúdo em desenvolvimento. Esta secção apresentará métricas e
+                análises operacionais.
+              </p>
             </div>
-          </div>
-        </Card>
+          </Card>
+        </>
       )}
 
       {/* Data Quality Info */}

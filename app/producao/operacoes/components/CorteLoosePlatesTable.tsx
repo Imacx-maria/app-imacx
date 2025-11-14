@@ -273,9 +273,12 @@ export function CorteLoosePlatesTable({
 
   // Debounced version for text/number inputs (500ms delay for smooth typing)
   const debouncedFieldChange = useCallback(
-    debounce((opId: string, field: string, value: any) => {
-      handleFieldChange(opId, field, value);
-    }, 500),
+    (opId: string, field: string, value: any) => {
+      const debounced = debounce(() => {
+        handleFieldChange(opId, field, value);
+      }, 500);
+      debounced();
+    },
     [operations], // eslint-disable-line react-hooks/exhaustive-deps
   );
 

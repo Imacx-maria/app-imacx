@@ -1,10 +1,10 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useCallback } from 'react'
-import { createBrowserClient } from '@/utils/supabase'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { useState, useEffect, useCallback } from "react";
+import { createBrowserClient } from "@/utils/supabase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -12,15 +12,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
+} from "@/components/ui/table";
 
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip'
-import DatePicker from '@/components/ui/DatePicker'
+} from "@/components/ui/tooltip";
+import DatePicker from "@/components/ui/DatePicker";
 import {
   Plus,
   Trash2,
@@ -30,161 +30,164 @@ import {
   RotateCw,
   ArrowUp,
   ArrowDown,
-} from 'lucide-react'
-import PermissionGuard from '@/components/PermissionGuard'
-import { format } from 'date-fns'
-import { pt } from 'date-fns/locale'
-import { useDebounce } from '@/hooks/useDebounce'
+} from "lucide-react";
+import PermissionGuard from "@/components/PermissionGuard";
+import { format } from "date-fns";
+import { pt } from "date-fns/locale";
+import { useDebounce } from "@/hooks/useDebounce";
 
 interface Feriado {
-  id: string
-  holiday_date: string
-  description: string
-  created_at: string
-  updated_at: string
+  id: string;
+  holiday_date: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export default function FeriadosPage() {
-  const [feriados, setFeriados] = useState<Feriado[]>([])
-  const [loading, setLoading] = useState(true)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editDescription, setEditDescription] = useState('')
-  const [editDate, setEditDate] = useState<Date | undefined>(undefined)
-  const [descriptionFilter, setDescriptionFilter] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [sortColumn, setSortColumn] = useState<'holiday_date' | 'description'>(
-    'holiday_date',
-  )
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [feriados, setFeriados] = useState<Feriado[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDescription, setEditDescription] = useState("");
+  const [editDate, setEditDate] = useState<Date | undefined>(undefined);
+  const [descriptionFilter, setDescriptionFilter] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [sortColumn, setSortColumn] = useState<"holiday_date" | "description">(
+    "holiday_date",
+  );
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   // Debounced filter values for performance
-  const debouncedDescriptionFilter = useDebounce(descriptionFilter, 300)
+  const debouncedDescriptionFilter = useDebounce(descriptionFilter, 300);
 
   // Effective filter - only activate with 3+ characters
-  const effectiveDescriptionFilter = debouncedDescriptionFilter.trim().length >= 3 ? debouncedDescriptionFilter : ''
+  const effectiveDescriptionFilter =
+    debouncedDescriptionFilter.trim().length >= 3
+      ? debouncedDescriptionFilter
+      : "";
 
-  const supabase = createBrowserClient()
+  const supabase = createBrowserClient();
 
   // Convert to database-level filtering
   const fetchFeriados = useCallback(
     async (filters: { descriptionFilter?: string } = {}) => {
-      setLoading(true)
+      setLoading(true);
       try {
-        let query = supabase.from('feriados').select('*')
+        let query = supabase.from("feriados").select("*");
 
         // Apply filters at database level
         if (filters.descriptionFilter?.trim?.()) {
           query = query.ilike(
-            'description',
+            "description",
             `%${filters.descriptionFilter.trim()}%`,
-          )
+          );
         }
 
         // Apply sorting at database level
-        const ascending = sortDirection === 'asc'
-        if (sortColumn === 'holiday_date') {
-          query = query.order('holiday_date', { ascending })
+        const ascending = sortDirection === "asc";
+        if (sortColumn === "holiday_date") {
+          query = query.order("holiday_date", { ascending });
         } else {
-          query = query.order('description', { ascending })
+          query = query.order("description", { ascending });
         }
 
-        const { data, error } = await query
+        const { data, error } = await query;
 
         if (!error && data) {
-          setFeriados(data)
+          setFeriados(data);
         }
       } catch (error) {
-        console.error('Error fetching feriados:', error)
+        console.error("Error fetching feriados:", error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     },
     [supabase, sortColumn, sortDirection],
-  )
+  );
 
   // Initial load
   useEffect(() => {
-    fetchFeriados()
-  }, [fetchFeriados])
+    fetchFeriados();
+  }, [fetchFeriados]);
 
   // Trigger search when filter changes
   useEffect(() => {
-    fetchFeriados({ descriptionFilter: effectiveDescriptionFilter })
-  }, [effectiveDescriptionFilter, fetchFeriados])
+    fetchFeriados({ descriptionFilter: effectiveDescriptionFilter });
+  }, [effectiveDescriptionFilter, fetchFeriados]);
 
   // Trigger search when sorting changes
   useEffect(() => {
-    fetchFeriados({ descriptionFilter: effectiveDescriptionFilter })
-  }, [sortColumn, sortDirection, effectiveDescriptionFilter, fetchFeriados])
+    fetchFeriados({ descriptionFilter: effectiveDescriptionFilter });
+  }, [sortColumn, sortDirection, effectiveDescriptionFilter, fetchFeriados]);
 
   // Remove client-side filtering and sorting - now using database-level operations
-  const sortedFeriados = feriados
+  const sortedFeriados = feriados;
 
-  const handleSort = (column: 'holiday_date' | 'description') => {
+  const handleSort = (column: "holiday_date" | "description") => {
     if (sortColumn === column) {
-      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
-      setSortColumn(column)
-      setSortDirection('asc')
+      setSortColumn(column);
+      setSortDirection("asc");
     }
-  }
+  };
 
   const handleAddNew = async () => {
-    const description = prompt('Digite a descrição do feriado:')
-    if (!description?.trim()) return
+    const description = prompt("Digite a descrição do feriado:");
+    if (!description?.trim()) return;
 
-    const dateStr = prompt('Digite a data (YYYY-MM-DD):')
-    if (!dateStr?.trim()) return
+    const dateStr = prompt("Digite a data (YYYY-MM-DD):");
+    if (!dateStr?.trim()) return;
 
     // Validate date format
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(dateStr)) {
-      alert('Formato de data inválido. Use YYYY-MM-DD')
-      return
+      alert("Formato de data inválido. Use YYYY-MM-DD");
+      return;
     }
 
-    setSubmitting(true)
+    setSubmitting(true);
     try {
       const { data, error } = await supabase
-        .from('feriados')
+        .from("feriados")
         .insert({
           holiday_date: dateStr,
           description: description.trim(),
         })
-        .select('*')
+        .select("*");
 
       if (!error && data && data[0]) {
-        setFeriados((prev) => [...prev, data[0]])
+        setFeriados((prev) => [...prev, data[0]]);
       }
     } catch (error) {
-      console.error('Error creating feriado:', error)
+      console.error("Error creating feriado:", error);
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este feriado?')) return
+    if (!confirm("Tem certeza que deseja excluir este feriado?")) return;
 
     try {
-      const { error } = await supabase.from('feriados').delete().eq('id', id)
+      const { error } = await supabase.from("feriados").delete().eq("id", id);
 
       if (!error) {
-        setFeriados((prev) => prev.filter((f) => f.id !== id))
+        setFeriados((prev) => prev.filter((f) => f.id !== id));
       }
     } catch (error) {
-      console.error('Error deleting feriado:', error)
+      console.error("Error deleting feriado:", error);
     }
-  }
+  };
 
   const formatDisplayDate = (dateString: string) => {
     try {
-      const date = new Date(dateString)
-      return format(date, 'dd/MM/yyyy', { locale: pt })
+      const date = new Date(dateString);
+      return format(date, "dd/MM/yyyy", { locale: pt });
     } catch {
-      return dateString
+      return dateString;
     }
-  }
+  };
 
   return (
     <PermissionGuard>
@@ -209,11 +212,7 @@ export default function FeriadosPage() {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    onClick={handleAddNew}
-                    variant="default"
-                    size="icon"
-                  >
+                  <Button onClick={handleAddNew} variant="default" size="icon">
                     <Plus className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
@@ -239,7 +238,7 @@ export default function FeriadosPage() {
                   variant="outline"
                   size="icon"
                   className="h-10 w-10"
-                  onClick={() => setDescriptionFilter('')}
+                  onClick={() => setDescriptionFilter("")}
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -275,11 +274,11 @@ export default function FeriadosPage() {
                 <TableRow>
                   <TableHead
                     className="sticky top-0 z-10 w-[160px] cursor-pointer imx-border-b text-center uppercase select-none"
-                    onClick={() => handleSort('holiday_date')}
+                    onClick={() => handleSort("holiday_date")}
                   >
                     Data
-                    {sortColumn === 'holiday_date' &&
-                      (sortDirection === 'asc' ? (
+                    {sortColumn === "holiday_date" &&
+                      (sortDirection === "asc" ? (
                         <ArrowUp className="ml-1 inline h-3 w-3" />
                       ) : (
                         <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -287,11 +286,11 @@ export default function FeriadosPage() {
                   </TableHead>
                   <TableHead
                     className="sticky top-0 z-10 cursor-pointer imx-border-b text-center uppercase select-none"
-                    onClick={() => handleSort('description')}
+                    onClick={() => handleSort("description")}
                   >
                     Descrição
-                    {sortColumn === 'description' &&
-                      (sortDirection === 'asc' ? (
+                    {sortColumn === "description" &&
+                      (sortDirection === "asc" ? (
                         <ArrowUp className="ml-1 inline h-3 w-3" />
                       ) : (
                         <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -329,7 +328,7 @@ export default function FeriadosPage() {
                           <DatePicker
                             value={editDate}
                             onChange={(date) => {
-                              setEditDate(date)
+                              setEditDate(date);
                             }}
                           />
                         ) : (
@@ -344,7 +343,7 @@ export default function FeriadosPage() {
                               onChange={(e) =>
                                 setEditDescription(e.target.value)
                               }
-                              className="h-10 flex-1 border-0 text-sm outline-0 focus:border-0 focus:ring-0"
+                              className="h-10 flex-1 text-sm outline-0 focus:ring-0"
                               placeholder="Descrição do feriado"
                             />
                             <div className="flex gap-1">
@@ -355,26 +354,26 @@ export default function FeriadosPage() {
                                       variant="default"
                                       size="icon"
                                       onClick={async () => {
-                                        if (!editDescription.trim()) return
+                                        if (!editDescription.trim()) return;
 
-                                        setSubmitting(true)
+                                        setSubmitting(true);
                                         try {
                                           const isoDate = editDate
                                             ? editDate
                                                 .toISOString()
-                                                .split('T')[0]
-                                            : feriado.holiday_date
+                                                .split("T")[0]
+                                            : feriado.holiday_date;
                                           const { error } = await supabase
-                                            .from('feriados')
+                                            .from("feriados")
                                             .update({
                                               holiday_date: isoDate,
                                               description:
                                                 editDescription.trim(),
                                               updated_at: new Date()
                                                 .toISOString()
-                                                .split('T')[0],
+                                                .split("T")[0],
                                             })
-                                            .eq('id', feriado.id)
+                                            .eq("id", feriado.id);
 
                                           if (!error) {
                                             setFeriados((prev) =>
@@ -388,18 +387,18 @@ export default function FeriadosPage() {
                                                     }
                                                   : f,
                                               ),
-                                            )
+                                            );
                                           }
                                         } catch (error) {
                                           console.error(
-                                            'Error updating:',
+                                            "Error updating:",
                                             error,
-                                          )
+                                          );
                                         } finally {
-                                          setSubmitting(false)
-                                          setEditingId(null)
-                                          setEditDescription('')
-                                          setEditDate(undefined)
+                                          setSubmitting(false);
+                                          setEditingId(null);
+                                          setEditDescription("");
+                                          setEditDate(undefined);
                                         }
                                       }}
                                       disabled={
@@ -419,9 +418,9 @@ export default function FeriadosPage() {
                                       variant="outline"
                                       size="icon"
                                       onClick={() => {
-                                        setEditingId(null)
-                                        setEditDescription('')
-                                        setEditDate(undefined)
+                                        setEditingId(null);
+                                        setEditDescription("");
+                                        setEditDate(undefined);
                                       }}
                                     >
                                       <X className="h-4 w-4" />
@@ -444,9 +443,9 @@ export default function FeriadosPage() {
                                 variant="default"
                                 size="icon"
                                 onClick={() => {
-                                  setEditingId(feriado.id)
-                                  setEditDescription(feriado.description)
-                                  setEditDate(new Date(feriado.holiday_date))
+                                  setEditingId(feriado.id);
+                                  setEditDescription(feriado.description);
+                                  setEditDate(new Date(feriado.holiday_date));
                                 }}
                                 disabled={editingId !== null}
                               >
@@ -481,5 +480,5 @@ export default function FeriadosPage() {
         </div>
       </div>
     </PermissionGuard>
-  )
+  );
 }

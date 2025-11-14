@@ -1029,7 +1029,7 @@ export default function MateriaisPage() {
                         name="referencia"
                         value={editRow.referencia ?? ""}
                         onChange={handleInputChange}
-                        className="h-10 border-0 text-sm outline-0 focus:border-0 focus:ring-0"
+                        className="h-10 text-sm outline-0 focus:ring-0"
                       />
                     </TableCell>
                     <TableCell className="w-[250px] font-medium uppercase">
@@ -1038,7 +1038,7 @@ export default function MateriaisPage() {
                         value={editRow.material ?? ""}
                         onChange={handleInputChange}
                         required
-                        className="h-10 w-full border-0 text-sm outline-0 focus:border-0 focus:ring-0"
+                        className="h-10 w-full text-sm outline-0 focus:ring-0"
                       />
                     </TableCell>
                     <TableCell className="w-[250px] uppercase">
@@ -1046,7 +1046,7 @@ export default function MateriaisPage() {
                         name="carateristica"
                         value={editRow.carateristica ?? ""}
                         onChange={handleInputChange}
-                        className="h-10 border-0 text-sm outline-0 focus:border-0 focus:ring-0"
+                        className="h-10 text-sm outline-0 focus:ring-0"
                       />
                     </TableCell>
                     <TableCell className="uppercase">
@@ -1054,7 +1054,7 @@ export default function MateriaisPage() {
                         name="cor"
                         value={editRow.cor ?? ""}
                         onChange={handleInputChange}
-                        className="h-10 border-0 text-sm outline-0 focus:border-0 focus:ring-0"
+                        className="h-10 text-sm outline-0 focus:ring-0"
                       />
                     </TableCell>
                     <TableCell className="text-right">
@@ -1063,7 +1063,7 @@ export default function MateriaisPage() {
                         type="number"
                         value={editRow.qt_palete ?? ""}
                         onChange={handleInputChange}
-                        className="h-10 border-0 text-right text-sm outline-0 focus:border-0 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="h-10 text-right text-sm outline-0 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                     </TableCell>
                     <TableCell className="text-right uppercase">
@@ -1078,7 +1078,7 @@ export default function MateriaisPage() {
                             : (editRow.valor_m2 ?? "")
                         }
                         onChange={handleInputChange}
-                        className="h-10 border-0 text-right text-sm outline-0 focus:border-0 focus:ring-0"
+                        className="h-10 text-right text-sm outline-0 focus:ring-0"
                       />
                     </TableCell>
                     <TableCell className="text-center">

@@ -3120,12 +3120,12 @@ export default function StocksPage() {
                       </div>
                     </div>
                     {etlMessage && (
-                      <p className="text-xs text-success mt-2">
-                        {etlMessage}
-                      </p>
+                      <p className="text-xs text-success mt-2">{etlMessage}</p>
                     )}
                     {etlError && (
-                      <p className="text-xs text-destructive mt-2">{etlError}</p>
+                      <p className="text-xs text-destructive mt-2">
+                        {etlError}
+                      </p>
                     )}
                   </CardHeader>
                   <CardContent className="p-3 imx-border-b">
@@ -3164,7 +3164,9 @@ export default function StocksPage() {
                           </Button>
                         </div>
                         {neError && (
-                          <p className="text-xs text-destructive mt-1">{neError}</p>
+                          <p className="text-xs text-destructive mt-1">
+                            {neError}
+                          </p>
                         )}
                       </div>
                     </div>
@@ -3174,7 +3176,7 @@ export default function StocksPage() {
                       <TableBody>
                         {inlineEntries.map((entry, index) => (
                           <React.Fragment key={entry.id}>
-                            <TableRow className="border-b-0">
+                            <TableRow>
                               <TableCell className="w-[140px]">
                                 <div className="text-xs text-muted-foreground font-medium mb-1">
                                   Referência
@@ -3356,7 +3358,7 @@ export default function StocksPage() {
                                 </div>
                               </TableCell>
                             </TableRow>
-                            <TableRow className="border-t-0">
+                            <TableRow>
                               <TableCell className="pt-0 w-[120px]">
                                 <div className="text-xs text-muted-foreground font-medium mb-1">
                                   QTD UNIT.
@@ -3508,7 +3510,7 @@ export default function StocksPage() {
                                       e.currentTarget.blur();
                                     }
                                   }}
-                                  className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                                   placeholder="0.00"
                                 />
                               </TableCell>
@@ -3561,7 +3563,7 @@ export default function StocksPage() {
                                       e.currentTarget.blur();
                                     }
                                   }}
-                                  className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                                   placeholder="0.00"
                                 />
                               </TableCell>
@@ -3754,7 +3756,7 @@ export default function StocksPage() {
                           return (
                             <React.Fragment key={stock.id}>
                               <TableRow
-                                className="border-b-0"
+                                className=""
                                 style={{ backgroundColor: "#fdfbf2" }}
                               >
                                 <TableCell className="text-xs text-muted-foreground font-medium">
@@ -3789,7 +3791,7 @@ export default function StocksPage() {
                                 </TableCell>
                               </TableRow>
                               <TableRow
-                                className="border-b-0"
+                                className=""
                                 style={{ backgroundColor: "#fdfbf2" }}
                               >
                                 <TableCell>

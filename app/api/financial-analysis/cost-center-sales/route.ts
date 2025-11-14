@@ -90,7 +90,9 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      costCenters: rows.sort((a, b) => b.vendas - a.vendas),
+      costCenters: rows.sort(
+        (a: CostCenterSalesRow, b: CostCenterSalesRow) => b.vendas - a.vendas,
+      ),
       metadata: {
         period: periodParam,
         startDate: formatDate(currentStart),

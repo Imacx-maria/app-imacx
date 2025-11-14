@@ -95,7 +95,10 @@ import {
   calculateCutFromPrintProgress,
   calculateCutJobProgress,
 } from "./utils/operationsHelpers";
-import { OperationProgress, InlineProgress } from "./components/OperationProgress";
+import {
+  OperationProgress,
+  InlineProgress,
+} from "./components/OperationProgress";
 import {
   Plus,
   X,
@@ -940,7 +943,7 @@ export default function OperacoesPage() {
           {/* Main table */}
           <div className="imx-table-wrap">
             <div className="w-full overflow-x-auto">
-              <Table className="w-full border-0 imx-table-compact">
+              <Table className="w-full imx-table-compact">
                 <TableHeader>
                   <TableRow>
                     <TableHead
@@ -1230,7 +1233,7 @@ export default function OperacoesPage() {
                   <span className="ml-2">A carregar logs de auditoria...</span>
                 </div>
               ) : (
-                <Table className="w-full border-0 imx-table-compact">
+                <Table className="w-full imx-table-compact">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="sticky top-0 z-10 w-[120px] imx-border-b uppercase">
@@ -2164,7 +2167,7 @@ function OperationsTable({
           const validation = await validateOperationQuantity(
             supabase,
             operation,
-            normalizedValue
+            normalizedValue,
           );
 
           if (!validation.valid) {
@@ -2580,18 +2583,12 @@ function OperationsTable({
                       />
                       <div className="flex gap-1 flex-wrap">
                         {op.batch_id && (
-                          <Badge
-                            variant="outline"
-                            className="text-xs"
-                          >
+                          <Badge variant="outline" className="text-xs">
                             Lote {op.placas_neste_batch}/{op.total_placas}
                           </Badge>
                         )}
                         {op.plano_nome && (
-                          <Badge
-                            variant="outline"
-                            className="text-xs"
-                          >
+                          <Badge variant="outline" className="text-xs">
                             Do Designer
                           </Badge>
                         )}
@@ -2873,7 +2870,9 @@ function CorteFromPrintTable({
         normalizedValue = Number.isFinite(n) ? n : 0;
 
         if (op && op.source_impressao_id) {
-          const group = groupedOps.find((g) => g.sourceId === op.source_impressao_id);
+          const group = groupedOps.find(
+            (g) => g.sourceId === op.source_impressao_id,
+          );
           if (group) {
             const newTotal =
               group.totalCut - (op.num_placas_corte || 0) + normalizedValue;
@@ -2981,9 +2980,7 @@ function CorteFromPrintTable({
                 <TableCell>
                   <DatePicker
                     selected={
-                      op.data_operacao
-                        ? new Date(op.data_operacao)
-                        : undefined
+                      op.data_operacao ? new Date(op.data_operacao) : undefined
                     }
                     onSelect={(date: Date | undefined) =>
                       handleFieldChange(
@@ -3040,9 +3037,7 @@ function CorteFromPrintTable({
                 </TableCell>
 
                 {/* QT Print (read-only from linked print) */}
-                <TableCell>
-                  {op.QT_print ?? "-"}
-                </TableCell>
+                <TableCell>{op.QT_print ?? "-"}</TableCell>
 
                 {/* Corte */}
                 <TableCell>

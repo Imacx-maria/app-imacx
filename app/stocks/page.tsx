@@ -2156,7 +2156,7 @@ export default function StocksPage() {
           <TableBody>
             {inlineEntries.map((entry, index) => (
               <React.Fragment key={entry.id}>
-                <TableRow className="border-b-0">
+                <TableRow>
                   <TableCell className="w-[140px]">
                     <div className="text-xs text-muted-foreground font-medium mb-1">
                       Referência
@@ -2211,7 +2211,7 @@ export default function StocksPage() {
                         }
                       }}
                       maxLength={6}
-                      className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                       placeholder="0"
                     />
                   </TableCell>
@@ -2239,7 +2239,7 @@ export default function StocksPage() {
                         }
                       }}
                       maxLength={5}
-                      className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                       placeholder="3000"
                     />
                   </TableCell>
@@ -2267,7 +2267,7 @@ export default function StocksPage() {
                         }
                       }}
                       maxLength={5}
-                      className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                       placeholder="2000"
                     />
                   </TableCell>
@@ -2316,7 +2316,7 @@ export default function StocksPage() {
                           e.currentTarget.blur();
                         }
                       }}
-                      className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                       placeholder="0.00"
                     />
                   </TableCell>
@@ -2363,7 +2363,7 @@ export default function StocksPage() {
                           e.currentTarget.blur();
                         }
                       }}
-                      className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                       placeholder="0.00"
                     />
                   </TableCell>
@@ -2409,7 +2409,7 @@ export default function StocksPage() {
                     </div>
                   </TableCell>
                 </TableRow>
-                <TableRow className="border-t-0">
+                <TableRow>
                   <TableCell className="pt-0 min-w-[400px]" colSpan={2}>
                     <div className="text-xs text-muted-foreground font-medium mb-1">
                       REF PAL (OPCIONAL)
@@ -2431,7 +2431,7 @@ export default function StocksPage() {
                           );
                         }
                       }}
-                      className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                       placeholder="P100 ou P100,P101,P102 (Opcional)"
                     />
                   </TableCell>
@@ -2467,7 +2467,7 @@ export default function StocksPage() {
                         }
                       }}
                       maxLength={3}
-                      className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                     />
                   </TableCell>
                   <TableCell className="pt-0 w-[150px]">
@@ -2491,7 +2491,7 @@ export default function StocksPage() {
                           );
                         }
                       }}
-                      className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                       placeholder="Opcional"
                     />
                   </TableCell>
@@ -3078,7 +3078,7 @@ export default function StocksPage() {
                           return (
                             <React.Fragment key={stock.id}>
                               <TableRow
-                                className="border-b-0"
+                                className=""
                                 style={{ backgroundColor: "#fdfbf2" }}
                               >
                                 <TableCell className="text-xs text-muted-foreground font-medium">
@@ -3113,7 +3113,7 @@ export default function StocksPage() {
                                 </TableCell>
                               </TableRow>
                               <TableRow
-                                className="border-b-0"
+                                className=""
                                 style={{ backgroundColor: "#fdfbf2" }}
                               >
                                 <TableCell>
