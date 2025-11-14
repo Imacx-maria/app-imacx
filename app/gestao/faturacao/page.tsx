@@ -585,7 +585,7 @@ export default function FaturacaoPage() {
                   <div className="rounded-lg overflow-hidden">
                     <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
                       <TableHeader>
-                        <TableRow className="border-b border-border">
+                        <TableRow className="imx-border-b ">
                           <TableHead
                             className="cursor-pointer bg-primary text-primary-foreground font-bold uppercase hover:opacity-80"
                             onClick={(e) => toggleSort("numero_fo", e.shiftKey)}
@@ -742,7 +742,7 @@ export default function FaturacaoPage() {
                               <TableCell
                                 className={`text-center font-semibold ${
                                   item.data_saida
-                                    ? "text-green-600 dark:text-green-400"
+                                    ? "text-success dark:text-success"
                                     : item.dias_em_progresso
                                       ? "text-orange-600 dark:text-orange-400"
                                       : ""
@@ -753,7 +753,7 @@ export default function FaturacaoPage() {
                               <TableCell className="text-center">
                                 <div className="flex justify-center">
                                   <div
-                                    className={`h-4 w-4 border border-border rounded-sm flex items-center justify-center ${
+                                    className={`h-4 w-4 imx-border  rounded-sm flex items-center justify-center ${
                                       item.concluido
                                         ? "bg-black"
                                         : "bg-transparent"
@@ -780,7 +780,7 @@ export default function FaturacaoPage() {
                               <TableCell className="text-center">
                                 <div className="flex justify-center">
                                   <div
-                                    className={`h-4 w-4 border border-border rounded-sm cursor-pointer flex items-center justify-center ${
+                                    className={`h-4 w-4 imx-border  rounded-sm cursor-pointer flex items-center justify-center ${
                                       item.facturado
                                         ? "bg-black"
                                         : "bg-transparent"
@@ -818,7 +818,7 @@ export default function FaturacaoPage() {
 
                     {/* Pagination Controls */}
                     {totalPages > 1 && (
-                      <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+                      <div className="mt-4 flex items-center justify-between imx-border-t  pt-4">
                         <div className="text-sm text-muted-foreground">
                           Página {currentPage} de {totalPages} (
                           {sortedItems.length} items)
@@ -978,7 +978,7 @@ export default function FaturacaoPage() {
             <div className="rounded-lg overflow-hidden">
               <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
                 <TableHeader>
-                  <TableRow className="border-b border-border">
+                  <TableRow className="imx-border-b ">
                     <TableHead
                       className="cursor-pointer bg-primary text-primary-foreground font-bold uppercase hover:opacity-80"
                       onClick={(e) => toggleSort("numero_fo", e.shiftKey)}
@@ -1138,7 +1138,7 @@ export default function FaturacaoPage() {
                         <TableCell
                           className={`text-center font-semibold ${
                             item.data_saida
-                              ? "text-green-600 dark:text-green-400"
+                              ? "text-success dark:text-success"
                               : item.dias_em_progresso
                                 ? "text-orange-600 dark:text-orange-400"
                                 : ""
@@ -1149,7 +1149,7 @@ export default function FaturacaoPage() {
                         <TableCell className="text-center">
                           <div className="flex justify-center">
                             <div
-                              className={`h-4 w-4 border border-border rounded-sm flex items-center justify-center ${
+                              className={`h-4 w-4 imx-border  rounded-sm flex items-center justify-center ${
                                 item.concluido ? "bg-black" : "bg-transparent"
                               }`}
                             >
@@ -1174,7 +1174,7 @@ export default function FaturacaoPage() {
                         <TableCell className="text-center">
                           <div className="flex justify-center">
                             <div
-                              className={`h-4 w-4 border border-border rounded-sm cursor-pointer flex items-center justify-center ${
+                              className={`h-4 w-4 imx-border  rounded-sm cursor-pointer flex items-center justify-center ${
                                 item.facturado ? "bg-black" : "bg-transparent"
                               }`}
                               onClick={() =>
@@ -1210,7 +1210,7 @@ export default function FaturacaoPage() {
 
               {/* Pagination Controls */}
               {totalPages > 1 && (
-                <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+                <div className="mt-4 flex items-center justify-between imx-border-t  pt-4">
                   <div className="text-sm text-muted-foreground">
                     Página {currentPage} de {totalPages} ({sortedItems.length}{" "}
                     items)

@@ -321,7 +321,7 @@ export default function PlanosTable({
         </AddButton>
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md imx-border">
         <Table>
           <TableHeader>
             <TableRow>

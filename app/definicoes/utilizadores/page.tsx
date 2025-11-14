@@ -256,10 +256,8 @@ export default function UtilizadoresPage() {
         </div>
 
       <Tabs defaultValue="users" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-1">
           <TabsTrigger value="users">Utilizadores</TabsTrigger>
-          <TabsTrigger value="departments">Departamentos</TabsTrigger>
-          <TabsTrigger value="siglas">Siglas</TabsTrigger>
         </TabsList>
 
         {/* TAB 1: USERS */}
@@ -334,19 +332,7 @@ export default function UtilizadoresPage() {
           )}
         </TabsContent>
 
-        {/* TAB 2: DEPARTMENTS */}
-        <TabsContent value="departments" className="space-y-4">
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Gestão de departamentos - Em desenvolvimento</p>
-          </div>
-        </TabsContent>
 
-        {/* TAB 3: SIGLAS */}
-        <TabsContent value="siglas" className="space-y-4">
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Gestão de siglas - Em desenvolvimento</p>
-          </div>
-        </TabsContent>
       </Tabs>
 
       {/* Repair Profile Dialog */}
@@ -374,7 +360,7 @@ export default function UtilizadoresPage() {
                 id="repair-role"
                 value={selectedRoleForRepair}
                 onChange={(e) => setSelectedRoleForRepair(e.target.value)}
-                className="w-full px-3 py-2 border rounded-md"
+                className="w-full px-3 py-2 imx-border rounded-md"
               >
                 <option value="">Selecione uma função...</option>
                 {roles.map((role) => (

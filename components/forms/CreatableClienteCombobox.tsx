@@ -108,7 +108,7 @@ export const CreatableClienteCombobox: React.FC<
             disabled={disabled}
             loading={loading}
             error={error}
-            buttonClassName="border-border"
+            buttonClassName=""
             createMessage="Criar cliente"
             allowCreate={true}
           />

@@ -451,7 +451,7 @@ export default function ProductionAnalyticsCharts({
 
   if (error) {
     return (
-      <div className="border border-destructive bg-destructive/10 p-6">
+      <div className="imx-border  bg-destructive/10 p-6">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -522,7 +522,7 @@ export default function ProductionAnalyticsCharts({
         <TabsContent value="overview" className="space-y-4">
           {/* Overview cards */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="border p-4">
+            <Card className="imx-border p-4">
               <h3 className="text-sm font-medium">
                 Total Impressão
               </h3>
@@ -531,7 +531,7 @@ export default function ProductionAnalyticsCharts({
               </p>
             </Card>
 
-            <Card className="border p-4">
+            <Card className="imx-border p-4">
               <h3 className="text-sm font-medium">
                 Total Corte de Impressões
               </h3>
@@ -540,7 +540,7 @@ export default function ProductionAnalyticsCharts({
               </p>
             </Card>
 
-            <Card className="border p-4">
+            <Card className="imx-border p-4">
               <h3 className="text-sm font-medium">
                 Total Corte Chapas Soltas
               </h3>
@@ -549,7 +549,7 @@ export default function ProductionAnalyticsCharts({
               </p>
             </Card>
 
-            <Card className="border p-4">
+            <Card className="imx-border p-4">
               <h3 className="text-sm font-medium">
                 Total Placas
               </h3>
@@ -565,7 +565,7 @@ export default function ProductionAnalyticsCharts({
 
           {/* Monthly totals charts */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Card className="border p-4">
+            <Card className="imx-border p-4">
               <div className="mb-4">
                 <h3 className="text-lg leading-tight font-semibold">
                   Total Impressão por Mês
@@ -589,18 +589,13 @@ export default function ProductionAnalyticsCharts({
                       value.toLocaleString(),
                       'Placas',
                     ]}
-                    labelStyle={{ color: '#333' }}
-                    contentStyle={{
-                      backgroundColor: '#fff',
-                      border: '1px solid #ccc',
-                    }}
                   />
                   <Bar dataKey="total_print" name="Impressão" fill={CHART_COLORS.print} />
                 </BarChart>
               </ResponsiveContainer>
             </Card>
 
-            <Card className="border p-4">
+            <Card className="imx-border p-4">
               <div className="mb-4">
                 <h3 className="text-lg leading-tight font-semibold">
                   Total Corte por Mês
@@ -624,11 +619,6 @@ export default function ProductionAnalyticsCharts({
                       value.toLocaleString(),
                       name,
                     ]}
-                    labelStyle={{ color: '#333' }}
-                    contentStyle={{
-                      backgroundColor: '#fff',
-                      border: '1px solid #ccc',
-                    }}
                   />
                   <Bar dataKey="total_corte_impressao" name="Corte de Impressões" fill={CHART_COLORS.corteImpressao} />
                   <Bar dataKey="total_corte_chapas" name="Corte Chapas Soltas" fill={CHART_COLORS.corteChapas} />
@@ -639,7 +629,7 @@ export default function ProductionAnalyticsCharts({
         </TabsContent>
 
         <TabsContent value="impressao" className="space-y-4">
-          <Card className="border p-4">
+          <Card className="imx-border p-4">
             <div className="mb-4">
               <h3 className="text-lg leading-tight font-semibold">
                 Impressão por Operador
@@ -664,11 +654,6 @@ export default function ProductionAnalyticsCharts({
                       value.toLocaleString(),
                       name,
                     ]}
-                    labelStyle={{ color: '#333' }}
-                    contentStyle={{
-                      backgroundColor: '#fff',
-                      border: '1px solid #ccc',
-                    }}
                   />
                   {operatorPrintData.operators.map((operator, index) => (
                     <Bar
@@ -694,7 +679,7 @@ export default function ProductionAnalyticsCharts({
         </TabsContent>
 
         <TabsContent value="corte_impressao" className="space-y-4">
-          <Card className="border p-4">
+          <Card className="imx-border p-4">
             <div className="mb-4">
               <h3 className="text-lg leading-tight font-semibold">
                 Corte de Impressões por Operador
@@ -716,7 +701,7 @@ export default function ProductionAnalyticsCharts({
         </TabsContent>
 
         <TabsContent value="corte_chapas" className="space-y-4">
-          <Card className="border p-4">
+          <Card className="imx-border p-4">
             <div className="mb-4">
               <h3 className="text-lg leading-tight font-semibold">
                 Corte Chapas Soltas por Operador
@@ -736,17 +721,12 @@ export default function ProductionAnalyticsCharts({
                   <XAxis dataKey="month" />
                   {/* @ts-ignore */}
                   <YAxis />
-                  <Tooltip
-                    formatter={(value: number, name: string) => [
-                      value.toLocaleString(),
-                      name,
-                    ]}
-                    labelStyle={{ color: '#333' }}
-                    contentStyle={{
-                      backgroundColor: '#fff',
-                      border: '1px solid #ccc',
-                    }}
-                  />
+                <Tooltip
+                  formatter={(value: number, name: string) => [
+                    value.toLocaleString(),
+                    name,
+                  ]}
+                />
                   {operatorCorteChapasData.operators.map((operator, index) => (
                     <Bar
                       key={operator}

@@ -138,6 +138,9 @@ importers:
       eslint-config-next:
         specifier: 14.2.3
         version: 14.2.3(eslint@8.57.1)(typescript@5.9.3)
+      eslint-plugin-imx:
+        specifier: file:eslint-plugin-imx
+        version: file:eslint-plugin-imx
       pg:
         specifier: ^8.16.3
         version: 8.16.3
@@ -1672,6 +1675,9 @@ packages:
     peerDependenciesMeta:
       '@typescript-eslint/parser':
         optional: true
+
+  eslint-plugin-imx@file:eslint-plugin-imx:
+    resolution: {directory: eslint-plugin-imx, type: directory}
 
   eslint-plugin-jsx-a11y@6.10.2:
     resolution: {integrity: sha512-scB3nz4WmG75pV8+3eRUQOHZlNSUhFNq37xnpgRkCCELU3XMvXAxLk1eqWWyE22Ki4Q01Fnsw9BA3cJHDPgn2Q==}
@@ -4939,6 +4945,8 @@ snapshots:
       - eslint-import-resolver-typescript
       - eslint-import-resolver-webpack
       - supports-color
+
+  eslint-plugin-imx@file:eslint-plugin-imx: {}
 
   eslint-plugin-jsx-a11y@6.10.2(eslint@8.57.1):
     dependencies:

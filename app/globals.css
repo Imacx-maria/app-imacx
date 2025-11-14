@@ -11,12 +11,81 @@
 @layer base {
     /* Font family - universal */
     * {
-        @apply border-border;
         font-family: "Atkinson Hyperlegible", sans-serif !important;
     }
 
     body {
         @apply bg-background text-foreground;
+    }
+
+    /* ============================================
+       BORDER SYSTEM
+       ============================================ */
+    .imx-border {
+        border-style: solid !important;
+        border-color: var(--border) !important;
+        border-width: var(--border-width) !important;
+    }
+
+    .imx-border-b {
+        border-bottom-style: solid !important;
+        border-bottom-color: var(--border) !important;
+        border-bottom-width: var(--border-width) !important;
+    }
+
+    .imx-border-t {
+        border-top-style: solid !important;
+        border-top-color: var(--border) !important;
+        border-top-width: var(--border-width) !important;
+    }
+
+    .imx-border-l {
+        border-left-style: solid !important;
+        border-left-color: var(--border) !important;
+        border-left-width: var(--border-width) !important;
+    }
+
+    .imx-border-r {
+        border-right-style: solid !important;
+        border-right-color: var(--border) !important;
+        border-right-width: var(--border-width) !important;
+    }
+
+    .imx-border-x {
+        border-left-style: solid !important;
+        border-left-color: var(--border) !important;
+        border-left-width: var(--border-width) !important;
+        border-right-style: solid !important;
+        border-right-color: var(--border) !important;
+        border-right-width: var(--border-width) !important;
+    }
+
+    .imx-border-y {
+        border-top-style: solid !important;
+        border-top-color: var(--border) !important;
+        border-top-width: var(--border-width) !important;
+        border-bottom-style: solid !important;
+        border-bottom-color: var(--border) !important;
+        border-bottom-width: var(--border-width) !important;
+    }
+
+    .imx-divider-line {
+        background-color: var(--border) !important;
+    }
+
+    .imx-spinner circle {
+        stroke: var(--border);
+        stroke-width: var(--border-width);
+        stroke-linecap: round;
+        fill: none;
+    }
+
+    .recharts-default-tooltip {
+        background-color: var(--card) !important;
+        border-style: solid !important;
+        border-width: var(--border-width) !important;
+        border-color: var(--border) !important;
+        color: var(--foreground) !important;
     }
 
     /* ALL TEXT UPPERCASE - UNIVERSAL RULE */
@@ -64,10 +133,20 @@
     input:not([type]),
     textarea {
         background-color: var(--input) !important;
-        border: 1px solid var(--border) !important;
+        border-style: solid !important;
+        border-color: var(--border) !important;
+        border-width: var(--border-width) !important;
         color: var(--foreground) !important;
         outline: none !important;
         box-shadow: none !important;
+    }
+
+    input::file-selector-button {
+        border-style: solid !important;
+        border-color: var(--border) !important;
+        border-width: var(--border-width) !important;
+        background-color: transparent !important;
+        color: var(--foreground) !important;
     }
 
     /* Command/Combobox search inputs - NO OUTLINE */
@@ -219,6 +298,28 @@
     .bg-primary *,
     .hover\:bg-accent:hover,
     .hover\:bg-accent:hover * {
+        color: var(--primary-foreground) !important;
+    }
+
+    [class*="bg-yellow"],
+    [class*="bg-yellow"] *,
+    [class*="bg-orange"],
+    [class*="bg-orange"] *,
+    [class*="bg-amber"],
+    [class*="bg-amber"] *,
+    [class*="bg-red"],
+    [class*="bg-red"] * {
+        color: var(--primary-foreground) !important;
+    }
+
+    [class*="hover:bg-yellow"]:hover,
+    [class*="hover:bg-yellow"]:hover *,
+    [class*="hover:bg-orange"]:hover,
+    [class*="hover:bg-orange"]:hover *,
+    [class*="hover:bg-amber"]:hover,
+    [class*="hover:bg-amber"]:hover *,
+    [class*="hover:bg-red"]:hover,
+    [class*="hover:bg-red"]:hover * {
         color: var(--primary-foreground) !important;
     }
 
@@ -434,6 +535,7 @@
     --foreground: oklch(0% 0 0);
     --main: oklch(84.08% 0.1725 84.2);
     --border: oklch(0% 0 0);
+    --border-width: 1px;
 
     /* Shadcn compatibility */
     --primary: oklch(84.08% 0.1725 84.2);
@@ -501,6 +603,7 @@
     --foreground: oklch(0.85 0 0);
     --main: oklch(84.08% 0.1725 84.2);
     --border: oklch(0.5 0 0);
+    --border-width: 1px;
 
     /* Shadcn compatibility */
     --primary: oklch(84.08% 0.1725 84.2);

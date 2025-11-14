@@ -346,20 +346,20 @@ export const SimplifiedOperationsTable: React.FC<
     switch (tipo) {
       case "Impressao":
       case "Impressao_Flexiveis":
-        return "bg-blue-100 text-blue-800";
+        return "bg-info/15 text-info";
       case "Corte":
-        return "bg-green-100 text-green-800";
+        return "bg-success/15 text-success";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-muted text-foreground";
     }
   };
 
   const getProgressColor = (percent: number) => {
-    if (percent >= 100) return "bg-green-500";
-    if (percent >= 75) return "bg-blue-500";
-    if (percent >= 50) return "bg-yellow-500";
-    if (percent >= 25) return "bg-orange-500";
-    return "bg-red-500";
+    if (percent >= 100) return "bg-success";
+    if (percent >= 75) return "bg-info";
+    if (percent >= 50) return "bg-warning/80";
+    if (percent >= 25) return "bg-warning/40";
+    return "bg-destructive";
   };
 
   if (loading) {
@@ -371,7 +371,7 @@ export const SimplifiedOperationsTable: React.FC<
   return (
     <div className="space-y-6">
       {operationGroups.map((group) => (
-        <div key={group.jobId} className="border rounded-lg p-4 space-y-4">
+        <div key={group.jobId} className="imx-border rounded-lg p-4 space-y-4">
           {/* Group Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">

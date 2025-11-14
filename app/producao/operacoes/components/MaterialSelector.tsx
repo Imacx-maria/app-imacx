@@ -129,8 +129,8 @@ export const MaterialSelector: React.FC<MaterialSelectorProps> = ({
     if (material.stockInfo.isLowStock) {
       return {
         icon: AlertTriangle,
-        color: 'text-yellow-600',
-        bgColor: 'bg-yellow-50',
+        color: 'text-warning',
+        bgColor: 'bg-warning/15',
         label: 'Estoque baixo',
         available: material.stockInfo.availableQuantity
       }
@@ -139,8 +139,8 @@ export const MaterialSelector: React.FC<MaterialSelectorProps> = ({
     if (requiredQuantity > 0 && material.stockInfo.availableQuantity < requiredQuantity) {
       return {
         icon: AlertTriangle,
-        color: 'text-yellow-600',
-        bgColor: 'bg-yellow-50',
+        color: 'text-warning',
+        bgColor: 'bg-warning/15',
         label: 'Insuficiente',
         available: material.stockInfo.availableQuantity
       }
@@ -148,8 +148,8 @@ export const MaterialSelector: React.FC<MaterialSelectorProps> = ({
 
     return {
       icon: CheckCircle,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
+      color: 'text-success',
+      bgColor: 'bg-success/15',
       label: 'Disponível',
       available: material.stockInfo.availableQuantity
     }
@@ -255,7 +255,7 @@ export const MaterialSelector: React.FC<MaterialSelectorProps> = ({
                             <div className="flex items-center gap-1">
                               <span>{status.available} {material.stockInfo?.unit}</span>
                               <Badge 
-                                className={`text-xs ${status.bgColor} ${status.color} border-current`}
+                                className={`text-xs ${status.bgColor} ${status.color}`}
                               >
                                 {status.label}
                               </Badge>
@@ -286,7 +286,7 @@ export const MaterialSelector: React.FC<MaterialSelectorProps> = ({
 
             if (!validation) {
               return (
-                <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 p-2 border border-destructive">
+                <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 p-2 imx-border ">
                   <XCircle className="w-4 h-4" />
                   <span>
                     Estoque insuficiente. Disponível: {selectedMaterial.stockInfo.availableQuantity} {selectedMaterial.stockInfo.unit}
@@ -297,7 +297,7 @@ export const MaterialSelector: React.FC<MaterialSelectorProps> = ({
 
             if (remaining <= 5) {
               return (
-                <div className="flex items-center gap-2 text-sm text-yellow-600 bg-yellow-50 p-2 border border-yellow-600">
+                <div className="flex items-center gap-2 text-sm text-warning bg-warning/15 p-2 imx-border ">
                   <AlertTriangle className="w-4 h-4" />
                   <span>
                     Atenção: Restará apenas {remaining} {selectedMaterial.stockInfo.unit} após a operação
@@ -307,7 +307,7 @@ export const MaterialSelector: React.FC<MaterialSelectorProps> = ({
             }
 
             return (
-              <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 p-2 border border-green-600">
+              <div className="flex items-center gap-2 text-sm text-success bg-success/15 p-2 imx-border ">
                 <CheckCircle className="w-4 h-4" />
                 <span>
                   Material disponível. Restará {remaining} {selectedMaterial.stockInfo.unit} após a operação

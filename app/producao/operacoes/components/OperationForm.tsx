@@ -342,10 +342,10 @@ export const OperationForm: React.FC<OperationFormProps> = ({
                       onChange={(e) =>
                         handleInputChange("no_interno", e.target.value)
                       }
-                      className={errors.no_interno ? "border-red-500" : ""}
+                      className={errors.no_interno ? "" : ""}
                     />
                     {errors.no_interno && (
-                      <p className="text-sm text-red-500 mt-1">
+                      <p className="text-sm text-destructive mt-1">
                         {errors.no_interno}
                       </p>
                     )}
@@ -412,10 +412,10 @@ export const OperationForm: React.FC<OperationFormProps> = ({
                   onItemChange={(value) => handleInputChange("item_id", value)}
                 />
                 {errors.folha_obra_id && (
-                  <p className="text-sm text-red-500">{errors.folha_obra_id}</p>
+                  <p className="text-sm text-destructive">{errors.folha_obra_id}</p>
                 )}
                 {errors.item_id && (
-                  <p className="text-sm text-red-500">{errors.item_id}</p>
+                  <p className="text-sm text-destructive">{errors.item_id}</p>
                 )}
               </div>
 
@@ -434,7 +434,7 @@ export const OperationForm: React.FC<OperationFormProps> = ({
                     }
                   >
                     <SelectTrigger
-                      className={errors.tipo_operacao ? "border-red-500" : ""}
+                      className={errors.tipo_operacao ? "" : ""}
                     >
                       <SelectValue placeholder="Selecionar tipo de operação" />
                     </SelectTrigger>
@@ -447,7 +447,7 @@ export const OperationForm: React.FC<OperationFormProps> = ({
                     </SelectContent>
                   </Select>
                   {errors.tipo_operacao && (
-                    <p className="text-sm text-red-500 mt-1">
+                    <p className="text-sm text-destructive mt-1">
                       {errors.tipo_operacao}
                     </p>
                   )}
@@ -466,7 +466,7 @@ export const OperationForm: React.FC<OperationFormProps> = ({
                     >
                       <SelectTrigger
                         className={
-                          errors.maquina_impressao_id ? "border-red-500" : ""
+                          errors.maquina_impressao_id ? "" : ""
                         }
                       >
                         <SelectValue placeholder="Selecionar máquina de impressão" />
@@ -480,7 +480,7 @@ export const OperationForm: React.FC<OperationFormProps> = ({
                       </SelectContent>
                     </Select>
                     {errors.maquina_impressao_id && (
-                      <p className="text-sm text-red-500 mt-1">
+                      <p className="text-sm text-destructive mt-1">
                         {errors.maquina_impressao_id}
                       </p>
                     )}
@@ -498,7 +498,7 @@ export const OperationForm: React.FC<OperationFormProps> = ({
                     >
                       <SelectTrigger
                         className={
-                          errors.maquina_corte_id ? "border-red-500" : ""
+                          errors.maquina_corte_id ? "" : ""
                         }
                       >
                         <SelectValue placeholder="Selecionar máquina de corte" />
@@ -512,7 +512,7 @@ export const OperationForm: React.FC<OperationFormProps> = ({
                       </SelectContent>
                     </Select>
                     {errors.maquina_corte_id && (
-                      <p className="text-sm text-red-500 mt-1">
+                      <p className="text-sm text-destructive mt-1">
                         {errors.maquina_corte_id}
                       </p>
                     )}
@@ -536,7 +536,7 @@ export const OperationForm: React.FC<OperationFormProps> = ({
                     className="mt-1"
                   />
                   {errors.material_id && (
-                    <p className="text-sm text-red-500 mt-1">
+                    <p className="text-sm text-destructive mt-1">
                       {errors.material_id}
                     </p>
                   )}
@@ -561,12 +561,12 @@ export const OperationForm: React.FC<OperationFormProps> = ({
                       }
                       className={
                         errors.quantidade_material_usado
-                          ? "border-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          ? " [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           : "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       }
                     />
                     {errors.quantidade_material_usado && (
-                      <p className="text-sm text-red-500 mt-1">
+                      <p className="text-sm text-destructive mt-1">
                         {errors.quantidade_material_usado}
                       </p>
                     )}

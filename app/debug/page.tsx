@@ -26,14 +26,14 @@ export default function DebugPage() {
         <p className="font-semibold">Environment Status:</p>
         <p>
           {supabaseUrl && supabaseKey ? (
-            <span className="text-green-600">✅ All variables loaded</span>
+            <span className="text-success">✅ All variables loaded</span>
           ) : (
-            <span className="text-red-600">❌ Missing variables</span>
+            <span className="text-destructive">❌ Missing variables</span>
           )}
         </p>
       </div>
 
-      <a href="/login" className="inline-block bg-blue-500 text-white px-4 py-2 rounded">
+      <a href="/login" className="inline-block bg-info text-white px-4 py-2 rounded">
         Go to Login
       </a>
     </div>

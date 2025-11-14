@@ -367,7 +367,7 @@ export default function UserNameMappingPage() {
                 <TableRow>
                   <TableHead
                     onClick={() => handleSort('initials')}
-                    className="sticky top-0 z-10 w-[100px] cursor-pointer border-b text-center uppercase select-none"
+                    className="sticky top-0 z-10 w-[100px] cursor-pointer imx-border-b text-center uppercase select-none"
                   >
                     Iniciais
                     {sortColumn === 'initials' &&
@@ -379,7 +379,7 @@ export default function UserNameMappingPage() {
                   </TableHead>
                   <TableHead
                     onClick={() => handleSort('full_name')}
-                    className="sticky top-0 z-10 min-w-[200px] cursor-pointer border-b text-center uppercase select-none"
+                    className="sticky top-0 z-10 min-w-[200px] cursor-pointer imx-border-b text-center uppercase select-none"
                   >
                     Nome Completo
                     {sortColumn === 'full_name' &&
@@ -391,7 +391,7 @@ export default function UserNameMappingPage() {
                   </TableHead>
                   <TableHead
                     onClick={() => handleSort('short_name')}
-                    className="sticky top-0 z-10 min-w-[150px] cursor-pointer border-b text-center uppercase select-none"
+                    className="sticky top-0 z-10 min-w-[150px] cursor-pointer imx-border-b text-center uppercase select-none"
                   >
                     Nome Curto
                     {sortColumn === 'short_name' &&
@@ -403,7 +403,7 @@ export default function UserNameMappingPage() {
                   </TableHead>
                   <TableHead
                     onClick={() => handleSort('standardized_name')}
-                    className="sticky top-0 z-10 min-w-[200px] cursor-pointer border-b text-center uppercase select-none"
+                    className="sticky top-0 z-10 min-w-[200px] cursor-pointer imx-border-b text-center uppercase select-none"
                   >
                     Nome Padronizado
                     {sortColumn === 'standardized_name' &&
@@ -415,7 +415,7 @@ export default function UserNameMappingPage() {
                   </TableHead>
                   <TableHead
                     onClick={() => handleSort('department')}
-                    className="sticky top-0 z-10 min-w-[150px] cursor-pointer border-b text-center uppercase select-none"
+                    className="sticky top-0 z-10 min-w-[150px] cursor-pointer imx-border-b text-center uppercase select-none"
                   >
                     Departamento
                     {sortColumn === 'department' &&
@@ -427,7 +427,7 @@ export default function UserNameMappingPage() {
                   </TableHead>
                   <TableHead
                     onClick={() => handleSort('active')}
-                    className="sticky top-0 z-10 w-[80px] cursor-pointer border-b text-center uppercase select-none"
+                    className="sticky top-0 z-10 w-[80px] cursor-pointer imx-border-b text-center uppercase select-none"
                   >
                     Ativo
                     {sortColumn === 'active' &&
@@ -439,7 +439,7 @@ export default function UserNameMappingPage() {
                   </TableHead>
                   <TableHead
                     onClick={() => handleSort('sales')}
-                    className="sticky top-0 z-10 w-[80px] cursor-pointer border-b text-center uppercase select-none"
+                    className="sticky top-0 z-10 w-[80px] cursor-pointer imx-border-b text-center uppercase select-none"
                   >
                     Vendas
                     {sortColumn === 'sales' &&
@@ -449,7 +449,7 @@ export default function UserNameMappingPage() {
                         <ArrowDown className="ml-1 inline h-3 w-3" />
                       ))}
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[100px] border-b text-center uppercase">
+                  <TableHead className="sticky top-0 z-10 w-[100px] imx-border-b text-center uppercase">
                     Ações
                   </TableHead>
                 </TableRow>

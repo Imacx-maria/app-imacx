@@ -68,17 +68,6 @@ export async function PUT(
       );
     }
 
-    // Get profile_id for siglas update
-    const { data: profileData } = await adminClient
-      .from("profiles")
-      .select("id")
-      .eq("user_id", userId)
-      .single();
-
-    if (!profileData) {
-      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
-    }
-
     // Update profile
     const updateProfile: any = {
       updated_at: new Date().toISOString(),
@@ -91,13 +80,20 @@ export async function PUT(
     if (phone !== undefined) updateProfile.phone = phone;
     if (notes !== undefined) updateProfile.notes = notes;
     if (active !== undefined) updateProfile.active = active;
-    if (departamento_id !== undefined)
-      updateProfile.departamento_id = departamento_id;
+    if (departamento_id !== undefined) {
+      updateProfile.departamento_id = departamento_id || null;
+      console.log(
+        "🏢 [UPDATE USER] Updating departamento_id:",
+        departamento_id || "NULL",
+      );
+    }
 
-    const { error: profileError } = await adminClient
+    const { data: updatedProfile, error: profileError } = await adminClient
       .from("profiles")
       .update(updateProfile)
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .select("id")
+      .single();
 
     if (profileError) {
       console.error("Profile update error:", profileError);
@@ -108,27 +104,37 @@ export async function PUT(
     }
 
     // Update siglas if provided
-    if (siglas !== undefined && Array.isArray(siglas)) {
+    if (siglas !== undefined && Array.isArray(siglas) && updatedProfile) {
+      console.log("🏷️ [UPDATE USER] Updating siglas:", siglas);
+
       // Delete existing siglas
-      await adminClient
+      const { error: deleteError } = await adminClient
         .from("user_siglas")
         .delete()
-        .eq("profile_id", profileData.id);
+        .eq("profile_id", updatedProfile.id);
+
+      if (deleteError) {
+        console.error(
+          "⚠️ [UPDATE USER] Error deleting old siglas:",
+          deleteError,
+        );
+      }
 
       // Insert new siglas
       if (siglas.length > 0) {
-        const siglasData = siglas.map((sigla: string) => ({
-          profile_id: profileData.id,
-          sigla: sigla.toUpperCase(),
+        const siglasToInsert = siglas.map((sigla: string) => ({
+          profile_id: updatedProfile.id,
+          sigla: sigla.trim().toUpperCase(),
         }));
 
         const { error: siglasError } = await adminClient
           .from("user_siglas")
-          .insert(siglasData);
+          .insert(siglasToInsert);
 
         if (siglasError) {
-          console.error("Siglas insert error:", siglasError);
-          // Don't fail the whole operation, just log the error
+          console.error("⚠️ [UPDATE USER] Error adding siglas:", siglasError);
+        } else {
+          console.log("✅ [UPDATE USER] Siglas updated successfully");
         }
       }
     }

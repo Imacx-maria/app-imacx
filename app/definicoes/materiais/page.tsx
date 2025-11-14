@@ -963,7 +963,7 @@ export default function MateriaisPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead
-                    className="sticky top-0 z-10 cursor-pointer border-b text-center uppercase"
+                    className="sticky top-0 z-10 cursor-pointer imx-border-b text-center uppercase"
                     onClick={() => handleSort("referencia")}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -971,7 +971,7 @@ export default function MateriaisPage() {
                     </span>
                   </TableHead>
                   <TableHead
-                    className="sticky top-0 z-10 w-[250px] min-w-[250px] cursor-pointer border-b text-center uppercase"
+                    className="sticky top-0 z-10 w-[250px] min-w-[250px] cursor-pointer imx-border-b text-center uppercase"
                     onClick={() => handleSort("material")}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -979,7 +979,7 @@ export default function MateriaisPage() {
                     </span>
                   </TableHead>
                   <TableHead
-                    className="sticky top-0 z-10 w-[250px] min-w-[250px] cursor-pointer border-b text-center uppercase"
+                    className="sticky top-0 z-10 w-[250px] min-w-[250px] cursor-pointer imx-border-b text-center uppercase"
                     onClick={() => handleSort("carateristica")}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -987,7 +987,7 @@ export default function MateriaisPage() {
                     </span>
                   </TableHead>
                   <TableHead
-                    className="sticky top-0 z-10 cursor-pointer border-b text-center uppercase"
+                    className="sticky top-0 z-10 cursor-pointer imx-border-b text-center uppercase"
                     onClick={() => handleSort("cor")}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -995,7 +995,7 @@ export default function MateriaisPage() {
                     </span>
                   </TableHead>
                   <TableHead
-                    className="sticky top-0 z-10 w-[100px] cursor-pointer border-b text-right uppercase"
+                    className="sticky top-0 z-10 w-[100px] cursor-pointer imx-border-b text-right uppercase"
                     onClick={() => handleSort("qt_palete")}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -1003,7 +1003,7 @@ export default function MateriaisPage() {
                     </span>
                   </TableHead>
                   <TableHead
-                    className="sticky top-0 z-10 cursor-pointer border-b text-right uppercase"
+                    className="sticky top-0 z-10 cursor-pointer imx-border-b text-right uppercase"
                     onClick={() => handleSort("valor_m2")}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -1011,12 +1011,12 @@ export default function MateriaisPage() {
                     </span>
                   </TableHead>
                   <TableHead
-                    className="sticky top-0 z-10 w-[80px] cursor-pointer border-b text-center uppercase"
+                    className="sticky top-0 z-10 w-[80px] cursor-pointer imx-border-b text-center uppercase"
                     onClick={() => handleSort("ORC")}
                   >
                     ORC {getSortIcon("ORC")}
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[90px] border-b text-center uppercase">
+                  <TableHead className="sticky top-0 z-10 w-[90px] imx-border-b text-center uppercase">
                     Ações
                   </TableHead>
                 </TableRow>

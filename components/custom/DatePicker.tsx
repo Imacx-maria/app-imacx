@@ -81,7 +81,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
       </PopoverTrigger>
       <PopoverContent
         ref={contentRef}
-        className="calendar-popover bg-background z-[10000] w-auto p-4 m-3 border border-border shadow-md"
+        className="calendar-popover bg-background z-[10000] w-auto p-4 m-3 imx-border  shadow-md"
         data-no-aria-hidden="true"
       >
         <div id={calendarDescriptionId} className="sr-only">

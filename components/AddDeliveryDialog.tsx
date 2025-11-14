@@ -298,7 +298,7 @@ export function AddDeliveryDialog({
 
           {/* PHC Items Section - Show if items were found */}
           {phcItems.length > 0 && (
-            <div className="space-y-2 border-l-4 border-primary pl-4 bg-muted/30 py-3 rounded">
+            <div className="space-y-2 imx-border-l bg-muted/30 py-3 pl-4 rounded">
               <Label className="text-sm font-semibold">
                 ✅ {phcItems.length} item(s) encontrado(s) no PHC:
               </Label>
@@ -314,7 +314,7 @@ export function AddDeliveryDialog({
                         quantidade: Math.round(Number(item.quantity)),
                       }));
                     }}
-                    className="w-full flex justify-between gap-2 py-2 px-2 border-b hover:bg-accent rounded cursor-pointer transition-colors text-left"
+                    className="w-full flex justify-between gap-2 py-2 px-2 imx-border-b hover:bg-accent rounded cursor-pointer transition-colors text-left"
                   >
                     <span className="flex-1 truncate">{item.description}</span>
                     <span className="text-muted-foreground">
@@ -439,7 +439,7 @@ export function AddDeliveryDialog({
           </div>
 
           {/* Transport Section */}
-          <div className="space-y-4 border-t pt-4">
+          <div className="space-y-4 imx-border-t pt-4">
             <h3 className="font-semibold">Informações de Transporte</h3>
 
             <div className="grid grid-cols-2 gap-4">

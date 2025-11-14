@@ -1039,7 +1039,7 @@ export default function DesignerFlow() {
                   <TableHeader>
                     <TableRow>
                       <TableHead
-                        className="sticky top-0 z-10 w-16 border-b text-center cursor-pointer select-none"
+                        className="sticky top-0 z-10 w-16 imx-border-b text-center cursor-pointer select-none"
                         onClick={() => handleSort('prioridade')}
                       >
                         P
@@ -1048,7 +1048,7 @@ export default function DesignerFlow() {
                         )}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-10 border-b text-center cursor-pointer select-none"
+                        className="sticky top-0 z-10 w-10 imx-border-b text-center cursor-pointer select-none"
                         onClick={() => handleSort('artwork')}
                       >
                         <TooltipProvider>
@@ -1065,32 +1065,32 @@ export default function DesignerFlow() {
                           </Tooltip>
                         </TooltipProvider>
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[90px] cursor-pointer border-b select-none" onClick={() => handleSort('numero_fo')}>
+                      <TableHead className="sticky top-0 z-10 w-[90px] cursor-pointer imx-border-b select-none" onClick={() => handleSort('numero_fo')}>
                         FO
                         {sortColumn === 'numero_fo' && (
                           sortDirection === 'asc' ? <ArrowUp className="ml-1 inline h-3 w-3" /> : <ArrowDown className="ml-1 inline h-3 w-3" />
                         )}
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[90px] cursor-pointer border-b select-none" onClick={() => handleSort('numero_orc')}>
+                      <TableHead className="sticky top-0 z-10 w-[90px] cursor-pointer imx-border-b select-none" onClick={() => handleSort('numero_orc')}>
                         ORC
                         {sortColumn === 'numero_orc' && (
                           sortDirection === 'asc' ? <ArrowUp className="ml-1 inline h-3 w-3" /> : <ArrowDown className="ml-1 inline h-3 w-3" />
                         )}
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[180px] cursor-pointer border-b select-none" onClick={() => handleSort('cliente')}>
+                      <TableHead className="sticky top-0 z-10 w-[180px] cursor-pointer imx-border-b select-none" onClick={() => handleSort('cliente')}>
                         Cliente
                         {sortColumn === 'cliente' && (
                           sortDirection === 'asc' ? <ArrowUp className="ml-1 inline h-3 w-3" /> : <ArrowDown className="ml-1 inline h-3 w-3" />
                         )}
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 cursor-pointer border-b select-none" onClick={() => handleSort('nome_campanha')}>
+                      <TableHead className="sticky top-0 z-10 cursor-pointer imx-border-b select-none" onClick={() => handleSort('nome_campanha')}>
                         Campanha
                         {sortColumn === 'nome_campanha' && (
                           sortDirection === 'asc' ? <ArrowUp className="ml-1 inline h-3 w-3" /> : <ArrowDown className="ml-1 inline h-3 w-3" />
                         )}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 min-w-[200px] border-b cursor-pointer select-none"
+                        className="sticky top-0 z-10 min-w-[200px] imx-border-b cursor-pointer select-none"
                         onClick={() => handleSort('designer')}
                       >
                         Designer
@@ -1098,13 +1098,13 @@ export default function DesignerFlow() {
                           sortDirection === 'asc' ? <ArrowUp className="ml-1 inline h-3 w-3" /> : <ArrowDown className="ml-1 inline h-3 w-3" />
                         )}
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[120px] cursor-pointer border-b select-none" onClick={() => handleSort('created_at')}>
+                      <TableHead className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none" onClick={() => handleSort('created_at')}>
                         Criado
                         {sortColumn === 'created_at' && (
                           sortDirection === 'asc' ? <ArrowUp className="ml-1 inline h-3 w-3" /> : <ArrowDown className="ml-1 inline h-3 w-3" />
                         )}
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[90px] border-b text-center">Ações</TableHead>
+                      <TableHead className="sticky top-0 z-10 w-[90px] imx-border-b text-center">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1189,7 +1189,7 @@ export default function DesignerFlow() {
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between border-t border-border pt-4">
+              <div className="flex items-center justify-between imx-border-t  pt-4">
                 <div className="text-sm text-muted-foreground">
                   Página {currentPage} de {totalPages} ({sortedJobs.length} trabalhos)
                 </div>

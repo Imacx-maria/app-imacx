@@ -203,7 +203,7 @@ const TransportePopover: React.FC<TransportePopoverProps> = ({
         />
       </div>
 
-      <div className="mb-4 border-t pt-4">
+      <div className="mb-4 imx-border-t pt-4">
         <label className="mb-2 block text-xs font-semibold">Notas</label>
         <Textarea
           value={localNotas}
@@ -312,7 +312,7 @@ const TransportePopover: React.FC<TransportePopoverProps> = ({
           <PopoverContent
             side={undefined}
             align={undefined}
-            className="bg-background border-border fixed top-1/2 left-1/2 z-[9999] w-96 -translate-x-1/2 -translate-y-1/2 border-2 p-4 shadow-2xl"
+            className="bg-background  fixed top-1/2 left-1/2 z-[9999] w-96 -translate-x-1/2 -translate-y-1/2 imx-border p-4 shadow-2xl"
             aria-describedby={popoverDescriptionId}
             data-no-aria-hidden="true"
           >
@@ -323,7 +323,7 @@ const TransportePopover: React.FC<TransportePopoverProps> = ({
         <PopoverContent
           side="top"
           align="center"
-          className="bg-background border-border z-[9999] w-96 border-2 p-4"
+          className="bg-background  z-[9999] w-96 imx-border p-4"
           aria-describedby={popoverDescriptionId}
           data-no-aria-hidden="true"
         >

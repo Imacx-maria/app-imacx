@@ -163,7 +163,7 @@ const ErrorMessage = ({
   message: string;
   onRetry: () => void;
 }) => (
-  <div className="border border-destructive/30 bg-destructive/10 p-4">
+  <div className="imx-border  bg-destructive/10 p-4">
     <div className="flex items-center justify-between">
       <p className="text-destructive">{message}</p>
       <Button variant="outline" size="sm" onClick={onRetry}>
@@ -1238,7 +1238,7 @@ export default function ProducaoPage() {
                 <TooltipTrigger asChild>
                   <Button
                     variant="outline"
-                    className="border border-border gap-2"
+                    className="imx-border  gap-2"
                     onClick={async () => {
                       setShowTotals(!showTotals);
 
@@ -1867,7 +1867,7 @@ export default function ProducaoPage() {
                         <TableRow>
                           <TableHead
                             onClick={() => toggleSort("created_at")}
-                            className="border-border sticky top-0 z-10 w-[140px] cursor-pointer overflow-hidden border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[140px] cursor-pointer overflow-hidden imx-border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
                           >
                             Data{" "}
                             {sortCol === "created_at" &&
@@ -1879,7 +1879,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("numero_orc")}
-                            className="border-border sticky top-0 z-10 w-[90px] max-w-[90px] cursor-pointer overflow-hidden border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[90px] max-w-[90px] cursor-pointer overflow-hidden imx-border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
                           >
                             ORC{" "}
                             {sortCol === "numero_orc" &&
@@ -1891,7 +1891,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("numero_fo")}
-                            className="border-border sticky top-0 z-10 w-[90px] max-w-[90px] cursor-pointer overflow-hidden border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[90px] max-w-[90px] cursor-pointer overflow-hidden imx-border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
                           >
                             FO{" "}
                             {sortCol === "numero_fo" &&
@@ -1903,7 +1903,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("cliente")}
-                            className="border-border sticky top-0 z-10 w-[200px] cursor-pointer border-b bg-primary  text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[200px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                           >
                             Cliente{" "}
                             {sortCol === "cliente" &&
@@ -1915,7 +1915,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("nome_campanha")}
-                            className="border-border sticky top-0 z-10 flex-1 cursor-pointer border-b bg-primary  text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 flex-1 cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                           >
                             Nome Campanha{" "}
                             {sortCol === "nome_campanha" &&
@@ -1927,7 +1927,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("notas")}
-                            className="border-border sticky top-0 z-10 w-[50px] cursor-pointer border-b bg-primary  text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[50px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                           >
                             Nota{" "}
                             {sortCol === "notas" &&
@@ -1939,7 +1939,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("prioridade")}
-                            className="border-border sticky top-0 z-10 w-[210px] cursor-pointer border-b bg-primary  text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[210px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                           >
                             Status{" "}
                             {sortCol === "prioridade" &&
@@ -1952,7 +1952,7 @@ export default function ProducaoPage() {
 
                           <TableHead
                             onClick={() => toggleSort("total_value")}
-                            className="border-border sticky top-0 z-10 w-[120px] cursor-pointer border-b bg-primary text-right text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b bg-primary text-right text-primary-foreground uppercase select-none"
                           >
                             Valor{" "}
                             {sortCol === "total_value" &&
@@ -1965,7 +1965,7 @@ export default function ProducaoPage() {
 
                           <TableHead
                             onClick={() => toggleSort("prioridade")}
-                            className="border-border sticky top-0 z-10 w-[36px] cursor-pointer border-b bg-primary p-0 text-center  text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[36px] cursor-pointer imx-border-b bg-primary p-0 text-center  text-primary-foreground uppercase select-none"
                           >
                             <TooltipProvider>
                               <Tooltip>
@@ -1986,7 +1986,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("artwork")}
-                            className="border-border sticky top-0 z-10 w-[36px] cursor-pointer border-b bg-primary p-0 text-center  text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[36px] cursor-pointer imx-border-b bg-primary p-0 text-center  text-primary-foreground uppercase select-none"
                           >
                             <TooltipProvider>
                               <Tooltip>
@@ -2007,7 +2007,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("corte")}
-                            className="border-border sticky top-0 z-10 w-[36px] cursor-pointer border-b bg-primary p-0 text-center  text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[36px] cursor-pointer imx-border-b bg-primary p-0 text-center  text-primary-foreground uppercase select-none"
                           >
                             <TooltipProvider>
                               <Tooltip>
@@ -2029,7 +2029,7 @@ export default function ProducaoPage() {
 
                           <TableHead
                             onClick={() => toggleSort("pendente")}
-                            className="border-border sticky top-0 z-10 w-[40px] cursor-pointer border-b bg-primary text-center  text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[40px] cursor-pointer imx-border-b bg-primary text-center  text-primary-foreground uppercase select-none"
                           >
                             <TooltipProvider>
                               <Tooltip>
@@ -2048,7 +2048,7 @@ export default function ProducaoPage() {
                               </Tooltip>
                             </TooltipProvider>
                           </TableHead>
-                          <TableHead className="border-border sticky top-0 z-10 w-[100px] border-b bg-primary text-center  text-primary-foreground uppercase">
+                          <TableHead className=" sticky top-0 z-10 w-[100px] imx-border-b bg-primary text-center  text-primary-foreground uppercase">
                             Ações
                           </TableHead>
                         </TableRow>
@@ -2761,7 +2761,7 @@ export default function ProducaoPage() {
                         <TableRow>
                           <TableHead
                             onClick={() => toggleSort("created_at")}
-                            className="border-border sticky top-0 z-10 w-[140px] cursor-pointer overflow-hidden border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[140px] cursor-pointer overflow-hidden imx-border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
                           >
                             Data{" "}
                             {sortCol === "created_at" &&
@@ -2773,7 +2773,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("numero_orc")}
-                            className="border-border sticky top-0 z-10 w-[90px] max-w-[90px] cursor-pointer overflow-hidden border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[90px] max-w-[90px] cursor-pointer overflow-hidden imx-border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
                           >
                             ORC{" "}
                             {sortCol === "numero_orc" &&
@@ -2785,7 +2785,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("numero_fo")}
-                            className="border-border sticky top-0 z-10 w-[90px] max-w-[90px] cursor-pointer overflow-hidden border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[90px] max-w-[90px] cursor-pointer overflow-hidden imx-border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
                           >
                             FO{" "}
                             {sortCol === "numero_fo" &&
@@ -2797,7 +2797,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("cliente")}
-                            className="border-border sticky top-0 z-10 w-[200px] cursor-pointer border-b bg-primary  text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[200px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                           >
                             Cliente{" "}
                             {sortCol === "cliente" &&
@@ -2809,7 +2809,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("nome_campanha")}
-                            className="border-border sticky top-0 z-10 flex-1 cursor-pointer border-b bg-primary  text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 flex-1 cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                           >
                             Nome Campanha{" "}
                             {sortCol === "nome_campanha" &&
@@ -2821,7 +2821,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("notas")}
-                            className="border-border sticky top-0 z-10 w-[50px] cursor-pointer border-b bg-primary  text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[50px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                           >
                             Nota{" "}
                             {sortCol === "notas" &&
@@ -2833,7 +2833,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("prioridade")}
-                            className="border-border sticky top-0 z-10 w-[210px] cursor-pointer border-b bg-primary  text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[210px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                           >
                             Status{" "}
                             {sortCol === "prioridade" &&
@@ -2843,7 +2843,7 @@ export default function ProducaoPage() {
                                 <ArrowDown className="ml-1 inline h-3 w-3" />
                               ))}
                           </TableHead>
-                          <TableHead className="border-border sticky top-0 z-10 w-[36px] border-b bg-primary p-0 text-center text-primary-foreground uppercase select-none">
+                          <TableHead className=" sticky top-0 z-10 w-[36px] imx-border-b bg-primary p-0 text-center text-primary-foreground uppercase select-none">
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -3392,7 +3392,7 @@ export default function ProducaoPage() {
                         <TableRow>
                           <TableHead
                             onClick={() => toggleSort("created_at")}
-                            className="border-border sticky top-0 z-10 w-[140px] cursor-pointer overflow-hidden border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[140px] cursor-pointer overflow-hidden imx-border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
                           >
                             Data{" "}
                             {sortCol === "created_at" &&
@@ -3404,7 +3404,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("numero_orc")}
-                            className="border-border sticky top-0 z-10 w-[90px] max-w-[90px] cursor-pointer overflow-hidden border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[90px] max-w-[90px] cursor-pointer overflow-hidden imx-border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
                           >
                             ORC{" "}
                             {sortCol === "numero_orc" &&
@@ -3416,7 +3416,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("numero_fo")}
-                            className="border-border sticky top-0 z-10 w-[90px] max-w-[90px] cursor-pointer overflow-hidden border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[90px] max-w-[90px] cursor-pointer overflow-hidden imx-border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
                           >
                             FO{" "}
                             {sortCol === "numero_fo" &&
@@ -3428,7 +3428,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("cliente")}
-                            className="border-border sticky top-0 z-10 w-[200px] cursor-pointer border-b bg-primary  text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[200px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                           >
                             Cliente{" "}
                             {sortCol === "cliente" &&
@@ -3440,7 +3440,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("nome_campanha")}
-                            className="border-border sticky top-0 z-10 flex-1 cursor-pointer border-b bg-primary  text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 flex-1 cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                           >
                             Nome Campanha{" "}
                             {sortCol === "nome_campanha" &&
@@ -3452,7 +3452,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("notas")}
-                            className="border-border sticky top-0 z-10 w-[50px] cursor-pointer border-b bg-primary  text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[50px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                           >
                             Nota{" "}
                             {sortCol === "notas" &&
@@ -3464,7 +3464,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("prioridade")}
-                            className="border-border sticky top-0 z-10 w-[210px] cursor-pointer border-b bg-primary  text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[210px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                           >
                             Status{" "}
                             {sortCol === "prioridade" &&
@@ -3477,7 +3477,7 @@ export default function ProducaoPage() {
 
                           <TableHead
                             onClick={() => toggleSort("total_value")}
-                            className="border-border sticky top-0 z-10 w-[120px] cursor-pointer border-b bg-primary text-right text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b bg-primary text-right text-primary-foreground uppercase select-none"
                           >
                             Valor{" "}
                             {sortCol === "total_value" &&
@@ -3490,7 +3490,7 @@ export default function ProducaoPage() {
 
                           <TableHead
                             onClick={() => toggleSort("prioridade")}
-                            className="border-border sticky top-0 z-10 w-[36px] cursor-pointer border-b bg-primary p-0 text-center  text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[36px] cursor-pointer imx-border-b bg-primary p-0 text-center  text-primary-foreground uppercase select-none"
                           >
                             <TooltipProvider>
                               <Tooltip>
@@ -3511,7 +3511,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("artwork")}
-                            className="border-border sticky top-0 z-10 w-[36px] cursor-pointer border-b bg-primary p-0 text-center  text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[36px] cursor-pointer imx-border-b bg-primary p-0 text-center  text-primary-foreground uppercase select-none"
                           >
                             <TooltipProvider>
                               <Tooltip>
@@ -3532,7 +3532,7 @@ export default function ProducaoPage() {
                           </TableHead>
                           <TableHead
                             onClick={() => toggleSort("corte")}
-                            className="border-border sticky top-0 z-10 w-[36px] cursor-pointer border-b bg-primary p-0 text-center  text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[36px] cursor-pointer imx-border-b bg-primary p-0 text-center  text-primary-foreground uppercase select-none"
                           >
                             <TooltipProvider>
                               <Tooltip>
@@ -3554,7 +3554,7 @@ export default function ProducaoPage() {
 
                           <TableHead
                             onClick={() => toggleSort("pendente")}
-                            className="border-border sticky top-0 z-10 w-[40px] cursor-pointer border-b bg-primary text-center  text-primary-foreground uppercase select-none"
+                            className=" sticky top-0 z-10 w-[40px] cursor-pointer imx-border-b bg-primary text-center  text-primary-foreground uppercase select-none"
                           >
                             <TooltipProvider>
                               <Tooltip>
@@ -3573,7 +3573,7 @@ export default function ProducaoPage() {
                               </Tooltip>
                             </TooltipProvider>
                           </TableHead>
-                          <TableHead className="border-border sticky top-0 z-10 w-[100px] border-b bg-primary text-center  text-primary-foreground uppercase">
+                          <TableHead className=" sticky top-0 z-10 w-[100px] imx-border-b bg-primary text-center  text-primary-foreground uppercase">
                             Ações
                           </TableHead>
                         </TableRow>
@@ -4342,7 +4342,7 @@ export default function ProducaoPage() {
             </DialogHeader>
 
             {duplicateDialog.existingJob && (
-              <div className="my-4 rounded-md border border-accent/30 bg-accent/10 p-4">
+              <div className="my-4 rounded-md imx-border bg-accent/10 p-4">
                 <h4 className="mb-2 font-semibold text-warning">
                   Trabalho Existente:
                 </h4>

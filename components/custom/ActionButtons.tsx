@@ -12,7 +12,7 @@ import SimpleNotasPopover from "@/components/custom/SimpleNotasPopover";
  * - Yellow (default) for action buttons: Edit, View, Copy, Add, Notas
  * - Red (destructive) for Delete
  * - Outlined for utility buttons
- * - All have visible 1px border (built into variants)
+ * - All have visible 1px imx-border (built into variants)
  * - Icon size: h-4 w-4
  * - Button size: h-10 w-10 (icon-only)
  */

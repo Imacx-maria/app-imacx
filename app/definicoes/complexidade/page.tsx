@@ -245,10 +245,10 @@ export default function ComplexidadePage() {
             <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sticky top-0 z-10 border-b text-center uppercase">
+                  <TableHead className="sticky top-0 z-10 imx-border-b text-center uppercase">
                     Grau de Complexidade
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[140px] border-b text-center uppercase">
+                  <TableHead className="sticky top-0 z-10 w-[140px] imx-border-b text-center uppercase">
                     Ações
                   </TableHead>
                 </TableRow>

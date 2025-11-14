@@ -523,7 +523,7 @@ export default function DesignerItemCard({
 
   return (
     <Collapsible open={isOpen} onOpenChange={handleToggle}>
-      <div className="bg-card border border-border">
+      <div className="bg-card imx-border ">
         <CollapsibleTrigger asChild>
           <button
             type="button"
@@ -559,7 +559,7 @@ export default function DesignerItemCard({
                   >
                     <Badge
                       variant="outline"
-                      className={`text-xs rounded-none ${isOpen ? 'text-primary-foreground border-border/20' : ''}`}
+                      className={`text-xs rounded-none ${isOpen ? 'text-primary-foreground ' : ''}`}
                     >
                       {item.complexidade}
                     </Badge>
@@ -570,7 +570,7 @@ export default function DesignerItemCard({
             <div
               className={`inline-flex items-center gap-2 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${statusBadge.text}`}
             >
-              <span className={`h-2.5 w-2.5 border border-border ${paginacaoDotColor}`} />
+              <span className={`h-2.5 w-2.5 imx-border  ${paginacaoDotColor}`} />
               {currentStage}
             </div>
           </button>
@@ -592,7 +592,7 @@ export default function DesignerItemCard({
                     onCodigoChange(item.id, newValue)
                   }}
                   placeholder="Código"
-                  className="text-sm h-[40px] border border-foreground/20"
+                  className="text-sm h-[40px] imx-border"
                 />
               </div>
               <div>
@@ -627,7 +627,7 @@ export default function DesignerItemCard({
                     void handleQuantidadeBlur(nextValue)
                   }}
                   maxLength={6}
-                  className="text-sm h-[40px] flex-1 border border-foreground/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="text-sm h-[40px] flex-1 imx-border [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
               <div>
@@ -635,7 +635,7 @@ export default function DesignerItemCard({
                   <PopoverTrigger asChild>
                     <button
                       type="button"
-                      className="flex h-[40px] w-[40px] items-center justify-center border border-foreground/20 bg-primary text-primary-foreground transition-colors hover:border-foreground/30 hover:bg-primary/90"
+                      className="flex h-[40px] w-[40px] items-center justify-center imx-border bg-primary text-primary-foreground transition-colors hover:bg-primary/90"
                       title="Notas"
                     >
                       <FileText size={18} className="text-primary-foreground" />
@@ -655,7 +655,7 @@ export default function DesignerItemCard({
                         }}
                         placeholder="Adicionar notas..."
                         rows={5}
-                        className="text-sm resize-y min-h-[120px] border border-foreground/20"
+                        className="text-sm resize-y min-h-[120px] imx-border"
                       />
                     </div>
                   </PopoverContent>
@@ -666,7 +666,6 @@ export default function DesignerItemCard({
             {/* Etapas (Versões) */}
             <StageBlock
               label="Versão 1"
-              borderClass="border-l-warning"
               maqueteChecked={!!item.maquete_enviada1}
               aprovacaoChecked={!!item.aprovacao_recebida1}
               onMaqueteChange={(checked) =>
@@ -684,7 +683,6 @@ export default function DesignerItemCard({
             {showM2A2 && (
               <StageBlock
                 label="Versão 2"
-                borderClass="border-l-info"
                 maqueteChecked={!!item.maquete_enviada2}
                 aprovacaoChecked={!!item.aprovacao_recebida2}
                 onMaqueteChange={(checked) =>
@@ -703,7 +701,6 @@ export default function DesignerItemCard({
             {showM3A3 && (
               <StageBlock
                 label="Versão 3"
-                borderClass="border-l-accent"
                 maqueteChecked={!!item.maquete_enviada3}
                 aprovacaoChecked={!!item.aprovacao_recebida3}
                 onMaqueteChange={(checked) =>
@@ -722,7 +719,6 @@ export default function DesignerItemCard({
             {showM4A4 && (
               <StageBlock
                 label="Versão 4"
-                borderClass="border-l-primary"
                 maqueteChecked={!!item.maquete_enviada4}
                 aprovacaoChecked={!!item.aprovacao_recebida4}
                 onMaqueteChange={(checked) =>
@@ -741,7 +737,6 @@ export default function DesignerItemCard({
             {showM5A5 && (
               <StageBlock
                 label="Versão 5"
-                borderClass="border-l-success"
                 maqueteChecked={!!item.maquete_enviada5}
                 aprovacaoChecked={!!item.aprovacao_recebida5}
                 onMaqueteChange={(checked) =>
@@ -760,7 +755,6 @@ export default function DesignerItemCard({
             {showM6A6 && (
               <StageBlock
                 label="Versão 6"
-                borderClass="border-l-destructive"
                 maqueteChecked={!!item.maquete_enviada6}
                 aprovacaoChecked={!!item.aprovacao_recebida6}
                 onMaqueteChange={(checked) =>
@@ -785,7 +779,7 @@ export default function DesignerItemCard({
                   </div>
                 )}
                 <div>
-                  <div className="space-y-2 border-l-4 border-l-success p-3">
+                  <div className="space-y-2 imx-border-l p-3">
                     <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Paginação
                     </div>
@@ -829,7 +823,7 @@ export default function DesignerItemCard({
 
             {/* Planos de Produção - Show only when paginação is active */}
             {item.paginacao && onPlanosChange && (
-              <div className="space-y-3 border-t border-border pt-4">
+              <div className="space-y-3 imx-border-t  pt-4">
                 <PlanosTable
                   itemId={item.id}
                   planos={planos}
@@ -839,7 +833,7 @@ export default function DesignerItemCard({
               </div>
             )}
 
-            <div className="flex flex-col items-start gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-end">
+            <div className="flex flex-col items-start gap-3 imx-border-t  pt-4 sm:flex-row sm:items-center sm:justify-end">
               <Popover modal={false}>
                 <PopoverTrigger asChild>
                   <Button
@@ -859,7 +853,7 @@ export default function DesignerItemCard({
                       <Table className="w-full">
                         <TableBody>
                           {item.data_in && (
-                            <TableRow className="border-b border-border hover:bg-accent">
+                            <TableRow className="imx-border-b  hover:bg-accent">
                               <TableCell className="py-2 px-2 sm:px-3 text-xs font-medium text-left">
                                 Entrada
                               </TableCell>
@@ -869,7 +863,7 @@ export default function DesignerItemCard({
                             </TableRow>
                           )}
                           {item.data_duvidas && (
-                            <TableRow className="border-b border-border hover:bg-accent">
+                            <TableRow className="imx-border-b  hover:bg-accent">
                               <TableCell className="py-2 px-2 sm:px-3 text-xs font-medium text-left">
                                 Dúvidas
                               </TableCell>
@@ -920,7 +914,7 @@ export default function DesignerItemCard({
                             return (
                               <React.Fragment key={maqueteLabel as string}>
                                 {maqueteDate && (
-                                  <TableRow className="border-b border-border hover:bg-accent">
+                                  <TableRow className="imx-border-b  hover:bg-accent">
                                     <TableCell className="py-2 px-2 sm:px-3 text-xs font-medium text-left">
                                       {maqueteLabel as string}
                                     </TableCell>
@@ -930,7 +924,7 @@ export default function DesignerItemCard({
                                   </TableRow>
                                 )}
                                 {eventDate && (
-                                  <TableRow className="border-b border-border hover:bg-accent">
+                                  <TableRow className="imx-border-b  hover:bg-accent">
                                     <TableCell className="py-2 px-2 sm:px-3 text-xs font-medium text-left">
                                       {eventLabel as string}
                                     </TableCell>
@@ -943,7 +937,7 @@ export default function DesignerItemCard({
                             )
                           })}
                           {item.data_paginacao && (
-                            <TableRow className="border-b border-border hover:bg-accent">
+                            <TableRow className="imx-border-b  hover:bg-accent">
                               <TableCell className="py-2 px-2 sm:px-3 text-xs font-medium text-left">
                                 Paginação
                               </TableCell>
@@ -965,7 +959,7 @@ export default function DesignerItemCard({
                       <div className="mt-2">
                         <Table className="w-full">
                           <TableBody>
-                            <TableRow className="border-b border-border hover:bg-accent">
+                            <TableRow className="imx-border-b  hover:bg-accent">
                               <TableCell className="py-2 px-2 sm:px-3 text-xs font-medium text-left">
                                 Duração Total
                               </TableCell>
@@ -974,7 +968,7 @@ export default function DesignerItemCard({
                               </TableCell>
                             </TableRow>
                             {item.data_duvidas && (
-                              <TableRow className="border-b border-border hover:bg-accent">
+                              <TableRow className="imx-border-b  hover:bg-accent">
                                 <TableCell className="py-2 px-2 sm:px-3 text-xs font-medium text-left">
                                   Dúvidas até Paginação
                                 </TableCell>
@@ -1001,7 +995,7 @@ export default function DesignerItemCard({
                               const lastApprovalDate = findLastApprovalDate(item)
                               if (lastApprovalDate) {
                                 return (
-                                  <TableRow className="border-b border-border hover:bg-accent">
+                                  <TableRow className="imx-border-b  hover:bg-accent">
                                     <TableCell className="py-2 px-2 sm:px-3 text-xs font-medium text-left">
                                       Aprovação → Paginação
                                     </TableCell>
@@ -1036,7 +1030,6 @@ export default function DesignerItemCard({
 
 type StageBlockProps = {
   label: string
-  borderClass: string
   maqueteChecked: boolean
   aprovacaoChecked: boolean
   onMaqueteChange: (checked: CheckedState) => void
@@ -1050,7 +1043,6 @@ type StageBlockProps = {
 
 const StageBlock = ({
   label,
-  borderClass,
   maqueteChecked,
   aprovacaoChecked,
   onMaqueteChange,
@@ -1062,7 +1054,7 @@ const StageBlock = ({
   disableRecusa,
 }: StageBlockProps) => (
   <div>
-    <div className={`space-y-2 border-l-2 ${borderClass} p-3`}>
+    <div className="space-y-2 imx-border-l p-3">
       <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </div>

@@ -30,7 +30,7 @@ const CreatableTransportadoraCombobox: React.FC<
   onOptionsUpdate,
   placeholder = 'Selecionar transportadora...',
   className = '',
-  buttonClassName = 'border-border',
+  buttonClassName = '',
   disabled = false,
 }) => {
   const [isCreating, setIsCreating] = useState(false)

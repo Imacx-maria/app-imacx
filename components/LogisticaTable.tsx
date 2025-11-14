@@ -393,7 +393,7 @@ export const LogisticaTable: React.FC<LogisticaTableProps> = ({
       </div>
 
       {/* Table */}
-      <div className="w-full overflow-auto rounded-none border border-border">
+      <div className="w-full overflow-auto rounded-none imx-border ">
         <Table className="w-full table-fixed">
           <TableHeader>
             <TableRow>

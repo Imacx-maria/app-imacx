@@ -274,7 +274,7 @@ export default function FeriadosPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead
-                    className="sticky top-0 z-10 w-[160px] cursor-pointer border-b text-center uppercase select-none"
+                    className="sticky top-0 z-10 w-[160px] cursor-pointer imx-border-b text-center uppercase select-none"
                     onClick={() => handleSort('holiday_date')}
                   >
                     Data
@@ -286,7 +286,7 @@ export default function FeriadosPage() {
                       ))}
                   </TableHead>
                   <TableHead
-                    className="sticky top-0 z-10 cursor-pointer border-b text-center uppercase select-none"
+                    className="sticky top-0 z-10 cursor-pointer imx-border-b text-center uppercase select-none"
                     onClick={() => handleSort('description')}
                   >
                     Descrição
@@ -297,7 +297,7 @@ export default function FeriadosPage() {
                         <ArrowDown className="ml-1 inline h-3 w-3" />
                       ))}
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[90px] border-b text-center uppercase">
+                  <TableHead className="sticky top-0 z-10 w-[90px] imx-border-b text-center uppercase">
                     Ações
                   </TableHead>
                 </TableRow>

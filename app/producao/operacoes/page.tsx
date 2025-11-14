@@ -752,7 +752,7 @@ export default function OperacoesPage() {
     return (
       <div className="w-full space-y-6">
         <h1 className="text-2xl uppercase">Operações de Produção</h1>
-        <div className="border border-destructive bg-destructive/10 p-6">
+        <div className="imx-border  bg-destructive/10 p-6">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -771,7 +771,7 @@ export default function OperacoesPage() {
               Diagnóstico
             </Button>
             {showDebug && debugInfo && (
-              <div className="mt-4 border border-border bg-muted p-4">
+              <div className="mt-4 imx-border  bg-muted p-4">
                 <h4 className="mb-2 uppercase text-foreground">
                   Informação de Diagnóstico:
                 </h4>
@@ -801,7 +801,7 @@ export default function OperacoesPage() {
         <div className="flex gap-4 text-sm">
           <span>Total: 0</span>
         </div>
-        <div className="border border-border bg-muted p-6">
+        <div className="imx-border  bg-muted p-6">
           <div className="space-y-4 text-center">
             <div className="flex justify-center">
               <AlertCircle className="h-12 w-12 text-muted-foreground" />
@@ -854,7 +854,7 @@ export default function OperacoesPage() {
           </div>
         </div>
         {showDebug && debugInfo && (
-          <div className="mt-4 border border-border bg-muted p-4">
+          <div className="mt-4 imx-border  bg-muted p-4">
             <h4 className="mb-2 font-semibold text-foreground">
               Informação de Diagnóstico:
             </h4>
@@ -945,7 +945,7 @@ export default function OperacoesPage() {
                   <TableRow>
                     <TableHead
                       onClick={() => toggleSort("numero_fo")}
-                      className="sticky top-0 z-10 w-[120px] cursor-pointer border-b uppercase select-none"
+                      className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b uppercase select-none"
                     >
                       FO{" "}
                       {sortCol === "numero_fo" &&
@@ -957,7 +957,7 @@ export default function OperacoesPage() {
                     </TableHead>
                     <TableHead
                       onClick={() => toggleSort("nome_campanha")}
-                      className="sticky top-0 z-10 cursor-pointer border-b uppercase select-none"
+                      className="sticky top-0 z-10 cursor-pointer imx-border-b uppercase select-none"
                     >
                       Campanha{" "}
                       {sortCol === "nome_campanha" &&
@@ -969,7 +969,7 @@ export default function OperacoesPage() {
                     </TableHead>
                     <TableHead
                       onClick={() => toggleSort("descricao")}
-                      className="sticky top-0 z-10 cursor-pointer border-b uppercase select-none"
+                      className="sticky top-0 z-10 cursor-pointer imx-border-b uppercase select-none"
                     >
                       Item{" "}
                       {sortCol === "descricao" &&
@@ -981,7 +981,7 @@ export default function OperacoesPage() {
                     </TableHead>
                     <TableHead
                       onClick={() => toggleSort("quantidade")}
-                      className="sticky top-0 z-10 w-[100px] cursor-pointer border-b text-right uppercase select-none"
+                      className="sticky top-0 z-10 w-[100px] cursor-pointer imx-border-b text-right uppercase select-none"
                     >
                       Quantidade{" "}
                       {sortCol === "quantidade" &&
@@ -993,7 +993,7 @@ export default function OperacoesPage() {
                     </TableHead>
                     <TableHead
                       onClick={() => toggleSort("prioridade")}
-                      className="sticky top-0 z-10 w-[36px] min-w-[36px] cursor-pointer border-b uppercase select-none"
+                      className="sticky top-0 z-10 w-[36px] min-w-[36px] cursor-pointer imx-border-b uppercase select-none"
                     >
                       <TooltipProvider>
                         <Tooltip>
@@ -1012,7 +1012,7 @@ export default function OperacoesPage() {
                         </Tooltip>
                       </TooltipProvider>
                     </TableHead>
-                    <TableHead className="w-[60px] border-b text-center uppercase">
+                    <TableHead className="w-[60px] imx-border-b text-center uppercase">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -1022,7 +1022,7 @@ export default function OperacoesPage() {
                         </Tooltip>
                       </TooltipProvider>
                     </TableHead>
-                    <TableHead className="w-[100px] border-b p-2 text-sm uppercase">
+                    <TableHead className="w-[100px] imx-border-b p-2 text-sm uppercase">
                       Ações
                     </TableHead>
                   </TableRow>
@@ -1117,7 +1117,7 @@ export default function OperacoesPage() {
               </label>
               <input
                 type="date"
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                className="h-9 w-full rounded-md imx-border  bg-background px-3 text-sm"
                 value={
                   logDateFrom ? logDateFrom.toISOString().split("T")[0] : ""
                 }
@@ -1134,7 +1134,7 @@ export default function OperacoesPage() {
               </label>
               <input
                 type="date"
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                className="h-9 w-full rounded-md imx-border  bg-background px-3 text-sm"
                 value={logDateTo ? logDateTo.toISOString().split("T")[0] : ""}
                 onChange={(e) =>
                   setLogDateTo(
@@ -1150,7 +1150,7 @@ export default function OperacoesPage() {
               <input
                 type="text"
                 placeholder="Filtrar..."
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                className="h-9 w-full rounded-md imx-border  bg-background px-3 text-sm"
                 value={logOperatorFilter}
                 onChange={(e) => setLogOperatorFilter(e.target.value)}
               />
@@ -1160,7 +1160,7 @@ export default function OperacoesPage() {
                 Tipo Op
               </label>
               <select
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                className="h-9 w-full rounded-md imx-border  bg-background px-3 text-sm"
                 value={logOpTypeFilter}
                 onChange={(e) => setLogOpTypeFilter(e.target.value)}
               >
@@ -1174,7 +1174,7 @@ export default function OperacoesPage() {
                 Ação
               </label>
               <select
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                className="h-9 w-full rounded-md imx-border  bg-background px-3 text-sm"
                 value={logActionTypeFilter}
                 onChange={(e) => setLogActionTypeFilter(e.target.value)}
               >
@@ -1191,7 +1191,7 @@ export default function OperacoesPage() {
               <input
                 type="text"
                 placeholder="Filtrar..."
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                className="h-9 w-full rounded-md imx-border  bg-background px-3 text-sm"
                 value={logChangedByFilter}
                 onChange={(e) => setLogChangedByFilter(e.target.value)}
               />
@@ -1233,37 +1233,37 @@ export default function OperacoesPage() {
                 <Table className="w-full border-0 imx-table-compact">
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="sticky top-0 z-10 w-[120px] border-b uppercase">
+                      <TableHead className="sticky top-0 z-10 w-[120px] imx-border-b uppercase">
                         Ação
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[150px] border-b uppercase">
+                      <TableHead className="sticky top-0 z-10 w-[150px] imx-border-b uppercase">
                         Operação
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[120px] border-b uppercase">
+                      <TableHead className="sticky top-0 z-10 w-[120px] imx-border-b uppercase">
                         Campo
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[150px] border-b uppercase">
+                      <TableHead className="sticky top-0 z-10 w-[150px] imx-border-b uppercase">
                         Operador Antigo
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[150px] border-b uppercase">
+                      <TableHead className="sticky top-0 z-10 w-[150px] imx-border-b uppercase">
                         Operador Novo
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[100px] border-b uppercase">
+                      <TableHead className="sticky top-0 z-10 w-[100px] imx-border-b uppercase">
                         Qtd Antiga
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[100px] border-b uppercase">
+                      <TableHead className="sticky top-0 z-10 w-[100px] imx-border-b uppercase">
                         Qtd Nova
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[120px] border-b uppercase">
+                      <TableHead className="sticky top-0 z-10 w-[120px] imx-border-b uppercase">
                         Valor Antigo
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[120px] border-b uppercase">
+                      <TableHead className="sticky top-0 z-10 w-[120px] imx-border-b uppercase">
                         Valor Novo
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[120px] border-b uppercase">
+                      <TableHead className="sticky top-0 z-10 w-[120px] imx-border-b uppercase">
                         Alterado Por
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[160px] border-b uppercase">
+                      <TableHead className="sticky top-0 z-10 w-[160px] imx-border-b uppercase">
                         Data/Hora
                       </TableHead>
                     </TableRow>
@@ -1288,7 +1288,7 @@ export default function OperacoesPage() {
                       return (
                         <TableRow
                           key={log.id}
-                          className={`hover:bg-accent ${isSuspicious ? "bg-yellow-50 dark:bg-yellow-950/20" : ""}`}
+                          className={`hover:bg-accent ${isSuspicious ? "bg-warning/15 dark:bg-warning/30" : ""}`}
                         >
                           {/* Action Type */}
                           <TableCell className="w-[120px]">
@@ -1480,49 +1480,49 @@ export default function OperacoesPage() {
 
           {/* Summary Statistics */}
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-            <Card className="border p-4">
+            <Card className="imx-border p-4">
               <h4 className="text-xs uppercase text-muted-foreground">Total</h4>
               <p className="text-2xl font-bold">{enhancedStats.total}</p>
             </Card>
-            <Card className="border p-4">
+            <Card className="imx-border p-4">
               <h4 className="text-xs uppercase text-muted-foreground">
                 Criadas
               </h4>
-              <p className="text-2xl font-bold text-green-600">
+              <p className="text-2xl font-bold text-success">
                 {enhancedStats.inserts}
               </p>
             </Card>
-            <Card className="border p-4">
+            <Card className="imx-border p-4">
               <h4 className="text-xs uppercase text-muted-foreground">
                 Alteradas
               </h4>
-              <p className="text-2xl font-bold text-blue-600">
+              <p className="text-2xl font-bold text-info">
                 {enhancedStats.updates}
               </p>
             </Card>
-            <Card className="border p-4">
+            <Card className="imx-border p-4">
               <h4 className="text-xs uppercase text-muted-foreground">
                 Eliminadas
               </h4>
-              <p className="text-2xl font-bold text-red-600">
+              <p className="text-2xl font-bold text-destructive">
                 {enhancedStats.deletes}
               </p>
             </Card>
-            <Card className="border p-4 bg-yellow-50 dark:bg-yellow-950/20">
+            <Card className="imx-border p-4 bg-warning/15 dark:bg-warning/30">
               <h4 className="text-xs uppercase text-muted-foreground">
                 Suspeitas
               </h4>
-              <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-400">
+              <p className="text-2xl font-bold text-warning">
                 {enhancedStats.suspicious}
               </p>
             </Card>
-            <Card className="border p-4">
+            <Card className="imx-border p-4">
               <h4 className="text-xs uppercase text-muted-foreground">
                 Auto-Edição
               </h4>
               <p className="text-2xl font-bold">{enhancedStats.selfEdits}</p>
             </Card>
-            <Card className="border p-4">
+            <Card className="imx-border p-4">
               <h4 className="text-xs uppercase text-muted-foreground">
                 Aumentos 30%+
               </h4>
@@ -1890,7 +1890,7 @@ function ItemDrawerContent({
 
       {/* Import Planos Button - Show if there are designer planos available */}
       {designerPlanos.length > 0 && (
-        <div className="mb-4 rounded-lg border-2 border-info bg-info/10 p-4">
+        <div className="mb-4 rounded-lg imx-border  bg-info/10 p-4">
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-semibold text-info-foreground">

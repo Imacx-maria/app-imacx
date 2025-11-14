@@ -164,16 +164,16 @@ export const FOItemSelector: React.FC<FOItemSelectorProps> = ({
 
   // Get work order status
   const getFOStatus = (fo: FolhaObra) => {
-    if (fo.concluido) return { label: "Concluído", color: "bg-green-500" };
+    if (fo.concluido) return { label: "Concluído", color: "bg-success/20" };
     if (fo.data_saida && new Date(fo.data_saida) < new Date())
-      return { label: "Atrasado", color: "bg-red-500" };
-    return { label: "Em Andamento", color: "bg-blue-500" };
+      return { label: "Atrasado", color: "bg-destructive/20" };
+    return { label: "Em Andamento", color: "bg-info/20" };
   };
 
   // Get item status
   const getItemStatus = (item: ItemBase) => {
-    if (item.concluido) return { label: "Concluído", color: "bg-green-500" };
-    return { label: "Pendente", color: "bg-orange-500" };
+    if (item.concluido) return { label: "Concluído", color: "bg-success/20" };
+    return { label: "Pendente", color: "bg-warning/80" };
   };
 
   return (
@@ -354,7 +354,7 @@ export const FOItemSelector: React.FC<FOItemSelectorProps> = ({
       </div>
 
       {selectedFolhaObra && selectedItem && (
-        <div className="border border-border bg-muted/20 p-3">
+        <div className="imx-border  bg-muted/20 p-3">
           <div className="text-sm">
             <div className="mb-1 font-medium">Seleção Atual:</div>
 

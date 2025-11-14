@@ -1064,9 +1064,9 @@ function JobDrawerContentComponent({
             {/* Production Items table */}
             <Table className="w-full imx-table-compact">
               <TableHeader>
-                <TableRow className="border-border border-b bg-transparent">
+                <TableRow className=" imx-border-b bg-transparent">
                   <TableHead
-                    className="border-border w-10 cursor-pointer border-b bg-primary text-center text-primary-foreground uppercase select-none"
+                    className=" w-10 cursor-pointer imx-border-b bg-primary text-center text-primary-foreground uppercase select-none"
                     onClick={() => toggleSort("bulk")}
                   >
                     <TooltipProvider>
@@ -1087,7 +1087,7 @@ function JobDrawerContentComponent({
                     </TooltipProvider>
                   </TableHead>
                   <TableHead
-                    className="border-border cursor-pointer border-b bg-primary text-primary-foreground uppercase select-none"
+                    className=" cursor-pointer imx-border-b bg-primary text-primary-foreground uppercase select-none"
                     onClick={() => toggleSort("descricao")}
                   >
                     Item{" "}
@@ -1099,7 +1099,7 @@ function JobDrawerContentComponent({
                       ))}
                   </TableHead>
                   <TableHead
-                    className="border-border w-72 cursor-pointer border-b bg-primary text-primary-foreground uppercase select-none"
+                    className=" w-72 cursor-pointer imx-border-b bg-primary text-primary-foreground uppercase select-none"
                     onClick={() => toggleSort("codigo")}
                   >
                     Código{" "}
@@ -1111,7 +1111,7 @@ function JobDrawerContentComponent({
                       ))}
                   </TableHead>
                   <TableHead
-                    className="border-border w-24 cursor-pointer border-b bg-primary text-primary-foreground uppercase select-none"
+                    className=" w-24 cursor-pointer imx-border-b bg-primary text-primary-foreground uppercase select-none"
                     onClick={() => toggleSort("quantidade")}
                   >
                     Quantidade{" "}
@@ -1124,7 +1124,7 @@ function JobDrawerContentComponent({
                   </TableHead>
 
                   <TableHead
-                    className="border-border w-[120px] cursor-pointer border-b bg-primary text-center text-primary-foreground uppercase select-none"
+                    className=" w-[120px] cursor-pointer imx-border-b bg-primary text-center text-primary-foreground uppercase select-none"
                     onClick={() => toggleSort("acoes")}
                   >
                     Ações{" "}
@@ -1283,7 +1283,7 @@ function JobDrawerContentComponent({
                                   <Button
                                     size="icon"
                                     variant="default"
-                                    className="aspect-square !h-10 !w-10 !max-w-10 !min-w-10 !rounded-none !p-0 border border-border"
+                                    className="aspect-square !h-10 !w-10 !max-w-10 !min-w-10 !rounded-none !p-0 imx-border "
                                     onClick={() =>
                                       isPending(it.id)
                                         ? acceptItem(it)
@@ -1309,7 +1309,7 @@ function JobDrawerContentComponent({
                                   <Button
                                     size="icon"
                                     variant="destructive"
-                                    className="aspect-square !h-10 !w-10 !max-w-10 !min-w-10 !rounded-none !p-0 border border-border"
+                                    className="aspect-square !h-10 !w-10 !max-w-10 !min-w-10 !rounded-none !p-0 imx-border "
                                     onClick={() => cancelEdit(it.id)}
                                     disabled={isSaving(it.id)}
                                   >
@@ -1329,7 +1329,7 @@ function JobDrawerContentComponent({
                                   <Button
                                     size="icon"
                                     variant="outline"
-                                    className="aspect-square !h-10 !w-10 !max-w-10 !min-w-10 !rounded-none !p-0 border border-border"
+                                    className="aspect-square !h-10 !w-10 !max-w-10 !min-w-10 !rounded-none !p-0 imx-border "
                                     onClick={() => {
                                       if (!isNewItem(it.id)) {
                                         setEditingItems(
@@ -1362,7 +1362,7 @@ function JobDrawerContentComponent({
                                   <Button
                                     size="icon"
                                     variant="outline"
-                                    className="aspect-square !h-10 !w-10 !max-w-10 !min-w-10 !rounded-none !p-0 border border-border"
+                                    className="aspect-square !h-10 !w-10 !max-w-10 !min-w-10 !rounded-none !p-0 imx-border "
                                     onClick={() => duplicateItem(it)}
                                   >
                                     <Copy className="h-4 w-4" />
@@ -1377,7 +1377,7 @@ function JobDrawerContentComponent({
                                   <Button
                                     size="icon"
                                     variant="destructive"
-                                    className="aspect-square !h-10 !w-10 !max-w-10 !min-w-10 !rounded-none !p-0 border border-border"
+                                    className="aspect-square !h-10 !w-10 !max-w-10 !min-w-10 !rounded-none !p-0 imx-border "
                                     onClick={async () => {
                                       if (isNewItem(it.id)) {
                                         // Just remove from state for temp items
@@ -1440,7 +1440,7 @@ function JobDrawerContentComponent({
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
-              <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+              <div className="mt-4 flex items-center justify-between imx-border-t  pt-4">
                 <div className="text-sm text-muted-foreground">
                   Página {currentPage} de {totalPages} ({sortedItems.length}{" "}
                   items)

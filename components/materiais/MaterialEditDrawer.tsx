@@ -421,10 +421,10 @@ export default function MaterialEditDrawer({
         >
           {/* SECTION 1: FORNECEDOR & ORC */}
           <div
-            className="p-3 border border-border"
+            className="p-3 imx-border "
             style={{ backgroundColor: "var(--section-bg)" }}
           >
-            <h3 className="text-sm font-normal uppercase mb-2 pb-1 border-b border-border">
+            <h3 className="text-sm font-normal uppercase mb-2 pb-1 imx-border-b ">
               Fornecedor
             </h3>
             <div className="flex gap-3 items-end">
@@ -492,10 +492,10 @@ export default function MaterialEditDrawer({
 
           {/* SECTION 2: CARACTERÍSTICAS MATERIAL */}
           <div
-            className="p-3 border border-border"
+            className="p-3 imx-border "
             style={{ backgroundColor: "var(--section-bg)" }}
           >
-            <h3 className="text-sm font-normal uppercase mb-2 pb-1 border-b border-border">
+            <h3 className="text-sm font-normal uppercase mb-2 pb-1 imx-border-b ">
               Características Material
             </h3>
 
@@ -585,10 +585,10 @@ export default function MaterialEditDrawer({
           <div className="grid grid-cols-2 gap-4">
             {/* VALOR MATERIAL */}
             <div
-              className="p-3 border border-border"
+              className="p-3 imx-border "
               style={{ backgroundColor: "var(--section-bg)" }}
             >
-              <h3 className="text-sm font-normal uppercase mb-2 pb-1 border-b border-border">
+              <h3 className="text-sm font-normal uppercase mb-2 pb-1 imx-border-b ">
                 Valor Material
               </h3>
               <div className="grid grid-cols-2 gap-3">
@@ -697,10 +697,10 @@ export default function MaterialEditDrawer({
 
             {/* LOGÍSTICA */}
             <div
-              className="p-3 border border-border"
+              className="p-3 imx-border "
               style={{ backgroundColor: "var(--section-bg)" }}
             >
-              <h3 className="text-sm font-normal uppercase mb-2 pb-1 border-b border-border">
+              <h3 className="text-sm font-normal uppercase mb-2 pb-1 imx-border-b ">
                 Logística
               </h3>
               <div className="space-y-3">

@@ -42,7 +42,7 @@ export const CreatableArmazemCombobox: React.FC<
   className = '',
   loading = false,
   error = null,
-  buttonClassName = 'border-border',
+  buttonClassName = '',
 }) => {
   const supabase = createBrowserClient()
 
@@ -119,7 +119,7 @@ export const CreatableArmazemCombobox: React.FC<
             disabled={disabled}
             loading={loading}
             error={error}
-            buttonClassName="border-border"
+            buttonClassName=""
             createMessage="Criar armazem"
             allowCreate={true}
           />

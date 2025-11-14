@@ -37,9 +37,9 @@ export const OperationProgress: React.FC<OperationProgressProps> = ({
 }) => {
   // Determine status color
   const getStatusColor = () => {
-    if (progress === 100) return "text-green-600";
-    if (progress >= 50) return "text-blue-600";
-    if (progress > 0) return "text-yellow-600";
+    if (progress === 100) return "text-success";
+    if (progress >= 50) return "text-info";
+    if (progress > 0) return "text-warning";
     return "text-gray-500";
   };
 
@@ -52,8 +52,8 @@ export const OperationProgress: React.FC<OperationProgressProps> = ({
 
   // Get status icon
   const getStatusIcon = () => {
-    if (progress === 100) return <CheckCircle2 className="h-4 w-4 text-green-600" />;
-    if (progress > 0) return <Clock className="h-4 w-4 text-blue-600" />;
+    if (progress === 100) return <CheckCircle2 className="h-4 w-4 text-success" />;
+    if (progress > 0) return <Clock className="h-4 w-4 text-info" />;
     return <AlertCircle className="h-4 w-4 text-gray-400" />;
   };
 
@@ -77,7 +77,7 @@ export const OperationProgress: React.FC<OperationProgressProps> = ({
               <div>Executado: {executed}</div>
               <div>Restante: {remaining}</div>
               {operationType === "cut-from-print" && totalPrinted !== undefined && (
-                <div className="text-blue-400">Impresso: {totalPrinted}</div>
+                <div className="text-info">Impresso: {totalPrinted}</div>
               )}
             </div>
           </TooltipContent>
@@ -88,7 +88,7 @@ export const OperationProgress: React.FC<OperationProgressProps> = ({
 
   // Full view with details
   return (
-    <div className="space-y-2 p-3 border rounded-md bg-muted/30">
+    <div className="space-y-2 p-3 imx-border rounded-md bg-muted/30">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {getStatusIcon()}
@@ -115,7 +115,7 @@ export const OperationProgress: React.FC<OperationProgressProps> = ({
           </div>
           <div>
             <div className="text-muted-foreground">Executado</div>
-            <div className="font-semibold text-blue-600">{executed}</div>
+            <div className="font-semibold text-info">{executed}</div>
           </div>
           <div>
             <div className="text-muted-foreground">Restante</div>
@@ -126,13 +126,13 @@ export const OperationProgress: React.FC<OperationProgressProps> = ({
 
       {/* For cut-from-print, show printed availability */}
       {operationType === "cut-from-print" && totalPrinted !== undefined && (
-        <div className="text-xs border-t pt-2">
+        <div className="text-xs imx-border-t pt-2">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Total Impresso Disponível:</span>
-            <span className="font-semibold text-green-600">{totalPrinted}</span>
+            <span className="font-semibold text-success">{totalPrinted}</span>
           </div>
           {totalPrinted < planned && (
-            <div className="text-yellow-600 flex items-center gap-1 mt-1">
+            <div className="text-warning flex items-center gap-1 mt-1">
               <AlertCircle className="h-3 w-3" />
               <span>
                 Aguardando impressão de {planned - totalPrinted} placas
@@ -165,15 +165,15 @@ export const InlineProgress: React.FC<{
             <span
               className={`text-sm font-medium ${
                 isComplete
-                  ? "text-green-600"
+                  ? "text-success"
                   : isPartial
-                    ? "text-blue-600"
+                    ? "text-info"
                     : "text-gray-500"
               }`}
             >
               {current}/{total}
             </span>
-            {isComplete && <CheckCircle2 className="h-3 w-3 text-green-600" />}
+            {isComplete && <CheckCircle2 className="h-3 w-3 text-success" />}
           </div>
         </TooltipTrigger>
         <TooltipContent>
