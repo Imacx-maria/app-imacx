@@ -87,6 +87,8 @@ export async function GET(request: Request) {
         city: string;
         salesperson: string;
         invoice_count: number;
+        quote_count: number;
+        conversion_rate: number | null;
         net_revenue: number;
         revenue_share_pct: number;
         last_invoice: string;
@@ -106,6 +108,10 @@ export async function GET(request: Request) {
         city: fixEncoding(row.city) || "",
         salesperson: fixEncoding(row.salesperson) || "(Sem Vendedor)",
         invoice_count: Number(row.invoice_count),
+        quote_count: Number(row.quote_count),
+        conversion_rate: row.conversion_rate
+          ? Number(row.conversion_rate)
+          : null,
         net_revenue: Number(row.net_revenue),
         revenue_share_pct: Number(row.revenue_share_pct),
         last_invoice: row.last_invoice,
@@ -135,8 +141,10 @@ export async function GET(request: Request) {
             city: c.city,
             salesperson: c.salesperson,
             invoiceCount: c.invoice_count,
-            quoteCount: 0, // TODO: Implement later
-            conversionRate: null, // TODO: Implement later
+            quoteCount: c.quote_count,
+            conversionRate: c.conversion_rate
+              ? Math.round(c.conversion_rate * 100) / 100
+              : null,
             netRevenue: Math.round(c.net_revenue * 100) / 100,
             revenueSharePct: Math.round(c.revenue_share_pct * 100) / 100,
             lastInvoice: c.last_invoice,
