@@ -40,7 +40,18 @@ import type {
   TopCustomersResponse,
   MultiYearRevenueResponse,
   CostCenterPerformanceResponse,
+  CostCenterTopCustomersResponse,
 } from "@/types/financial-analysis";
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+const COST_CENTERS = [
+  "ID-Impressão Digital",
+  "BR-Brindes",
+  "IO-Impressão OFFSET",
+] as const;
 
 // ============================================================================
 // Helper Components
@@ -118,6 +129,11 @@ export default function AnaliseFinanceiraPage() {
     any | null
   >(null);
   const [costCenterSales, setCostCenterSales] = useState<any | null>(null);
+  const [costCenterTopCustomers, setCostCenterTopCustomers] =
+    useState<CostCenterTopCustomersResponse | null>(null);
+  const [selectedCostCenter, setSelectedCostCenter] = useState<string | null>(
+    null,
+  );
 
   // Main tab navigation
   const [mainTab, setMainTab] = useState<
@@ -225,6 +241,67 @@ export default function AnaliseFinanceiraPage() {
           } else {
             const costCenterSalesJson = await costCenterSalesResponse.json();
             setCostCenterSales(costCenterSalesJson);
+          }
+
+          const topCustomersResponse = await fetch(
+            `/api/financial-analysis/cost-center-top-customers?period=${tab}&limit=20`,
+          );
+          if (!topCustomersResponse.ok) {
+            console.warn(
+              "Failed to fetch cost center top customers - showing empty state",
+            );
+            // Create empty response structure so table still renders
+            const now = new Date();
+            const emptyResponse: CostCenterTopCustomersResponse = {
+              costCenters: COST_CENTERS.map((center) => ({
+                costCenter: center,
+                customers: [],
+                summary: {
+                  totalCustomers: 0,
+                  totalRevenue: 0,
+                  totalInvoices: 0,
+                },
+              })),
+              metadata: {
+                period: tab as "ytd" | "mtd",
+                startDate:
+                  tab === "mtd"
+                    ? new Date(now.getFullYear(), now.getMonth(), 1)
+                        .toISOString()
+                        .split("T")[0]
+                    : new Date(now.getFullYear(), 0, 1)
+                        .toISOString()
+                        .split("T")[0],
+                endDate: now.toISOString().split("T")[0],
+                limit: 20,
+                generatedAt: now.toISOString(),
+              },
+            };
+            setCostCenterTopCustomers(emptyResponse);
+            setSelectedCostCenter(COST_CENTERS[0]);
+          } else {
+            const topCustomersJson =
+              (await topCustomersResponse.json()) as CostCenterTopCustomersResponse;
+            console.log(
+              "📊 [Cost Center Top Customers] Response:",
+              topCustomersJson,
+            );
+            console.log(
+              "📊 [Cost Center Top Customers] First center customers:",
+              topCustomersJson.costCenters[0]?.customers?.length || 0,
+            );
+            setCostCenterTopCustomers(topCustomersJson);
+            setSelectedCostCenter((previous) => {
+              if (
+                previous &&
+                topCustomersJson.costCenters.some(
+                  (cc) => cc.costCenter === previous,
+                )
+              ) {
+                return previous;
+              }
+              return topCustomersJson.costCenters[0]?.costCenter ?? null;
+            });
           }
         } else if (section === "vendedores") {
           // VENDEDORES section data
@@ -445,6 +522,16 @@ export default function AnaliseFinanceiraPage() {
       <ArrowDown className="ml-1 inline h-3 w-3" />
     );
   };
+
+  const costCenterSelectionOptions = costCenterTopCustomers
+    ? costCenterTopCustomers.costCenters
+    : [];
+  const selectedCostCenterBlock =
+    selectedCostCenter && costCenterTopCustomers
+      ? costCenterTopCustomers.costCenters.find(
+          (cc) => cc.costCenter === selectedCostCenter,
+        )
+      : null;
 
   // ============================================================================
   // Main Render
@@ -984,6 +1071,9 @@ export default function AnaliseFinanceiraPage() {
                         <TableHead className="text-right">
                           Ticket Médio
                         </TableHead>
+                        <TableHead className="text-right">Compras</TableHead>
+                        <TableHead className="text-right">Margem</TableHead>
+                        <TableHead className="text-right">Margem %</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -994,6 +1084,16 @@ export default function AnaliseFinanceiraPage() {
                             : cc.var_pct > 0
                               ? "text-success"
                               : "text-destructive";
+
+                        const margem = cc.vendas - (cc.compras || 0);
+                        const margemPct =
+                          cc.vendas > 0 ? (margem / cc.vendas) * 100 : 0;
+                        const margemClass =
+                          margemPct >= 50
+                            ? "text-success"
+                            : margemPct >= 30
+                              ? ""
+                              : "text-warning";
 
                         return (
                           <TableRow key={cc.centro_custo}>
@@ -1019,13 +1119,22 @@ export default function AnaliseFinanceiraPage() {
                             <TableCell className="text-right">
                               {formatCurrency(cc.ticket_medio)}
                             </TableCell>
+                            <TableCell className="text-right">
+                              {formatCurrency(cc.compras)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {formatCurrency(margem)}
+                            </TableCell>
+                            <TableCell className={`text-right ${margemClass}`}>
+                              {margemPct.toFixed(1)}%
+                            </TableCell>
                           </TableRow>
                         );
                       })}
                     </TableBody>
                   </Table>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm imx-border-t pt-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-sm imx-border-t pt-4">
                   <div>
                     <p className="text-muted-foreground">
                       Total Vendas {activeTab === "mtd" ? "Mês Atual" : "YTD"}
@@ -1037,6 +1146,53 @@ export default function AnaliseFinanceiraPage() {
                           0,
                         ),
                       )}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">
+                      Total Compras {activeTab === "mtd" ? "Mês Atual" : "YTD"}
+                    </p>
+                    <p className="text-lg font-normal">
+                      {formatCurrency(
+                        costCenterSales.costCenters.reduce(
+                          (sum: number, cc: any) => sum + (cc.compras || 0),
+                          0,
+                        ),
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">
+                      Total Margem {activeTab === "mtd" ? "Mês Atual" : "YTD"}
+                    </p>
+                    <p className="text-lg font-normal">
+                      {formatCurrency(
+                        costCenterSales.costCenters.reduce(
+                          (sum: number, cc: any) =>
+                            sum + (cc.vendas - (cc.compras || 0)),
+                          0,
+                        ),
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Margem % Média</p>
+                    <p className="text-lg font-normal">
+                      {(() => {
+                        const totalVendas = costCenterSales.costCenters.reduce(
+                          (sum: number, cc: any) => sum + cc.vendas,
+                          0,
+                        );
+                        const totalCompras = costCenterSales.costCenters.reduce(
+                          (sum: number, cc: any) => sum + (cc.compras || 0),
+                          0,
+                        );
+                        const avgMargemPct =
+                          totalVendas > 0
+                            ? ((totalVendas - totalCompras) / totalVendas) * 100
+                            : 0;
+                        return `${avgMargemPct.toFixed(1)}%`;
+                      })()}
                     </p>
                   </div>
                   <div>
@@ -1057,6 +1213,167 @@ export default function AnaliseFinanceiraPage() {
                     </p>
                   </div>
                 </div>
+              </div>
+            </Card>
+          )}
+
+          {costCenterTopCustomers && costCenterSelectionOptions.length > 0 && (
+            <Card className="p-6">
+              <div className="space-y-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <h2 className="text-xl text-foreground">
+                      Top 20 Clientes YTD por Centro de Custo
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      Dados YTD ({costCenterTopCustomers.metadata.startDate} a{" "}
+                      {costCenterTopCustomers.metadata.endDate}). Esta tabela
+                      apresenta sempre o acumulado anual, independentemente do
+                      período selecionado acima.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {costCenterSelectionOptions.map((option) => (
+                      <Button
+                        key={option.costCenter}
+                        variant={
+                          selectedCostCenter === option.costCenter
+                            ? "default"
+                            : "outline"
+                        }
+                        size="sm"
+                        onClick={() => setSelectedCostCenter(option.costCenter)}
+                      >
+                        {option.costCenter}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {selectedCostCenterBlock ? (
+                  <>
+                    <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-3">
+                      <div>
+                        <p className="text-muted-foreground">
+                          Receita Centro (YTD)
+                        </p>
+                        <p className="text-lg font-normal">
+                          {formatCurrency(
+                            selectedCostCenterBlock.summary.totalRevenue,
+                          )}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">
+                          Nº Clientes com Receita
+                        </p>
+                        <p className="text-lg font-normal">
+                          {formatNumber(
+                            selectedCostCenterBlock.summary.totalCustomers,
+                          )}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">
+                          Nº Faturas (YTD)
+                        </p>
+                        <p className="text-lg font-normal">
+                          {formatNumber(
+                            selectedCostCenterBlock.summary.totalInvoices,
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-12">#</TableHead>
+                            <TableHead>Cliente</TableHead>
+                            <TableHead>Vendedor</TableHead>
+                            <TableHead className="text-right">
+                              Nº Faturas
+                            </TableHead>
+                            <TableHead className="text-right">
+                              Nº Orçamentos
+                            </TableHead>
+                            <TableHead className="text-right">
+                              Conversão
+                            </TableHead>
+                            <TableHead className="text-right">
+                              Receita
+                            </TableHead>
+                            <TableHead className="text-right">
+                              % Centro
+                            </TableHead>
+                            <TableHead className="text-right">
+                              Última Fatura
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedCostCenterBlock.customers.length > 0 ? (
+                            selectedCostCenterBlock.customers.map(
+                              (customer) => (
+                                <TableRow
+                                  key={`${selectedCostCenterBlock.costCenter}-${customer.customerId}`}
+                                >
+                                  <TableCell>{customer.rank}</TableCell>
+                                  <TableCell className="font-normal">
+                                    <div>
+                                      <p>{customer.customerName}</p>
+                                      {customer.city && (
+                                        <p className="text-xs text-muted-foreground">
+                                          {customer.city}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>{customer.salesperson}</TableCell>
+                                  <TableCell className="text-right">
+                                    {formatNumber(customer.invoiceCount)}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {formatNumber(customer.quoteCount)}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {customer.conversionRate != null
+                                      ? `${customer.conversionRate.toFixed(1)}%`
+                                      : "-"}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {formatCurrency(customer.netRevenue)}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {formatPercent(customer.revenueSharePct)}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {customer.lastInvoice || "-"}
+                                  </TableCell>
+                                </TableRow>
+                              ),
+                            )
+                          ) : (
+                            <TableRow>
+                              <TableCell
+                                colSpan={9}
+                                className="text-center text-muted-foreground"
+                              >
+                                Sem clientes com receita neste centro.
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Seleciona um centro de custo para ver o detalhe dos
+                    clientes.
+                  </p>
+                )}
               </div>
             </Card>
           )}

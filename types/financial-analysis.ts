@@ -200,6 +200,46 @@ export interface CostCenterPerformanceResponse {
 }
 
 // ============================================================================
+// Cost Center Top Customers Types
+// ============================================================================
+
+export interface CostCenterTopCustomer {
+  rank: number;
+  customerId: string;
+  customerName: string;
+  city: string;
+  salesperson: string;
+  invoiceCount: number;
+  quoteCount: number;
+  conversionRate: number | null;
+  netRevenue: number;
+  revenueSharePct: number;
+  lastInvoice: string;
+  daysSinceLastInvoice: number;
+}
+
+export interface CostCenterTopCustomersBlock {
+  costCenter: string;
+  customers: CostCenterTopCustomer[];
+  summary: {
+    totalCustomers: number;
+    totalRevenue: number;
+    totalInvoices: number;
+  };
+}
+
+export interface CostCenterTopCustomersResponse {
+  costCenters: CostCenterTopCustomersBlock[];
+  metadata: {
+    period: "ytd";
+    startDate: string;
+    endDate: string;
+    limit: number;
+    generatedAt: string;
+  };
+}
+
+// ============================================================================
 // Geographic Analysis Types
 // ============================================================================
 

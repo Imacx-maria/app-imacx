@@ -519,6 +519,9 @@ class SelectiveSync:
         if isinstance(value, datetime):
             return value.date()
         text_value = str(value).strip()
+        # Return None for empty strings
+        if not text_value or text_value == "":
+            return None
         # Try DD.MM.YYYY format (PHC marca field format)
         try:
             return datetime.strptime(text_value, "%d.%m.%Y").date()
@@ -1272,7 +1275,7 @@ class SelectiveSync:
             total_rows = 0
             batch_num = 0
 
-            print(f"   📥 Fetching data from PHC...", flush=True)
+            print(f"   Fetching data from PHC...", flush=True)
 
             while True:
                 rows = phc_cursor.fetchmany(batch_size)
@@ -1317,6 +1320,15 @@ class SelectiveSync:
                                     clean_row.append(None)
                             elif "BOOLEAN" in col_type:
                                 clean_row.append(bool(val) if val is not None else None)
+                            elif "DATE" in col_type:
+                                # Special handling for marca field (stored as VARCHAR "DD.MM.YYYY")
+                                if table_name == "bo" and col_name == "marca":
+                                    parsed_date = self._parse_marca_date(val)
+                                    clean_row.append(parsed_date)
+                                else:
+                                    # Regular date handling
+                                    parsed_date = self._coerce_to_date(val)
+                                    clean_row.append(parsed_date)
                             else:
                                 str_val = str(val).strip() if val else None
                                 # Special handling for vendnm in CL table - default to IMACX if empty

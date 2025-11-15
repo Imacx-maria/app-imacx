@@ -13,6 +13,7 @@ type PeriodKey = keyof typeof PERIOD_TO_RPC;
 type CostCenterSalesRow = {
   centro_custo: string;
   vendas: number;
+  compras: number;
   var_pct: number;
   num_faturas: number;
   num_clientes: number;
@@ -62,6 +63,7 @@ export async function GET(request: NextRequest) {
     const rows = (data || []).map((row: CostCenterSalesRow) => ({
       centro_custo: row.centro_custo || "(Sem Centro de Custo)",
       vendas: Number(row.vendas) || 0,
+      compras: Number(row.compras) || 0,
       var_pct: Number(row.var_pct) || 0,
       num_faturas: Number(row.num_faturas) || 0,
       num_clientes: Number(row.num_clientes) || 0,

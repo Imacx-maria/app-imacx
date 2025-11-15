@@ -186,9 +186,30 @@ def sync_2years_bo(phc_conn, supabase_conn):
                                     )
                                 else:
                                     date_str = str(val).strip()
-                                    parsed_date = datetime.strptime(
-                                        date_str, "%d.%m.%Y"
-                                    ).date()
+                                    # Return None for empty strings or invalid formats
+                                    if not date_str or date_str == "":
+                                        clean_row.append(None)
+                                        continue
+                                    # Try DD.MM.YYYY format first
+                                    try:
+                                        parsed_date = datetime.strptime(
+                                            date_str, "%d.%m.%Y"
+                                        ).date()
+                                    except ValueError:
+                                        # Try other common formats
+                                        parsed_date = None
+                                        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+                                            try:
+                                                parsed_date = datetime.strptime(
+                                                    date_str, fmt
+                                                ).date()
+                                                break
+                                            except ValueError:
+                                                continue
+                                        # If all parsing fails, store as NULL (handles "13/02 QUINTA" etc.)
+                                        if not parsed_date:
+                                            clean_row.append(None)
+                                            continue
                                 clean_row.append(parsed_date.strftime("%Y-%m-%d"))
                             except (ValueError, TypeError):
                                 # If parsing fails, store as NULL

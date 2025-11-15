@@ -203,7 +203,50 @@ Supabase row limit = 1000, use RPC for large aggregates
 
 YTD means same calendar period, not full-year vs YTD
 
-🔎 9. General Behavior for Claude Code
+📅 9. Date Period Definitions (CRITICAL - READ THIS)
+
+NEVER hardcode dates. ALWAYS use dynamic date calculations.
+
+**Month-to-Date (MTD)**
+- Definition: From the 1st day of the current month to system date (CURRENT_DATE)
+- Example: If today is November 15, 2025:
+  - Current MTD: 2025-11-01 to 2025-11-15
+  - Previous Year Same Period: 2024-11-01 to 2024-11-15
+  - Previous Year Same Period (2 years ago): 2023-11-01 to 2023-11-15
+- SQL Implementation:
+  ```sql
+  -- Current MTD
+  WHERE date_field >= DATE_TRUNC('month', CURRENT_DATE)
+    AND date_field <= CURRENT_DATE
+  
+  -- Previous Year Same Period
+  WHERE date_field >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 year')
+    AND date_field <= (CURRENT_DATE - INTERVAL '1 year')
+  ```
+
+**Year-to-Date (YTD)**
+- Definition: From January 1st of the current year to system date (CURRENT_DATE)
+- Example: If today is November 15, 2025:
+  - Current YTD: 2025-01-01 to 2025-11-15
+  - Previous Year Same Period: 2024-01-01 to 2024-11-15
+  - Previous Year Same Period (2 years ago): 2023-01-01 to 2023-11-15
+- SQL Implementation:
+  ```sql
+  -- Current YTD
+  WHERE date_field >= DATE_TRUNC('year', CURRENT_DATE)
+    AND date_field <= CURRENT_DATE
+  
+  -- Previous Year Same Period
+  WHERE date_field >= DATE_TRUNC('year', CURRENT_DATE - INTERVAL '1 year')
+    AND date_field <= (CURRENT_DATE - INTERVAL '1 year')
+  ```
+
+**Golden Rule for Period Comparisons**
+- When comparing to previous years, ALWAYS use the SAME DAY-OF-YEAR period
+- If today is day 320 of the year, compare to day 320 of previous years
+- NEVER compare full year to YTD (that's apples to oranges)
+
+🔎 10. General Behavior for Claude Code
 
 Fix code using the design-system rules, not guesswork
 
@@ -217,7 +260,7 @@ Prefer smaller, clearer components
 
 Avoid re-implementing logic already existing in utils/hooks
 
-🧹 10. Golden Rules (short version)
+🧹 11. Golden Rules (short version)
 
 Design-system.md controls all UI
 
