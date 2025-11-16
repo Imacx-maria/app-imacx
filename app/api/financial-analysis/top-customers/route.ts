@@ -59,70 +59,25 @@ export async function GET(request: Request) {
         startDate = new Date(now.getFullYear(), 0, 1);
     }
 
-    // Load current-period invoices with explicit pagination to avoid 1000-row cap
-    const fetchPaged = async (
-      table: "ft" | "2years_ft",
-      start: string,
-      end: string,
-    ): Promise<any[]> => {
-      const pageSize = 1000;
-      let from = 0;
-      let rows: any[] = [];
-      // Use range-based pagination until batch < pageSize
-      // This is the pattern recommended in PHASE2_CRITICAL_LEARNINGS
-      // for cases where we need individual rows (like Top 20 ranking).
-      // Aggregations remain in RPCs.
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const { data, error } = await supabase
-          .schema("phc")
-          .from(table)
-          .select(
-            `
-            invoice_id,
-            customer_id,
-            net_value,
-            invoice_date,
-            document_type,
-            anulado
-          `,
-          )
-          .gte("invoice_date", start)
-          .lte("invoice_date", end)
-          .order("invoice_date", { ascending: true })
-          .range(from, from + pageSize - 1);
-
-        if (error) {
-          console.error(
-            `❌ [Top Customers] Query error on ${table} (offset ${from}):`,
-            error,
-          );
-          throw error;
-        }
-
-        if (!data || data.length === 0) {
-          break;
-        }
-
-        rows = rows.concat(data);
-
-        if (data.length < pageSize) {
-          break;
-        }
-
-        from += pageSize;
-      }
-
-      return rows;
-    };
-
     const startStr = startDate.toISOString().split("T")[0];
     const endStr = now.toISOString().split("T")[0];
 
-    // Current period from phc.ft (paged to avoid 1000 limit)
-    const invoices = await fetchPaged("ft", startStr, endStr);
+    // Use RPC function to fetch invoices (bypasses RLS permission issues)
+    const { data: invoices, error: invoicesError } = await supabase.rpc(
+      "get_invoices_for_period",
+      {
+        start_date: startStr,
+        end_date: endStr,
+        use_historical: false,
+      },
+    );
 
-    // Previous-year YTD window (for YTD only) from phc.2years_ft (also paged)
+    if (invoicesError) {
+      console.error(`❌ [Top Customers] Query error on ft:`, invoicesError);
+      throw invoicesError;
+    }
+
+    // Previous-year YTD window (for YTD only) from phc.2years_ft
     let prevRows: any[] = [];
     if (period === "ytd") {
       const prevStart = new Date(startDate);
@@ -133,7 +88,24 @@ export async function GET(request: Request) {
       const prevStartStr = prevStart.toISOString().split("T")[0];
       const prevEndStr = prevEnd.toISOString().split("T")[0];
 
-      prevRows = await fetchPaged("2years_ft", prevStartStr, prevEndStr);
+      const { data: prevData, error: prevError } = await supabase.rpc(
+        "get_invoices_for_period",
+        {
+          start_date: prevStartStr,
+          end_date: prevEndStr,
+          use_historical: true,
+        },
+      );
+
+      if (prevError) {
+        console.error(
+          `❌ [Top Customers] Query error on 2years_ft:`,
+          prevError,
+        );
+        throw prevError;
+      }
+
+      prevRows = prevData || [];
     }
 
     console.log(
@@ -185,19 +157,13 @@ export async function GET(request: Request) {
       });
     }
 
-    // Fetch customer details
-    const { data: customers, error: customersError } = await supabase
-      .schema("phc")
-      .from("cl")
-      .select(
-        `
-        customer_id,
-        customer_name,
-        city,
-        salesperson
-      `,
-      )
-      .in("customer_id", customerIds);
+    // Fetch customer details using RPC (bypasses RLS)
+    const { data: customers, error: customersError } = await supabase.rpc(
+      "get_customers_by_ids",
+      {
+        customer_ids: customerIds,
+      },
+    );
 
     if (customersError) {
       console.error("Customers Error:", customersError);
@@ -208,8 +174,16 @@ export async function GET(request: Request) {
     }
 
     // Create customer lookup map
-    const customerMap = new Map(
-      customers?.map((c) => [
+    const customerMap = new Map<
+      string | number,
+      {
+        rawId: string | number;
+        name: string;
+        city: string;
+        salesperson: string;
+      }
+    >(
+      customers?.map((c: any) => [
         c.customer_id,
         {
           rawId: c.customer_id,
@@ -242,9 +216,7 @@ export async function GET(request: Request) {
       name: string;
     }): string => {
       const idNum =
-        typeof info.rawId === "string"
-          ? parseInt(info.rawId, 10)
-          : info.rawId;
+        typeof info.rawId === "string" ? parseInt(info.rawId, 10) : info.rawId;
 
       // Business rule (explicit, deterministic):
       // - Group ONLY customer_id 2043 and 2149 together
@@ -260,6 +232,7 @@ export async function GET(request: Request) {
       const originalCustomerId = invoice.customer_id;
       const customerInfo = customerMap.get(originalCustomerId);
       if (!customerInfo) continue;
+      if (!customerInfo.rawId || !customerInfo.name) continue;
 
       // Apply consolidation rule (e.g., HH PRINT MANAGEMENT group)
       const customerKey = getCustomerKey(customerInfo);
@@ -280,7 +253,6 @@ export async function GET(request: Request) {
           lastInvoice: new Date(invoice.invoice_date),
         });
       }
-
 
       const metrics = customerMetrics.get(customerKey)!;
       const value = invoice.net_value || 0;
@@ -326,13 +298,17 @@ export async function GET(request: Request) {
 
         // If not found (historical-only id), derive minimal info from invoice
         const fallbackName =
-          (inv as any).customer_name && typeof (inv as any).customer_name === "string"
+          (inv as any).customer_name &&
+          typeof (inv as any).customer_name === "string"
             ? fixEncoding((inv as any).customer_name)
             : "";
 
         const info: { rawId: number | string; name: string } = mapInfo
           ? { rawId: mapInfo.rawId, name: mapInfo.name }
-          : { rawId: originalCustomerId, name: fallbackName || String(originalCustomerId) };
+          : {
+              rawId: originalCustomerId,
+              name: fallbackName || String(originalCustomerId),
+            };
 
         const customerKey = getCustomerKey(info);
         const isFactura = inv.document_type === "Factura";
@@ -364,10 +340,8 @@ export async function GET(request: Request) {
           salesperson: customer.salesperson,
           invoiceCount: customer.invoiceCount,
           netRevenue: Math.round(customer.netRevenue * 100) / 100,
-          cancelledRevenue:
-            Math.round(customer.cancelledRevenue * 100) / 100,
-          firstInvoice:
-            customer.firstInvoice.toISOString().split("T")[0],
+          cancelledRevenue: Math.round(customer.cancelledRevenue * 100) / 100,
+          firstInvoice: customer.firstInvoice.toISOString().split("T")[0],
           lastInvoice: customer.lastInvoice.toISOString().split("T")[0],
           daysSinceLastInvoice: Math.floor(
             (now.getTime() - customer.lastInvoice.getTime()) /
@@ -377,8 +351,7 @@ export async function GET(request: Request) {
 
         const revenueSharePct =
           totalRevenue > 0
-            ? Math.round((customer.netRevenue / totalRevenue) * 10000) /
-              100
+            ? Math.round((customer.netRevenue / totalRevenue) * 10000) / 100
             : 0;
 
         if (period === "ytd") {
@@ -386,8 +359,7 @@ export async function GET(request: Request) {
           const prevRevenue = prev ? prev.netRevenue : 0;
           const current = customer.netRevenue;
 
-          const previousNetRevenue =
-            Math.round(prevRevenue * 100) / 100;
+          const previousNetRevenue = Math.round(prevRevenue * 100) / 100;
 
           const previousDeltaValue =
             Math.round((current - prevRevenue) * 100) / 100;
@@ -395,8 +367,7 @@ export async function GET(request: Request) {
           const previousDeltaPct =
             prevRevenue !== 0
               ? Math.round(
-                  ((current - prevRevenue) / Math.abs(prevRevenue)) *
-                    10000,
+                  ((current - prevRevenue) / Math.abs(prevRevenue)) * 10000,
                 ) / 100
               : null;
 

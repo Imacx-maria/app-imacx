@@ -95,6 +95,7 @@ import {
   calculateCutFromPrintProgress,
   calculateCutJobProgress,
 } from "./utils/operationsHelpers";
+import { createFirstExecutionFromSource } from "./utils/importPlanosLogic";
 import {
   OperationProgress,
   InlineProgress,
@@ -116,6 +117,7 @@ import {
   Edit3,
   Check,
   XSquare,
+  Play,
 } from "lucide-react";
 
 // Types
@@ -440,23 +442,22 @@ export default function OperacoesPage() {
           .in("Tipo_Op", ["Corte"]);
 
         if (!allOpError && allOperations) {
-          // Check if item has completed Corte operations (for filtering)
-          const hasCompletedCorte =
-            corteOperations &&
-            corteOperations.some((op: any) => op.concluido === true);
+          // Determine completion of Corte operations only
+          const hasAnyCorte = corteOperations && corteOperations.length > 0;
+          const allCorteConcluded =
+            hasAnyCorte &&
+            corteOperations.every((op: any) => op.concluido === true);
 
-          // Attach operations completion status based on ALL operations
-          const allOperationsConcluded =
-            allOperations.length > 0 &&
-            allOperations.every((op: any) => op.concluido === true);
+          // Attach operations completion status based on Corte operations only
+          const allOperationsConcluded = allCorteConcluded;
           const itemWithStatus = {
             ...item,
             _operationsAllConcluded: allOperationsConcluded,
             _hasOperations: allOperations.length > 0,
           };
 
-          // Only include items that don't have completed Corte operations
-          if (!hasCompletedCorte) {
+          // Only exclude when ALL corte operations are concluded
+          if (!allCorteConcluded) {
             itemsWithoutCompleted.push(itemWithStatus);
           }
         } else {
@@ -669,14 +670,15 @@ export default function OperacoesPage() {
       const newValue = !currentValue;
       const today = new Date().toISOString().split("T")[0];
 
-      // Update ALL operations for this item
+      // Update ONLY cutting operations for this item
       const { error } = await supabase
         .from("producao_operacoes")
         .update({
           concluido: newValue,
           data_conclusao: newValue ? today : null,
         })
-        .eq("item_id", itemId);
+        .eq("item_id", itemId)
+        .eq("Tipo_Op", "Corte");
 
       if (error) throw error;
 
@@ -2042,6 +2044,48 @@ function OperationsTable({
   // Progress tracking state
   const [jobProgress, setJobProgress] = useState<Record<string, any>>({});
 
+  const printSummaries = useMemo(() => {
+    const result: {
+      id: string;
+      no_interno: string | null;
+      plano_nome: string | null;
+      planned: number;
+      executed: number;
+      remaining: number;
+      progress: number;
+    }[] = [];
+
+    // Index by print_job_id to find source rows
+    const sources = operations.filter(
+      (op) => op.is_source_record && op.print_job_id,
+    );
+
+    sources.forEach((source) => {
+      const planned = source.qt_print_planned || 0;
+      const execRows = operations.filter(
+        (op) =>
+          op.print_job_id === source.print_job_id && op.is_source_record !== true,
+      );
+      const executed =
+        execRows.reduce((sum, op) => sum + (op.num_placas_print || 0), 0) || 0;
+      const remaining = Math.max(0, planned - executed);
+      const progress =
+        planned > 0 ? Math.round((executed / planned) * 100) : 0;
+
+      result.push({
+        id: source.print_job_id || source.id,
+        no_interno: source.no_interno || null,
+        plano_nome: source.plano_nome || null,
+        planned,
+        executed,
+        remaining,
+        progress,
+      });
+    });
+
+    return result;
+  }, [operations]);
+
   // Fetch paletes
   useEffect(() => {
     const fetchPaletes = async () => {
@@ -2146,6 +2190,21 @@ function OperationsTable({
       onMainRefresh();
     } else {
       alert(`Erro ao duplicar operação: ${result.error}`);
+    }
+  };
+
+  const handleStartExecution = async (operation: ProductionOperation) => {
+    try {
+      const resp = await createFirstExecutionFromSource(operation, supabase);
+      if (!resp.success) {
+        alert(resp.error || "Erro ao iniciar execu��o");
+        return;
+      }
+      onRefresh();
+      onMainRefresh();
+    } catch (err: any) {
+      console.error("Error starting execution:", err);
+      alert("Erro ao iniciar execu��o");
     }
   };
 
@@ -2520,6 +2579,28 @@ function OperationsTable({
         </Button>
       </div>
 
+
+      {printSummaries.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="text-sm font-semibold uppercase text-muted-foreground">
+            Progresso de Impressao (planeado vs executado)
+          </h4>
+          <div className="space-y-2">
+            {printSummaries.map((summary) => (
+              <OperationProgress
+                key={summary.id}
+                planned={summary.planned}
+                executed={summary.executed}
+                remaining={summary.remaining}
+                progress={summary.progress}
+                operationType="print"
+                showDetails={false}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
@@ -2535,16 +2616,6 @@ function OperationsTable({
               <TableHead className="w-[120px]">Cor</TableHead>
               <TableHead className="w-[80px]">Print</TableHead>
               <TableHead className="w-[50px]">Notas</TableHead>
-              <TableHead className="w-[80px] text-center">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="cursor-help">C</span>
-                    </TooltipTrigger>
-                    <TooltipContent>Concluído</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </TableHead>
               <TableHead className="w-[130px]">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -2744,21 +2815,19 @@ function OperationsTable({
                     />
                   </TableCell>
 
-                  {/* Concluído */}
-                  <TableCell>
-                    <div className="flex items-center justify-center">
-                      <Checkbox
-                        checked={op.concluido || false}
-                        onCheckedChange={(checked) =>
-                          handleFieldChange(op.id, "concluido", !!checked)
-                        }
-                      />
-                    </div>
-                  </TableCell>
-
                   {/* Ações */}
                   <TableCell>
                     <div className="flex gap-1">
+                      {op.is_source_record && (
+                        <Button
+                          size="icon"
+                          variant="secondary"
+                          onClick={() => handleStartExecution(op)}
+                          title="Iniciar execução"
+                        >
+                          <Play className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         size="icon"
                         variant="outline"

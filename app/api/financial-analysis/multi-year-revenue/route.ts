@@ -116,39 +116,20 @@ export async function GET(request: Request) {
       end: Date,
       sourceTable: "ft" | "2years_ft",
     ): Promise<MultiYearRevenueSeries> => {
-      let allRows: {
-        invoice_date: string;
-        net_value: number;
-        document_type: string;
-        anulado: string | null;
-      }[] = [];
-      let from = 0;
-      const pageSize = 1000;
-      let hasMore = true;
+      // Use RPC function to fetch invoices (bypasses RLS)
+      const { data: allRows, error } = await supabase.rpc(
+        "get_invoices_for_period",
+        {
+          start_date: start.toISOString().split("T")[0],
+          end_date: end.toISOString().split("T")[0],
+          use_historical: sourceTable === "2years_ft",
+        },
+      );
 
-      while (hasMore) {
-        const { data, error } = await supabase
-          .schema("phc")
-          .from(sourceTable)
-          .select("invoice_date, net_value, document_type, anulado")
-          .gte("invoice_date", start.toISOString().split("T")[0])
-          .lte("invoice_date", end.toISOString().split("T")[0])
-          .order("invoice_date", { ascending: true })
-          .range(from, from + pageSize - 1);
-
-        if (error) {
-          throw new Error(
-            `Failed to load monthly revenue for year ${year} from ${sourceTable}: ${error.message}`,
-          );
-        }
-
-        if (data && data.length > 0) {
-          allRows = allRows.concat(data as any[]);
-          hasMore = data.length === pageSize;
-          from += pageSize;
-        } else {
-          hasMore = false;
-        }
+      if (error) {
+        throw new Error(
+          `Failed to load monthly revenue for year ${year} from ${sourceTable}: ${error.message}`,
+        );
       }
 
       // Aggregate by YYYY-MM with required filters:
@@ -160,15 +141,15 @@ export async function GET(request: Request) {
         const isValidType =
           row.document_type === "Factura" ||
           row.document_type === "Nota de Crédito";
-        const isNotCancelled =
-          !row.anulado || row.anulado !== "True";
+        const isNotCancelled = !row.anulado || row.anulado !== "True";
 
         if (!isValidType || !isNotCancelled) continue;
 
         const d = new Date(row.invoice_date);
-        const key = `${d.getFullYear()}-${String(
-          d.getMonth() + 1,
-        ).padStart(2, "0")}`;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+          2,
+          "0",
+        )}`;
 
         const current = monthMap.get(key) || 0;
         // SUM(net_value) directly; Notas de Crédito already negative
@@ -186,13 +167,23 @@ export async function GET(request: Request) {
           month,
           revenue: Math.round(revenue),
         }));
-  
+
       return { year, points };
     };
 
     const seriesY0 = await fetchYear(currentYear, startY0, endY0, "ft");
-    const seriesY1 = await fetchYear(currentYear - 1, startY1, endY1, "2years_ft");
-    const seriesY2 = await fetchYear(currentYear - 2, startY2, endY2, "2years_ft");
+    const seriesY1 = await fetchYear(
+      currentYear - 1,
+      startY1,
+      endY1,
+      "2years_ft",
+    );
+    const seriesY2 = await fetchYear(
+      currentYear - 2,
+      startY2,
+      endY2,
+      "2years_ft",
+    );
 
     const response: MultiYearRevenueResponse = {
       years: [currentYear, currentYear - 1, currentYear - 2],

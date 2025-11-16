@@ -53,6 +53,10 @@ import {
   DeleteButton,
   ActionColumn,
 } from "@/components/custom/ActionButtons";
+import {
+  duplicateOperationRow,
+  validateOperationQuantity,
+} from "../utils/operationsHelpers";
 
 interface ProductionOperation {
   id: string;
@@ -243,8 +247,21 @@ export function CorteLoosePlatesTable({
       // Normalize numeric fields
       let normalizedValue = value;
       if (field === "num_placas_corte") {
-        const n = parseInt(String(value));
+        const n = parseFloat(String(value));
         normalizedValue = Number.isFinite(n) ? n : 0;
+
+        const operation = operations.find((op) => op.id === operationId);
+        if (operation) {
+          const validation = await validateOperationQuantity(
+            supabase,
+            operation as any,
+            normalizedValue,
+          );
+          if (!validation.valid) {
+            alert(`Erro de valida��o: ${validation.error}`);
+            return;
+          }
+        }
       }
 
       const operation = operations.find((op) => op.id === operationId);
@@ -323,41 +340,12 @@ export function CorteLoosePlatesTable({
       const sourceOp = operations.find((op) => op.id === operationId);
       if (!sourceOp) return;
 
-      // Generate new no_interno
-      const now = new Date();
-      const dateStr = format(now, "yyyyMMdd");
-      const timeStr = format(now, "HHmmss");
-      const foShort = item.folhas_obras?.numero_fo?.substring(0, 6) || "FO";
-      const no_interno = `${foShort}-${dateStr}-CRT-DUP-${timeStr}`;
+      const result = await duplicateOperationRow(supabase, sourceOp as any);
+      if (!result.success) {
+        alert(`Erro ao duplicar operação: ${result.error}`);
+        return;
+      }
 
-      // Create duplicate with same data but new ID and no_interno
-      const duplicateData = {
-        item_id: itemId,
-        folha_obra_id: folhaObraId,
-        Tipo_Op: "Corte",
-        data_operacao: sourceOp.data_operacao,
-        no_interno,
-        operador_id: sourceOp.operador_id,
-        maquina: sourceOp.maquina,
-        material_id: sourceOp.material_id,
-        N_Pal: sourceOp.N_Pal,
-        num_placas_corte: 0, // Reset to 0 so user can enter new value
-        observacoes: sourceOp.observacoes,
-        plano_nome: sourceOp.plano_nome,
-        cores: sourceOp.cores,
-        source_impressao_id: null, // Explicitly null for loose plates
-        concluido: false,
-      };
-
-      const { data: savedOperation, error } = await supabase
-        .from("producao_operacoes")
-        .insert([duplicateData])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      await logOperationCreation(supabase, savedOperation.id, duplicateData);
       onRefresh();
       onMainRefresh();
     } catch (err) {

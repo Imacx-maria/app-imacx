@@ -40,26 +40,49 @@ Do NOT introduce new colors, borders, or visual patterns.
 🧭 2. Repository Behavior Rules
 ✔ A. File placement
 
-Temporary docs → TEMP/docs/
+**Documentation:** TEMP/docs/ is now organized by category:
 
-Utility or automation scripts → scripts/
+TEMP/docs/
+├── README.md              # Start here - documentation index
+├── architecture/          # System design, ETL, security
+├── features/             # Feature implementations
+├── business/             # Company, strategy, pricing
+└── analysis/             # UX analysis, research
+
+**Scripts:** scripts/ for all automation and utility code
+
+**Archives:** TEMP/_archived/ for old/completed documentation
 
 Project root stays clean (only permanent config files)
 
 Before Claude creates a new file:
 
-Check if it exists
+1. Check if it exists
+2. If it does, update it
+3. If not, determine correct category:
+   - Architecture docs → TEMP/docs/architecture/
+   - Feature docs → TEMP/docs/features/
+   - Business docs → TEMP/docs/business/
+   - Analysis → TEMP/docs/analysis/
+   - Completed/obsolete → TEMP/_archived/YYYY-MM/
 
-If it does, update it
+✔ B. Documentation best practices
 
-If not, create it in the correct folder
+**Always check the documentation index first:**
 
-✔ B. No guessing folder structure
+TEMP/docs/README.md
 
-If unsure where a file goes, choose:
+This file contains the complete catalog of all active documentation.
 
-TEMP/docs/   (for markdown)
-scripts/      (for code)
+**When creating new documentation:**
+- Use clear, descriptive filenames
+- Include date in document header
+- Add entry to TEMP/docs/README.md
+- Choose appropriate category folder
+
+**When a document becomes obsolete:**
+- Move to TEMP/_archived/YYYY-MM/appropriate-subfolder/
+- Remove from or mark as deprecated in README.md
 
 🗺 3. App Architecture Summary
 
@@ -131,22 +154,77 @@ supabase.from('phc.ft')
 ✔ Always filter out cancelled invoices:
 WHERE anulado = false
 
+🔗 5.1 BiStamp Linking (Quote-to-Invoice) — CRITICAL
+
+**The Problem:**
+There is NO direct foreign key from invoices (FI) to quotes (BO).
+
+**The Solution: BiStamp Chain**
+Use the `bi` table as a bridge:
+
+```
+FI (Invoice) → BI (Bridge) → BO (Quote)
+    ↓              ↓            ↓
+ bistamp      line_id      document_id
+```
+
+**Current Year:**
+```sql
+fi.bistamp → bi.line_id
+bi.document_id → bo.document_id
+```
+
+**Historical (Previous Years):**
+```sql
+2years_fi.bistamp → bi.line_id
+bi.document_id → 2years_bo.document_id
+```
+
+**CRITICAL LIMITATION:**
+- ✅ Can trace: Invoice → Quote (via BiStamp)
+- ❌ Cannot trace: Quote → Invoice (no reverse lookup)
+- **You can ONLY find quote numbers when an invoice exists**
+- Unconverted quotes have no bistamp link
+
+**Conversion Rate Calculation:**
+- Total quotes = Query BO/2years_bo directly
+- Converted quotes = Count via FI → BI → BO chain
+- Rate = (converted / total) × 100
+
+**Why This Matters:**
+This was extremely difficult to discover and is not bidirectional. Always use the BiStamp chain when linking invoices to quotes for department analysis, conversion tracking, or any quote-to-invoice metrics.
+
 🔁 6. ETL / Data Sync Rules
+
+**CRITICAL:** Before running any ETL script, read the complete reference guide:
+
+scripts/etl/README_ETL_SCRIPTS.md
+
+This document contains detailed descriptions, use cases, and decision trees for all ETL scripts.
 
 Scripts live in:
 
 scripts/etl/
 
 
-Important runners:
+Main ETL Scripts (in order of most common use):
 
-run_fast_all_tables_sync.py — last 3 days
+**Full Refresh (use after schema changes):**
+- `run_full.py` — Full sync (last 1 year, DROPS & RECREATES tables)
+- `run_annual_historical.py` — Historical sync (last 2 complete years for YoY)
 
-run_today_bo_bi.py
+**Daily/Incremental Syncs:**
+- `run_fast_all_tables_sync.py` — Incremental (last 3 days only)
+- `run_today_bo_bi.py` — Today's quotes only
+- `run_today_clients.py` — Today's customers only
+- `run_incremental_year.py` — Catch-up sync using watermarks
 
-run_today_clients.py
+**⚠️ CRITICAL RULE:**
+After adding new columns to table configs (e.g., bistamp), you MUST run:
+1. `python scripts/etl/run_full.py` (not the fast sync!)
+2. `python scripts/etl/run_annual_historical.py`
 
-run_annual_historical.py
+Never use `run_fast_all_tables_sync.py` after schema changes - it only syncs last 3 days and won't populate historical data.
 
 Production may use GitHub Actions for ETL.
 
@@ -275,3 +353,27 @@ Always test light + dark themes
 Respect financial logic constraints
 
 Keep code clean, declarative, and consistent
+
+📚 12. Documentation Hub
+
+**All project documentation is organized and indexed here:**
+
+TEMP/docs/README.md
+
+**Categories:**
+- 🏗️ Architecture (ETL, Security, System Design)
+- ✨ Features (Implementation Guides)
+- 💼 Business (Strategy, Pricing, Company Info)
+- 🔍 Analysis (UX, Research)
+
+**Before creating documentation:**
+1. Check TEMP/docs/README.md to see if similar doc exists
+2. Choose appropriate category folder
+3. Add entry to README.md index
+4. Include date and status in document
+
+**Key Documentation to Know:**
+- ETL Scripts: scripts/etl/README_ETL_SCRIPTS.md
+- Design System: .cursor/rules/design-system.md
+- Quote-Invoice Linking: TEMP/docs/architecture/QUOTE_INVOICE_LINKING_IMPLEMENTATION.md
+- Security: TEMP/docs/architecture/SECURITY_AUDIT_REPORT.md

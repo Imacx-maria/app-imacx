@@ -282,6 +282,7 @@ TABLE_CONFIGS = {
             "ficcusto": "TEXT",  # PHC: ficcusto - Cost center (Centro Analítico)
             "fivendnm": "TEXT",  # PHC: fivendnm - Salesperson name
             "etiliquido": "NUMERIC",  # PHC: etiliquido - Net liquid value
+            "bistamp": "TEXT",  # PHC: bistamp - Links to BI quote line items (for invoice-quote tracing)
         },
         "column_mappings": {
             "fistamp": "line_item_id",  # Clearer: fistamp → line_item_id
@@ -290,6 +291,7 @@ TABLE_CONFIGS = {
             "ficcusto": "cost_center",  # Clearer: ficcusto → cost_center
             "fivendnm": "salesperson_name",  # Clearer: fivendnm → salesperson_name
             "etiliquido": "net_liquid_value",  # Clearer: etiliquido → net_liquid_value
+            "bistamp": "bistamp",  # Keep original name for clarity (links to bi.bistamp)
         },
         "filter": get_one_year_ago_filter_fi,  # Last 1 year from today (dynamic), excludes cancelled and zero-value lines
         "description": "Invoice Line Items (Last 1 Year, Non-Zero)",

@@ -413,6 +413,7 @@ def sync_2years_fi(phc_conn, supabase_conn):
                 "cost_center" TEXT,
                 "salesperson_name" TEXT,
                 "net_liquid_value" NUMERIC,
+                "bistamp" TEXT,
                 PRIMARY KEY ("line_item_id")
             )
         """)
@@ -429,7 +430,8 @@ def sync_2years_fi(phc_conn, supabase_conn):
             ft.fdata,          -- Column 3 → invoice_date (DATE)
             fi.ficcusto,       -- Column 4 → cost_center (TEXT)
             fi.fivendnm,       -- Column 5 → salesperson_name (TEXT)
-            fi.etiliquido      -- Column 6 → net_liquid_value (NUMERIC)
+            fi.etiliquido,     -- Column 6 → net_liquid_value (NUMERIC)
+            fi.bistamp         -- Column 7 → bistamp (TEXT) - links to BI quote lines
         FROM fi
         JOIN ft ON ft.ftstamp = fi.ftstamp
         WHERE YEAR(ft.fdata) IN ({year1}, {year2})
@@ -454,7 +456,7 @@ def sync_2years_fi(phc_conn, supabase_conn):
 
             batch_num += 1
 
-            # Clean and prepare data (7 columns from PHC)
+            # Clean and prepare data (8 columns from PHC)
             clean_rows = []
             for row in rows:
                 clean_row = []
@@ -474,18 +476,18 @@ def sync_2years_fi(phc_conn, supabase_conn):
                             clean_row.append(float(val) if val is not None else None)
                         except (ValueError, TypeError):
                             clean_row.append(None)
-                    else:  # TEXT or DATE fields
+                    else:  # TEXT or DATE fields (includes bistamp at index 7)
                         clean_row.append(str(val).strip() if val else None)
 
                 clean_rows.append(tuple(clean_row))
 
-            # Insert batch - all 7 columns from PHC
+            # Insert batch - all 8 columns from PHC
             if clean_rows:
                 insert_sql = """
                 INSERT INTO phc."2years_fi" (
                     "line_item_id", "invoice_id", "document_number", "invoice_date",
-                    "cost_center", "salesperson_name", "net_liquid_value"
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    "cost_center", "salesperson_name", "net_liquid_value", "bistamp"
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """
 
                 supabase_cursor.executemany(insert_sql, clean_rows)

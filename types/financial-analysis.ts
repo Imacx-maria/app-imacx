@@ -231,7 +231,7 @@ export interface CostCenterTopCustomersBlock {
 export interface CostCenterTopCustomersResponse {
   costCenters: CostCenterTopCustomersBlock[];
   metadata: {
-    period: "ytd";
+    period: "ytd" | "mtd";
     startDate: string;
     endDate: string;
     limit: number;
