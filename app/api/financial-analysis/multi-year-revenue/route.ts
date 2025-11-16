@@ -140,7 +140,7 @@ export async function GET(request: Request) {
 
       console.log(
         `[Year ${year}] RPC returned ${monthlyData.length} month(s):`,
-        monthlyData.map((m) => m.period),
+        monthlyData.map((m: { period: string }) => m.period),
       );
 
       // Convert RPC result to points array
