@@ -11,6 +11,9 @@ import { cookies } from "next/headers";
  * - Previous year (same-period YTD)
  * - Previous-previous year (same-period YTD)
  *
+ * CRITICAL FIX: Uses get_monthly_revenue_breakdown RPC for server-side aggregation
+ * to avoid the 1000-row limit from get_invoices_for_period.
+ *
  * Rules:
  * - Data sources:
  *   - Current year: phc.ft
@@ -73,6 +76,10 @@ export async function GET(request: Request) {
     const now = new Date();
     const currentYear = now.getFullYear();
 
+    console.log("=== MULTI-YEAR REVENUE API ===");
+    console.log("Current Date:", now.toISOString());
+    console.log("Current Year:", currentYear);
+
     // Align end dates by shifting CURRENT_DATE back 1 and 2 years
     const endY0 = now;
     const endY1 = new Date(
@@ -86,9 +93,16 @@ export async function GET(request: Request) {
       now.getDate(),
     );
 
-    const startY0 = new Date(currentYear, 0, 1);
-    const startY1 = new Date(currentYear - 1, 0, 1);
-    const startY2 = new Date(currentYear - 2, 0, 1);
+    console.log("Date Ranges:");
+    console.log(
+      `  Y0 (${currentYear}): 2025-01-01 to ${endY0.toISOString().split("T")[0]}`,
+    );
+    console.log(
+      `  Y1 (${currentYear - 1}): 2024-01-01 to ${endY1.toISOString().split("T")[0]}`,
+    );
+    console.log(
+      `  Y2 (${currentYear - 2}): 2023-01-01 to ${endY2.toISOString().split("T")[0]}`,
+    );
 
     // Helper to format YYYY-MM
     const ym = (d: Date): string =>
@@ -97,105 +111,74 @@ export async function GET(request: Request) {
     // Build canonical months from Jan of current year up to current month
     const months: string[] = [];
     {
-      let m = new Date(startY0.getTime());
-      m.setDate(1);
-      const last = new Date(endY0.getTime());
-      last.setDate(1);
-
-      while (m <= last) {
-        months.push(ym(m));
-        m.setMonth(m.getMonth() + 1);
+      const currentMonthIndex = now.getMonth(); // 0-based
+      for (let m = 0; m <= currentMonthIndex; m++) {
+        months.push(`${currentYear}-${String(m + 1).padStart(2, "0")}`);
       }
     }
 
-    // Helper to fetch monthly revenue for a given year using Supabase client directly.
-    // Note: Uses server-side admin client with pagination to avoid 1000-record limit.
+    // Helper to fetch monthly revenue using server-side aggregation RPC
+    // CRITICAL: Uses get_monthly_revenue_breakdown to bypass 1000-row limit
     const fetchYear = async (
       year: number,
-      start: Date,
-      end: Date,
-      sourceTable: "ft" | "2years_ft",
+      endDate: Date,
     ): Promise<MultiYearRevenueSeries> => {
-      // Use RPC function to fetch invoices (bypasses RLS)
-      const { data: allRows, error } = await supabase.rpc(
-        "get_invoices_for_period",
+      // Use aggregation RPC - returns one row per month with pre-calculated totals
+      const { data: monthlyData, error } = await supabase.rpc(
+        "get_monthly_revenue_breakdown",
         {
-          start_date: start.toISOString().split("T")[0],
-          end_date: end.toISOString().split("T")[0],
-          use_historical: sourceTable === "2years_ft",
+          target_year: year,
+          end_date: endDate.toISOString().split("T")[0],
         },
       );
 
       if (error) {
         throw new Error(
-          `Failed to load monthly revenue for year ${year} from ${sourceTable}: ${error.message}`,
+          `Failed to load monthly revenue for year ${year}: ${error.message}`,
         );
       }
 
-      // Aggregate by YYYY-MM with required filters:
-      // - document_type IN ('Factura', 'Nota de Crédito')
-      // - (anulado IS NULL OR anulado != 'True')
-      const monthMap = new Map<string, number>();
+      console.log(
+        `[Year ${year}] RPC returned ${monthlyData.length} month(s):`,
+        monthlyData.map((m) => m.period),
+      );
 
-      for (const row of allRows) {
-        const isValidType =
-          row.document_type === "Factura" ||
-          row.document_type === "Nota de Crédito";
-        const isNotCancelled = !row.anulado || row.anulado !== "True";
+      // Convert RPC result to points array
+      // RPC returns { period: 'YYYY-MM', net_revenue: number, ... }
+      const points: MultiYearRevenuePoint[] = monthlyData
+        .map((row) => ({
+          month: row.period, // Already in YYYY-MM format
+          revenue: Math.round(Number(row.net_revenue || 0)),
+        }))
+        .sort((a, b) => a.month.localeCompare(b.month));
 
-        if (!isValidType || !isNotCancelled) continue;
-
-        const d = new Date(row.invoice_date);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
-          2,
-          "0",
-        )}`;
-
-        const current = monthMap.get(key) || 0;
-        // SUM(net_value) directly; Notas de Crédito already negative
-        monthMap.set(key, current + Number(row.net_value || 0));
-      }
-
-      // Build points array for this specific year, sorted by month
-      // IMPORTANT:
-      // - For 2years_ft we store absolute months (2024-01, 2023-01, etc.)
-      // - The frontend uses separate keys Vendas_{year} so values will not collide.
-      const points: MultiYearRevenuePoint[] = Array.from(monthMap.entries())
-        .filter(([key]) => Number(key.slice(0, 4)) === year)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([month, revenue]) => ({
-          month,
-          revenue: Math.round(revenue),
-        }));
+      console.log(`[Year ${year}] Revenue summary:`, {
+        months: points.length,
+        firstMonth: points[0]?.month,
+        lastMonth: points[points.length - 1]?.month,
+        totalRevenue: points.reduce((sum, p) => sum + p.revenue, 0),
+      });
 
       return { year, points };
     };
 
-    const seriesY0 = await fetchYear(currentYear, startY0, endY0, "ft");
-    const seriesY1 = await fetchYear(
-      currentYear - 1,
-      startY1,
-      endY1,
-      "2years_ft",
-    );
-    const seriesY2 = await fetchYear(
-      currentYear - 2,
-      startY2,
-      endY2,
-      "2years_ft",
-    );
+    const seriesY0 = await fetchYear(currentYear, endY0);
+    const seriesY1 = await fetchYear(currentYear - 1, endY1);
+    const seriesY2 = await fetchYear(currentYear - 2, endY2);
 
     const response: MultiYearRevenueResponse = {
       years: [currentYear, currentYear - 1, currentYear - 2],
       months,
-      // IMPORTANT:
-      // - seriesY0 points are keyed by YYYY-MM of current year
-      // - seriesY1 points are keyed by YYYY-MM of previous year
-      // - seriesY2 points are keyed by YYYY-MM of two years ago
-      // The frontend maps each year using its own Vendas_{year} key and uses only the
-      // months label (short name) on X-axis, so different years do not collide.
       series: [seriesY0, seriesY1, seriesY2],
     };
+
+    console.log("=== RESPONSE SUMMARY ===");
+    console.log("Years:", response.years);
+    console.log("Months:", response.months);
+    console.log(
+      "Series points:",
+      response.series.map((s) => ({ year: s.year, points: s.points.length })),
+    );
 
     return NextResponse.json(response);
   } catch (error) {

@@ -349,6 +349,26 @@ export default function AnaliseFinanceiraPage() {
             throw new Error("Failed to fetch multi-year revenue data");
           }
           const multiYearJson = await multiYearResponse.json();
+          console.log("📊 [Frontend] Multi-Year Revenue Response:", {
+            years: multiYearJson.years,
+            monthsCount: multiYearJson.months?.length,
+            seriesCount: multiYearJson.series?.length,
+            series0PointsCount: multiYearJson.series?.[0]?.points?.length,
+            series1PointsCount: multiYearJson.series?.[1]?.points?.length,
+            series2PointsCount: multiYearJson.series?.[2]?.points?.length,
+          });
+          console.log(
+            "📊 [Frontend] Series 0 (2025) points:",
+            multiYearJson.series?.[0]?.points,
+          );
+          console.log(
+            "📊 [Frontend] Series 1 (2024) points:",
+            multiYearJson.series?.[1]?.points,
+          );
+          console.log(
+            "📊 [Frontend] Series 2 (2023) points:",
+            multiYearJson.series?.[2]?.points,
+          );
           setMultiYearRevenue(multiYearJson);
         } else if (section === "centro-custo") {
           // CENTRO CUSTO section data
@@ -1898,19 +1918,24 @@ ${data.multiYearRevenue
 ## 🏅 RANKINGS DE PERFORMANCE
 
 ${
-  data.rankings && data.rankings.length > 0
+  data.rankings &&
+  data.rankings.length > 0 &&
+  data.rankings.filter((r: any) => r.departamento !== "TOTAL").length > 0
     ? `
-### Top Performers
+### Top Performers por Departamento
 
-| Ranking | Entidade | Valor YTD | Crescimento | Nº Clientes |
-|---------|----------|-----------|-------------|-------------|
+| Ranking | Departamento | Faturação YTD | Crescimento YoY | Nº Faturas | Ticket Médio |
+|---------|-------------|---------------|-----------------|------------|--------------|
 ${data.rankings
+  .filter((r: any) => r.departamento !== "TOTAL")
   .slice(0, 10)
   .map(
     (r: any, idx: number) =>
-      `| ${idx + 1} | **${r.name || r.department_name || r.entity}** | ${(r.ytd_revenue || r.total_revenue || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${(r.growth_percentage || r.yoy_growth || 0).toFixed(1)}% | ${r.customer_count || r.customers || "-"} |`,
+      `| ${idx + 1} | **${r.departamento}** | ${(r.faturacao || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${r.faturacao_variacao >= 0 ? "+" : ""}${(r.faturacao_variacao || 0).toFixed(1)}% | ${r.num_faturas || 0} | ${(r.ticket_medio || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} |`,
   )
   .join("\n")}
+
+**TOTAL GERAL:** ${(data.rankings.find((r: any) => r.departamento === "TOTAL")?.faturacao || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} (${data.rankings.find((r: any) => r.departamento === "TOTAL")?.faturacao_variacao >= 0 ? "+" : ""}${(data.rankings.find((r: any) => r.departamento === "TOTAL")?.faturacao_variacao || 0).toFixed(1)}%)
 `
     : "Sem dados disponíveis"
 }

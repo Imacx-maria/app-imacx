@@ -335,48 +335,96 @@ export async function GET(request: Request) {
     }));
 
     // ============================================================================
-    // FEATURE 1: Escalões Analysis (value ranges)
+    // FEATURE 1: Escalões Analysis (from analise API - same as page uses)
     // ============================================================================
-    const escaloesByDept: any = {};
-    const escaloes = [
-      "0-1500",
-      "1500-2500",
-      "2500-7500",
-      "7500-15000",
-      "15000-30000",
-      "30000+",
-    ];
-
-    // Analyze quotes by escalão
-    const allPipeline = [
-      ...(pipelineBrindes || []),
-      ...(pipelineDigital || []),
-      ...(pipelineImacx || []),
-    ];
-    const escalaoAnalysis = escaloes.map((escalao) => {
-      const items = allPipeline.filter(
-        (item) => getEscalao(item.total_value) === escalao,
+    let escalaoAnalysis: any[] = [];
+    try {
+      const origin = new URL(request.url).origin;
+      const analiseResponse = await fetch(
+        `${origin}/api/gestao/departamentos/analise?periodo=anual`,
+        {
+          headers: {
+            cookie: (request as any).headers?.get("cookie") ?? "",
+          },
+        },
       );
-      return {
-        escalao,
-        total_quotes: items.length,
-        total_value: items.reduce(
-          (sum, item) => sum + (item.total_value || 0),
-          0,
-        ),
-        approved: items.filter((item) => item.status === "APROVADO").length,
-        pending: items.filter((item) => item.status === "PENDENTE").length,
-        lost: items.filter((item) => item.status === "PERDIDO").length,
-      };
-    });
+
+      if (analiseResponse.ok) {
+        const analiseJson: any = await analiseResponse.json();
+        const conversaoData = analiseJson.conversao || [];
+
+        // Aggregate escalões across all departments
+        const escalaoMap: any = {};
+        conversaoData.forEach((item: any) => {
+          const escalao = item.escalao;
+          if (!escalaoMap[escalao]) {
+            escalaoMap[escalao] = {
+              escalao,
+              total_quotes: 0,
+              total_value: 0,
+              approved: 0,
+              pending: 0,
+              lost: 0,
+            };
+          }
+          escalaoMap[escalao].total_quotes += item.total_orcamentos || 0;
+          escalaoMap[escalao].total_value += item.total_valor_orcado || 0;
+          escalaoMap[escalao].approved += item.total_faturas || 0;
+          // Pending/lost are not in conversion data, calculate from pipeline if needed
+        });
+
+        escalaoAnalysis = Object.values(escalaoMap);
+      }
+    } catch (err) {
+      console.error("Error fetching escalões analysis:", err);
+      escalaoAnalysis = [];
+    }
 
     // ============================================================================
-    // FEATURE 2: Salesperson Analysis (effort, conversion, value mix)
+    // FEATURE 2: Salesperson Analysis (query all quotes with salesperson)
     // ============================================================================
+    const { data: salespersonQuotes, error: salespersonError } = await supabase
+      .schema("phc")
+      .from("bo")
+      .select(
+        `
+          document_id,
+          document_number,
+          document_date,
+          total_value,
+          customer_id,
+          cl:customer_id (
+            customer_name,
+            salesperson
+          )
+        `,
+      )
+      .gte("document_date", ytdStart)
+      .lte("document_date", ytdEnd)
+      .eq("document_type", "Orçamento");
+
+    if (salespersonError) {
+      console.error("Error fetching salesperson quotes:", salespersonError);
+    }
+
+    // Get all converted quote IDs in one query (PERFORMANCE: bulk query instead of N queries)
+    const quoteIds = (salespersonQuotes || []).map((q) => q.document_id);
+    const { data: convertedQuoteIds } = await supabase
+      .schema("phc")
+      .from("bi")
+      .select("document_id")
+      .in("document_id", quoteIds);
+
+    const convertedSet = new Set(
+      (convertedQuoteIds || []).map((row: any) => row.document_id),
+    );
+
+    // Build salesperson analysis
     const salespersonAnalysis: any = {};
 
-    allPipeline.forEach((item) => {
-      const salesperson = item.salesperson || "(Sem Vendedor)";
+    for (const quote of salespersonQuotes || []) {
+      const salesperson = (quote as any).cl?.salesperson || "(Sem Vendedor)";
+
       if (!salespersonAnalysis[salesperson]) {
         salespersonAnalysis[salesperson] = {
           salesperson,
@@ -395,19 +443,27 @@ export async function GET(request: Request) {
 
       const sp = salespersonAnalysis[salesperson];
       sp.total_quotes += 1;
-      sp.total_value += item.total_value || 0;
+      sp.total_value += quote.total_value || 0;
 
-      if (item.status === "APROVADO") {
+      // Check if converted (using pre-fetched set for performance)
+      if (convertedSet.has(quote.document_id)) {
+        // Has invoice
         sp.approved_quotes += 1;
-        sp.approved_value += item.total_value || 0;
-      } else if (item.status === "PENDENTE") {
-        sp.pending_quotes += 1;
-        sp.pending_value += item.total_value || 0;
-      } else if (item.status === "PERDIDO") {
-        sp.lost_quotes += 1;
-        sp.lost_value += item.total_value || 0;
+        sp.approved_value += quote.total_value || 0;
+      } else {
+        // Check age to determine if pending or lost
+        const daysOld =
+          (now.getTime() - new Date(quote.document_date).getTime()) /
+          (1000 * 60 * 60 * 24);
+        if (daysOld > 60) {
+          sp.lost_quotes += 1;
+          sp.lost_value += quote.total_value || 0;
+        } else {
+          sp.pending_quotes += 1;
+          sp.pending_value += quote.total_value || 0;
+        }
       }
-    });
+    }
 
     // Calculate conversion rates and averages
     Object.values(salespersonAnalysis).forEach((sp: any) => {
