@@ -338,6 +338,7 @@ export async function GET(request: Request) {
     // FEATURE 1: Escalões Analysis (from analise API - same as page uses)
     // ============================================================================
     let escalaoAnalysis: any[] = [];
+    let customerMovement: any[] = [];
     try {
       const origin = new URL(request.url).origin;
       const analiseResponse = await fetch(
@@ -352,6 +353,10 @@ export async function GET(request: Request) {
       if (analiseResponse.ok) {
         const analiseJson: any = await analiseResponse.json();
         const conversaoData = analiseJson.conversao || [];
+        const clientesData = analiseJson.clientes || [];
+
+        // Store customer movement data (includes new/lost customers)
+        customerMovement = clientesData;
 
         // Aggregate escalões across all departments
         const escalaoMap: any = {};
@@ -378,6 +383,7 @@ export async function GET(request: Request) {
     } catch (err) {
       console.error("Error fetching escalões analysis:", err);
       escalaoAnalysis = [];
+      customerMovement = [];
     }
 
     // ============================================================================
@@ -504,21 +510,51 @@ export async function GET(request: Request) {
             : 0,
       })),
 
-      // Clientes: resumo simples de clientes ativos (somatório de customers_ytd)
+      // Clientes: includes YTD active, new, and lost customers from analise API
       clientes: (() => {
-        if (!Array.isArray(performanceData) || performanceData.length === 0) {
-          return [];
-        }
-        const totalAtivos = performanceData.reduce(
-          (sum: number, dept: any) => sum + (dept.customers_ytd || 0),
+        const result = [];
+
+        // Calculate total active customers (YTD)
+        const totalAtivos = customerMovement.reduce(
+          (sum: number, dept: any) => sum + (dept.clientes_ytd || 0),
           0,
         );
-        return [
-          {
-            tipo: "ytd",
-            quantidade: totalAtivos,
-          },
-        ];
+
+        // Calculate total new customers
+        const totalNovos = customerMovement.reduce(
+          (sum: number, dept: any) => sum + (dept.clientes_novos || 0),
+          0,
+        );
+
+        // Calculate total lost customers
+        const totalPerdidos = customerMovement.reduce(
+          (sum: number, dept: any) => sum + (dept.clientes_perdidos || 0),
+          0,
+        );
+
+        // Add active customers
+        result.push({
+          tipo: "ytd",
+          quantidade: totalAtivos,
+        });
+
+        // Add new customers individually
+        for (let i = 0; i < totalNovos; i++) {
+          result.push({
+            tipo: "novo",
+            quantidade: 1,
+          });
+        }
+
+        // Add lost customers individually
+        for (let i = 0; i < totalPerdidos; i++) {
+          result.push({
+            tipo: "perdido",
+            quantidade: 1,
+          });
+        }
+
+        return result;
       })(),
 
       // Pipeline por departamento

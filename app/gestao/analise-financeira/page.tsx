@@ -1443,7 +1443,7 @@ ${
 - Taxa de conversão global: ${taxaConversaoGlobal.toFixed(1)}%
 ${
   totalNeedsAttention > 100000
-    ? `- ⚠️ **ATENÇÃO URGENTE**: Mais de €100k em oportunidades paradas há >14 dias`
+    ? `- ⚠️ **ATENÇÃO URGENTE**: Mais de €100k em oportunidades paradas há >30 dias`
     : totalNeedsAttention > 50000
       ? `- ⚠️ Valor significativo (>€50k) em oportunidades que precisam follow-up`
       : `- ✅ Pipeline em gestão adequada`
@@ -1633,8 +1633,7 @@ ${["Brindes", "Digital", "IMACX"]
 |-----------|------------|-------------|
 | **Top 15 do Mês** | ${pipeline.top15.length} | ${totalPipeline.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} |
 | **Needs Attention** | ${pipeline.needsAttention.length} | ${totalNeedsAttention.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} |
-| **Perdidos (60d)** | ${pipeline.perdidos.length} | ${totalPerdidos.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} |
-| **Aprovados (60d)** | ${pipeline.aprovados.length} | ${totalAprovados.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} |
+| **Perdidos (>60 dias)** | ${pipeline.perdidos.length} | ${totalPerdidos.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} |
 
 ${
   pipeline.top15.length > 0
@@ -1673,7 +1672,7 @@ ${pipeline.top15
 ${
   pipeline.needsAttention.length > 0
     ? `
-#### ⚠️ Oportunidades que Precisam Atenção (>€7.500, +14 dias)
+#### ⚠️ Oportunidades que Precisam Atenção (>€7.500, +30 dias)
 
 | ORC# | Cliente | Valor | Data | Dias Pendente |
 |------|---------|-------|------|---------------|
@@ -1707,33 +1706,14 @@ ${pipeline.needsAttention
 }
 
 ${
-  pipeline.aprovados.length > 0
-    ? `
-#### ✅ Aprovados Recentes (60 dias)
-
-- Total aprovado: ${totalAprovados.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}
-- Quantidade: ${pipeline.aprovados.length} orçamentos
-${pipeline.aprovados
-  .slice(0, 5)
-  .map(
-    (item: any, idx: number) => `
-- **${item.cliente_nome || item.customer_name || "N/A"}** - ${(item.total_value || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}
-`,
-  )
-  .join("")}
-`
-    : ""
-}
-
-${
   pipeline.perdidos.length > 0
     ? `
-#### ❌ Perdidos Recentes (60 dias)
+#### ❌ Orçamentos Perdidos (>60 dias sem resposta)
 
 **Resumo:**
 - Total perdido: ${totalPerdidos.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}
 - Quantidade: ${pipeline.perdidos.length} orçamentos
-- Taxa de perda: ${((pipeline.perdidos.length / (pipeline.perdidos.length + pipeline.aprovados.length)) * 100).toFixed(1)}%
+- Taxa de perda: ${pipeline.top15.length + pipeline.needsAttention.length > 0 ? ((pipeline.perdidos.length / (pipeline.perdidos.length + pipeline.top15.length + pipeline.needsAttention.length)) * 100).toFixed(1) : 0}%
 
 | ORC# | Cliente | Valor | Data | Dias | Motivo |
 |------|---------|-------|------|------|--------|
@@ -1918,26 +1898,26 @@ ${data.multiYearRevenue
 ## 🏅 RANKINGS DE PERFORMANCE
 
 ${
-  data.rankings &&
-  data.rankings.length > 0 &&
-  data.rankings.filter((r: any) => r.departamento !== "TOTAL").length > 0
+  data.salespersons && data.salespersons.length > 0
     ? `
-### Top Performers por Departamento
+### Top Performers por Vendedor
 
-| Ranking | Departamento | Faturação YTD | Crescimento YoY | Nº Faturas | Ticket Médio |
-|---------|-------------|---------------|-----------------|------------|--------------|
-${data.rankings
-  .filter((r: any) => r.departamento !== "TOTAL")
-  .slice(0, 10)
+| Ranking | Vendedor | Orçamentos | Valor Total | Taxa Conversão | Aprovados | Pendentes | Perdidos |
+|---------|----------|------------|-------------|----------------|-----------|-----------|----------|
+${data.salespersons
+  .slice(0, 15)
   .map(
-    (r: any, idx: number) =>
-      `| ${idx + 1} | **${r.departamento}** | ${(r.faturacao || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${r.faturacao_variacao >= 0 ? "+" : ""}${(r.faturacao_variacao || 0).toFixed(1)}% | ${r.num_faturas || 0} | ${(r.ticket_medio || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} |`,
+    (sp: any, idx: number) =>
+      `| ${idx + 1} | **${sp.salesperson || "N/A"}** | ${sp.total_quotes || 0} | ${(sp.total_value || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${(sp.conversion_rate || 0).toFixed(1)}% | ${(sp.approved_value || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${(sp.pending_value || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${(sp.lost_value || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} |`,
   )
   .join("\n")}
 
-**TOTAL GERAL:** ${(data.rankings.find((r: any) => r.departamento === "TOTAL")?.faturacao || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} (${data.rankings.find((r: any) => r.departamento === "TOTAL")?.faturacao_variacao >= 0 ? "+" : ""}${(data.rankings.find((r: any) => r.departamento === "TOTAL")?.faturacao_variacao || 0).toFixed(1)}%)
+**Insights:**
+- Total de vendedores ativos: ${data.salespersons.length}
+- Melhor taxa de conversão: ${data.salespersons.reduce((max: any, sp: any) => ((sp.conversion_rate || 0) > (max.conversion_rate || 0) ? sp : max), data.salespersons[0])?.salesperson || "N/A"} (${data.salespersons.reduce((max: number, sp: any) => Math.max(max, sp.conversion_rate || 0), 0).toFixed(1)}%)
+- Maior valor em orçamentos: ${data.salespersons[0]?.salesperson || "N/A"} (${(data.salespersons[0]?.total_value || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })})
 `
-    : "Sem dados disponíveis"
+    : "Dados de vendedores não disponíveis"
 }
 
 ---
@@ -1998,7 +1978,7 @@ ${(() => {
   // Pipeline
   if (totalNeedsAttention > 100000) {
     acoes.push(
-      `**2. 💰 CRÍTICO: Recuperar Pipeline Parado**\n   - **${totalNeedsAttention.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}** em oportunidades >14 dias\n   - Follow-up imediato com todos os clientes da lista "Needs Attention"\n   - Definir responsáveis e prazos para cada oportunidade\n   - Revisão semanal até reduzir para <€50k`,
+      `**2. 💰 CRÍTICO: Recuperar Pipeline Parado**\n   - **${totalNeedsAttention.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}** em oportunidades >30 dias\n   - Follow-up imediato com todos os clientes da lista "Needs Attention"\n   - Definir responsáveis e prazos para cada oportunidade\n   - Revisão semanal até reduzir para <€50k`,
     );
   } else if (totalNeedsAttention > 50000) {
     acoes.push(
@@ -2053,22 +2033,7 @@ ${(() => {
 ${(() => {
   const oportunidades = [];
 
-  // Pipeline aprovados
-  const totalAprovados = Object.values(data.pipeline).reduce(
-    (sum: number, dept: any) =>
-      sum +
-      dept.aprovados.reduce(
-        (s: number, item: any) => s + (item.total_value || 0),
-        0,
-      ),
-    0,
-  );
-
-  if (totalAprovados > 0) {
-    oportunidades.push(
-      `- **${totalAprovados.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}** em orçamentos aprovados nos últimos 60 dias - garantir execução e faturação eficiente`,
-    );
-  }
+  // Note: Aprovados data not available from pipeline RPC (it only returns non-invoiced quotes)
 
   // Top 15 do mês
   const totalTop15 = Object.values(data.pipeline).reduce(
