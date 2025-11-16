@@ -1,0 +1,451 @@
+{
+  "name": "analise-financeira-imacx",
+  "version": "3.0.0",
+  "description": "Gera relatório financeiro mensal completo com análise de performance, rankings e insights estratégicos para IMACX",
+  "instructionsFile": "instructions.md",
+  "functions": [
+    {
+      "name": "analise_completa",
+      "description": "Análise financeira completa da empresa incluindo todos os departamentos, KPIs, pipeline e recomendações estratégicas",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "dados": {
+            "type": "object",
+            "description": "Dados completos do dashboard financeiro",
+            "properties": {
+              "metadata": {
+                "type": "object",
+                "properties": {
+                  "generatedAt": {"type": "string"},
+                  "currentYear": {"type": "number"},
+                  "periodo": {"type": "string", "enum": ["MTD", "YTD", "Mensal", "Anual"]}
+                },
+                "required": ["generatedAt", "currentYear", "periodo"]
+              },
+              "kpi": {
+                "type": "object",
+                "description": "KPIs principais MTD e YTD",
+                "properties": {
+                  "receita_total": {"type": "number"},
+                  "num_faturas": {"type": "number"},
+                  "num_clientes": {"type": "number"},
+                  "ticket_medio": {"type": "number"},
+                  "orcamentos_valor": {"type": "number"},
+                  "orcamentos_quantidade": {"type": "number"},
+                  "taxa_conversao": {"type": "number"},
+                  "orcamento_medio": {"type": "number"}
+                }
+              },
+              "totais": {
+                "type": "object",
+                "description": "Totais agregados YTD vs LYTD",
+                "properties": {
+                  "orcamentos": {
+                    "type": "object",
+                    "properties": {
+                      "ytd": {"type": "number"},
+                      "lytd": {"type": "number"}
+                    },
+                    "required": ["ytd", "lytd"]
+                  },
+                  "faturas": {
+                    "type": "object",
+                    "properties": {
+                      "ytd": {"type": "number"},
+                      "lytd": {"type": "number"}
+                    },
+                    "required": ["ytd", "lytd"]
+                  }
+                },
+                "required": ["orcamentos", "faturas"]
+              },
+              "orcamentos": {
+                "type": "array",
+                "description": "Orçamentos por departamento (YTD vs LYTD)",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "departamento": {"type": "string"},
+                    "total_orcamentos_ytd": {"type": "number"},
+                    "total_orcamentos_lytd": {"type": "number"}
+                  }
+                }
+              },
+              "faturas": {
+                "type": "array",
+                "description": "Faturas por departamento (YTD vs LYTD)",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "departamento": {"type": "string"},
+                    "total_faturas_ytd": {"type": "number"},
+                    "total_faturas_lytd": {"type": "number"}
+                  }
+                }
+              },
+              "conversao": {
+                "type": "array",
+                "description": "Taxa de conversão por departamento",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "departamento": {"type": "string"},
+                    "taxa_conversao": {"type": "number"}
+                  }
+                }
+              },
+              "vendas_mensais_3anos": {
+                "type": "object",
+                "description": "Vendas mensais dos últimos 3 anos",
+                "properties": {
+                  "vendas_2023": {"type": "array", "items": {"type": "object"}},
+                  "vendas_2024": {"type": "array", "items": {"type": "object"}},
+                  "vendas_2025": {"type": "array", "items": {"type": "object"}}
+                }
+              },
+              "topCustomers": {
+                "type": "array",
+                "description": "Top 20 clientes por receita YTD",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "customer_name": {"type": "string"},
+                    "nome": {"type": "string"},
+                    "total_revenue": {"type": "number"},
+                    "total_revenue_ytd": {"type": "number"},
+                    "total_revenue_lytd": {"type": "number"},
+                    "invoice_count": {"type": "number"},
+                    "ticket_medio": {"type": "number"},
+                    "ultima_fatura": {"type": "string"},
+                    "percentagem_contribuicao": {"type": "number"},
+                    "vendedor": {"type": "string"},
+                    "departamento": {"type": "string"}
+                  }
+                }
+              },
+              "costCenterSales": {
+                "type": "array",
+                "description": "Vendas por centro de custo (MTD + YTD)",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "cost_center_name": {"type": "string"},
+                    "mtd_current": {"type": "number"},
+                    "ytd_current": {"type": "number"},
+                    "lytd": {"type": "number"},
+                    "growth_rate": {"type": "number"},
+                    "num_faturas": {"type": "number"},
+                    "num_clientes": {"type": "number"},
+                    "ticket_medio": {"type": "number"},
+                    "compras": {"type": "number"},
+                    "margem": {"type": "number"},
+                    "margem_percentagem": {"type": "number"}
+                  }
+                }
+              },
+              "costCenterTopCustomers": {
+                "type": "array",
+                "description": "Top clientes por centro de custo",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "cost_center": {"type": "string"},
+                    "customers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "customer_name": {"type": "string"},
+                          "total_revenue": {"type": "number"},
+                          "invoice_count": {"type": "number"},
+                          "num_orcamentos": {"type": "number"},
+                          "taxa_conversao": {"type": "number"},
+                          "ultima_fatura": {"type": "string"},
+                          "share_percentagem": {"type": "number"}
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "departmentOrcamentos": {
+                "type": "array",
+                "description": "Orçamentos por departamento e escalão de valor",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "departamento": {"type": "string"},
+                    "escalao": {"type": "string"},
+                    "num_orcamentos": {"type": "number"},
+                    "valor_orcamentos": {"type": "number"}
+                  }
+                }
+              },
+              "departmentFaturas": {
+                "type": "array",
+                "description": "Faturas por departamento e escalão de valor",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "departamento": {"type": "string"},
+                    "escalao": {"type": "string"},
+                    "num_faturas": {"type": "number"},
+                    "valor_faturas": {"type": "number"},
+                    "taxa_conversao": {"type": "number"},
+                    "ticket_medio": {"type": "number"}
+                  }
+                }
+              },
+              "clientes": {
+                "type": "object",
+                "description": "Análise de clientes: YTD, LYTD, novos, perdidos",
+                "properties": {
+                  "geral": {
+                    "type": "object",
+                    "properties": {
+                      "ytd": {"type": "number"},
+                      "lytd": {"type": "number"},
+                      "novos": {"type": "number"},
+                      "perdidos": {"type": "number"}
+                    }
+                  },
+                  "por_departamento": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "departamento": {"type": "string"},
+                        "ytd": {"type": "number"},
+                        "lytd": {"type": "number"},
+                        "novos": {"type": "number"},
+                        "perdidos": {"type": "number"}
+                      }
+                    }
+                  }
+                }
+              },
+              "pipeline": {
+                "type": "object",
+                "description": "Pipeline comercial dos últimos 30 dias por departamento",
+                "properties": {
+                  "Brindes": {
+                    "type": "object",
+                    "properties": {
+                      "top15": {"type": "array", "items": {"$ref": "#/definitions/pipelineItem"}},
+                      "needsAttention": {"type": "array", "items": {"$ref": "#/definitions/pipelineItem"}},
+                      "perdidos": {"type": "array", "items": {"$ref": "#/definitions/pipelineItem"}},
+                      "aprovados": {"type": "array", "items": {"$ref": "#/definitions/pipelineItem"}}
+                    }
+                  },
+                  "Digital": {
+                    "type": "object",
+                    "properties": {
+                      "top15": {"type": "array", "items": {"$ref": "#/definitions/pipelineItem"}},
+                      "needsAttention": {"type": "array", "items": {"$ref": "#/definitions/pipelineItem"}},
+                      "perdidos": {"type": "array", "items": {"$ref": "#/definitions/pipelineItem"}},
+                      "aprovados": {"type": "array", "items": {"$ref": "#/definitions/pipelineItem"}}
+                    }
+                  },
+                  "IMACX": {
+                    "type": "object",
+                    "properties": {
+                      "top15": {"type": "array", "items": {"$ref": "#/definitions/pipelineItem"}},
+                      "needsAttention": {"type": "array", "items": {"$ref": "#/definitions/pipelineItem"}},
+                      "perdidos": {"type": "array", "items": {"$ref": "#/definitions/pipelineItem"}},
+                      "aprovados": {"type": "array", "items": {"$ref": "#/definitions/pipelineItem"}}
+                    }
+                  }
+                }
+              },
+              "monthlyRevenue": {
+                "type": "array",
+                "description": "Receita mensal por departamento",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "department_name": {"type": "string"},
+                    "month": {"type": "string"},
+                    "revenue": {"type": "number"},
+                    "mom_variation": {"type": "number"}
+                  }
+                }
+              },
+              "multiYearRevenue": {
+                "type": "array",
+                "description": "Receita multi-ano por centro de custo",
+                "items": {
+                  "type": "object"},
+                  "properties": {
+                    "cost_center": {"type": "string"},
+                    "year": {"type": "number"},
+                    "ytd_revenue": {"type": "number"}
+                  }
+                }
+              }
+            },
+            "required": ["metadata", "totais", "orcamentos", "faturas", "conversao", "pipeline"]
+          }
+        },
+        "required": ["dados"]
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "relatorio_markdown": {"type": "string"},
+          "insights": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "alertas": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "recomendacoes": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "scoring": {
+            "type": "object",
+            "properties": {
+              "geral": {"type": "number"},
+              "por_departamento": {
+                "type": "object",
+                "properties": {
+                  "Brindes": {"type": "number"},
+                  "Digital": {"type": "number"},
+                  "IMACX": {"type": "number"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "analise_departamento",
+      "description": "Análise detalhada de um departamento específico incluindo escalões, pipeline e performance",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "dados": {
+            "type": "object",
+            "description": "Dados completos do dashboard (mesmo formato da analise_completa)"
+          },
+          "departamento": {
+            "type": "string",
+            "enum": ["Brindes", "Digital", "IMACX"],
+            "description": "Nome do departamento a analisar"
+          }
+        },
+        "required": ["dados", "departamento"]
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "relatorio_markdown": {"type": "string"},
+          "kpis": {
+            "type": "object",
+            "properties": {
+              "orcamentos_ytd": {"type": "number"},
+              "faturas_ytd": {"type": "number"},
+              "taxa_conversao": {"type": "number"},
+              "crescimento": {"type": "number"}
+            }
+          },
+          "distribuicao_escaloes": {
+            "type": "array",
+            "items": {"type": "object"}
+          },
+          "insights": {"type": "array", "items": {"type": "string"}},
+          "recomendacoes": {"type": "array", "items": {"type": "string"}},
+          "score": {"type": "number"}
+        }
+      }
+    },
+    {
+      "name": "analise_pipeline",
+      "description": "Análise focada no pipeline comercial com predições e priorização",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "pipeline": {
+            "type": "object",
+            "description": "Dados do pipeline (extraído de dados.pipeline)"
+          },
+          "departamento": {
+            "type": "string",
+            "enum": ["Brindes", "Digital", "IMACX", "TODOS"],
+            "description": "Departamento específico ou TODOS para análise global"
+          },
+          "conversao_historica": {
+            "type": "object",
+            "description": "Taxas de conversão históricas por departamento e escalão",
+            "properties": {
+              "por_departamento": {"type": "object"},
+              "por_escalao": {"type": "object"}
+            }
+          }
+        },
+        "required": ["pipeline"]
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "relatorio_markdown": {"type": "string"},
+          "oportunidades_grandes": {
+            "type": "array",
+            "description": "Top 15 oportunidades ordenadas por probabilidade * valor"
+          },
+          "pendentes_criticos": {
+            "type": "array",
+            "description": "Orçamentos >€7.500 parados >14 dias"
+          },
+          "perdidos_explicados": {
+            "type": "array",
+            "description": "Análise de orçamentos perdidos com motivos"
+          },
+          "aprovados_recentes": {
+            "type": "array",
+            "description": "Orçamentos aprovados nos últimos 60 dias"
+          },
+          "predicoes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "orcamento_id": {"type": "string"},
+                "valor": {"type": "number"},
+                "probabilidade": {"type": "number"},
+                "valor_esperado": {"type": "number"},
+                "fatores": {"type": "array", "items": {"type": "string"}}
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "pipelineItem": {
+      "type": "object",
+      "properties": {
+        "orcamento_id": {"type": "string"},
+        "orcamento_id_humano": {"type": "string"},
+        "fatura_id_humana": {"type": "string"},
+        "vendedor_sigla": {"type": "string"},
+        "departamento": {"type": "string"},
+        "dias_sem_fecho": {"type": "number"},
+        "status": {"type": "string"},
+        "motivo": {"type": "string"},
+        "total_value": {"type": "number"},
+        "data": {"type": "string"},
+        "cliente": {"type": "string"},
+        "cliente_nome": {"type": "string"}
+      }
+    }
+  }
+}
