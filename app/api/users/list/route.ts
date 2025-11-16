@@ -3,6 +3,8 @@ import { createServerClient } from "@/utils/supabase";
 import { createAdminClient } from "@/utils/supabaseAdmin";
 import { cookies } from "next/headers";
 
+export const dynamic = "force-dynamic";
+
 const ADMIN_ROLE_ID = "7c53a7a2-ab07-4ba3-8c1a-7e8e215cadf0";
 
 export async function GET(request: Request) {

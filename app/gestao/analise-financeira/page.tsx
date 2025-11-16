@@ -1334,6 +1334,8 @@ export default function AnaliseFinanceiraPage() {
       console.log("Monthly Revenue:", data.monthlyRevenue);
       console.log("Multi Year Revenue:", data.multiYearRevenue);
       console.log("Rankings:", data.rankings);
+      console.log("Salespersons:", data.salespersons);
+      console.log("Salespersons length:", data.salespersons?.length);
       console.log("Clientes:", data.clientes);
 
       // Calcular métricas

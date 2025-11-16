@@ -3,6 +3,8 @@ import { createAdminClient } from "@/utils/supabaseAdmin";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/gestao/departamentos/pipeline
  *

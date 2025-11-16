@@ -8,6 +8,8 @@ import type {
 } from "@/types/financial-analysis";
 import { fixEncoding } from "@/utils/encodingHelpers";
 
+export const dynamic = "force-dynamic";
+
 const COST_CENTERS = [
   "ID-Impressão Digital",
   "BR-Brindes",

@@ -3,6 +3,8 @@ import { createServerClient } from "@/utils/supabase";
 import { createAdminClient } from "@/utils/supabaseAdmin";
 import { cookies } from "next/headers";
 
+export const dynamic = "force-dynamic";
+
 const PERIOD_TO_RPC = {
   mtd: "get_cost_center_sales_mtd",
   ytd: "get_cost_center_sales_ytd",

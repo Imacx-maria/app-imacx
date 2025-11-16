@@ -55,6 +55,11 @@ interface MultiYearRevenueResponse {
   series: MultiYearRevenueSeries[];
 }
 
+type MonthlyRevenueRow = {
+  period: string;
+  net_revenue: number | null;
+};
+
 export async function GET(request: Request) {
   // Step 1: Auth via server client
   const cookieStore = cookies();
@@ -124,7 +129,7 @@ export async function GET(request: Request) {
       endDate: Date,
     ): Promise<MultiYearRevenueSeries> => {
       // Use aggregation RPC - returns one row per month with pre-calculated totals
-      const { data: monthlyData, error } = await supabase.rpc(
+      const { data: monthlyDataRaw, error } = await supabase.rpc(
         "get_monthly_revenue_breakdown",
         {
           target_year: year,
@@ -138,6 +143,8 @@ export async function GET(request: Request) {
         );
       }
 
+      const monthlyData = (monthlyDataRaw ?? []) as MonthlyRevenueRow[];
+
       console.log(
         `[Year ${year}] RPC returned ${monthlyData.length} month(s):`,
         monthlyData.map((m: { period: string }) => m.period),
@@ -146,7 +153,7 @@ export async function GET(request: Request) {
       // Convert RPC result to points array
       // RPC returns { period: 'YYYY-MM', net_revenue: number, ... }
       const points: MultiYearRevenuePoint[] = monthlyData
-        .map((row) => ({
+        .map((row: MonthlyRevenueRow) => ({
           month: row.period, // Already in YYYY-MM format
           revenue: Math.round(Number(row.net_revenue || 0)),
         }))
