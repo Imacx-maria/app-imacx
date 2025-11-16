@@ -217,57 +217,50 @@ export async function GET(request: Request) {
       [],
     );
 
-    // Query 5: Pipeline Brindes (limit to recent data for performance)
+    // Calculate YTD date range (same as page uses)
+    const now = new Date();
+    const ytdStart = new Date(now.getFullYear(), 0, 1)
+      .toISOString()
+      .split("T")[0];
+    const ytdEnd = now.toISOString().split("T")[0];
+
+    // Query 5: Pipeline Brindes using RPC (same as page)
     const { data: pipelineBrindes, error: pipelineBrindesError } =
-      await supabase
-        .from("vw_orcamentos_pipeline")
-        .select("*")
-        .eq("departamento", "Brindes")
-        .gte(
-          "document_date",
-          new Date(new Date().getFullYear(), 0, 1).toISOString().split("T")[0],
-        )
-        .order("total_value", { ascending: false })
-        .limit(5000);
+      await supabase.rpc("get_department_pipeline", {
+        departamento_nome: "Brindes",
+        start_date: ytdStart,
+        end_date: ytdEnd,
+      });
 
     if (pipelineBrindesError) {
       console.error("Error fetching pipeline Brindes:", pipelineBrindesError);
     }
 
-    // Query 6: Pipeline Digital (limit to recent data for performance)
+    // Query 6: Pipeline Digital using RPC (same as page)
     const { data: pipelineDigital, error: pipelineDigitalError } =
-      await supabase
-        .from("vw_orcamentos_pipeline")
-        .select("*")
-        .eq("departamento", "Digital")
-        .gte(
-          "document_date",
-          new Date(new Date().getFullYear(), 0, 1).toISOString().split("T")[0],
-        )
-        .order("total_value", { ascending: false })
-        .limit(5000);
+      await supabase.rpc("get_department_pipeline", {
+        departamento_nome: "Digital",
+        start_date: ytdStart,
+        end_date: ytdEnd,
+      });
 
     if (pipelineDigitalError) {
       console.error("Error fetching pipeline Digital:", pipelineDigitalError);
     }
 
-    // Query 7: Pipeline IMACX (limit to recent data for performance)
-    const { data: pipelineImacx, error: pipelineImacxError } = await supabase
-      .from("vw_orcamentos_pipeline")
-      .select("*")
-      .eq("departamento", "IMACX")
-      .gte(
-        "document_date",
-        new Date(new Date().getFullYear(), 0, 1).toISOString().split("T")[0],
-      )
-      .order("total_value", { ascending: false })
-      .limit(5000);
+    // Query 7: Pipeline IMACX using RPC (same as page)
+    const { data: pipelineImacx, error: pipelineImacxError } =
+      await supabase.rpc("get_department_pipeline", {
+        departamento_nome: "IMACX",
+        start_date: ytdStart,
+        end_date: ytdEnd,
+      });
 
     if (pipelineImacxError) {
       console.error("Error fetching pipeline IMACX:", pipelineImacxError);
     }
 
-    // Processar pipeline por categorias
+    // Process pipeline data from RPC (already categorized)
     const processarPipeline = (data: any[], departamento: string) => {
       if (!data)
         return {
@@ -277,43 +270,53 @@ export async function GET(request: Request) {
           aprovados: [],
         };
 
-      const hoje = new Date();
-      const dias14Atras = new Date(hoje.getTime() - 14 * 24 * 60 * 60 * 1000);
-      const dias60Atras = new Date(hoje.getTime() - 60 * 24 * 60 * 60 * 1000);
-
+      // RPC returns data with quote_category field - split by category
       return {
-        // Top 15: ALL pending/approved quotes sorted by value (not just current month)
         top15: data
-          .filter((item) => {
-            return item.status === "PENDENTE" || item.status === "APROVADO";
-          })
-          .sort((a: any, b: any) => (b.total_value || 0) - (a.total_value || 0))
-          .slice(0, 15),
+          .filter((row) => row.quote_category === "top_15")
+          .map((row) => ({
+            orcamento_numero: row.quote_number,
+            document_date: row.quote_date,
+            cliente_nome: row.customer_name,
+            total_value: row.quote_value,
+            status: row.quote_status,
+            departamento,
+          })),
 
-        needsAttention: data.filter((item) => {
-          const dataDoc = new Date(item.document_date);
-          return (
-            item.status === "PENDENTE" &&
-            item.total_value >= 7500 &&
-            dataDoc <= dias14Atras
-          );
-        }),
+        needsAttention: data
+          .filter((row) => row.quote_category === "needs_attention")
+          .map((row) => ({
+            orcamento_numero: row.quote_number,
+            document_date: row.quote_date,
+            cliente_nome: row.customer_name,
+            total_value: row.quote_value,
+            status: row.quote_status,
+            departamento,
+          })),
 
-        perdidos: data.filter((item) => {
-          const dataDoc = new Date(item.document_date);
-          return item.status === "PERDIDO" && dataDoc >= dias60Atras;
-        }),
+        perdidos: data
+          .filter((row) => row.quote_category === "lost")
+          .map((row) => ({
+            orcamento_numero: row.quote_number,
+            document_date: row.quote_date,
+            cliente_nome: row.customer_name,
+            total_value: row.quote_value,
+            status: row.quote_status,
+            motivo: row.quote_comments || "-",
+            departamento,
+          })),
 
-        aprovados: data.filter((item) => {
-          const dataFatura = item.invoice_date
-            ? new Date(item.invoice_date)
-            : null;
-          return (
-            item.status === "APROVADO" &&
-            dataFatura &&
-            dataFatura >= dias60Atras
-          );
-        }),
+        aprovados: data
+          .filter((row) => row.quote_category === "approved")
+          .map((row) => ({
+            orcamento_numero: row.quote_number,
+            document_date: row.quote_date,
+            invoice_date: row.invoice_date,
+            cliente_nome: row.customer_name,
+            total_value: row.quote_value,
+            status: row.quote_status,
+            departamento,
+          })),
       };
     };
 
