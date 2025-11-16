@@ -115,6 +115,7 @@ export default function AnaliseFinanceiraPage() {
   // State management
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [kpiData, setKpiData] = useState<KPIDashboardData | null>(null);
   const [monthlyRevenue, setMonthlyRevenue] =
     useState<MonthlyRevenueResponse | null>(null);
@@ -159,6 +160,10 @@ export default function AnaliseFinanceiraPage() {
 
   // Period tab navigation (within each main tab)
   const [activeTab, setActiveTab] = useState<"mtd" | "ytd" | "qtd">("mtd");
+
+  // Dynamic year variables for date displays
+  const currentYear = new Date().getFullYear();
+  const previousYear = currentYear - 1;
 
   type TopCustomersSortColumn =
     | "rank"
@@ -537,6 +542,35 @@ export default function AnaliseFinanceiraPage() {
     },
     [activeTab, mainTab, selectedDepartment],
   );
+
+  const handleFastRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      // Fast incremental ETL (3-day window, upsert only) then reload dashboard data
+      const resp = await fetch("/api/etl/incremental", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "fast_all" }),
+      });
+
+      if (!resp.ok) {
+        const details = await resp.json().catch(() => ({}));
+        const message =
+          (details && (details.message || details.error)) ||
+          "Erro ao correr a atualizacao rapida do PHC.";
+        throw new Error(message);
+      }
+
+      await fetchAllData(activeTab, mainTab);
+    } catch (err) {
+      console.error("Erro ao executar atualizacao rapida do PHC:", err);
+      alert(
+        "Falha ao atualizar rapidamente o PHC (run_fast_all_tables_sync). Verifica a configuracao do ETL e tenta novamente.",
+      );
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [activeTab, mainTab, fetchAllData]);
 
   useEffect(() => {
     fetchAllData(activeTab, mainTab);
@@ -1334,8 +1368,6 @@ export default function AnaliseFinanceiraPage() {
       console.log("Monthly Revenue:", data.monthlyRevenue);
       console.log("Multi Year Revenue:", data.multiYearRevenue);
       console.log("Rankings:", data.rankings);
-      console.log("Salespersons:", data.salespersons);
-      console.log("Salespersons length:", data.salespersons?.length);
       console.log("Clientes:", data.clientes);
 
       // Calcular métricas
@@ -1445,7 +1477,7 @@ ${
 - Taxa de conversão global: ${taxaConversaoGlobal.toFixed(1)}%
 ${
   totalNeedsAttention > 100000
-    ? `- ⚠️ **ATENÇÃO URGENTE**: Mais de €100k em oportunidades paradas há >30 dias`
+    ? `- ⚠️ **ATENÇÃO URGENTE**: Mais de €100k em oportunidades paradas há >14 dias`
     : totalNeedsAttention > 50000
       ? `- ⚠️ Valor significativo (>€50k) em oportunidades que precisam follow-up`
       : `- ✅ Pipeline em gestão adequada`
@@ -1626,6 +1658,12 @@ ${["Brindes", "Digital", "IMACX"]
       0,
     );
 
+    // FILTER PERDIDOS: Only show 60-90 days (recently lost, actionable)
+    const filteredPerdidos = pipeline.perdidos.filter((item: any) => {
+      const dias = item.dias_decorridos || 0;
+      return dias >= 60 && dias <= 90;
+    });
+
     return `
 ### ${dept}
 
@@ -1635,7 +1673,7 @@ ${["Brindes", "Digital", "IMACX"]
 |-----------|------------|-------------|
 | **Top 15 do Mês** | ${pipeline.top15.length} | ${totalPipeline.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} |
 | **Needs Attention** | ${pipeline.needsAttention.length} | ${totalNeedsAttention.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} |
-| **Perdidos (>60 dias)** | ${pipeline.perdidos.length} | ${totalPerdidos.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} |
+| **Perdidos (60-90d)** | ${filteredPerdidos.length} | ${filteredPerdidos.reduce((sum: number, item: any) => sum + (item.total_value || 0), 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} |
 
 ${
   pipeline.top15.length > 0
@@ -1674,7 +1712,7 @@ ${pipeline.top15
 ${
   pipeline.needsAttention.length > 0
     ? `
-#### ⚠️ Oportunidades que Precisam Atenção (>€7.500, +30 dias)
+#### ⚠️ Oportunidades que Precisam Atenção (>€7.500, +14 dias)
 
 | ORC# | Cliente | Valor | Data | Dias Pendente |
 |------|---------|-------|------|---------------|
@@ -1708,19 +1746,18 @@ ${pipeline.needsAttention
 }
 
 ${
-  pipeline.perdidos.length > 0
+  filteredPerdidos.length > 0
     ? `
-#### ❌ Orçamentos Perdidos (>60 dias sem resposta)
+#### ❌ Perdidos Recentes (60-90 dias)
 
 **Resumo:**
-- Total perdido: ${totalPerdidos.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}
-- Quantidade: ${pipeline.perdidos.length} orçamentos
-- Taxa de perda: ${pipeline.top15.length + pipeline.needsAttention.length > 0 ? ((pipeline.perdidos.length / (pipeline.perdidos.length + pipeline.top15.length + pipeline.needsAttention.length)) * 100).toFixed(1) : 0}%
+- Total perdido: ${filteredPerdidos.reduce((sum: number, item: any) => sum + (item.total_value || 0), 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}
+- Quantidade: ${filteredPerdidos.length} orçamentos (60-90 dias sem resposta)
 
 | ORC# | Cliente | Valor | Data | Dias | Motivo |
 |------|---------|-------|------|------|--------|
-${pipeline.perdidos
-  .slice(0, 20)
+${filteredPerdidos
+  .slice(0, 15)
   .map((item: any) => {
     const orcNum = item.orcamento_numero || item.document_number || "-";
     const cliente = item.cliente_nome || item.customer_name || "N/A";
@@ -1910,16 +1947,90 @@ ${data.salespersons
   .slice(0, 15)
   .map(
     (sp: any, idx: number) =>
-      `| ${idx + 1} | **${sp.salesperson || "N/A"}** | ${sp.total_quotes || 0} | ${(sp.total_value || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${(sp.conversion_rate || 0).toFixed(1)}% | ${(sp.approved_value || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${(sp.pending_value || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${(sp.lost_value || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} |`,
+      `| ${idx + 1} | **${sp.salesperson}** | ${sp.total_quotes} | ${(sp.total_value || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${(sp.conversion_rate || 0).toFixed(1)}% | ${sp.approved_quotes} (${(sp.approved_value || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}) | ${sp.pending_quotes} (${(sp.pending_value || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}) | ${sp.lost_quotes} (${(sp.lost_value || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}) |`,
   )
   .join("\n")}
 
-**Insights:**
-- Total de vendedores ativos: ${data.salespersons.length}
-- Melhor taxa de conversão: ${data.salespersons.reduce((max: any, sp: any) => ((sp.conversion_rate || 0) > (max.conversion_rate || 0) ? sp : max), data.salespersons[0])?.salesperson || "N/A"} (${data.salespersons.reduce((max: number, sp: any) => Math.max(max, sp.conversion_rate || 0), 0).toFixed(1)}%)
-- Maior valor em orçamentos: ${data.salespersons[0]?.salesperson || "N/A"} (${(data.salespersons[0]?.total_value || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })})
+**TOTAIS:**
+- Orçamentos: ${data.salespersons.reduce((sum: number, sp: any) => sum + (sp.total_quotes || 0), 0)}
+- Valor Total: ${data.salespersons.reduce((sum: number, sp: any) => sum + (sp.total_value || 0), 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}
+- Taxa Conversão Média: ${(data.salespersons.reduce((sum: number, sp: any) => sum + (sp.conversion_rate || 0), 0) / data.salespersons.length).toFixed(1)}%
 `
     : "Dados de vendedores não disponíveis"
+}
+
+---
+
+## 💰 ANÁLISE POR ESCALÕES DE VALOR
+
+${
+  data.escaloes && data.escaloes.length > 0
+    ? `
+### Distribuição Global por Escalão
+
+| Escalão (€) | Orçamentos | Valor Total | Aprovados | Taxa Conversão |
+|-------------|------------|-------------|-----------|----------------|
+${data.escaloes
+  .sort((a: any, b: any) => {
+    const order = [
+      "0-1500",
+      "1500-2500",
+      "2500-7500",
+      "7500-15000",
+      "15000-30000",
+      "30000+",
+    ];
+    return order.indexOf(a.escalao) - order.indexOf(b.escalao);
+  })
+  .map((e: any) => {
+    const conversionRate =
+      e.total_quotes > 0 ? (e.approved / e.total_quotes) * 100 : 0;
+    return `| **${e.escalao}** | ${e.total_quotes || 0} | ${(e.total_value || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${e.approved || 0} | ${conversionRate.toFixed(1)}% |`;
+  })
+  .join("\n")}
+
+**TOTAIS:**
+- Orçamentos: ${data.escaloes.reduce((sum: number, e: any) => sum + (e.total_quotes || 0), 0)}
+- Valor: ${data.escaloes.reduce((sum: number, e: any) => sum + (e.total_value || 0), 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}
+- Aprovados: ${data.escaloes.reduce((sum: number, e: any) => sum + (e.approved || 0), 0)}
+
+### Insights de Escalões
+
+${(() => {
+  const highestVolume = data.escaloes.reduce(
+    (max: any, e: any) =>
+      (e.total_value || 0) > (max.total_value || 0) ? e : max,
+    data.escaloes[0],
+  );
+  const highestConversion = data.escaloes.reduce((max: any, e: any) => {
+    const maxRate =
+      max.total_quotes > 0 ? (max.approved / max.total_quotes) * 100 : 0;
+    const eRate = e.total_quotes > 0 ? (e.approved / e.total_quotes) * 100 : 0;
+    return eRate > maxRate ? e : max;
+  }, data.escaloes[0]);
+
+  return `
+- 📊 **Maior Volume**: Escalão ${highestVolume.escalao} com ${(highestVolume.total_value || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}
+- ✅ **Melhor Conversão**: Escalão ${highestConversion.escalao} com ${highestConversion.total_quotes > 0 ? ((highestConversion.approved / highestConversion.total_quotes) * 100).toFixed(1) : 0}%
+- 📈 **Oportunidade**: ${
+    data.escaloes.filter((e: any) => {
+      const rate = e.total_quotes > 0 ? (e.approved / e.total_quotes) * 100 : 0;
+      return rate < 50 && e.total_quotes > 5;
+    }).length > 0
+      ? `Escalões ${data.escaloes
+          .filter((e: any) => {
+            const rate =
+              e.total_quotes > 0 ? (e.approved / e.total_quotes) * 100 : 0;
+            return rate < 50 && e.total_quotes > 5;
+          })
+          .map((e: any) => e.escalao)
+          .join(", ")} têm conversão abaixo de 50%`
+      : "Todas as faixas com conversão saudável"
+  }
+`;
+})()}
+`
+    : "Dados de escalões não disponíveis"
 }
 
 ---
@@ -1980,7 +2091,7 @@ ${(() => {
   // Pipeline
   if (totalNeedsAttention > 100000) {
     acoes.push(
-      `**2. 💰 CRÍTICO: Recuperar Pipeline Parado**\n   - **${totalNeedsAttention.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}** em oportunidades >30 dias\n   - Follow-up imediato com todos os clientes da lista "Needs Attention"\n   - Definir responsáveis e prazos para cada oportunidade\n   - Revisão semanal até reduzir para <€50k`,
+      `**2. 💰 CRÍTICO: Recuperar Pipeline Parado**\n   - **${totalNeedsAttention.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}** em oportunidades >14 dias\n   - Follow-up imediato com todos os clientes da lista "Needs Attention"\n   - Definir responsáveis e prazos para cada oportunidade\n   - Revisão semanal até reduzir para <€50k`,
     );
   } else if (totalNeedsAttention > 50000) {
     acoes.push(
@@ -2035,7 +2146,22 @@ ${(() => {
 ${(() => {
   const oportunidades = [];
 
-  // Note: Aprovados data not available from pipeline RPC (it only returns non-invoiced quotes)
+  // Pipeline aprovados
+  const totalAprovados = Object.values(data.pipeline).reduce(
+    (sum: number, dept: any) =>
+      sum +
+      dept.aprovados.reduce(
+        (s: number, item: any) => s + (item.total_value || 0),
+        0,
+      ),
+    0,
+  );
+
+  if (totalAprovados > 0) {
+    oportunidades.push(
+      `- **${totalAprovados.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}** em orçamentos aprovados nos últimos 60 dias - garantir execução e faturação eficiente`,
+    );
+  }
 
   // Top 15 do mês
   const totalTop15 = Object.values(data.pipeline).reduce(
@@ -2144,11 +2270,14 @@ ${(() => {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={() => fetchAllData(activeTab, mainTab)}
+            onClick={handleFastRefresh}
             className="h-10"
+            disabled={isRefreshing}
           >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Atualizar
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
+            />
+            {isRefreshing ? "A atualizar PHC..." : "Atualizar PHC"}
           </Button>
           <Button variant="default" onClick={gerarRelatorio} className="h-10">
             <FileText className="h-4 w-4 mr-2" />
