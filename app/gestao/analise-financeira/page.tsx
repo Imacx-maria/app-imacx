@@ -160,6 +160,9 @@ export default function AnaliseFinanceiraPage() {
   // Departamentos data - Reuniões (Pipeline)
   const [pipelineData, setPipelineData] = useState<any>(null);
 
+  // Company-wide conversion rates (VISÃO GERAL)
+  const [companyConversao, setCompanyConversao] = useState<any[]>([]);
+
   // Period tab navigation (within each main tab)
   const [activeTab, setActiveTab] = useState<"mtd" | "ytd" | "qtd">("mtd");
 
@@ -297,6 +300,18 @@ export default function AnaliseFinanceiraPage() {
     "asc" | "desc"
   >("desc");
 
+  // Company Conversion sort state
+  type CompanyConversaoSortColumn =
+    | "escalao"
+    | "total_orcamentos"
+    | "total_faturas"
+    | "taxa_conversao_pct";
+  const [companyConvSortColumn, setCompanyConvSortColumn] =
+    useState<CompanyConversaoSortColumn>("escalao");
+  const [companyConvSortDirection, setCompanyConvSortDirection] = useState<
+    "asc" | "desc"
+  >("asc");
+
   // ============================================================================
   // Data Fetching
   // ============================================================================
@@ -377,6 +392,27 @@ export default function AnaliseFinanceiraPage() {
             multiYearJson.series?.[2]?.points,
           );
           setMultiYearRevenue(multiYearJson);
+
+          // 5) COMPANY CONVERSION RATES (company-wide, all departments)
+          const conversionPeriod = tab === "mtd" ? "mtd" : "ytd";
+          const conversionResponse = await fetch(
+            `/api/financial-analysis/conversion-rates?period=${conversionPeriod}`,
+          );
+          if (!conversionResponse.ok) {
+            console.error("❌ Failed to fetch company conversion rates:", {
+              status: conversionResponse.status,
+              statusText: conversionResponse.statusText,
+            });
+            setCompanyConversao([]);
+          } else {
+            const conversionJson = await conversionResponse.json();
+            console.log("📊 [Frontend] Company Conversion Rates Response:", {
+              period: conversionPeriod,
+              count: conversionJson.conversao?.length || 0,
+              fullResponse: conversionJson,
+            });
+            setCompanyConversao(conversionJson.conversao || []);
+          }
         } else if (section === "centro-custo") {
           // CENTRO CUSTO section data
           // 5) COST CENTER PERFORMANCE (3-year comparison - MTD or YTD based on tab)
@@ -1380,6 +1416,61 @@ export default function AnaliseFinanceiraPage() {
       }
       return av > bv ? dir : av < bv ? -dir : 0;
     });
+
+  // ============================================================================
+  // Company Conversion Sorting
+  // ============================================================================
+
+  const handleCompanyConvSort = (column: CompanyConversaoSortColumn) => {
+    setCompanyConvSortDirection((prevDir) =>
+      companyConvSortColumn === column
+        ? prevDir === "asc"
+          ? "desc"
+          : "asc"
+        : "desc",
+    );
+    setCompanyConvSortColumn(column);
+  };
+
+  const renderCompanyConvSortIcon = (column: CompanyConversaoSortColumn) => {
+    if (companyConvSortColumn !== column) return null;
+    return companyConvSortDirection === "asc" ? (
+      <ArrowUp className="ml-1 inline h-3 w-3" />
+    ) : (
+      <ArrowDown className="ml-1 inline h-3 w-3" />
+    );
+  };
+
+  const sortedCompanyConversao = companyConversao.slice().sort((a, b) => {
+    const dir = companyConvSortDirection === "asc" ? 1 : -1;
+    let av, bv;
+
+    switch (companyConvSortColumn) {
+      case "escalao":
+        // Use custom escalão order
+        av = getEscalaoOrder(a.escalao || "");
+        bv = getEscalaoOrder(b.escalao || "");
+        break;
+      case "total_orcamentos":
+        av = a.total_orcamentos;
+        bv = b.total_orcamentos;
+        break;
+      case "total_faturas":
+        av = a.total_faturas;
+        bv = b.total_faturas;
+        break;
+      case "taxa_conversao_pct":
+      default:
+        av = a.taxa_conversao_pct ?? -Infinity;
+        bv = b.taxa_conversao_pct ?? -Infinity;
+        break;
+    }
+
+    if (typeof av === "string" && typeof bv === "string") {
+      return av.localeCompare(bv) * dir;
+    }
+    return av > bv ? dir : av < bv ? -dir : 0;
+  });
 
   // ============================================================================
   // Gerar Relatório
@@ -2666,6 +2757,117 @@ ${(() => {
               </div>
             </Card>
           )}
+
+          {/* Taxa de Conversão por Escalão - Company Wide */}
+          <Card className="p-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-xl text-foreground">
+                  Taxa de Conversão por Escalão - Empresa Geral
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {activeTab === "mtd" ? "Mês Atual" : "Ano Atual"} (
+                  {currentYear})
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Orçamentos vs Faturas do mesmo período {currentYear}{" "}
+                {activeTab === "mtd" ? "(mês corrente)" : "(ano corrente)"} -
+                Agregado de todos os departamentos
+              </p>
+              {companyConversao && companyConversao.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead
+                          className="cursor-pointer select-none"
+                          onClick={() => handleCompanyConvSort("escalao")}
+                        >
+                          Escalão
+                          {renderCompanyConvSortIcon("escalao")}
+                        </TableHead>
+                        <TableHead
+                          className="text-right cursor-pointer select-none"
+                          onClick={() =>
+                            handleCompanyConvSort("total_orcamentos")
+                          }
+                        >
+                          Orçamentos
+                          {renderCompanyConvSortIcon("total_orcamentos")}
+                        </TableHead>
+                        <TableHead
+                          className="text-right cursor-pointer select-none"
+                          onClick={() => handleCompanyConvSort("total_faturas")}
+                        >
+                          Faturas
+                          {renderCompanyConvSortIcon("total_faturas")}
+                        </TableHead>
+                        <TableHead
+                          className="text-right cursor-pointer select-none"
+                          onClick={() =>
+                            handleCompanyConvSort("taxa_conversao_pct")
+                          }
+                        >
+                          Taxa Conv.
+                          {renderCompanyConvSortIcon("taxa_conversao_pct")}
+                        </TableHead>
+                        <TableHead className="text-right">Valor Orç.</TableHead>
+                        <TableHead className="text-right">Valor Fat.</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sortedCompanyConversao.map((row: any, idx: number) => (
+                        <TableRow key={idx}>
+                          <TableCell className="font-medium">
+                            {row.escalao}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {row.total_orcamentos}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {row.total_faturas}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span
+                              className={
+                                row.taxa_conversao_pct >= 30
+                                  ? "text-green-600 dark:text-green-400 font-medium"
+                                  : row.taxa_conversao_pct >= 15
+                                    ? "text-yellow-600 dark:text-yellow-400 font-medium"
+                                    : "text-red-600 dark:text-red-400 font-medium"
+                              }
+                            >
+                              {row.taxa_conversao_pct}%
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right text-sm text-muted-foreground">
+                            {formatCurrency(row.total_valor_orcado || 0)}
+                          </TableCell>
+                          <TableCell className="text-right text-sm text-muted-foreground">
+                            {formatCurrency(row.total_valor_faturado || 0)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p className="mb-2">
+                    ⚠️ Sem dados disponíveis - A função SQL pode não estar
+                    aplicada
+                  </p>
+                  <p className="text-xs">
+                    Execute:{" "}
+                    <code className="bg-muted px-2 py-1 rounded">
+                      npx supabase db push
+                    </code>
+                  </p>
+                </div>
+              )}
+            </div>
+          </Card>
         </>
       )}
 
@@ -3400,7 +3602,8 @@ ${(() => {
               <Card className="p-6 mb-6">
                 <h2 className="text-xl text-foreground mb-4">
                   ANÁLISE {selectedDepartment.toUpperCase()} -{" "}
-                  {activeTab === "mtd" ? "Mês Atual" : "Ano Atual"} (2025)
+                  {activeTab === "mtd" ? "Mês Atual" : "Ano Atual"} (
+                  {currentYear})
                 </h2>
 
                 {/* KPI Card for selected department */}
@@ -3411,40 +3614,41 @@ ${(() => {
                   .map((dept: any) => (
                     <Card key={dept.departamento} className="p-4 mb-6">
                       <h3 className="text-sm font-medium text-foreground mb-3">
-                        Movimento de Clientes (Comparação YTD 2025 vs YTD 2024)
+                        Movimento de Clientes (Comparação YTD {currentYear} vs
+                        YTD {previousYear})
                       </h3>
                       <div className="grid grid-cols-3 gap-4">
                         <div>
                           <span className="text-xs text-muted-foreground block mb-1">
-                            Clientes Ativos (YTD 2025):
+                            Clientes Ativos (YTD {currentYear}):
                           </span>
                           <p className="text-2xl font-medium">
                             {dept.clientes_ytd}
                           </p>
                           <p className="text-[10px] text-muted-foreground mt-1">
-                            Total de clientes com faturas em 2025
+                            Total de clientes com faturas em {currentYear}
                           </p>
                         </div>
                         <div>
                           <span className="text-xs text-muted-foreground block mb-1">
-                            Novos em 2025:
+                            Novos em {currentYear}:
                           </span>
                           <p className="text-2xl font-medium text-green-600 dark:text-green-400">
                             +{dept.clientes_novos}
                           </p>
                           <p className="text-[10px] text-muted-foreground mt-1">
-                            Clientes que não existiam em 2024
+                            Clientes que não existiam em {previousYear}
                           </p>
                         </div>
                         <div>
                           <span className="text-xs text-muted-foreground block mb-1">
-                            Perdidos de 2024:
+                            Perdidos de {previousYear}:
                           </span>
                           <p className="text-2xl font-medium text-red-600 dark:text-red-400">
                             -{dept.clientes_perdidos}
                           </p>
                           <p className="text-[10px] text-muted-foreground mt-1">
-                            Clientes de 2024 que não voltaram
+                            Clientes de {previousYear} que não voltaram
                           </p>
                         </div>
                       </div>
@@ -3455,12 +3659,12 @@ ${(() => {
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-lg font-medium">
-                      Orçamentos por Escalão - 2025{" "}
+                      Orçamentos por Escalão - {currentYear}{" "}
                       {activeTab === "mtd" ? "(Mês Atual)" : "(YTD)"}
                     </h3>
                   </div>
                   <p className="text-xs text-muted-foreground mb-3">
-                    Fonte: phc.bo • Apenas orçamentos de 2025{" "}
+                    Fonte: phc.bo • Apenas orçamentos de {currentYear}{" "}
                     {activeTab === "mtd"
                       ? "do mês corrente"
                       : "acumulados no ano"}
@@ -3534,12 +3738,12 @@ ${(() => {
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-lg font-medium">
-                      Faturas por Escalão - 2025{" "}
+                      Faturas por Escalão - {currentYear}{" "}
                       {activeTab === "mtd" ? "(Mês Atual)" : "(Ano Atual)"}
                     </h3>
                   </div>
                   <p className="text-xs text-muted-foreground mb-3">
-                    Fonte: phc.ft • Apenas faturas de 2025{" "}
+                    Fonte: phc.ft • Apenas faturas de {currentYear}{" "}
                     {activeTab === "mtd"
                       ? "do mês corrente"
                       : "acumuladas no ano"}
@@ -3611,12 +3815,12 @@ ${(() => {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-lg font-medium">
-                      Taxa de Conversão por Escalão - 2025{" "}
+                      Taxa de Conversão por Escalão - {currentYear}{" "}
                       {activeTab === "mtd" ? "(Mês Atual)" : "(Ano Atual)"}
                     </h3>
                   </div>
                   <p className="text-xs text-muted-foreground mb-3">
-                    Orçamentos vs Faturas do mesmo período 2025{" "}
+                    Orçamentos vs Faturas do mesmo período {currentYear}{" "}
                     {activeTab === "mtd" ? "(mês corrente)" : "(ano corrente)"}
                   </p>
                   <Table>
@@ -3683,10 +3887,10 @@ ${(() => {
                               </span>
                             </TableCell>
                             <TableCell className="text-right text-sm text-muted-foreground">
-                              {formatCurrency(row.valor_orcamentos)}
+                              {formatCurrency(row.total_valor_orcado || 0)}
                             </TableCell>
                             <TableCell className="text-right text-sm text-muted-foreground">
-                              {formatCurrency(row.valor_faturas)}
+                              {formatCurrency(row.total_valor_faturado || 0)}
                             </TableCell>
                           </TableRow>
                         ),
