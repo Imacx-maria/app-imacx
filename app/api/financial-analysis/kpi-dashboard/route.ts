@@ -30,7 +30,13 @@ export async function GET(request: Request) {
 
   console.log("✅ [KPI Dashboard] User authenticated:", user.email);
 
-  // Step 2: Use admin client for database queries
+  // Step 2: Extract query parameters
+  const { searchParams } = new URL(request.url);
+  const costCenter = searchParams.get("costCenter");
+
+  console.log("📊 [KPI Dashboard] Query params:", { costCenter });
+
+  // Step 3: Use admin client for database queries
   const supabase = createAdminClient();
 
   try {
@@ -105,17 +111,69 @@ export async function GET(request: Request) {
       ytd_previous: `${ytdPrevStart.toISOString().split("T")[0]} → ${ytdPrevEnd.toISOString().split("T")[0]}`,
     });
 
+    // Helper to build RPC params with optional cost center filter
+    const buildKpiParams = (
+      startDate: Date,
+      endDate: Date,
+      sourceTable: string,
+    ) => {
+      const baseParams = {
+        start_date: startDate.toISOString().split("T")[0],
+        end_date: endDate.toISOString().split("T")[0],
+        source_table: sourceTable,
+      };
+
+      if (costCenter) {
+        return { ...baseParams, filter_cost_center: costCenter };
+      }
+      return baseParams;
+    };
+
+    const buildQuoteParams = (
+      startDate: Date,
+      endDate: Date,
+      sourceTable: string,
+    ) => {
+      const baseParams = {
+        start_date: startDate.toISOString().split("T")[0],
+        end_date: endDate.toISOString().split("T")[0],
+        source_table: sourceTable,
+      };
+
+      if (costCenter) {
+        return { ...baseParams, filter_cost_center: costCenter };
+      }
+      return baseParams;
+    };
+
+    const kpiRpcFunction = costCenter
+      ? "calculate_kpis_by_cost_center"
+      : "calculate_ytd_kpis";
+    const quoteRpcFunction = costCenter
+      ? "calculate_quotes_by_cost_center"
+      : "calculate_ytd_quotes";
+
     // =====================================================================
     // Fetch MTD Current (from phc.ft - current year) via RPC
     // =====================================================================
     console.log("📊 [KPI Dashboard] Fetching MTD current via RPC");
+    const rpcFunction = costCenter
+      ? "calculate_kpis_by_cost_center"
+      : "calculate_ytd_kpis";
     const { data: mtdCurrent, error: mtdCurrentError } = await supabase.rpc(
-      "calculate_ytd_kpis",
-      {
-        start_date: mtdCurrentStart.toISOString().split("T")[0],
-        end_date: mtdCurrentEnd.toISOString().split("T")[0],
-        source_table: "ft",
-      },
+      rpcFunction,
+      costCenter
+        ? {
+            start_date: mtdCurrentStart.toISOString().split("T")[0],
+            end_date: mtdCurrentEnd.toISOString().split("T")[0],
+            source_table: "ft",
+            filter_cost_center: costCenter,
+          }
+        : {
+            start_date: mtdCurrentStart.toISOString().split("T")[0],
+            end_date: mtdCurrentEnd.toISOString().split("T")[0],
+            source_table: "ft",
+          },
     );
 
     if (mtdCurrentError) {

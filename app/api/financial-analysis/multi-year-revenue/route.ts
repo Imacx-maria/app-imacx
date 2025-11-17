@@ -147,17 +147,17 @@ export async function GET(request: Request) {
 
       console.log(
         `[Year ${year}] RPC returned ${monthlyData.length} month(s):`,
-        monthlyData.map((m: { period: string }) => m.period),
+        monthlyData.map((m: any) => m.period),
       );
 
       // Convert RPC result to points array
       // RPC returns { period: 'YYYY-MM', net_revenue: number, ... }
       const points: MultiYearRevenuePoint[] = monthlyData
-        .map((row: MonthlyRevenueRow) => ({
+        .map((row: any) => ({
           month: row.period, // Already in YYYY-MM format
           revenue: Math.round(Number(row.net_revenue || 0)),
         }))
-        .sort((a, b) => a.month.localeCompare(b.month));
+        .sort((a: any, b: any) => a.month.localeCompare(b.month));
 
       console.log(`[Year ${year}] Revenue summary:`, {
         months: points.length,

@@ -150,6 +150,8 @@ export default function AnaliseFinanceiraPage() {
   >("top15");
 
   // Departamentos data - Análise
+  const [departmentKpiData, setDepartmentKpiData] =
+    useState<KPIDashboardData | null>(null);
   const [departmentOrcamentos, setDepartmentOrcamentos] = useState<any[]>([]);
   const [departmentFaturas, setDepartmentFaturas] = useState<any[]>([]);
   const [departmentConversao, setDepartmentConversao] = useState<any[]>([]);
@@ -462,7 +464,44 @@ export default function AnaliseFinanceiraPage() {
           }
         } else if (section === "departamentos") {
           // DEPARTAMENTOS section data
-          // Fetch análise data (escalões, conversão, clientes)
+
+          // 1) Fetch KPI data filtered by department
+          console.log(
+            "[fetchAllData] Fetching KPI for department:",
+            selectedDepartment,
+            "period:",
+            tab,
+          );
+
+          const deptPeriod = tab === "mtd" ? "mtd" : "ytd";
+
+          try {
+            const deptKpiUrl = `/api/gestao/departamentos/kpi?departamento=${encodeURIComponent(selectedDepartment)}&period=${deptPeriod}`;
+            console.log("[fetchAllData] Fetching from:", deptKpiUrl);
+
+            const deptKpiResponse = await fetch(deptKpiUrl);
+
+            if (!deptKpiResponse.ok) {
+              console.warn(
+                "[fetchAllData] KPI API returned:",
+                deptKpiResponse.status,
+              );
+              setDepartmentKpiData(null);
+            } else {
+              const deptKpiJson = await deptKpiResponse.json();
+              console.log("[fetchAllData] KPI data loaded:", {
+                department: selectedDepartment,
+                period: deptPeriod,
+                hasData: !!deptKpiJson,
+              });
+              setDepartmentKpiData(deptKpiJson);
+            }
+          } catch (err) {
+            console.error("[fetchAllData] Error fetching KPI:", err);
+            setDepartmentKpiData(null);
+          }
+
+          // 2) Fetch análise data (escalões, conversão, clientes)
           const periodo = tab === "mtd" ? "mensal" : "anual";
           const analiseResponse = await fetch(
             `/api/gestao/departamentos/analise?periodo=${periodo}`,
@@ -577,9 +616,10 @@ export default function AnaliseFinanceiraPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch pipeline data when selectedDepartment changes in Reuniões view
+  // Fetch data when selectedDepartment changes (both Análise and Reuniões)
   useEffect(() => {
-    if (mainTab === "departamentos" && departmentView === "reunioes") {
+    if (mainTab === "departamentos") {
+      console.log("[useEffect] Department changed to:", selectedDepartment);
       fetchAllData(activeTab, "departamentos");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3239,15 +3279,128 @@ ${(() => {
                 </Button>
               </div>
 
-              <Card className="p-6 mb-6">
-                <div className="mb-4 p-4 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    📊 Dados do Ano Anterior (2024) - Base: 2years_bo/fi tables
-                  </p>
+              {/* KPI Cards - Filtrados por Departamento */}
+              {departmentKpiData && departmentKpiData[activeTab] && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
+                  <MetricCard
+                    title="Receita Total"
+                    value={departmentKpiData[activeTab].revenue.current}
+                    previousValue={
+                      departmentKpiData[activeTab].revenue.previous
+                    }
+                    change={departmentKpiData[activeTab].revenue.change}
+                    formatter={formatCurrency}
+                    subtitle={
+                      activeTab === "mtd"
+                        ? "vs. mês anterior"
+                        : "vs. período anterior"
+                    }
+                  />
+                  <MetricCard
+                    title="Nº Faturas"
+                    value={departmentKpiData[activeTab].invoices.current}
+                    previousValue={
+                      departmentKpiData[activeTab].invoices.previous
+                    }
+                    change={departmentKpiData[activeTab].invoices.change}
+                    formatter={formatNumber}
+                    subtitle={
+                      activeTab === "mtd"
+                        ? "vs. mês anterior"
+                        : "vs. período anterior"
+                    }
+                  />
+                  <MetricCard
+                    title="Nº Clientes"
+                    value={departmentKpiData[activeTab].customers.current}
+                    previousValue={
+                      departmentKpiData[activeTab].customers.previous
+                    }
+                    change={departmentKpiData[activeTab].customers.change}
+                    formatter={formatNumber}
+                    subtitle={
+                      activeTab === "mtd"
+                        ? "vs. mês anterior"
+                        : "vs. período anterior"
+                    }
+                  />
+                  <MetricCard
+                    title="Ticket Médio"
+                    value={departmentKpiData[activeTab].avgInvoiceValue.current}
+                    previousValue={
+                      departmentKpiData[activeTab].avgInvoiceValue.previous
+                    }
+                    change={departmentKpiData[activeTab].avgInvoiceValue.change}
+                    formatter={formatCurrency}
+                    subtitle={
+                      activeTab === "mtd"
+                        ? "vs. mês anterior"
+                        : "vs. período anterior"
+                    }
+                  />
+                  <MetricCard
+                    title="Orçamentos Valor"
+                    value={departmentKpiData[activeTab].quoteValue.current}
+                    previousValue={
+                      departmentKpiData[activeTab].quoteValue.previous
+                    }
+                    change={departmentKpiData[activeTab].quoteValue.change}
+                    formatter={formatCurrency}
+                    subtitle={
+                      activeTab === "mtd"
+                        ? "vs. mês anterior"
+                        : "vs. período anterior"
+                    }
+                  />
+                  <MetricCard
+                    title="Orçamentos Qtd"
+                    value={departmentKpiData[activeTab].quoteCount.current}
+                    previousValue={
+                      departmentKpiData[activeTab].quoteCount.previous
+                    }
+                    change={departmentKpiData[activeTab].quoteCount.change}
+                    formatter={formatNumber}
+                    subtitle={
+                      activeTab === "mtd"
+                        ? "vs. mês anterior"
+                        : "vs. período anterior"
+                    }
+                  />
+                  <MetricCard
+                    title="Taxa Conversão"
+                    value={departmentKpiData[activeTab].conversionRate.current}
+                    previousValue={
+                      departmentKpiData[activeTab].conversionRate.previous
+                    }
+                    change={departmentKpiData[activeTab].conversionRate.change}
+                    formatter={formatPercent}
+                    subtitle={
+                      activeTab === "mtd"
+                        ? "vs. mês anterior"
+                        : "vs. período anterior"
+                    }
+                  />
+                  <MetricCard
+                    title="Orçamento Médio"
+                    value={departmentKpiData[activeTab].avgQuoteValue.current}
+                    previousValue={
+                      departmentKpiData[activeTab].avgQuoteValue.previous
+                    }
+                    change={departmentKpiData[activeTab].avgQuoteValue.change}
+                    formatter={formatCurrency}
+                    subtitle={
+                      activeTab === "mtd"
+                        ? "vs. mês anterior"
+                        : "vs. período anterior"
+                    }
+                  />
                 </div>
+              )}
+
+              <Card className="p-6 mb-6">
                 <h2 className="text-xl text-foreground mb-4">
-                  ANÁLISE {selectedDepartment.toUpperCase()} - Ano Anterior
-                  (2024)
+                  ANÁLISE {selectedDepartment.toUpperCase()} -{" "}
+                  {activeTab === "mtd" ? "Mês Atual" : "Ano Atual"} (2025)
                 </h2>
 
                 {/* KPI Card for selected department */}
@@ -3257,32 +3410,41 @@ ${(() => {
                   )
                   .map((dept: any) => (
                     <Card key={dept.departamento} className="p-4 mb-6">
-                      <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                        Clientes
+                      <h3 className="text-sm font-medium text-foreground mb-3">
+                        Movimento de Clientes (Comparação YTD 2025 vs YTD 2024)
                       </h3>
                       <div className="grid grid-cols-3 gap-4">
                         <div>
-                          <span className="text-xs text-muted-foreground">
-                            Clientes YTD:
+                          <span className="text-xs text-muted-foreground block mb-1">
+                            Clientes Ativos (YTD 2025):
                           </span>
                           <p className="text-2xl font-medium">
                             {dept.clientes_ytd}
                           </p>
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            Total de clientes com faturas em 2025
+                          </p>
                         </div>
                         <div>
-                          <span className="text-xs text-muted-foreground">
-                            Novos:
+                          <span className="text-xs text-muted-foreground block mb-1">
+                            Novos em 2025:
                           </span>
                           <p className="text-2xl font-medium text-green-600 dark:text-green-400">
                             +{dept.clientes_novos}
                           </p>
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            Clientes que não existiam em 2024
+                          </p>
                         </div>
                         <div>
-                          <span className="text-xs text-muted-foreground">
-                            Perdidos:
+                          <span className="text-xs text-muted-foreground block mb-1">
+                            Perdidos de 2024:
                           </span>
                           <p className="text-2xl font-medium text-red-600 dark:text-red-400">
                             -{dept.clientes_perdidos}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            Clientes de 2024 que não voltaram
                           </p>
                         </div>
                       </div>
@@ -3291,9 +3453,18 @@ ${(() => {
 
                 {/* Orçamentos por Escalão */}
                 <div className="mb-6">
-                  <h3 className="text-lg font-medium mb-4">
-                    Orçamentos por Escalão
-                  </h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-medium">
+                      Orçamentos por Escalão - 2025{" "}
+                      {activeTab === "mtd" ? "(Mês Atual)" : "(YTD)"}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Fonte: phc.bo • Apenas orçamentos de 2025{" "}
+                    {activeTab === "mtd"
+                      ? "do mês corrente"
+                      : "acumulados no ano"}
+                  </p>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -3361,9 +3532,18 @@ ${(() => {
 
                 {/* Faturas por Escalão */}
                 <div className="mb-6">
-                  <h3 className="text-lg font-medium mb-4">
-                    Faturas por Escalão
-                  </h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-medium">
+                      Faturas por Escalão - 2025{" "}
+                      {activeTab === "mtd" ? "(Mês Atual)" : "(Ano Atual)"}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Fonte: phc.ft • Apenas faturas de 2025{" "}
+                    {activeTab === "mtd"
+                      ? "do mês corrente"
+                      : "acumuladas no ano"}
+                  </p>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -3429,9 +3609,16 @@ ${(() => {
 
                 {/* Taxa de Conversão por Escalão */}
                 <div>
-                  <h3 className="text-lg font-medium mb-4">
-                    Taxa de Conversão por Escalão
-                  </h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-medium">
+                      Taxa de Conversão por Escalão - 2025{" "}
+                      {activeTab === "mtd" ? "(Mês Atual)" : "(Ano Atual)"}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Orçamentos vs Faturas do mesmo período 2025{" "}
+                    {activeTab === "mtd" ? "(mês corrente)" : "(ano corrente)"}
+                  </p>
                   <Table>
                     <TableHeader>
                       <TableRow>
