@@ -549,15 +549,14 @@ export default function AnaliseFinanceiraPage() {
           const deptKpiUrl = `/api/gestao/departamentos/kpi?departamento=${encodeURIComponent(selectedDepartment)}&period=${deptPeriod}`;
           console.log("[fetchAllData] Fetching from:", deptKpiUrl);
 
-          const [deptKpiResponse, analiseResponse, pipelineResponse] = await Promise.all([
-            fetch(deptKpiUrl),
-            fetch(
-              `/api/gestao/departamentos/analise?periodo=${periodo}`,
-            ),
-            fetch(
-              `/api/gestao/departamentos/pipeline?departamento=${selectedDepartment}&periodo=${periodo}`,
-            ),
-          ]);
+          const [deptKpiResponse, analiseResponse, pipelineResponse] =
+            await Promise.all([
+              fetch(deptKpiUrl),
+              fetch(`/api/gestao/departamentos/analise?periodo=${periodo}`),
+              fetch(
+                `/api/gestao/departamentos/pipeline?departamento=${selectedDepartment}&periodo=${periodo}`,
+              ),
+            ]);
 
           // Handle DEPARTMENT KPI
           try {
@@ -2911,8 +2910,12 @@ ${(() => {
                           {renderCompanyConvSortIcon("taxa_conversao_pct")}
                         </TableHead>
                         <TableHead className="text-right">% Peso</TableHead>
-                        <TableHead className="text-right">Valor Orç. (AVG)</TableHead>
-                        <TableHead className="text-right">Valor Fat. (AVG)</TableHead>
+                        <TableHead className="text-right">
+                          Valor Orç. (AVG)
+                        </TableHead>
+                        <TableHead className="text-right">
+                          Valor Fat. (AVG)
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -2988,7 +2991,7 @@ ${(() => {
                                   .taxa_conversao_pct >= 30
                                   ? "text-green-600 dark:text-green-400"
                                   : companyConversaoTotals.totalRow
-                                      .taxa_conversao_pct >= 15
+                                        .taxa_conversao_pct >= 15
                                     ? "text-yellow-600 dark:text-yellow-400"
                                     : "text-red-600 dark:text-red-400"
                               }
@@ -3000,7 +3003,10 @@ ${(() => {
                             </span>
                           </TableCell>
                           <TableCell className="text-right font-semibold">
-                            {companyConversaoTotals.totalRow.peso_pct.toFixed(1)}%
+                            {companyConversaoTotals.totalRow.peso_pct.toFixed(
+                              1,
+                            )}
+                            %
                           </TableCell>
                           <TableCell className="text-right font-semibold">
                             {formatCurrency(
@@ -3009,7 +3015,8 @@ ${(() => {
                           </TableCell>
                           <TableCell className="text-right font-semibold">
                             {formatCurrency(
-                              companyConversaoTotals.totalRow.avg_valor_faturado,
+                              companyConversaoTotals.totalRow
+                                .avg_valor_faturado,
                             )}
                           </TableCell>
                         </TableRow>
