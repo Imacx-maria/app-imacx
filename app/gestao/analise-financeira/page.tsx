@@ -4146,19 +4146,17 @@ ${(() => {
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
                       {(() => {
-                        const periodo = activeTab === "mtd" ? "mensal" : "anual";
                         const now = new Date();
                         const currentYear = now.getFullYear();
-                        let daysDiff = 0;
-                        
-                        if (periodo === "mensal") {
+
+                        if (activeTab === "mtd") {
                           const startDate = new Date(currentYear, now.getMonth(), 1);
-                          daysDiff = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-                          return `Últimos ${daysDiff} dias (mês atual)`;
+                          const daysDiff = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                          return `15 orçamentos de maior valor - Últimos ${daysDiff} dias (mês atual)`;
                         } else {
                           const startDate = new Date(currentYear, 0, 1);
-                          daysDiff = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-                          return `Últimos ${daysDiff} dias (ano atual)`;
+                          const daysDiff = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                          return `15 orçamentos de maior valor - Últimos ${daysDiff} dias (ano atual)`;
                         }
                       })()}
                     </p>
@@ -4248,7 +4246,7 @@ ${(() => {
                       Orçamentos que Precisam Atenção - {selectedDepartment}
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Orçamentos >€7.500 com mais de 14 dias sem resposta
+                      Orçamentos &gt;€7.500 com mais de 14 dias sem resposta
                     </p>
                   </div>
                   {pipelineData?.needsAttention?.length > 0 ? (

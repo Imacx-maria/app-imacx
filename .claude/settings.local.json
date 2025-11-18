@@ -57,7 +57,8 @@
       "Bash(pnpm add:*)",
       "Bash(rd /s /q \"C:\\Users\\maria\\AppData\\Local\\Zed\\languages\\eslint\")",
       "Bash(if exist .next echo \"Build successful\")",
-      "Bash(del \"supabase\\migrations\\20251112_add_valor_phc_to_folhas_obras.sql\")"
+      "Bash(del \"supabase\\migrations\\20251112_add_valor_phc_to_folhas_obras.sql\")",
+      "Bash(npm ls:*)"
     ],
     "deny": [],
     "ask": []
