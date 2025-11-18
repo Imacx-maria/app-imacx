@@ -815,7 +815,7 @@ export default function StockAnalyticsCharts({
                 </PieChart>
               </ResponsiveContainer>
               <div className="mt-4 grid grid-cols-2 gap-4 text-center">
-                <div className="border p-4">
+                <div className="imx-border p-4">
                   <div className="text-2xl font-bold">
                     {Math.round(chartData.totalCartaoStock)}
                   </div>
@@ -823,7 +823,7 @@ export default function StockAnalyticsCharts({
                     Cartão & Favo (unidades)
                   </div>
                 </div>
-                <div className="border p-4">
+                <div className="imx-border p-4">
                   <div className="text-2xl font-bold">
                     {Math.round(
                       chartData.totalRigidosStock - chartData.totalCartaoStock,
@@ -947,11 +947,11 @@ export default function StockAnalyticsCharts({
                             className={`text-xs ${
                               material.stock_atual <=
                               (material.stock_critico || 0)
-                                ? 'text-red-600'
+                                ? 'text-destructive'
                                 : material.stock_atual <=
                                     (material.stock_minimo || 10)
                                   ? 'text-amber-600'
-                                  : 'text-green-600'
+                                  : 'text-success'
                             }`}
                           >
                             {material.stock_atual <=

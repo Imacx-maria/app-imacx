@@ -257,6 +257,11 @@ export async function duplicateOperationRow(
       }
     }
 
+    const isPrintOp =
+      sourceOperation.Tipo_Op === "Impressao" ||
+      sourceOperation.Tipo_Op === "Impressao_Flexiveis";
+    const isCorteOp = sourceOperation.Tipo_Op === "Corte";
+
     // Create new operation record with smart defaults
     const newOperation: any = {
       folha_obra_id: sourceOperation.folha_obra_id,
@@ -279,20 +284,9 @@ export async function duplicateOperationRow(
       N_Pal: sourceOperation.N_Pal || null,
       tem_corte: sourceOperation.tem_corte || null,
 
-      // Set quantities - use remaining or 0
-      num_placas_print:
-        sourceOperation.Tipo_Op === "Impressao" ||
-        sourceOperation.Tipo_Op === "Impressao_Flexiveis"
-          ? remainingQty > 0
-            ? remainingQty
-            : 0
-          : null,
-      num_placas_corte:
-        sourceOperation.Tipo_Op === "Corte"
-          ? remainingQty > 0
-            ? remainingQty
-            : 0
-          : null,
+      // Set quantities - use remaining or 0 for execution rows
+      num_placas_print: isPrintOp ? Math.max(0, remainingQty) : null,
+      num_placas_corte: isCorteOp ? Math.max(0, remainingQty) : null,
       QT_print: sourceOperation.QT_print || null,
 
       // Reset completion status
@@ -308,12 +302,8 @@ export async function duplicateOperationRow(
       operador_id: null,
       maquina: null,
       observacoes: null,
-      notas: sourceOperation.Tipo_Op === "Corte" ? sourceOperation.notas : null,
-      notas_imp:
-        sourceOperation.Tipo_Op === "Impressao" ||
-        sourceOperation.Tipo_Op === "Impressao_Flexiveis"
-          ? sourceOperation.notas_imp
-          : null,
+      notas: isCorteOp ? sourceOperation.notas : null,
+      notas_imp: isPrintOp ? sourceOperation.notas_imp : null,
     };
 
     const { data, error } = await supabase
@@ -325,6 +315,92 @@ export async function duplicateOperationRow(
     if (error) {
       console.error("Error duplicating operation:", error);
       return { success: false, error: error.message };
+    }
+
+    // If duplicating a print operation, auto-create a paired cut execution row (if a cut source exists)
+    if (isPrintOp) {
+      try {
+        // Find the print source record to locate the linked cut source
+        let printSourceId =
+          sourceOperation.is_source_record && sourceOperation.id
+            ? sourceOperation.id
+            : null;
+
+        if (!printSourceId && sourceOperation.print_job_id) {
+          const { data: printSources } = await supabase
+            .from("producao_operacoes")
+            .select("id")
+            .eq("print_job_id", sourceOperation.print_job_id)
+            .eq("is_source_record", true)
+            .limit(1);
+          if (printSources && printSources.length > 0) {
+            printSourceId = (printSources[0] as any).id;
+          }
+        }
+
+        if (printSourceId) {
+          const { data: cutSources } = await supabase
+            .from("producao_operacoes")
+            .select(
+              "id, cut_job_id, material_id, plano_nome, cores, QT_print, data_operacao, folha_obra_id, item_id, N_Pal",
+            )
+            .eq("source_impressao_id", printSourceId)
+            .eq("is_source_record", true)
+            .limit(1);
+
+          if (cutSources && cutSources.length > 0) {
+            const cutSource: any = cutSources[0];
+            const corteNoInterno = `${
+              data.no_interno || sourceOperation.no_interno || "OP"
+            }-CORTE-${Date.now().toString().slice(-4)}`;
+
+            const cutExecution = {
+              Tipo_Op: "Corte",
+              item_id: cutSource.item_id || sourceOperation.item_id,
+              folha_obra_id:
+                cutSource.folha_obra_id || sourceOperation.folha_obra_id,
+              data_operacao:
+                data.data_operacao ||
+                sourceOperation.data_operacao ||
+                new Date().toISOString().split("T")[0],
+              no_interno: corteNoInterno,
+              source_impressao_id: printSourceId,
+              cut_job_id: cutSource.cut_job_id || null,
+              parent_operation_id: cutSource.id,
+              is_source_record: false,
+              material_id: cutSource.material_id,
+              plano_nome: cutSource.plano_nome,
+              cores: cutSource.cores,
+              N_Pal: cutSource.N_Pal || null,
+              num_placas_corte: 0,
+              QT_print: cutSource.QT_print || sourceOperation.QT_print || null,
+              concluido: false,
+              status: "pendente",
+              data_conclusao: null,
+              created_at: now,
+              updated_at: now,
+              operador_id: null,
+              maquina: null,
+              observacoes: null,
+              notas: null,
+              notas_imp: null,
+            };
+
+            const { error: cutInsertError } = await supabase
+              .from("producao_operacoes")
+              .insert(cutExecution);
+
+            if (cutInsertError) {
+              console.warn(
+                "Failed to auto-create paired cut execution:",
+                cutInsertError,
+              );
+            }
+          }
+        }
+      } catch (autoCutErr) {
+        console.warn("Auto-cut duplication skipped:", autoCutErr);
+      }
     }
 
     return { success: true, newOperationId: data.id };

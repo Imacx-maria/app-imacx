@@ -3,7 +3,7 @@ import CreatableCombobox, {
   CreatableComboboxOption,
 } from '@/components/custom/CreatableCombobox'
 import { Loader2 } from 'lucide-react'
-import React from 'react'
+import React, { memo } from 'react'
 import { createBrowserClient } from '@/utils/supabase'
 
 export interface ClienteOption {
@@ -25,7 +25,7 @@ interface CreatableClienteComboboxProps {
   error?: string | null
 }
 
-export const CreatableClienteCombobox: React.FC<
+const CreatableClienteComboboxInternal: React.FC<
   CreatableClienteComboboxProps
 > = ({
   value,
@@ -108,7 +108,7 @@ export const CreatableClienteCombobox: React.FC<
             disabled={disabled}
             loading={loading}
             error={error}
-            buttonClassName="border-border"
+            buttonClassName=""
             createMessage="Criar cliente"
             allowCreate={true}
           />
@@ -122,5 +122,7 @@ export const CreatableClienteCombobox: React.FC<
     </div>
   )
 }
+
+export const CreatableClienteCombobox = memo(CreatableClienteComboboxInternal);
 
 export default CreatableClienteCombobox

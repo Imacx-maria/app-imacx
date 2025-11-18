@@ -1773,9 +1773,9 @@ export default function StocksPage() {
     const critico = stockCritico ?? 0;
     const minimo = stockMinimo ?? 10;
 
-    if (stock <= critico) return "text-red-600";
+    if (stock <= critico) return "text-destructive";
     if (stock <= minimo) return "text-orange-500";
-    return "text-green-600";
+    return "text-success";
   };
 
   const getStockStatusText = (
@@ -3029,14 +3029,14 @@ export default function StocksPage() {
           <TabsContent value="entries" className="space-y-4">
             {/* Success Summary */}
             {lastSavesSummary && (
-              <Card className="mb-4 border-green-200 bg-green-50">
+              <Card className="mb-4  bg-success/15">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h3 className="font-semibold text-green-900 mb-2">
+                      <h3 className="font-semibold text-success mb-2">
                         ✅ Entradas Criadas com Sucesso!
                       </h3>
-                      <div className="text-sm text-green-800 space-y-1">
+                      <div className="text-sm text-success space-y-1">
                         <p>• {lastSavesSummary.count} entradas de stock</p>
                         <p>• Paletes: {lastSavesSummary.paletes.join(", ")}</p>
                         <p>• Total: {lastSavesSummary.total} unidades</p>
@@ -3120,15 +3120,15 @@ export default function StocksPage() {
                       </div>
                     </div>
                     {etlMessage && (
-                      <p className="text-xs text-green-600 mt-2">
-                        {etlMessage}
-                      </p>
+                      <p className="text-xs text-success mt-2">{etlMessage}</p>
                     )}
                     {etlError && (
-                      <p className="text-xs text-red-600 mt-2">{etlError}</p>
+                      <p className="text-xs text-destructive mt-2">
+                        {etlError}
+                      </p>
                     )}
                   </CardHeader>
-                  <CardContent className="p-3 border-b">
+                  <CardContent className="p-3 imx-border-b">
                     <div className="flex gap-2 items-end">
                       <div className="flex-1">
                         <Label className="text-xs font-medium mb-1 block">
@@ -3164,7 +3164,9 @@ export default function StocksPage() {
                           </Button>
                         </div>
                         {neError && (
-                          <p className="text-xs text-red-500 mt-1">{neError}</p>
+                          <p className="text-xs text-destructive mt-1">
+                            {neError}
+                          </p>
                         )}
                       </div>
                     </div>
@@ -3174,7 +3176,7 @@ export default function StocksPage() {
                       <TableBody>
                         {inlineEntries.map((entry, index) => (
                           <React.Fragment key={entry.id}>
-                            <TableRow className="border-b-0">
+                            <TableRow>
                               <TableCell className="w-[140px]">
                                 <div className="text-xs text-muted-foreground font-medium mb-1">
                                   Referência
@@ -3356,7 +3358,7 @@ export default function StocksPage() {
                                 </div>
                               </TableCell>
                             </TableRow>
-                            <TableRow className="border-t-0">
+                            <TableRow>
                               <TableCell className="pt-0 w-[120px]">
                                 <div className="text-xs text-muted-foreground font-medium mb-1">
                                   QTD UNIT.
@@ -3508,7 +3510,7 @@ export default function StocksPage() {
                                       e.currentTarget.blur();
                                     }
                                   }}
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                                   placeholder="0.00"
                                 />
                               </TableCell>
@@ -3561,7 +3563,7 @@ export default function StocksPage() {
                                       e.currentTarget.blur();
                                     }
                                   }}
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="flex h-10 w-full rounded-md imx-border  bg-background px-3 py-2 text-sm file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                                   placeholder="0.00"
                                 />
                               </TableCell>
@@ -3570,7 +3572,7 @@ export default function StocksPage() {
                         ))}
                       </TableBody>
                     </Table>
-                    <div className="p-2 border-t space-y-2">
+                    <div className="p-2 imx-border-t space-y-2">
                       <Button
                         size="sm"
                         variant="ghost"
@@ -3623,7 +3625,7 @@ export default function StocksPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("data")}
                       >
                         Data
@@ -3635,7 +3637,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("referencia")}
                       >
                         Referência
@@ -3647,7 +3649,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("material")}
                       >
                         Material
@@ -3659,7 +3661,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[150px] cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 w-[150px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("fornecedor")}
                       >
                         Fornecedor
@@ -3671,7 +3673,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("quantidade")}
                       >
                         Quantidade
@@ -3683,7 +3685,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[100px] cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 w-[100px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("vl_m2")}
                       >
                         VL_m2
@@ -3695,7 +3697,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("preco_unitario")}
                       >
                         Preço/Unidade
@@ -3707,7 +3709,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("valor_total")}
                       >
                         Valor Total
@@ -3719,7 +3721,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[100px] cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 w-[100px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("n_palet")}
                       >
                         Palete
@@ -3730,7 +3732,7 @@ export default function StocksPage() {
                             <ArrowDown className="ml-1 inline h-3 w-3" />
                           ))}
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[90px] border-b text-center">
+                      <TableHead className="sticky top-0 z-10 w-[90px] imx-border-b text-center">
                         Ações
                       </TableHead>
                     </TableRow>
@@ -3754,7 +3756,7 @@ export default function StocksPage() {
                           return (
                             <React.Fragment key={stock.id}>
                               <TableRow
-                                className="border-b-0"
+                                className=""
                                 style={{ backgroundColor: "#fdfbf2" }}
                               >
                                 <TableCell className="text-xs text-muted-foreground font-medium">
@@ -3789,7 +3791,7 @@ export default function StocksPage() {
                                 </TableCell>
                               </TableRow>
                               <TableRow
-                                className="border-b-0"
+                                className=""
                                 style={{ backgroundColor: "#fdfbf2" }}
                               >
                                 <TableCell>
@@ -3822,7 +3824,7 @@ export default function StocksPage() {
                                           : null,
                                       );
                                     }}
-                                    className="w-full h-8 px-2 text-sm border rounded"
+                                    className="w-full h-8 px-2 text-sm imx-border rounded"
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -3844,7 +3846,7 @@ export default function StocksPage() {
                                           : null,
                                       );
                                     }}
-                                    className="w-full h-8 px-2 text-sm border rounded"
+                                    className="w-full h-8 px-2 text-sm imx-border rounded"
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -3866,7 +3868,7 @@ export default function StocksPage() {
                                           : null,
                                       );
                                     }}
-                                    className="w-full h-8 px-2 text-sm border rounded"
+                                    className="w-full h-8 px-2 text-sm imx-border rounded"
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -3893,7 +3895,7 @@ export default function StocksPage() {
                                           : null,
                                       );
                                     }}
-                                    className="w-full h-8 px-2 text-sm border rounded"
+                                    className="w-full h-8 px-2 text-sm imx-border rounded"
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -3919,7 +3921,7 @@ export default function StocksPage() {
                                           : null,
                                       );
                                     }}
-                                    className="w-full h-8 px-2 text-sm border rounded"
+                                    className="w-full h-8 px-2 text-sm imx-border rounded"
                                   />
                                 </TableCell>
                                 <TableCell colSpan={2}>
@@ -3971,7 +3973,7 @@ export default function StocksPage() {
                                           : null,
                                       );
                                     }}
-                                    className="w-full h-8 px-2 text-sm border rounded"
+                                    className="w-full h-8 px-2 text-sm imx-border rounded"
                                     placeholder="P100 ou P100,P101,P102 (Opcional)"
                                   />
                                 </TableCell>
@@ -3995,7 +3997,7 @@ export default function StocksPage() {
                                           : null,
                                       );
                                     }}
-                                    className="w-full h-8 px-2 text-sm border rounded"
+                                    className="w-full h-8 px-2 text-sm imx-border rounded"
                                     placeholder="Opcional"
                                   />
                                 </TableCell>
@@ -4069,7 +4071,7 @@ export default function StocksPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("referencia")}
                       >
                         Referência
@@ -4081,7 +4083,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("material")}
                       >
                         Material
@@ -4093,7 +4095,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[150px] cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 w-[150px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("total_recebido")}
                       >
                         Total Recebido
@@ -4105,7 +4107,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[150px] cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 w-[150px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("total_consumido")}
                       >
                         Total Consumido
@@ -4117,7 +4119,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("stock_minimo")}
                       >
                         Mín (Amarelo)
@@ -4129,7 +4131,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("stock_critico")}
                       >
                         Crítico (Vermelho)
@@ -4141,7 +4143,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("stock_correct")}
                       >
                         CORREÇÃO MENSAL
@@ -4153,7 +4155,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("stock_atual")}
                       >
                         STOCK FINAL
@@ -4164,7 +4166,7 @@ export default function StocksPage() {
                             <ArrowDown className="ml-1 inline h-3 w-3" />
                           ))}
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[60px] border-b text-center">
+                      <TableHead className="sticky top-0 z-10 w-[60px] imx-border-b text-center">
                         Status
                       </TableHead>
                     </TableRow>
@@ -4298,7 +4300,7 @@ export default function StocksPage() {
           <TabsContent value="palettes" className="space-y-4">
             <div className="w-full">
               {showNewPaleteRow && (
-                <div className="mb-4 border p-4">
+                <div className="mb-4 imx-border p-4">
                   <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
                     <StockInputField
                       placeholder="Nº Palete"
@@ -4418,7 +4420,7 @@ export default function StocksPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead
-                        className="sticky top-0 z-10 cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortPaletes("no_palete")}
                       >
                         Nº Palete
@@ -4430,7 +4432,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortPaletes("fornecedor")}
                       >
                         Fornecedor
@@ -4442,7 +4444,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortPaletes("no_guia_forn")}
                       >
                         Nº Guia
@@ -4454,7 +4456,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortPaletes("ref_cartao")}
                       >
                         Ref. Cartão
@@ -4466,7 +4468,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[100px] cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 w-[100px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortPaletes("qt_palete")}
                       >
                         Qt. Palete
@@ -4478,7 +4480,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortPaletes("data")}
                       >
                         Data
@@ -4490,7 +4492,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 cursor-pointer border-b select-none"
+                        className="sticky top-0 z-10 cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortPaletes("author")}
                       >
                         Autor
@@ -4501,7 +4503,7 @@ export default function StocksPage() {
                             <ArrowDown className="ml-1 inline h-3 w-3" />
                           ))}
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[100px] border-b text-center">
+                      <TableHead className="sticky top-0 z-10 w-[100px] imx-border-b text-center">
                         Ações
                       </TableHead>
                     </TableRow>

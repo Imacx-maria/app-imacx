@@ -11,12 +11,81 @@
 @layer base {
     /* Font family - universal */
     * {
-        @apply border-border;
         font-family: "Atkinson Hyperlegible", sans-serif !important;
     }
 
     body {
         @apply bg-background text-foreground;
+    }
+
+    /* ============================================
+       BORDER SYSTEM
+       ============================================ */
+    .imx-border {
+        border-style: solid !important;
+        border-color: var(--border) !important;
+        border-width: var(--border-width) !important;
+    }
+
+    .imx-border-b {
+        border-bottom-style: solid !important;
+        border-bottom-color: var(--border) !important;
+        border-bottom-width: var(--border-width) !important;
+    }
+
+    .imx-border-t {
+        border-top-style: solid !important;
+        border-top-color: var(--border) !important;
+        border-top-width: var(--border-width) !important;
+    }
+
+    .imx-border-l {
+        border-left-style: solid !important;
+        border-left-color: var(--border) !important;
+        border-left-width: var(--border-width) !important;
+    }
+
+    .imx-border-r {
+        border-right-style: solid !important;
+        border-right-color: var(--border) !important;
+        border-right-width: var(--border-width) !important;
+    }
+
+    .imx-border-x {
+        border-left-style: solid !important;
+        border-left-color: var(--border) !important;
+        border-left-width: var(--border-width) !important;
+        border-right-style: solid !important;
+        border-right-color: var(--border) !important;
+        border-right-width: var(--border-width) !important;
+    }
+
+    .imx-border-y {
+        border-top-style: solid !important;
+        border-top-color: var(--border) !important;
+        border-top-width: var(--border-width) !important;
+        border-bottom-style: solid !important;
+        border-bottom-color: var(--border) !important;
+        border-bottom-width: var(--border-width) !important;
+    }
+
+    .imx-divider-line {
+        background-color: var(--border) !important;
+    }
+
+    .imx-spinner circle {
+        stroke: var(--border);
+        stroke-width: var(--border-width);
+        stroke-linecap: round;
+        fill: none;
+    }
+
+    .recharts-default-tooltip {
+        background-color: var(--card) !important;
+        border-style: solid !important;
+        border-width: var(--border-width) !important;
+        border-color: var(--border) !important;
+        color: var(--foreground) !important;
     }
 
     /* ALL TEXT UPPERCASE - UNIVERSAL RULE */
@@ -64,10 +133,20 @@
     input:not([type]),
     textarea {
         background-color: var(--input) !important;
-        border: 1px solid var(--border) !important;
+        border-style: solid !important;
+        border-color: var(--border) !important;
+        border-width: var(--border-width) !important;
         color: var(--foreground) !important;
         outline: none !important;
         box-shadow: none !important;
+    }
+
+    input::file-selector-button {
+        border-style: solid !important;
+        border-color: var(--border) !important;
+        border-width: var(--border-width) !important;
+        background-color: transparent !important;
+        color: var(--foreground) !important;
     }
 
     /* Command/Combobox search inputs - NO OUTLINE */
@@ -219,6 +298,28 @@
     .bg-primary *,
     .hover\:bg-accent:hover,
     .hover\:bg-accent:hover * {
+        color: var(--primary-foreground) !important;
+    }
+
+    [class*="bg-yellow"],
+    [class*="bg-yellow"] *,
+    [class*="bg-orange"],
+    [class*="bg-orange"] *,
+    [class*="bg-amber"],
+    [class*="bg-amber"] *,
+    [class*="bg-red"],
+    [class*="bg-red"] * {
+        color: var(--primary-foreground) !important;
+    }
+
+    [class*="hover:bg-yellow"]:hover,
+    [class*="hover:bg-yellow"]:hover *,
+    [class*="hover:bg-orange"]:hover,
+    [class*="hover:bg-orange"]:hover *,
+    [class*="hover:bg-amber"]:hover,
+    [class*="hover:bg-amber"]:hover *,
+    [class*="hover:bg-red"]:hover,
+    [class*="hover:bg-red"]:hover * {
         color: var(--primary-foreground) !important;
     }
 
@@ -434,6 +535,7 @@
     --foreground: oklch(0% 0 0);
     --main: oklch(84.08% 0.1725 84.2);
     --border: oklch(0% 0 0);
+    --border-width: 1px;
 
     /* Shadcn compatibility */
     --primary: oklch(84.08% 0.1725 84.2);
@@ -501,6 +603,7 @@
     --foreground: oklch(0.85 0 0);
     --main: oklch(84.08% 0.1725 84.2);
     --border: oklch(0.5 0 0);
+    --border-width: 1px;
 
     /* Shadcn compatibility */
     --primary: oklch(84.08% 0.1725 84.2);
@@ -913,4 +1016,203 @@ input:-webkit-autofill:focus {
 td:has([role="checkbox"]),
 th:has([role="checkbox"]) {
     text-align: center !important;
+}
+
+/* ============================================
+   IMACX CHARTS & TABLES - GLOBAL STYLES
+   ============================================ */
+
+/* Chart-specific spacing variables only */
+/* Colors use design system variables from above */
+:root {
+    --chart-padding: 24px;
+    --chart-margin: 16px;
+}
+
+/* Global chart container styles */
+.imacx-chart-container {
+    background: var(--card);
+    border-width: var(--border-width);
+    border-color: var(--border);
+    border-style: var(--border-style);
+    padding: var(--chart-padding);
+}
+
+/* Recharts specific overrides */
+.recharts-text {
+    fill: var(--foreground);
+}
+
+.recharts-cartesian-axis-tick-value {
+    font-size: 12px;
+}
+
+.recharts-tooltip-wrapper {
+    outline: none !important;
+}
+
+.recharts-default-tooltip {
+    background: var(--background) !important;
+    border-width: var(--border-width) !important;
+    border-style: var(--border-style) !important;
+    border-color: var(--border) !important;
+    box-shadow: none !important;
+}
+
+.recharts-tooltip-label {
+    color: var(--foreground) !important;
+    margin-bottom: 8px !important;
+}
+
+.recharts-tooltip-item {
+    color: var(--foreground) !important;
+}
+
+/* Data table styles */
+.imacx-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--card);
+}
+
+.imacx-table thead {
+    background: var(--accent);
+    color: var(--accent-foreground);
+}
+
+.imacx-table th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 14px;
+    border-bottom-width: var(--border-width);
+    border-bottom-style: var(--border-style);
+    border-bottom-color: var(--border);
+}
+
+.imacx-table tbody tr {
+    border-bottom-width: var(--border-width);
+    border-bottom-style: var(--border-style);
+    border-bottom-color: var(--border);
+    transition: background-color 0.2s;
+}
+
+.imacx-table tbody tr:hover {
+    background: var(--accent);
+}
+
+.imacx-table td {
+    padding: 10px 16px;
+    font-size: 14px;
+    min-height: 44px;
+    color: var(--foreground);
+}
+
+/* Numeric columns */
+.imacx-table .numeric {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* KPI Card styles */
+.imacx-kpi-card {
+    background: var(--card);
+    border-width: var(--border-width);
+    border-style: var(--border-style);
+    border-color: var(--border);
+    padding: 24px;
+}
+
+.imacx-kpi-label {
+    font-size: 14px;
+    color: var(--muted-foreground);
+    margin-bottom: 8px;
+}
+
+.imacx-kpi-value {
+    font-size: 32px;
+    color: var(--primary);
+    line-height: 1.2;
+}
+
+.imacx-kpi-change {
+    font-size: 14px;
+    margin-top: 8px;
+}
+
+.imacx-kpi-change.positive {
+    color: oklch(0.72 0.12 145); /* success from design system */
+}
+
+.imacx-kpi-change.negative {
+    color: oklch(0.63 0.23 25); /* destructive from design system */
+}
+
+/* Loading states */
+.imacx-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+    color: var(--muted-foreground);
+}
+
+/* Error states */
+.imacx-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+    color: oklch(0.63 0.23 25); /* destructive */
+    text-align: center;
+}
+
+.imacx-error-message {
+    font-size: 16px;
+    margin-bottom: 8px;
+}
+
+.imacx-error-code {
+    font-size: 12px;
+    color: var(--muted-foreground);
+}
+
+/* No data state */
+.imacx-no-data {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+    color: var(--muted-foreground);
+    font-size: 14px;
+}
+
+/* Print styles */
+@media print {
+    .imacx-chart-container,
+    .imacx-table,
+    .imacx-kpi-card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    .imacx-table {
+        font-size: 10pt;
+    }
+
+    .imacx-kpi-value {
+        font-size: 24pt;
+    }
+
+    /* Force black text on white background for print */
+    * {
+        color: black !important;
+        background: white !important;
+    }
+
+    .imacx-table thead {
+        background: #f0f0f0 !important;
+        color: black !important;
+    }
 }

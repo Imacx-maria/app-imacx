@@ -112,8 +112,9 @@ export default function PlanosTable({
 
   // Cleanup debounce timers on unmount
   useEffect(() => {
+    const timersRef = debounceTimers.current;
     return () => {
-      const timers = Object.values(debounceTimers.current);
+      const timers = Object.values(timersRef);
       timers.forEach((timer) => clearTimeout(timer));
     };
   }, []);
@@ -321,7 +322,7 @@ export default function PlanosTable({
         </AddButton>
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md imx-border">
         <Table>
           <TableHeader>
             <TableRow>

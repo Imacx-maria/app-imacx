@@ -3,6 +3,8 @@ import { cookies } from 'next/headers'
 import { createServerClient } from '@/utils/supabase'
 import { createAdminClient } from '@/utils/supabaseAdmin'
 
+export const dynamic = 'force-dynamic'
+
 type PermissionsResponse = {
   roles?: string[]
   pagePermissions?: string[]

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect, memo } from "react";
 import {
   Table,
   TableHeader,
@@ -71,7 +71,7 @@ const parseNumericField = (
   return 999999 + strValue.charCodeAt(0);
 };
 
-interface DashboardLogisticaRecord {
+export interface DashboardLogisticaRecord {
   // From folhas_obras
   folha_obra_id: string;
   numero_fo: string;
@@ -146,7 +146,7 @@ type SortableLogisticaKey =
   | "concluido"
   | "saiu";
 
-export const DashboardLogisticaTable: React.FC<
+const DashboardLogisticaTableInternal: React.FC<
   DashboardLogisticaTableProps
 > = ({
   onRefresh,
@@ -1153,7 +1153,7 @@ export const DashboardLogisticaTable: React.FC<
         />
 
         {/* Date filter buttons */}
-        <div className="flex items-center gap-1 border-l pl-2">
+        <div className="flex items-center gap-1 imx-border-l pl-2">
           <Button
             variant={dateFilter === "all" ? "default" : "outline"}
             size="sm"
@@ -1228,7 +1228,7 @@ export const DashboardLogisticaTable: React.FC<
                 <TableRow>
                   <TableHead
                     onClick={() => toggleSort("numero_fo")}
-                    className="sticky top-0 z-10 w-[70px] cursor-pointer border-b text-center font-bold uppercase select-none"
+                    className="sticky top-0 z-10 w-[70px] cursor-pointer imx-border-b text-center font-bold uppercase select-none"
                   >
                     FO{" "}
                     {sortCol === "numero_fo" &&
@@ -1240,7 +1240,7 @@ export const DashboardLogisticaTable: React.FC<
                   </TableHead>
                   <TableHead
                     onClick={() => toggleSort("numero_orc")}
-                    className="sticky top-0 z-10 w-[70px] cursor-pointer border-b text-center font-bold uppercase select-none"
+                    className="sticky top-0 z-10 w-[70px] cursor-pointer imx-border-b text-center font-bold uppercase select-none"
                   >
                     ORC{" "}
                     {sortCol === "numero_orc" &&
@@ -1252,7 +1252,7 @@ export const DashboardLogisticaTable: React.FC<
                   </TableHead>
                   <TableHead
                     onClick={() => toggleSort("guia")}
-                    className="sticky top-0 z-10 w-[90px] cursor-pointer border-b text-center font-bold uppercase select-none"
+                    className="sticky top-0 z-10 w-[90px] cursor-pointer imx-border-b text-center font-bold uppercase select-none"
                   >
                     Guia{" "}
                     {sortCol === "guia" &&
@@ -1264,7 +1264,7 @@ export const DashboardLogisticaTable: React.FC<
                   </TableHead>
                   <TableHead
                     onClick={() => toggleSort("cliente")}
-                    className="sticky top-0 z-10 cursor-pointer border-b text-center font-bold uppercase select-none"
+                    className="sticky top-0 z-10 cursor-pointer imx-border-b text-center font-bold uppercase select-none"
                   >
                     Cliente{" "}
                     {sortCol === "cliente" &&
@@ -1276,7 +1276,7 @@ export const DashboardLogisticaTable: React.FC<
                   </TableHead>
                   <TableHead
                     onClick={() => toggleSort("nome_campanha")}
-                    className="sticky top-0 z-10 cursor-pointer border-b text-center font-bold uppercase select-none"
+                    className="sticky top-0 z-10 cursor-pointer imx-border-b text-center font-bold uppercase select-none"
                   >
                     Nome Campanha{" "}
                     {sortCol === "nome_campanha" &&
@@ -1288,7 +1288,7 @@ export const DashboardLogisticaTable: React.FC<
                   </TableHead>
                   <TableHead
                     onClick={() => toggleSort("item")}
-                    className="sticky top-0 z-10 cursor-pointer border-b text-center font-bold uppercase select-none"
+                    className="sticky top-0 z-10 cursor-pointer imx-border-b text-center font-bold uppercase select-none"
                   >
                     Item{" "}
                     {sortCol === "item" &&
@@ -1300,7 +1300,7 @@ export const DashboardLogisticaTable: React.FC<
                   </TableHead>
                   <TableHead
                     onClick={() => toggleSort("quantidade")}
-                    className="sticky top-0 z-10 w-[60px] cursor-pointer border-b text-center font-bold uppercase select-none align-middle"
+                    className="sticky top-0 z-10 w-[60px] cursor-pointer imx-border-b text-center font-bold uppercase select-none align-middle"
                   >
                     <span className="flex items-center justify-center gap-1">
                       Qt
@@ -1312,12 +1312,12 @@ export const DashboardLogisticaTable: React.FC<
                         ))}
                     </span>
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[100px] border-b text-center font-bold uppercase align-middle">
+                  <TableHead className="sticky top-0 z-10 w-[100px] imx-border-b text-center font-bold uppercase align-middle">
                     Trans.
                   </TableHead>
                   <TableHead
                     onClick={() => toggleSort("data_saida")}
-                    className="sticky top-0 z-10 w-[160px] cursor-pointer border-b text-center font-bold uppercase select-none"
+                    className="sticky top-0 z-10 w-[160px] cursor-pointer imx-border-b text-center font-bold uppercase select-none"
                   >
                     Data Saída{" "}
                     {sortCol === "data_saida" &&
@@ -1329,7 +1329,7 @@ export const DashboardLogisticaTable: React.FC<
                   </TableHead>
                   <TableHead
                     onClick={() => toggleSort("concluido")}
-                    className="sticky top-0 z-10 w-12 cursor-pointer border-b text-center font-bold uppercase select-none"
+                    className="sticky top-0 z-10 w-12 cursor-pointer imx-border-b text-center font-bold uppercase select-none"
                   >
                     <TooltipProvider>
                       <Tooltip>
@@ -1350,7 +1350,7 @@ export const DashboardLogisticaTable: React.FC<
                   </TableHead>
                   <TableHead
                     onClick={() => toggleSort("saiu")}
-                    className="sticky top-0 z-10 w-12 cursor-pointer border-b text-center font-bold uppercase select-none"
+                    className="sticky top-0 z-10 w-12 cursor-pointer imx-border-b text-center font-bold uppercase select-none"
                   >
                     <TooltipProvider>
                       <Tooltip>
@@ -1572,64 +1572,64 @@ export const DashboardLogisticaTable: React.FC<
                 <TableRow>
                   <TableHead
                     onClick={() => toggleSort("numero_fo")}
-                    className="sticky top-0 z-10 w-[70px] cursor-pointer border-b text-center font-bold uppercase select-none"
+                    className="sticky top-0 z-10 w-[70px] cursor-pointer imx-border-b text-center font-bold uppercase select-none"
                   >
                     FO
                   </TableHead>
                   <TableHead
                     onClick={() => toggleSort("numero_orc")}
-                    className="sticky top-0 z-10 w-[70px] cursor-pointer border-b text-center font-bold uppercase select-none"
+                    className="sticky top-0 z-10 w-[70px] cursor-pointer imx-border-b text-center font-bold uppercase select-none"
                   >
                     ORC
                   </TableHead>
                   <TableHead
                     onClick={() => toggleSort("guia")}
-                    className="sticky top-0 z-10 w-[90px] cursor-pointer border-b text-center font-bold uppercase select-none"
+                    className="sticky top-0 z-10 w-[90px] cursor-pointer imx-border-b text-center font-bold uppercase select-none"
                   >
                     Guia
                   </TableHead>
                   <TableHead
                     onClick={() => toggleSort("cliente")}
-                    className="sticky top-0 z-10 cursor-pointer border-b text-center font-bold uppercase select-none"
+                    className="sticky top-0 z-10 cursor-pointer imx-border-b text-center font-bold uppercase select-none"
                   >
                     Cliente
                   </TableHead>
                   <TableHead
                     onClick={() => toggleSort("nome_campanha")}
-                    className="sticky top-0 z-10 cursor-pointer border-b text-center font-bold uppercase select-none"
+                    className="sticky top-0 z-10 cursor-pointer imx-border-b text-center font-bold uppercase select-none"
                   >
                     Nome Campanha
                   </TableHead>
                   <TableHead
                     onClick={() => toggleSort("item")}
-                    className="sticky top-0 z-10 cursor-pointer border-b text-center font-bold uppercase select-none"
+                    className="sticky top-0 z-10 cursor-pointer imx-border-b text-center font-bold uppercase select-none"
                   >
                     Item
                   </TableHead>
                   <TableHead
                     onClick={() => toggleSort("quantidade")}
-                    className="sticky top-0 z-10 w-[60px] cursor-pointer border-b text-center font-bold uppercase select-none"
+                    className="sticky top-0 z-10 w-[60px] cursor-pointer imx-border-b text-center font-bold uppercase select-none"
                   >
                     Qt
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[100px] border-b text-center font-bold uppercase">
+                  <TableHead className="sticky top-0 z-10 w-[100px] imx-border-b text-center font-bold uppercase">
                     Transporte
                   </TableHead>
                   <TableHead
                     onClick={() => toggleSort("data_saida")}
-                    className="sticky top-0 z-10 w-[160px] cursor-pointer border-b text-center font-bold uppercase select-none"
+                    className="sticky top-0 z-10 w-[160px] cursor-pointer imx-border-b text-center font-bold uppercase select-none"
                   >
                     Data Saída
                   </TableHead>
                   <TableHead
                     onClick={() => toggleSort("concluido")}
-                    className="sticky top-0 z-10 w-12 cursor-pointer border-b text-center font-bold uppercase select-none"
+                    className="sticky top-0 z-10 w-12 cursor-pointer imx-border-b text-center font-bold uppercase select-none"
                   >
                     C
                   </TableHead>
                   <TableHead
                     onClick={() => toggleSort("saiu")}
-                    className="sticky top-0 z-10 w-12 cursor-pointer border-b text-center font-bold uppercase select-none"
+                    className="sticky top-0 z-10 w-12 cursor-pointer imx-border-b text-center font-bold uppercase select-none"
                   >
                     S
                   </TableHead>
@@ -1805,5 +1805,7 @@ export const DashboardLogisticaTable: React.FC<
     </div>
   );
 };
+
+export const DashboardLogisticaTable = memo(DashboardLogisticaTableInternal);
 
 export default DashboardLogisticaTable;

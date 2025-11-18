@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, memo } from 'react'
 import {
   Popover,
   PopoverContent,
@@ -54,7 +54,7 @@ export interface NotasPopoverProps {
   centered?: boolean
 }
 
-const NotasPopover: React.FC<NotasPopoverProps> = ({
+const NotasPopoverInternal: React.FC<NotasPopoverProps> = ({
   value,
   onChange,
   onSave,
@@ -245,7 +245,7 @@ const NotasPopover: React.FC<NotasPopoverProps> = ({
           <PopoverContent
             side={undefined}
             align={undefined}
-            className="bg-background border-border fixed top-1/2 left-1/2 z-[9999] max-h-[70vh] w-96 -translate-x-1/2 -translate-y-1/2 overflow-auto border-2 p-4 shadow-2xl"
+            className="bg-background  fixed top-1/2 left-1/2 z-[9999] max-h-[70vh] w-96 -translate-x-1/2 -translate-y-1/2 overflow-auto imx-border p-4 shadow-2xl"
             aria-describedby={popoverDescriptionId}
             data-no-aria-hidden="true"
             onEscapeKeyDown={() => {
@@ -341,7 +341,7 @@ const NotasPopover: React.FC<NotasPopoverProps> = ({
         <PopoverContent
           side="top"
           align="center"
-          className="bg-background border-border z-[9999] max-h-[70vh] w-96 overflow-auto border-2 p-4"
+          className="bg-background  z-[9999] max-h-[70vh] w-96 overflow-auto imx-border p-4"
           aria-describedby={popoverDescriptionId}
           data-no-aria-hidden="true"
           onEscapeKeyDown={() => {
@@ -436,4 +436,5 @@ const NotasPopover: React.FC<NotasPopoverProps> = ({
   )
 }
 
+const NotasPopover = memo(NotasPopoverInternal)
 export default NotasPopover

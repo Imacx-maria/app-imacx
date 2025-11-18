@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import React, { useState, useMemo, useCallback, useEffect, memo } from 'react'
 import {
   Table,
   TableHeader,
@@ -99,7 +99,7 @@ type SortableKey =
   | 'data_saida'
   | 'saiu'
 
-export const LogisticaTable: React.FC<LogisticaTableProps> = ({
+const LogisticaTableInternal: React.FC<LogisticaTableProps> = ({
   records,
   loading = false,
   onRefresh,
@@ -393,7 +393,7 @@ export const LogisticaTable: React.FC<LogisticaTableProps> = ({
       </div>
 
       {/* Table */}
-      <div className="w-full overflow-auto rounded-none border border-border">
+      <div className="w-full overflow-auto rounded-none imx-border ">
         <Table className="w-full table-fixed">
           <TableHeader>
             <TableRow>
@@ -647,3 +647,5 @@ export const LogisticaTable: React.FC<LogisticaTableProps> = ({
     </div>
   )
 }
+
+export const LogisticaTable = memo(LogisticaTableInternal);

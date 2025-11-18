@@ -285,19 +285,19 @@ export default function ArmazensPage() {
             <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sticky top-0 z-10 w-[120px] border-b text-center uppercase">
+                  <TableHead className="sticky top-0 z-10 w-[120px] imx-border-b text-center uppercase">
                     Número PHC
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 min-w-[200px] border-b text-center uppercase">
+                  <TableHead className="sticky top-0 z-10 min-w-[200px] imx-border-b text-center uppercase">
                     Nome do Armazém
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 min-w-[250px] border-b text-center uppercase">
+                  <TableHead className="sticky top-0 z-10 min-w-[250px] imx-border-b text-center uppercase">
                     Morada
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[120px] border-b text-center uppercase">
+                  <TableHead className="sticky top-0 z-10 w-[120px] imx-border-b text-center uppercase">
                     Código Postal
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[90px] border-b text-center uppercase">
+                  <TableHead className="sticky top-0 z-10 w-[90px] imx-border-b text-center uppercase">
                     Ações
                   </TableHead>
                 </TableRow>

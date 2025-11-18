@@ -143,7 +143,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center" data-page="login">
-      <div className="w-full max-w-md space-y-6 rounded-lg border p-8">
+      <div className="w-full max-w-md space-y-6 rounded-lg imx-border p-8">
         <div className="space-y-2 text-center">
           <Image
             src="/imacx_pos.svg"

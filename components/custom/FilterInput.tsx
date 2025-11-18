@@ -3,7 +3,7 @@
 import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, memo } from "react";
 
 interface FilterInputProps {
   value: string;
@@ -17,7 +17,7 @@ interface FilterInputProps {
   disabled?: boolean;
 }
 
-export function FilterInput({
+const FilterInputInternal = ({
   value,
   onChange,
   onFilterChange,
@@ -27,7 +27,7 @@ export function FilterInput({
   className,
   inputClassName,
   disabled,
-}: FilterInputProps) {
+}: FilterInputProps) => {
   const [internal, setInternal] = useState(value);
 
   useEffect(() => {
@@ -81,4 +81,6 @@ export function FilterInput({
       )}
     </div>
   );
-}
+};
+
+export const FilterInput = memo(FilterInputInternal);

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, memo } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePermissions } from '@/providers/PermissionsProvider'
 import { Loader2 } from 'lucide-react'
@@ -22,11 +22,11 @@ interface PagePermissionGuardProps {
  * </PagePermissionGuard>
  * ```
  */
-export function PagePermissionGuard({
+const PagePermissionGuardInternal = ({
   pageId,
   children,
   fallbackPath = '/dashboard',
-}: PagePermissionGuardProps) {
+}: PagePermissionGuardProps) => {
   const { canAccessPage, loading } = usePermissions()
   const router = useRouter()
 
@@ -72,3 +72,5 @@ export function PagePermissionGuard({
   // Render page content if user has access
   return <>{children}</>
 }
+
+export const PagePermissionGuard = memo(PagePermissionGuardInternal)

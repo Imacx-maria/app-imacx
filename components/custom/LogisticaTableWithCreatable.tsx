@@ -289,16 +289,16 @@ export const LogisticaTableWithCreatable: React.FC<
   const quantityFieldClass = `${baseFieldClass} text-right`;
   const staticCellClass =
     "flex h-10 items-center justify-center px-2 text-sm font-mono";
-  const comboButtonClass = "border border-border h-10 text-sm uppercase";
+  const comboButtonClass = "imx-border  h-10 text-sm uppercase";
   const checkboxClass = "h-5 w-5 shadow-none";
   const actionButtonClass =
-    "flex items-center justify-center !h-10 !w-10 !min-w-10 !max-w-10 !p-0 border border-border";
+    "flex items-center justify-center !h-10 !w-10 !min-w-10 !max-w-10 !p-0 imx-border ";
   const actionButtonHoverClass = "hover:bg-accent";
   const cloneButtonClass = `${actionButtonClass} ${actionButtonHoverClass}`;
   const deleteButtonClass = `${actionButtonClass} bg-destructive text-destructive-foreground hover:bg-destructive/90`;
   const notesButtonClass = `${actionButtonClass} ${actionButtonHoverClass} aspect-square bg-primary text-primary-foreground`;
   const dateButtonClass =
-    "border border-border bg-primary text-primary-foreground uppercase hover:bg-primary/90";
+    "imx-border  bg-primary text-primary-foreground uppercase hover:bg-primary/90";
 
   // Table columns configuration
   const columns = useMemo<TableColumn[]>(() => {
@@ -562,7 +562,7 @@ export const LogisticaTableWithCreatable: React.FC<
           {columns.map((col) => (
             <TableHead
               key={col.field}
-              className={`cursor-pointer select-none ${col.width} border-border border-b bg-primary text-primary-foreground uppercase ${
+              className={`cursor-pointer select-none ${col.width}  imx-border-b bg-primary text-primary-foreground uppercase ${
                 col.field === "source_selection" ||
                 col.field === "tipo" ||
                 col.field === "notas" ||
@@ -1057,7 +1057,7 @@ export const LogisticaTableWithCreatable: React.FC<
 
       {/* Pagination Controls */}
       {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+        <div className="mt-4 flex items-center justify-between imx-border-t  pt-4">
           <div className="text-sm text-muted-foreground">
             Página {currentPage} de {totalPages} ({sortedRecords.length} items)
           </div>

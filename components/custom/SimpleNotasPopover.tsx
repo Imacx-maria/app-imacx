@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react";
+import { memo } from "react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,7 +17,7 @@ export interface SimpleNotasPopoverProps {
   buttonSize?: "default" | "sm" | "lg" | "icon";
 }
 
-const SimpleNotasPopover: React.FC<SimpleNotasPopoverProps> = ({
+const SimpleNotasPopoverInternal: React.FC<SimpleNotasPopoverProps> = ({
   value,
   onSave,
   placeholder = "Adicionar notas...",
@@ -86,5 +87,7 @@ const SimpleNotasPopover: React.FC<SimpleNotasPopoverProps> = ({
     </Popover>
   );
 };
+
+const SimpleNotasPopover = memo(SimpleNotasPopoverInternal);
 
 export default SimpleNotasPopover; 

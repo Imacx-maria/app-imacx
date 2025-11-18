@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { TableCell } from "@/components/ui/table";
 import { Edit, Eye, Copy, Trash2, StickyNote, Plus } from "lucide-react";
@@ -12,7 +12,7 @@ import SimpleNotasPopover from "@/components/custom/SimpleNotasPopover";
  * - Yellow (default) for action buttons: Edit, View, Copy, Add, Notas
  * - Red (destructive) for Delete
  * - Outlined for utility buttons
- * - All have visible 1px border (built into variants)
+ * - All have visible 1px imx-border (built into variants)
  * - Icon size: h-4 w-4
  * - Button size: h-10 w-10 (icon-only)
  */
@@ -28,7 +28,7 @@ interface ActionButtonProps {
  * Edit Button - Opens editable form/drawer
  * Opens form where user CAN modify data
  */
-export const EditButton: React.FC<ActionButtonProps> = ({
+const EditButtonInternal: React.FC<ActionButtonProps> = ({
   onClick,
   disabled = false,
   title = "Editar",
@@ -46,11 +46,13 @@ export const EditButton: React.FC<ActionButtonProps> = ({
   </Button>
 );
 
+export const EditButton = memo(EditButtonInternal);
+
 /**
  * View Button - Opens read-only drawer/view
  * Opens drawer where user can ONLY view information
  */
-export const ViewButton: React.FC<ActionButtonProps> = ({
+const ViewButtonInternal: React.FC<ActionButtonProps> = ({
   onClick,
   disabled = false,
   title = "Ver detalhes",
@@ -68,11 +70,13 @@ export const ViewButton: React.FC<ActionButtonProps> = ({
   </Button>
 );
 
+export const ViewButton = memo(ViewButtonInternal);
+
 /**
  * Copy Button - Duplicates/copies an item
  * Yellow background, for duplication actions
  */
-export const CopyButton: React.FC<ActionButtonProps> = ({
+const CopyButtonInternal: React.FC<ActionButtonProps> = ({
   onClick,
   disabled = false,
   title = "Duplicar",
@@ -90,11 +94,13 @@ export const CopyButton: React.FC<ActionButtonProps> = ({
   </Button>
 );
 
+export const CopyButton = memo(CopyButtonInternal);
+
 /**
  * Delete Button - Removes/deletes an item
  * Red background for destructive actions
  */
-export const DeleteButton: React.FC<ActionButtonProps> = ({
+const DeleteButtonInternal: React.FC<ActionButtonProps> = ({
   onClick,
   disabled = false,
   title = "Eliminar",
@@ -112,6 +118,8 @@ export const DeleteButton: React.FC<ActionButtonProps> = ({
   </Button>
 );
 
+export const DeleteButton = memo(DeleteButtonInternal);
+
 /**
  * Notas Button - Opens notes popup
  * Wrapper around SimpleNotasPopover for consistency
@@ -124,7 +132,7 @@ interface NotasButtonProps {
   className?: string;
 }
 
-export const NotasButton: React.FC<NotasButtonProps> = ({
+const NotasButtonInternal: React.FC<NotasButtonProps> = ({
   value,
   onSave,
   disabled = false,
@@ -142,11 +150,13 @@ export const NotasButton: React.FC<NotasButtonProps> = ({
   />
 );
 
+export const NotasButton = memo(NotasButtonInternal);
+
 /**
  * Add Button (Icon Only) - Adds a new item
  * Yellow background, icon-only (no text for table inline adds)
  */
-export const AddIconButton: React.FC<ActionButtonProps> = ({
+const AddIconButtonInternal: React.FC<ActionButtonProps> = ({
   onClick,
   disabled = false,
   title = "Adicionar",
@@ -164,6 +174,8 @@ export const AddIconButton: React.FC<ActionButtonProps> = ({
   </Button>
 );
 
+export const AddIconButton = memo(AddIconButtonInternal);
+
 /**
  * Add Button (With Text) - Adds a new section item
  * Yellow background, with text label (for section headers)
@@ -176,7 +188,7 @@ interface AddButtonWithTextProps
   size?: "default" | "sm" | "lg" | "icon";
 }
 
-export const AddButton: React.FC<AddButtonWithTextProps> = ({
+const AddButtonInternal: React.FC<AddButtonWithTextProps> = ({
   onClick,
   disabled = false,
   children,
@@ -195,6 +207,8 @@ export const AddButton: React.FC<AddButtonWithTextProps> = ({
   </Button>
 );
 
+export const AddButton = memo(AddButtonInternal);
+
 /**
  * Action Column Wrapper - Standardized table action column
  * Ensures consistent spacing, alignment, and button grouping
@@ -210,7 +224,7 @@ interface ActionColumnProps {
   className?: string;
 }
 
-export const ActionColumn: React.FC<ActionColumnProps> = ({
+const ActionColumnInternal: React.FC<ActionColumnProps> = ({
   children,
   width = "w-[140px]",
   className = "",
@@ -219,3 +233,5 @@ export const ActionColumn: React.FC<ActionColumnProps> = ({
     {children}
   </TableCell>
 );
+
+export const ActionColumn = memo(ActionColumnInternal);

@@ -368,19 +368,19 @@ export default function MaquinasPage() {
             <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sticky top-0 z-10 min-w-[300px] border-b text-center uppercase">
+                  <TableHead className="sticky top-0 z-10 min-w-[300px] imx-border-b text-center uppercase">
                     Nome da Máquina
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[120px] border-b text-center uppercase">
+                  <TableHead className="sticky top-0 z-10 w-[120px] imx-border-b text-center uppercase">
                     Tipo
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[80px] border-b text-center uppercase">
+                  <TableHead className="sticky top-0 z-10 w-[80px] imx-border-b text-center uppercase">
                     Ativa
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[150px] border-b text-center uppercase">
+                  <TableHead className="sticky top-0 z-10 w-[150px] imx-border-b text-center uppercase">
                     Valor/m²
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[140px] border-b text-center uppercase">
+                  <TableHead className="sticky top-0 z-10 w-[140px] imx-border-b text-center uppercase">
                     Ações
                   </TableHead>
                 </TableRow>
@@ -419,7 +419,7 @@ export default function MaquinasPage() {
                                 nome_maquina: e.target.value,
                               }))
                             }
-                            className="h-10 border-0 text-sm outline-0 focus:border-0 focus:ring-0"
+                            className="h-10 text-sm outline-0 focus:ring-0"
                             autoFocus
                             required
                             disabled={submitting}
@@ -469,7 +469,7 @@ export default function MaquinasPage() {
                                 valor_m2: e.target.value,
                               }))
                             }
-                            className="h-10 border-0 text-right text-sm outline-0 focus:border-0 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="h-10 text-right text-sm outline-0 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             type="number"
                             step="0.01"
                             min="0"
@@ -531,7 +531,7 @@ export default function MaquinasPage() {
                                   nome_maquina: e.target.value,
                                 }))
                               }
-                              className="h-10 border-0 text-sm outline-0 focus:border-0 focus:ring-0"
+                              className="h-10 text-sm outline-0 focus:ring-0"
                               autoFocus
                               required
                               disabled={submitting}
@@ -589,7 +589,7 @@ export default function MaquinasPage() {
                                   valor_m2: e.target.value,
                                 }))
                               }
-                              className="h-10 border-0 text-right text-sm outline-0 focus:border-0 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              className="h-10 text-right text-sm outline-0 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               type="number"
                               step="0.01"
                               min="0"

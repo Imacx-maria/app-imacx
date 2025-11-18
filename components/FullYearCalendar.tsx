@@ -1,5 +1,5 @@
 'use client'
-import React, { useRef } from 'react'
+import React, { useRef, memo } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import { useAccessibilityFixes } from '@/utils/accessibility'
 
@@ -15,7 +15,7 @@ interface FullYearCalendarProps {
   onSelect?: (date: Date) => void
 }
 
-export const FullYearCalendar: React.FC<FullYearCalendarProps> = ({
+const FullYearCalendarInternal: React.FC<FullYearCalendarProps> = ({
   holidays = [],
   year = new Date().getFullYear(),
   onSelect,
@@ -60,3 +60,5 @@ export const FullYearCalendar: React.FC<FullYearCalendarProps> = ({
     </div>
   )
 }
+
+export const FullYearCalendar = memo(FullYearCalendarInternal)

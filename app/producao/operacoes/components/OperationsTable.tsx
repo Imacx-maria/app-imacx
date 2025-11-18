@@ -318,9 +318,9 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({
   }
 
   return (
-    <div className="border border-border bg-background shadow">
+    <div className="imx-border  bg-background shadow">
       <div className="overflow-x-auto">
-        <Table className="w-full table-fixed border-0 uppercase [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+        <Table className="w-full table-fixed uppercase [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
           <TableHeader className="bg-[var(--orange)]">
             <TableRow>
               <TableHead

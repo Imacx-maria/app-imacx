@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, memo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -27,6 +27,7 @@ import {
   LogOut,
   User,
   Loader2,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -134,10 +135,10 @@ const menuItems: MenuItem[] = [
         pageId: "gestao/faturacao",
       },
       {
-        title: "Análises",
-        href: "/gestao/analytics",
-        icon: <LayoutDashboard className="h-4 w-4" />,
-        pageId: "gestao/analytics",
+        title: "Análise Financeira",
+        href: "/gestao/analise-financeira",
+        icon: <TrendingUp className="h-4 w-4" />,
+        pageId: "gestao/analise-financeira",
       },
     ],
   },
@@ -192,7 +193,17 @@ const menuItems: MenuItem[] = [
   },
 ];
 
-export function Navigation() {
+const SidebarSpinner = () => (
+  <svg
+    className="imx-spinner h-5 w-5 animate-spin"
+    viewBox="0 0 24 24"
+    role="presentation"
+  >
+    <circle cx="12" cy="12" r="9" strokeDasharray="60" strokeDashoffset="20" />
+  </svg>
+);
+
+const NavigationInternal = () => {
   const navRef = useRef<HTMLDivElement | null>(null);
   const pathname = usePathname();
   const router = useRouter();
@@ -203,6 +214,7 @@ export function Navigation() {
   const [openSubmenus, setOpenSubmenus] = useState<string[]>([]);
   const [user, setUser] = useState<any>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [wasManuallyCollapsed, setWasManuallyCollapsed] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -241,6 +253,7 @@ export function Navigation() {
       if (container && target && !container.contains(target)) {
         setIsCollapsed(true);
         setOpenSubmenus([]);
+        setWasManuallyCollapsed(true);
       }
     };
 
@@ -251,6 +264,33 @@ export function Navigation() {
       document.removeEventListener("touchstart", handlePointerDown);
     };
   }, [isCollapsed]);
+
+  // Close drawer on mouse leave
+  useEffect(() => {
+    const container = navRef.current;
+    if (!container) return;
+
+    const handleMouseLeave = () => {
+      // Only auto-close if it wasn't manually toggled (via collapse button)
+      if (!wasManuallyCollapsed) {
+        setIsCollapsed(true);
+        setOpenSubmenus([]);
+      }
+    };
+
+    const handleMouseEnter = () => {
+      // Reset flag when entering the sidebar
+      setWasManuallyCollapsed(false);
+    };
+
+    container.addEventListener("mouseleave", handleMouseLeave);
+    container.addEventListener("mouseenter", handleMouseEnter);
+
+    return () => {
+      container.removeEventListener("mouseleave", handleMouseLeave);
+      container.removeEventListener("mouseenter", handleMouseEnter);
+    };
+  }, [wasManuallyCollapsed]);
 
   const toggleSubmenu = (title: string) => {
     setOpenSubmenus(
@@ -365,7 +405,7 @@ export function Navigation() {
   // Prevent hydration mismatch by not rendering until mounted
   if (!mounted) {
     return (
-      <div className="flex h-screen w-64 flex-col border-r border-border bg-background">
+      <div className="flex h-screen w-64 flex-col imx-border-r  bg-background">
         <div className="p-4">Loading...</div>
       </div>
     );
@@ -375,7 +415,7 @@ export function Navigation() {
     <div
       ref={navRef}
       className={cn(
-        "flex h-screen flex-col border-r border-border bg-background text-foreground transition-all duration-300",
+        "flex h-screen flex-col imx-border-r  bg-background text-foreground transition-all duration-300",
         "flex-shrink-0", // Prevent sidebar from shrinking
         "relative z-10", // Ensure sidebar is above other content
         isCollapsed ? "w-16" : "w-64",
@@ -413,10 +453,10 @@ export function Navigation() {
         {permissionsLoading ? (
           <div className="flex items-center justify-center py-8">
             {isCollapsed ? (
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <SidebarSpinner />
             ) : (
               <div className="flex flex-col items-center gap-2">
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <SidebarSpinner />
                 <span className="text-xs text-muted-foreground">
                   A carregar...
                 </span>
@@ -728,4 +768,6 @@ export function Navigation() {
       </div>
     </div>
   );
-}
+};
+
+export const Navigation = memo(NavigationInternal);

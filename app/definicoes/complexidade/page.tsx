@@ -1,10 +1,10 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useCallback } from 'react'
-import { createBrowserClient } from '@/utils/supabase'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { useState, useEffect, useCallback } from "react";
+import { createBrowserClient } from "@/utils/supabase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -12,155 +12,155 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
+} from "@/components/ui/table";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { Plus, Trash2, X, Loader2, Edit, RotateCw } from 'lucide-react'
-import PermissionGuard from '@/components/PermissionGuard'
-import { useDebounce } from '@/hooks/useDebounce'
+} from "@/components/ui/tooltip";
+import { Plus, Trash2, X, Loader2, Edit, RotateCw } from "lucide-react";
+import PermissionGuard from "@/components/PermissionGuard";
+import { useDebounce } from "@/hooks/useDebounce";
 
 interface Complexidade {
-  id: string
-  grau: string
-  created_at: string
-  updated_at: string
+  id: string;
+  grau: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export default function ComplexidadePage() {
-  const [complexidades, setComplexidades] = useState<Complexidade[]>([])
-  const [loading, setLoading] = useState(true)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editValue, setEditValue] = useState('')
-  const [grauFilter, setGrauFilter] = useState('')
-  const [submitting, setSubmitting] = useState(false)
+  const [complexidades, setComplexidades] = useState<Complexidade[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [grauFilter, setGrauFilter] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   // Debounced filter values for performance
-  const [debouncedGrauFilter, setDebouncedGrauFilter] = useState(grauFilter)
+  const [debouncedGrauFilter, setDebouncedGrauFilter] = useState(grauFilter);
 
   // Update debounced value with delay
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedGrauFilter(grauFilter)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [grauFilter])
+      setDebouncedGrauFilter(grauFilter);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [grauFilter]);
 
-  const supabase = createBrowserClient()
+  const supabase = createBrowserClient();
 
   // Convert to database-level filtering
   const fetchComplexidades = useCallback(
     async (filters: { grauFilter?: string } = {}) => {
-      setLoading(true)
+      setLoading(true);
       try {
-        let query = supabase.from('complexidade').select('*')
+        let query = supabase.from("complexidade").select("*");
 
         // Apply filters at database level
         if (filters.grauFilter?.trim?.()) {
-          query = query.ilike('grau', `%${filters.grauFilter.trim()}%`)
+          query = query.ilike("grau", `%${filters.grauFilter.trim()}%`);
         }
 
-        const { data, error } = await query.order('grau', { ascending: true })
+        const { data, error } = await query.order("grau", { ascending: true });
 
         if (!error && data) {
-          setComplexidades(data)
+          setComplexidades(data);
         }
       } catch (error) {
-        console.error('Error fetching complexidades:', error)
+        console.error("Error fetching complexidades:", error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     },
     [supabase],
-  )
+  );
 
   // Initial load
   useEffect(() => {
-    fetchComplexidades()
-  }, [fetchComplexidades])
+    fetchComplexidades();
+  }, [fetchComplexidades]);
 
   // Trigger search when filter changes
   useEffect(() => {
-    fetchComplexidades({ grauFilter: debouncedGrauFilter })
-  }, [debouncedGrauFilter, fetchComplexidades])
+    fetchComplexidades({ grauFilter: debouncedGrauFilter });
+  }, [debouncedGrauFilter, fetchComplexidades]);
 
   // Remove client-side filtering - now using database-level filtering
-  const filteredComplexidades = complexidades
+  const filteredComplexidades = complexidades;
 
   const handleAddNew = async () => {
-    const newGrau = prompt('Digite o novo grau de complexidade:')
-    if (!newGrau?.trim()) return
+    const newGrau = prompt("Digite o novo grau de complexidade:");
+    if (!newGrau?.trim()) return;
 
-    setSubmitting(true)
+    setSubmitting(true);
     try {
       const { data, error } = await supabase
-        .from('complexidade')
+        .from("complexidade")
         .insert({
           grau: newGrau.trim(),
         })
-        .select('*')
+        .select("*");
 
       if (!error && data && data[0]) {
-        setComplexidades((prev) => [...prev, data[0]])
+        setComplexidades((prev) => [...prev, data[0]]);
       }
     } catch (error) {
-      console.error('Error creating complexidade:', error)
+      console.error("Error creating complexidade:", error);
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este nível de complexidade?'))
-      return
+    if (!confirm("Tem certeza que deseja excluir este nível de complexidade?"))
+      return;
 
     try {
       const { error } = await supabase
-        .from('complexidade')
+        .from("complexidade")
         .delete()
-        .eq('id', id)
+        .eq("id", id);
 
       if (!error) {
-        setComplexidades((prev) => prev.filter((c) => c.id !== id))
+        setComplexidades((prev) => prev.filter((c) => c.id !== id));
       }
     } catch (error) {
-      console.error('Error deleting complexidade:', error)
+      console.error("Error deleting complexidade:", error);
     }
-  }
+  };
 
   const handleSave = async () => {
-    if (!editValue.trim() || !editingId) return
+    if (!editValue.trim() || !editingId) return;
 
-    setSubmitting(true)
+    setSubmitting(true);
     try {
       const { error } = await supabase
-        .from('complexidade')
+        .from("complexidade")
         .update({ grau: editValue.trim() })
-        .eq('id', editingId)
+        .eq("id", editingId);
 
       if (!error) {
         setComplexidades((prev) =>
           prev.map((c) =>
             c.id === editingId ? { ...c, grau: editValue.trim() } : c,
           ),
-        )
+        );
       }
     } catch (error) {
-      console.error('Error updating:', error)
+      console.error("Error updating:", error);
     } finally {
-      setSubmitting(false)
-      setEditingId(null)
-      setEditValue('')
+      setSubmitting(false);
+      setEditingId(null);
+      setEditValue("");
     }
-  }
+  };
 
   const handleCancel = () => {
-    setEditingId(null)
-    setEditValue('')
-  }
+    setEditingId(null);
+    setEditValue("");
+  };
 
   return (
     <PermissionGuard>
@@ -185,11 +185,7 @@ export default function ComplexidadePage() {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    onClick={handleAddNew}
-                    variant="default"
-                    size="icon"
-                  >
+                  <Button onClick={handleAddNew} variant="default" size="icon">
                     <Plus className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
@@ -213,7 +209,7 @@ export default function ComplexidadePage() {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => setGrauFilter('')}
+                  onClick={() => setGrauFilter("")}
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -245,10 +241,10 @@ export default function ComplexidadePage() {
             <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sticky top-0 z-10 border-b text-center uppercase">
+                  <TableHead className="sticky top-0 z-10 imx-border-b text-center uppercase">
                     Grau de Complexidade
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[140px] border-b text-center uppercase">
+                  <TableHead className="sticky top-0 z-10 w-[140px] imx-border-b text-center uppercase">
                     Ações
                   </TableHead>
                 </TableRow>
@@ -279,13 +275,13 @@ export default function ComplexidadePage() {
                               value={editValue}
                               onChange={(e) => setEditValue(e.target.value)}
                               onKeyDown={(e) => {
-                                if (e.key === 'Enter' && editValue.trim()) {
-                                  handleSave()
-                                } else if (e.key === 'Escape') {
-                                  handleCancel()
+                                if (e.key === "Enter" && editValue.trim()) {
+                                  handleSave();
+                                } else if (e.key === "Escape") {
+                                  handleCancel();
                                 }
                               }}
-                              className="h-10 flex-1 border-0 text-sm outline-0 focus:border-0 focus:ring-0"
+                              className="h-10 flex-1 text-sm outline-0 focus:ring-0"
                               autoFocus
                             />
                             <div className="flex gap-1">
@@ -332,8 +328,8 @@ export default function ComplexidadePage() {
                                 variant="default"
                                 size="icon"
                                 onClick={() => {
-                                  setEditingId(complexidade.id)
-                                  setEditValue(complexidade.grau)
+                                  setEditingId(complexidade.id);
+                                  setEditValue(complexidade.grau);
                                 }}
                                 disabled={editingId !== null}
                               >
@@ -368,5 +364,5 @@ export default function ComplexidadePage() {
         </div>
       </div>
     </PermissionGuard>
-  )
+  );
 }

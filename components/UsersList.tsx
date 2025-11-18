@@ -173,7 +173,7 @@ export default function UsersList({
       <div className="bg-background w-full">
         <div className="w-full overflow-x-auto">
           <Table className="w-full imx-table-compact">
-            <TableHeader className="sticky top-0 z-10 border-b text-center uppercase">
+            <TableHeader className="sticky top-0 z-10 imx-border-b text-center uppercase">
               <TableRow>
                 <TableHead
                   className="text-center cursor-pointer hover:bg-accent transition-colors select-none"
@@ -211,7 +211,7 @@ export default function UsersList({
                     <div className="flex items-center gap-2">
                       {user.has_profile === false && (
                         <AlertTriangle
-                          className="h-4 w-4 text-yellow-600"
+                          className="h-4 w-4 text-warning"
                           aria-label="Perfil não criado"
                         />
                       )}
@@ -222,7 +222,7 @@ export default function UsersList({
                   <TableCell>{user.email || "-"}</TableCell>
                   <TableCell>
                     {user.has_profile === false ? (
-                      <span className="text-yellow-600 font-semibold">
+                      <span className="text-warning font-semibold">
                         ⚠️ PRECISA CONFIGURAÇÃO
                       </span>
                     ) : (

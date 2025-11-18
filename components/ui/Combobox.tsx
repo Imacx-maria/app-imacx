@@ -117,7 +117,7 @@ const Combobox: React.FC<ComboboxProps> = ({
               aria-describedby={errorId}
               className={cn(
                 "w-full justify-between",
-                error ? "border-destructive" : "",
+                error ? "" : "",
                 buttonClassName,
               )}
               disabled={disabled || loading}
@@ -129,7 +129,7 @@ const Combobox: React.FC<ComboboxProps> = ({
             </Button>
           </PopoverTrigger>
           <PopoverContent
-            className="max-h-[300px] w-full p-0 !border !border-border overflow-hidden"
+            className="imx-border max-h-[300px] w-full overflow-hidden p-0"
             align="start"
             side="bottom"
             sideOffset={4}

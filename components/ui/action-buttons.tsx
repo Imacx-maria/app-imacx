@@ -22,7 +22,7 @@ export const DeleteButton = React.forwardRef<
       className={cn(
         "flex h-8 w-8 items-center justify-center",
         "bg-destructive text-destructive-foreground",
-        "border border-border",
+        "imx-border ",
         "hover:bg-destructive/90",
         "disabled:opacity-50 disabled:cursor-not-allowed",
         "transition-colors",
@@ -49,7 +49,7 @@ export const EditButton = React.forwardRef<
       className={cn(
         "flex h-8 w-8 items-center justify-center",
         "bg-accent text-accent-foreground",
-        "border border-border",
+        "imx-border ",
         "hover:bg-accent/80",
         "disabled:opacity-50 disabled:cursor-not-allowed",
         "transition-colors",
@@ -76,7 +76,7 @@ export const ViewButton = React.forwardRef<
       className={cn(
         "flex h-8 w-8 items-center justify-center",
         "bg-primary text-primary-foreground",
-        "border border-border",
+        "imx-border ",
         "hover:bg-primary/90",
         "disabled:opacity-50 disabled:cursor-not-allowed",
         "transition-colors",
@@ -100,11 +100,11 @@ export const TextButton = React.forwardRef<HTMLButtonElement, TextButtonProps>(
   ({ variant = "default", className, children, ...props }, ref) => {
     const variantStyles = {
       delete:
-        "bg-destructive text-destructive-foreground border border-border hover:bg-destructive/90",
-      edit: "bg-accent text-accent-foreground border border-border hover:bg-accent/80",
-      view: "bg-primary text-primary-foreground border border-border hover:bg-primary/90",
+        "bg-destructive text-destructive-foreground imx-border  hover:bg-destructive/90",
+      edit: "bg-accent text-accent-foreground imx-border  hover:bg-accent/80",
+      view: "bg-primary text-primary-foreground imx-border  hover:bg-primary/90",
       default:
-        "bg-background text-foreground border border-border hover:bg-accent hover:text-accent-foreground",
+        "bg-background text-foreground imx-border  hover:bg-accent hover:text-accent-foreground",
     };
 
     return (

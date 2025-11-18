@@ -40,7 +40,7 @@ export default function DatePicker({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="calendar-popover w-auto p-4 m-3 border border-border bg-background shadow-md"
+        className="calendar-popover w-auto p-4 m-3 imx-border  bg-background shadow-md"
         align="start"
       >
         <Calendar
