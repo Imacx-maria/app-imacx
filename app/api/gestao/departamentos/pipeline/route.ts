@@ -97,6 +97,7 @@ export async function GET(request: Request) {
         total_value: row.quote_value,
         status: row.quote_status, // FIXED: was row.status
         dias_decorridos: row.quote_days_open, // FIXED: was row.days_open
+        is_dismissed: row.is_dismissed || false,
         departamento,
       }));
 
@@ -109,6 +110,7 @@ export async function GET(request: Request) {
         total_value: row.quote_value,
         status: row.quote_status, // FIXED: was row.status
         dias_decorridos: row.quote_days_open, // FIXED: was row.days_open
+        is_dismissed: row.is_dismissed || false,
         departamento,
       }));
 
@@ -121,6 +123,7 @@ export async function GET(request: Request) {
         total_value: row.quote_value,
         status: row.quote_status, // FIXED: was row.status
         dias_decorridos: row.quote_days_open, // FIXED: was row.days_open
+        is_dismissed: row.is_dismissed || false,
         departamento,
       }));
 

@@ -59,7 +59,8 @@
       "Bash(if exist .next echo \"Build successful\")",
       "Bash(del \"supabase\\migrations\\20251112_add_valor_phc_to_folhas_obras.sql\")",
       "Bash(npm ls:*)",
-      "Bash(nul)"
+      "Bash(nul)",
+      "Bash(npm run lint)"
     ],
     "deny": [],
     "ask": []

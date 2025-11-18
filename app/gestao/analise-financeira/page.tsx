@@ -701,6 +701,7 @@ export default function AnaliseFinanceiraPage() {
     }
   }, [activeTab, mainTab, fetchAllData]);
 
+  // Handle dismiss/undismiss orcamento (toggle checkbox)
   const handleDismissOrcamento = useCallback(
     async (orcamentoNumber: string, currentState: boolean) => {
       const newState = !currentState;
@@ -727,10 +728,11 @@ export default function AnaliseFinanceiraPage() {
           throw new Error("Failed to update orcamento");
         }
 
+        // Refresh pipeline data after dismissing/undismissing
         await fetchAllData(activeTab, "departamentos");
-      } catch (error) {
-        console.error("Error updating orcamento:", error);
-        alert("Erro ao atualizar orçamento. Tente novamente.");
+      } catch (err) {
+        console.error("Error dismissing orcamento:", err);
+        alert("Falha ao atualizar o orçamento. Tenta novamente.");
       }
     },
     [activeTab, fetchAllData],
