@@ -70,6 +70,15 @@ import {
   PaletesFilters,
 } from "@/types/producao";
 import Combobox from "@/components/ui/Combobox";
+import {
+  useStockFilters,
+  usePaletesFilters,
+  useSorting,
+  useLoadingStates,
+} from "@/hooks/useStockFilters";
+import { useStocksUI } from "@/hooks/useStocksUI";
+import { usePaletesUI } from "@/hooks/usePaletesUI";
+import { useInlineEntries } from "@/hooks/useInlineEntries";
 // PERFORMANCE: Recharts is lazy loaded (300KB) - only loads when analytics tab is viewed
 import dynamic from "next/dynamic";
 const StockAnalyticsCharts = dynamic(
@@ -113,50 +122,18 @@ export default function StocksPage() {
     return [material].filter(Boolean).join(" - ");
   };
 
+  // Data fetching states (keep as-is)
   const [stocks, setStocks] = useState<StockEntryWithRelations[]>([]);
   const [currentStocks, setCurrentStocks] = useState<CurrentStock[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [currentStocksLoading, setCurrentStocksLoading] = useState(true);
   const [editingStock, setEditingStock] =
     useState<StockEntryWithRelations | null>(null);
-  const [activeTab, setActiveTab] = useState("entries");
-
   const [paletes, setPaletes] = useState<PaleteWithRelations[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [paletesLoading, setPaletesLoading] = useState(true);
-  const [editingPaleteId, setEditingPaleteId] = useState<string | null>(null);
-  const [paletesFilter, setPaletesFilter] = useState("");
-  const [paletesReferenciaFilter, setPaletesReferenciaFilter] = useState("");
 
-  const [paletesDateFrom, setPaletesDateFrom] = useState("");
-  const [paletesDateTo, setPaletesDateTo] = useState("");
-  const [paletesFornecedorFilter, setPaletesFornecedorFilter] =
-    useState("__all__");
-  const [paletesAuthorFilter, setPaletesAuthorFilter] = useState("__all__");
-
-  const [sortColumnPaletes, setSortColumnPaletes] =
-    useState<string>("no_palete");
-  const [sortDirectionPaletes, setSortDirectionPaletes] = useState<
-    "asc" | "desc"
-  >("asc");
-
-  const [showNewPaleteRow, setShowNewPaleteRow] = useState(false);
-  const [newPaleteData, setNewPaleteData] = useState({
-    no_palete: "",
-    fornecedor_id: "",
-    no_guia_forn: "",
-    ref_cartao: "",
-    qt_palete: "",
-    data: new Date().toISOString().split("T")[0],
-    author_id: "",
-  });
-  const [editingPaleteData, setEditingPaleteData] = useState<{
-    [key: string]: any;
-  }>({});
-  const [submittingPalete, setSubmittingPalete] = useState(false);
-
+  // UI/form states (keep as-is)
+  const [activeTab, setActiveTab] = useState("entries");
   const [formData, setFormData] = useState({
     material_id: "",
     material_referencia: "",
@@ -172,78 +149,23 @@ export default function StocksPage() {
     quantidade_palete: "",
     num_palettes: "",
   });
-  const [materialFilter, setMaterialFilter] = useState("");
-  const [referenciaFilter, setReferenciaFilter] = useState("");
-  const [currentStockFilter, setCurrentStockFilter] = useState("");
-  const [currentStockReferenciaFilter, setCurrentStockReferenciaFilter] =
-    useState("");
-
-  const [effectiveMaterialFilter, setEffectiveMaterialFilter] = useState("");
-  const [effectiveReferenciaFilter, setEffectiveReferenciaFilter] =
-    useState("");
-  const [effectiveCurrentStockFilter, setEffectiveCurrentStockFilter] =
-    useState("");
-  const [
-    effectiveCurrentStockReferenciaFilter,
-    setEffectiveCurrentStockReferenciaFilter,
-  ] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [editingMaterial, setEditingMaterial] = useState<string | null>(null);
 
-  const [sortColumnEntries, setSortColumnEntries] = useState<string>("data");
-  const [sortDirectionEntries, setSortDirectionEntries] = useState<
-    "asc" | "desc"
-  >("desc");
-
-  const [sortColumnCurrent, setSortColumnCurrent] =
-    useState<string>("material");
-  const [sortDirectionCurrent, setSortDirectionCurrent] = useState<
-    "asc" | "desc"
-  >("asc");
-
-  const [editingStockCorrectId, setEditingStockCorrectId] = useState<
-    string | null
-  >(null);
-  const [stockCorrectValue, setStockCorrectValue] = useState<string>("");
-
-  const [stockCorrectValueMap, setStockCorrectValueMap] = useState<{
-    [id: string]: string;
-  }>({});
-
-  const [stockMinimoValueMap, setStockMinimoValueMap] = useState<{
-    [id: string]: string;
-  }>({});
-  const [stockCriticoValueMap, setStockCriticoValueMap] = useState<{
-    [id: string]: string;
-  }>({});
-
-  // Inline input state management
-  const [showInlineInput, setShowInlineInput] = useState(false);
-  const [inlineEntries, setInlineEntries] = useState<
-    Array<{
-      id: string;
-      material_id: string;
-      material_name: string;
-      referencia: string;
-      fornecedor_id: string;
-      fornecedor_name: string;
-      quantidade: number;
-      no_guia_forn: string;
-      no_palete: string;
-      num_paletes: number;
-      size_x: number;
-      size_y: number;
-      preco_unitario: number;
-      valor_total: number;
-      isSaving: boolean;
-    }>
-  >([]);
-  const [isSavingBatch, setIsSavingBatch] = useState(false);
-  const [lastSavesSummary, setLastSavesSummary] = useState<{
-    count: number;
-    paletes: string[];
-    total: number;
-  } | null>(null);
+  // Custom hooks for consolidated state management
+  const {
+    loadingState,
+    setStocksLoading,
+    setCurrentStocksLoading,
+    setPaletesLoading,
+  } = useLoadingStates();
+  const { stocksFilters, updateStocksFilter, updateStocksFilters } =
+    useStockFilters();
+  const { paletesFilters, updatePaletesFilter, updatePaletesFilters } =
+    usePaletesFilters();
+  const { sorting, updateStocksSorting, updatePaletesSorting } = useSorting();
+  const stocksUI = useStocksUI();
+  const paletesUI = usePaletesUI();
+  const inlineEntries = useInlineEntries();
 
   const supabase = createBrowserClient();
 
@@ -291,7 +213,7 @@ export default function StocksPage() {
   }, []);
 
   const fetchStocks = useCallback(async () => {
-    setLoading(true);
+    setStocksLoading(true);
     try {
       const { data, error } = await supabase
         .from("stocks")
@@ -314,9 +236,9 @@ export default function StocksPage() {
     } catch (error) {
       console.error("Error fetching stocks:", error);
     } finally {
-      setLoading(false);
+      setStocksLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, setStocksLoading]);
 
   const fetchMaterials = useCallback(async () => {
     try {
@@ -529,12 +451,12 @@ export default function StocksPage() {
 
   const refreshPaletes = () => {
     const currentFilters = {
-      search: paletesFilter,
-      referencia: paletesReferenciaFilter,
-      fornecedor: paletesFornecedorFilter,
-      author: paletesAuthorFilter,
-      dateFrom: paletesDateFrom,
-      dateTo: paletesDateTo,
+      search: paletesFilters.search,
+      referencia: paletesFilters.referencia,
+      fornecedor: paletesFilters.fornecedor,
+      author: paletesFilters.author,
+      dateFrom: paletesFilters.dateFrom,
+      dateTo: paletesFilters.dateTo,
     };
     fetchPaletes(currentFilters);
   };
@@ -582,21 +504,21 @@ export default function StocksPage() {
 
   useEffect(() => {
     const filters = {
-      search: paletesFilter,
-      referencia: paletesReferenciaFilter,
-      fornecedor: paletesFornecedorFilter,
-      author: paletesAuthorFilter,
-      dateFrom: paletesDateFrom,
-      dateTo: paletesDateTo,
+      search: paletesFilters.search,
+      referencia: paletesFilters.referencia,
+      fornecedor: paletesFilters.fornecedor,
+      author: paletesFilters.author,
+      dateFrom: paletesFilters.dateFrom,
+      dateTo: paletesFilters.dateTo,
     };
     fetchPaletes(filters);
   }, [
-    paletesFilter,
-    paletesReferenciaFilter,
-    paletesFornecedorFilter,
-    paletesAuthorFilter,
-    paletesDateFrom,
-    paletesDateTo,
+    paletesFilters.search,
+    paletesFilters.referencia,
+    paletesFilters.fornecedor,
+    paletesFilters.author,
+    paletesFilters.dateFrom,
+    paletesFilters.dateTo,
     fetchPaletes,
   ]);
 
@@ -611,7 +533,7 @@ export default function StocksPage() {
   }, [fetchMaterials]);
 
   const updateEntry = (index: number, field: string, value: any) => {
-    const updatedEntries = [...inlineEntries];
+    const updatedEntries = [...inlineEntries.state.entries];
     updatedEntries[index] = {
       ...updatedEntries[index],
       [field]: value,
@@ -623,12 +545,12 @@ export default function StocksPage() {
       updatedEntries[index].valor_total = value * preco;
     }
 
-    setInlineEntries(updatedEntries);
+    inlineEntries.setEntries(updatedEntries);
   };
 
   const addNewRow = useCallback(() => {
-    setInlineEntries((prev) => [
-      ...prev,
+    inlineEntries.setEntries([
+      ...inlineEntries.state.entries,
       {
         id: crypto.randomUUID(),
         material_id: "",
@@ -647,12 +569,13 @@ export default function StocksPage() {
         isSaving: false,
       },
     ]);
-  }, []);
+  }, [inlineEntries]);
 
   const removeEntry = (index: number) => {
-    setInlineEntries(inlineEntries.filter((_, i) => i !== index));
-    if (inlineEntries.length === 1) {
-      setShowInlineInput(false);
+    const entryToRemove = inlineEntries.state.entries[index];
+    inlineEntries.removeEntry(entryToRemove.id);
+    if (inlineEntries.state.entries.length === 1) {
+      inlineEntries.setIsVisible(false);
     }
   };
 
@@ -660,14 +583,14 @@ export default function StocksPage() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ctrl+N: Add new row
-      if (e.ctrlKey && e.key === "n" && showInlineInput) {
+      if (e.ctrlKey && e.key === "n" && inlineEntries.state.isVisible) {
         e.preventDefault();
         addNewRow();
       }
       // Escape: Close inline input
-      if (e.key === "Escape" && showInlineInput) {
-        setShowInlineInput(false);
-        setLastSavesSummary(null);
+      if (e.key === "Escape" && inlineEntries.state.isVisible) {
+        inlineEntries.setIsVisible(false);
+        inlineEntries.setLastSavesSummary(null);
       }
     };
 
@@ -675,7 +598,7 @@ export default function StocksPage() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [showInlineInput, addNewRow]);
+  }, [inlineEntries.state.isVisible, addNewRow]);
 
   const getReferenciaByMaterialId = (materialId: string) => {
     const found = materials.find((m) => m.id === materialId);
@@ -689,11 +612,15 @@ export default function StocksPage() {
     const materialSearchText = `${materialName} ${materialCor}`.toLowerCase();
     const referenciaSearchText = referencia.toLowerCase();
 
-    const matchesMaterial = effectiveMaterialFilter
-      ? materialSearchText.includes(effectiveMaterialFilter.toLowerCase())
+    const matchesMaterial = stocksFilters.effectiveMaterialFilter
+      ? materialSearchText.includes(
+          stocksFilters.effectiveMaterialFilter.toLowerCase(),
+        )
       : true;
-    const matchesReferencia = effectiveReferenciaFilter
-      ? referenciaSearchText.includes(effectiveReferenciaFilter.toLowerCase())
+    const matchesReferencia = stocksFilters.effectiveReferenciaFilter
+      ? referenciaSearchText.includes(
+          stocksFilters.effectiveReferenciaFilter.toLowerCase(),
+        )
       : true;
 
     return matchesMaterial && matchesReferencia;
@@ -706,14 +633,17 @@ export default function StocksPage() {
     const materialSearchText = `${materialName} ${materialCor}`.toLowerCase();
     const referenciaSearchText = referencia.toLowerCase();
 
-    const matchesMaterial = effectiveCurrentStockFilter
-      ? materialSearchText.includes(effectiveCurrentStockFilter.toLowerCase())
-      : true;
-    const matchesReferencia = effectiveCurrentStockReferenciaFilter
-      ? referenciaSearchText.includes(
-          effectiveCurrentStockReferenciaFilter.toLowerCase(),
+    const matchesMaterial = stocksFilters.effectiveCurrentStockFilter
+      ? materialSearchText.includes(
+          stocksFilters.effectiveCurrentStockFilter.toLowerCase(),
         )
       : true;
+    const matchesReferencia =
+      stocksFilters.effectiveCurrentStockReferenciaFilter
+        ? referenciaSearchText.includes(
+            stocksFilters.effectiveCurrentStockReferenciaFilter.toLowerCase(),
+          )
+        : true;
 
     return matchesMaterial && matchesReferencia;
   });
@@ -721,29 +651,38 @@ export default function StocksPage() {
   const filteredPaletes = paletes;
 
   const handleSortEntries = (column: string) => {
-    if (sortColumnEntries === column) {
-      setSortDirectionEntries((prev) => (prev === "asc" ? "desc" : "asc"));
+    if (sorting.sortColumnEntries === column) {
+      updateStocksSorting(
+        "sortDirectionEntries",
+        sorting.sortDirectionEntries === "asc" ? "desc" : "asc",
+      );
     } else {
-      setSortColumnEntries(column);
-      setSortDirectionEntries("asc");
+      updateStocksSorting("sortColumnEntries", column);
+      updateStocksSorting("sortDirectionEntries", "asc");
     }
   };
 
   const handleSortCurrent = (column: string) => {
-    if (sortColumnCurrent === column) {
-      setSortDirectionCurrent((prev) => (prev === "asc" ? "desc" : "asc"));
+    if (sorting.sortColumnCurrent === column) {
+      updateStocksSorting(
+        "sortDirectionCurrent",
+        sorting.sortDirectionCurrent === "asc" ? "desc" : "asc",
+      );
     } else {
-      setSortColumnCurrent(column);
-      setSortDirectionCurrent("asc");
+      updateStocksSorting("sortColumnCurrent", column);
+      updateStocksSorting("sortDirectionCurrent", "asc");
     }
   };
 
   const handleSortPaletes = (column: string) => {
-    if (sortColumnPaletes === column) {
-      setSortDirectionPaletes((prev) => (prev === "asc" ? "desc" : "asc"));
+    if (sorting.sortColumnPaletes === column) {
+      updatePaletesSorting(
+        "sortDirectionPaletes",
+        sorting.sortDirectionPaletes === "asc" ? "desc" : "asc",
+      );
     } else {
-      setSortColumnPaletes(column);
-      setSortDirectionPaletes("asc");
+      updatePaletesSorting("sortColumnPaletes", column);
+      updatePaletesSorting("sortDirectionPaletes", "asc");
     }
   };
 
@@ -772,12 +711,14 @@ export default function StocksPage() {
           return "";
       }
     };
-    const aValue = getValue(a, sortColumnEntries);
-    const bValue = getValue(b, sortColumnEntries);
+    const aValue = getValue(a, sorting.sortColumnEntries);
+    const bValue = getValue(b, sorting.sortColumnEntries);
     if (typeof aValue === "number" && typeof bValue === "number") {
-      return sortDirectionEntries === "asc" ? aValue - bValue : bValue - aValue;
+      return sorting.sortDirectionEntries === "asc"
+        ? aValue - bValue
+        : bValue - aValue;
     }
-    return sortDirectionEntries === "asc"
+    return sorting.sortDirectionEntries === "asc"
       ? String(aValue).localeCompare(String(bValue))
       : String(bValue).localeCompare(String(aValue));
   });
@@ -829,12 +770,14 @@ export default function StocksPage() {
           return "";
       }
     };
-    const aValue = getValue(a, sortColumnCurrent);
-    const bValue = getValue(b, sortColumnCurrent);
+    const aValue = getValue(a, sorting.sortColumnCurrent);
+    const bValue = getValue(b, sorting.sortColumnCurrent);
     if (typeof aValue === "number" && typeof bValue === "number") {
-      return sortDirectionCurrent === "asc" ? aValue - bValue : bValue - aValue;
+      return sorting.sortDirectionCurrent === "asc"
+        ? aValue - bValue
+        : bValue - aValue;
     }
-    return sortDirectionCurrent === "asc"
+    return sorting.sortDirectionCurrent === "asc"
       ? String(aValue).localeCompare(String(bValue))
       : String(bValue).localeCompare(String(aValue));
   });
@@ -862,12 +805,14 @@ export default function StocksPage() {
           return "";
       }
     };
-    const aValue = getValue(a, sortColumnPaletes);
-    const bValue = getValue(b, sortColumnPaletes);
+    const aValue = getValue(a, sorting.sortColumnPaletes);
+    const bValue = getValue(b, sorting.sortColumnPaletes);
     if (typeof aValue === "number" && typeof bValue === "number") {
-      return sortDirectionPaletes === "asc" ? aValue - bValue : bValue - aValue;
+      return sorting.sortDirectionPaletes === "asc"
+        ? aValue - bValue
+        : bValue - aValue;
     }
-    return sortDirectionPaletes === "asc"
+    return sorting.sortDirectionPaletes === "asc"
       ? String(aValue).localeCompare(String(bValue))
       : String(bValue).localeCompare(String(aValue));
   });
@@ -1103,8 +1048,8 @@ export default function StocksPage() {
 
   // Inline input handlers
   const handleShowInlineInput = () => {
-    setShowInlineInput(true);
-    setInlineEntries([
+    inlineEntries.setIsVisible(true);
+    inlineEntries.setEntries([
       {
         id: crypto.randomUUID(),
         material_id: "",
@@ -1130,7 +1075,7 @@ export default function StocksPage() {
     referencia: string,
     material: any,
   ) => {
-    const updatedEntries = [...inlineEntries];
+    const updatedEntries = [...inlineEntries.state.entries];
     if (material) {
       updatedEntries[index] = {
         ...updatedEntries[index],
@@ -1148,11 +1093,11 @@ export default function StocksPage() {
         referencia: referencia,
       };
     }
-    setInlineEntries(updatedEntries);
+    inlineEntries.setEntries(updatedEntries);
   };
 
   const handleMaterialSelect = (index: number, material: any) => {
-    const updatedEntries = [...inlineEntries];
+    const updatedEntries = [...inlineEntries.state.entries];
     const fornecedor = fornecedores.find(
       (f) => f.id === material.fornecedor_id,
     );
@@ -1168,14 +1113,14 @@ export default function StocksPage() {
       preco_unitario: preco,
       valor_total: quantidade * preco,
     };
-    setInlineEntries(updatedEntries);
+    inlineEntries.setEntries(updatedEntries);
   };
 
   const handleSaveEntry = async (
     index: number,
     skipNotifications = false,
   ): Promise<{ paleteNumber: string; quantidade: number } | null> => {
-    const entry = inlineEntries[index];
+    const entry = inlineEntries.state.entries[index];
 
     // Mark as saving
     updateEntry(index, "isSaving", true);
@@ -1327,7 +1272,7 @@ export default function StocksPage() {
   };
 
   const handleSaveAll = async () => {
-    const validEntries = inlineEntries
+    const validEntries = inlineEntries.state.entries
       .map((entry, index) => ({ entry, index }))
       .filter(({ entry }) => entry.material_id && entry.quantidade > 0);
 
@@ -1336,7 +1281,7 @@ export default function StocksPage() {
       return;
     }
 
-    setIsSavingBatch(true);
+    inlineEntries.setIsSavingBatch(true);
     const savedPaletes: string[] = [];
     let totalQuantidade = 0;
 
@@ -1356,20 +1301,20 @@ export default function StocksPage() {
     await Promise.all([fetchStocks(), fetchPaletes()]);
 
     // Set summary
-    setLastSavesSummary({
+    inlineEntries.setLastSavesSummary({
       count: validEntries.length, // Number of stock entries
       paletes: savedPaletes, // All paletes created
       total: totalQuantidade,
     });
 
     // Clear entries and show summary
-    setInlineEntries([]);
-    setIsSavingBatch(false);
-    setShowInlineInput(false);
+    inlineEntries.setEntries([]);
+    inlineEntries.setIsSavingBatch(false);
+    inlineEntries.setIsVisible(false);
 
     // Auto-hide summary after 10 seconds
     setTimeout(() => {
-      setLastSavesSummary(null);
+      inlineEntries.setLastSavesSummary(null);
     }, 10000);
   };
 
@@ -1450,7 +1395,7 @@ export default function StocksPage() {
   };
 
   const handleSaveStockCorrect = async (materialId: string) => {
-    const value = stockCorrectValueMap[materialId];
+    const value = stocksUI.state.stockCorrectValueMap[materialId];
     const newValue = value && value.trim() !== "" ? parseFloat(value) : null;
     if (value && value.trim() !== "" && isNaN(newValue as number)) {
       alert("Valor inválido");
@@ -1464,10 +1409,7 @@ export default function StocksPage() {
           stock_correct_updated_at: new Date().toISOString(),
         })
         .eq("id", materialId);
-      setStockCorrectValueMap((prev) => ({
-        ...prev,
-        [materialId]: value ?? "",
-      }));
+      stocksUI.updateStockCorrectValueMap(materialId, value ?? "");
       fetchCurrentStocks();
     } catch (error) {
       alert("Erro ao guardar correção manual");
@@ -1475,7 +1417,7 @@ export default function StocksPage() {
   };
 
   const handleSaveStockMinimo = async (materialId: string) => {
-    const value = stockMinimoValueMap[materialId];
+    const value = stocksUI.state.stockMinimoValueMap[materialId];
     const newValue = value && value.trim() !== "" ? parseFloat(value) : null;
     if (value && value.trim() !== "" && isNaN(newValue as number)) {
       alert("Valor inválido");
@@ -1486,10 +1428,7 @@ export default function StocksPage() {
         .from("materiais")
         .update({ stock_minimo: newValue })
         .eq("id", materialId);
-      setStockMinimoValueMap((prev) => ({
-        ...prev,
-        [materialId]: value ?? "",
-      }));
+      stocksUI.updateStockMinimoValueMap(materialId, value ?? "");
       fetchCurrentStocks();
     } catch (error) {
       alert("Erro ao guardar stock mínimo");
@@ -1497,7 +1436,7 @@ export default function StocksPage() {
   };
 
   const handleSaveStockCritico = async (materialId: string) => {
-    const value = stockCriticoValueMap[materialId];
+    const value = stocksUI.state.stockCriticoValueMap[materialId];
     const newValue = value && value.trim() !== "" ? parseFloat(value) : null;
     if (value && value.trim() !== "" && isNaN(newValue as number)) {
       alert("Valor inválido");
@@ -1508,10 +1447,7 @@ export default function StocksPage() {
         .from("materiais")
         .update({ stock_critico: newValue })
         .eq("id", materialId);
-      setStockCriticoValueMap((prev) => ({
-        ...prev,
-        [materialId]: value ?? "",
-      }));
+      stocksUI.updateStockCriticoValueMap(materialId, value ?? "");
       fetchCurrentStocks();
     } catch (error) {
       alert("Erro ao guardar stock crítico");
@@ -1519,7 +1455,8 @@ export default function StocksPage() {
   };
 
   const handleApplyCorrection = async (materialId: string) => {
-    const correctionValue = stockCorrectValueMap[materialId] || "0";
+    const correctionValue =
+      stocksUI.state.stockCorrectValueMap[materialId] || "0";
     const correction = parseFloat(correctionValue);
 
     if (isNaN(correction) || correction === 0) {
@@ -1567,7 +1504,7 @@ export default function StocksPage() {
         return;
       }
 
-      setStockCorrectValueMap((prev) => ({ ...prev, [materialId]: "0" }));
+      stocksUI.updateStockCorrectValueMap(materialId, "0");
 
       await Promise.all([fetchStocks(), fetchCurrentStocks()]);
 
@@ -1819,12 +1756,16 @@ export default function StocksPage() {
   };
 
   const handleSaveNewPalete = async () => {
-    if (!newPaleteData.fornecedor_id || !newPaleteData.author_id) {
+    if (
+      !paletesUI.state.newPaleteData.fornecedor_id ||
+      !paletesUI.state.newPaleteData.author_id
+    ) {
       alert("Por favor, preencha todos os campos obrigatórios.");
       return;
     }
 
-    const paleteNumber = newPaleteData.no_palete || getNextPaleteNumber();
+    const paleteNumber =
+      paletesUI.state.newPaleteData.no_palete || getNextPaleteNumber();
     const isDuplicate = paletes.some(
       (p) => p.no_palete.toLowerCase() === paleteNumber.toLowerCase(),
     );
@@ -1835,23 +1776,27 @@ export default function StocksPage() {
       return;
     }
 
-    if (newPaleteData.qt_palete && parseInt(newPaleteData.qt_palete) <= 0) {
+    if (
+      paletesUI.state.newPaleteData.qt_palete &&
+      parseInt(paletesUI.state.newPaleteData.qt_palete) <= 0
+    ) {
       alert("Quantidade da palete deve ser maior que zero.");
       return;
     }
 
-    setSubmittingPalete(true);
+    paletesUI.setIsSubmitting(true);
     try {
       const paleteData = {
-        no_palete: newPaleteData.no_palete || getNextPaleteNumber(),
-        fornecedor_id: newPaleteData.fornecedor_id,
-        no_guia_forn: newPaleteData.no_guia_forn || null,
-        ref_cartao: newPaleteData.ref_cartao || null,
-        qt_palete: newPaleteData.qt_palete
-          ? parseInt(newPaleteData.qt_palete)
+        no_palete:
+          paletesUI.state.newPaleteData.no_palete || getNextPaleteNumber(),
+        fornecedor_id: paletesUI.state.newPaleteData.fornecedor_id,
+        no_guia_forn: paletesUI.state.newPaleteData.no_guia_forn || null,
+        ref_cartao: paletesUI.state.newPaleteData.ref_cartao || null,
+        qt_palete: paletesUI.state.newPaleteData.qt_palete
+          ? parseInt(paletesUI.state.newPaleteData.qt_palete)
           : null,
-        data: newPaleteData.data,
-        author_id: newPaleteData.author_id,
+        data: paletesUI.state.newPaleteData.data,
+        author_id: paletesUI.state.newPaleteData.author_id,
       };
 
       const { data, error } = await supabase.from("paletes").insert(paleteData)
@@ -1875,13 +1820,13 @@ export default function StocksPage() {
       console.error("Error saving palete:", error);
       alert(`Erro inesperado: ${error}`);
     } finally {
-      setSubmittingPalete(false);
+      paletesUI.setIsSubmitting(false);
     }
   };
 
   const handleCancelNewPalete = () => {
-    setShowNewPaleteRow(false);
-    setNewPaleteData({
+    paletesUI.setShowNewPaleteRow(false);
+    paletesUI.setNewPaleteData({
       no_palete: "",
       fornecedor_id: "",
       no_guia_forn: "",
@@ -1893,8 +1838,8 @@ export default function StocksPage() {
   };
 
   const handleEditPalete = (palete: PaleteWithRelations) => {
-    setEditingPaleteId(palete.id);
-    setEditingPaleteData({
+    paletesUI.setEditingPaleteId(palete.id);
+    paletesUI.setEditingPaleteData({
       [palete.id]: {
         no_palete: palete.no_palete,
         fornecedor_id: palete.fornecedor_id || "",
@@ -1908,7 +1853,7 @@ export default function StocksPage() {
   };
 
   const handleSaveEditPalete = async (paleteId: string) => {
-    const editData = editingPaleteData[paleteId];
+    const editData = paletesUI.state.editingPaleteData[paleteId];
     if (!editData) return;
 
     const paleteNumber = editData.no_palete;
@@ -1934,7 +1879,7 @@ export default function StocksPage() {
       return;
     }
 
-    setSubmittingPalete(true);
+    paletesUI.setIsSubmitting(true);
     try {
       const updateData = {
         no_palete: editData.no_palete,
@@ -1972,13 +1917,13 @@ export default function StocksPage() {
       console.error("Error updating palete:", error);
       alert(`Erro inesperado: ${error}`);
     } finally {
-      setSubmittingPalete(false);
+      paletesUI.setIsSubmitting(false);
     }
   };
 
   const handleCancelEditPalete = () => {
-    setEditingPaleteId(null);
-    setEditingPaleteData({});
+    paletesUI.setEditingPaleteId(null);
+    paletesUI.setEditingPaleteData({});
   };
 
   const handleDeletePalete = async (paleteId: string) => {
@@ -2145,7 +2090,7 @@ export default function StocksPage() {
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => setShowInlineInput(false)}
+            onClick={() => inlineEntries.setIsVisible(false)}
           >
             <X className="h-4 w-4" />
           </Button>
@@ -2154,7 +2099,7 @@ export default function StocksPage() {
       <CardContent className="p-0">
         <Table>
           <TableBody>
-            {inlineEntries.map((entry, index) => (
+            {inlineEntries.state.entries.map((entry, index) => (
               <React.Fragment key={entry.id}>
                 <TableRow>
                   <TableCell className="w-[140px]">
@@ -2297,17 +2242,10 @@ export default function StocksPage() {
                           // Calculate VL TOTAL = PREÇO UNIT × quantidade
                           const valorTotal = val * entry.quantidade;
                           // Update both values together
-                          setInlineEntries((prev) =>
-                            prev.map((ent, i) =>
-                              i === index
-                                ? {
-                                    ...ent,
-                                    preco_unitario: val,
-                                    valor_total: valorTotal,
-                                  }
-                                : ent,
-                            ),
-                          );
+                          inlineEntries.updateEntry(entry.id, {
+                            preco_unitario: val,
+                            valor_total: valorTotal,
+                          });
                         }
                       }}
                       onKeyDown={(e) => {
@@ -2344,17 +2282,10 @@ export default function StocksPage() {
                           // Calculate PREÇO UNIT = VL TOTAL / quantidade
                           const precoUnit = val / entry.quantidade;
                           // Update both values together
-                          setInlineEntries((prev) =>
-                            prev.map((ent, i) =>
-                              i === index
-                                ? {
-                                    ...ent,
-                                    valor_total: val,
-                                    preco_unitario: precoUnit,
-                                  }
-                                : ent,
-                            ),
-                          );
+                          inlineEntries.updateEntry(entry.id, {
+                            valor_total: val,
+                            preco_unitario: precoUnit,
+                          });
                         }
                       }}
                       onKeyDown={(e) => {
@@ -2382,7 +2313,7 @@ export default function StocksPage() {
                             fetchStocks();
                             fetchPaletes();
                             // Add new empty row if this was the last one
-                            if (inlineEntries.length === 1) {
+                            if (inlineEntries.state.entries.length === 1) {
                               addNewRow();
                             }
                           }
@@ -2516,13 +2447,13 @@ export default function StocksPage() {
               size="sm"
               onClick={handleSaveAll}
               disabled={
-                isSavingBatch ||
-                inlineEntries.filter((e) => e.material_id && e.quantidade > 0)
+                inlineEntries.state.isSavingBatch ||
+                inlineEntries.state.entries.filter((e) => e.material_id && e.quantidade > 0)
                   .length === 0
               }
               className="flex-1"
             >
-              {isSavingBatch ? (
+              {inlineEntries.state.isSavingBatch ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />A guardar...
                 </>
@@ -2531,7 +2462,7 @@ export default function StocksPage() {
                   <Check className="h-4 w-4 mr-2" />
                   Guardar Tudo (
                   {
-                    inlineEntries.filter(
+                    inlineEntries.state.entries.filter(
                       (e) => e.material_id && e.quantidade > 0,
                     ).length
                   }{" "}
@@ -2556,8 +2487,8 @@ export default function StocksPage() {
           <div className="flex items-center gap-2 flex-1">
             {activeTab === "palettes" ? (
               <Combobox
-                value={paletesFilter}
-                onChange={setPaletesFilter}
+                value={paletesFilters.search}
+                onChange={(value) => updatePaletesFilter("search", value)}
                 options={Array.from(
                   new Set(paletes.map((p) => p.no_palete).filter(Boolean)),
                 ).map((palete) => ({
@@ -2575,29 +2506,30 @@ export default function StocksPage() {
                   placeholder="Material"
                   value={
                     activeTab === "entries"
-                      ? materialFilter
-                      : currentStockFilter
+                      ? stocksFilters.materialFilter
+                      : stocksFilters.currentStockFilter
                   }
                   onChange={(e) => {
                     if (activeTab === "entries") {
-                      setMaterialFilter(e.target.value);
+                      updateStocksFilter("materialFilter", e.target.value);
                     } else {
-                      setCurrentStockFilter(e.target.value);
+                      updateStocksFilter("currentStockFilter", e.target.value);
                     }
                   }}
                   className="h-10 pr-10 rounded-none"
                 />
-                {((activeTab === "entries" && materialFilter) ||
-                  (activeTab === "current" && currentStockFilter)) && (
+                {((activeTab === "entries" && stocksFilters.materialFilter) ||
+                  (activeTab === "current" &&
+                    stocksFilters.currentStockFilter)) && (
                   <Button
                     variant="default"
                     size="icon"
                     className="absolute right-0 top-0 h-10 w-10"
                     onClick={() => {
                       if (activeTab === "entries") {
-                        setMaterialFilter("");
+                        updateStocksFilter("materialFilter", "");
                       } else {
-                        setCurrentStockFilter("");
+                        updateStocksFilter("currentStockFilter", "");
                       }
                     }}
                   >
@@ -2611,36 +2543,40 @@ export default function StocksPage() {
                 placeholder="Referência"
                 value={
                   activeTab === "entries"
-                    ? referenciaFilter
+                    ? stocksFilters.referenciaFilter
                     : activeTab === "current"
-                      ? currentStockReferenciaFilter
-                      : paletesReferenciaFilter
+                      ? stocksFilters.currentStockReferenciaFilter
+                      : paletesFilters.referencia
                 }
                 onChange={(e) => {
                   if (activeTab === "entries") {
-                    setReferenciaFilter(e.target.value);
+                    updateStocksFilter("referenciaFilter", e.target.value);
                   } else if (activeTab === "current") {
-                    setCurrentStockReferenciaFilter(e.target.value);
+                    updateStocksFilter(
+                      "currentStockReferenciaFilter",
+                      e.target.value,
+                    );
                   } else {
-                    setPaletesReferenciaFilter(e.target.value);
+                    updatePaletesFilter("referencia", e.target.value);
                   }
                 }}
                 className="h-10 pr-10 rounded-none"
               />
-              {((activeTab === "entries" && referenciaFilter) ||
-                (activeTab === "current" && currentStockReferenciaFilter) ||
-                (activeTab === "palettes" && paletesReferenciaFilter)) && (
+              {((activeTab === "entries" && stocksFilters.referenciaFilter) ||
+                (activeTab === "current" &&
+                  stocksFilters.currentStockReferenciaFilter) ||
+                (activeTab === "palettes" && paletesFilters.referencia)) && (
                 <Button
                   variant="default"
                   size="icon"
                   className="absolute right-0 top-0 h-10 w-10"
                   onClick={() => {
                     if (activeTab === "entries") {
-                      setReferenciaFilter("");
+                      updateStocksFilter("referenciaFilter", "");
                     } else if (activeTab === "current") {
-                      setCurrentStockReferenciaFilter("");
+                      updateStocksFilter("currentStockReferenciaFilter", "");
                     } else {
-                      setPaletesReferenciaFilter("");
+                      updatePaletesFilter("referencia", "");
                     }
                   }}
                 >
@@ -2655,16 +2591,18 @@ export default function StocksPage() {
                   <Input
                     type="date"
                     placeholder="DATA INÍCIO"
-                    value={paletesDateFrom}
-                    onChange={(e) => setPaletesDateFrom(e.target.value)}
+                    value={paletesFilters.dateFrom}
+                    onChange={(e) =>
+                      updatePaletesFilter("dateFrom", e.target.value)
+                    }
                     className="h-10 pr-10 rounded-none"
                   />
-                  {paletesDateFrom && (
+                  {paletesFilters.dateFrom && (
                     <Button
                       variant="default"
                       size="icon"
                       className="absolute right-0 top-0 h-10 w-10"
-                      onClick={() => setPaletesDateFrom("")}
+                      onClick={() => updatePaletesFilter("dateFrom", "")}
                     >
                       <XSquare className="h-4 w-4" />
                     </Button>
@@ -2674,24 +2612,28 @@ export default function StocksPage() {
                   <Input
                     type="date"
                     placeholder="DATA FIM"
-                    value={paletesDateTo}
-                    onChange={(e) => setPaletesDateTo(e.target.value)}
+                    value={paletesFilters.dateTo}
+                    onChange={(e) =>
+                      updatePaletesFilter("dateTo", e.target.value)
+                    }
                     className="h-10 pr-10 rounded-none"
                   />
-                  {paletesDateTo && (
+                  {paletesFilters.dateTo && (
                     <Button
                       variant="default"
                       size="icon"
                       className="absolute right-0 top-0 h-10 w-10"
-                      onClick={() => setPaletesDateTo("")}
+                      onClick={() => updatePaletesFilter("dateTo", "")}
                     >
                       <XSquare className="h-4 w-4" />
                     </Button>
                   )}
                 </div>
                 <Select
-                  value={paletesFornecedorFilter}
-                  onValueChange={setPaletesFornecedorFilter}
+                  value={paletesFilters.fornecedor}
+                  onValueChange={(value) =>
+                    updatePaletesFilter("fornecedor", value)
+                  }
                 >
                   <SelectTrigger className="h-10 w-[160px] rounded-none">
                     <UppercaseSelectValue placeholder="FORNECEDORES" />
@@ -2711,8 +2653,10 @@ export default function StocksPage() {
                   </SelectContent>
                 </Select>
                 <Select
-                  value={paletesAuthorFilter}
-                  onValueChange={setPaletesAuthorFilter}
+                  value={paletesFilters.author}
+                  onValueChange={(value) =>
+                    updatePaletesFilter("author", value)
+                  }
                 >
                   <SelectTrigger className="h-10 w-[140px] rounded-none">
                     <UppercaseSelectValue placeholder="AUTORES" />
@@ -2743,18 +2687,24 @@ export default function StocksPage() {
                     className="h-10 w-10"
                     onClick={() => {
                       if (activeTab === "entries") {
-                        setMaterialFilter("");
-                        setReferenciaFilter("");
+                        updateStocksFilters({
+                          materialFilter: "",
+                          referenciaFilter: "",
+                        });
                       } else if (activeTab === "current") {
-                        setCurrentStockFilter("");
-                        setCurrentStockReferenciaFilter("");
+                        updateStocksFilters({
+                          currentStockFilter: "",
+                          currentStockReferenciaFilter: "",
+                        });
                       } else {
-                        setPaletesFilter("");
-                        setPaletesReferenciaFilter("");
-                        setPaletesDateFrom("");
-                        setPaletesDateTo("");
-                        setPaletesFornecedorFilter("__all__");
-                        setPaletesAuthorFilter("__all__");
+                        updatePaletesFilters({
+                          search: "",
+                          referencia: "",
+                          dateFrom: "",
+                          dateTo: "",
+                          fornecedor: "__all__",
+                          author: "__all__",
+                        });
                       }
                     }}
                   >
@@ -2866,8 +2816,8 @@ export default function StocksPage() {
                         size="icon"
                         className="h-10 w-10"
                         onClick={() => {
-                          setShowNewPaleteRow(true);
-                          setNewPaleteData({
+                          paletesUI.setShowNewPaleteRow(true);
+                          paletesUI.setNewPaleteData({
                             no_palete: "",
                             fornecedor_id: "",
                             no_guia_forn: "",
@@ -2877,7 +2827,10 @@ export default function StocksPage() {
                             author_id: "",
                           });
                         }}
-                        disabled={showNewPaleteRow || editingPaleteId !== null}
+                        disabled={
+                          paletesUI.state.showNewPaleteRow ||
+                          paletesUI.state.editingPaleteId !== null
+                        }
                       >
                         <Plus className="h-4 w-4" />
                       </Button>
@@ -2900,7 +2853,7 @@ export default function StocksPage() {
 
           <TabsContent value="entries" className="space-y-4">
             {/* Success Summary */}
-            {lastSavesSummary && (
+            {inlineEntries.state.lastSavesSummary && (
               <Card className="mb-4  bg-success/15">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
@@ -2909,15 +2862,15 @@ export default function StocksPage() {
                         ✅ Entradas Criadas com Sucesso!
                       </h3>
                       <div className="text-sm text-success space-y-1">
-                        <p>• {lastSavesSummary.count} entradas de stock</p>
-                        <p>• Paletes: {lastSavesSummary.paletes.join(", ")}</p>
-                        <p>• Total: {lastSavesSummary.total} unidades</p>
+                        <p>• {inlineEntries.state.lastSavesSummary.count} entradas de stock</p>
+                        <p>• Paletes: {inlineEntries.state.lastSavesSummary.paletes.join(", ")}</p>
+                        <p>• Total: {inlineEntries.state.lastSavesSummary.total} unidades</p>
                       </div>
                     </div>
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => setLastSavesSummary(null)}
+                      onClick={() => inlineEntries.setLastSavesSummary(null)}
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -2928,7 +2881,7 @@ export default function StocksPage() {
 
             {/* Inline Stock Input */}
             <div className="mb-4">
-              {!showInlineInput ? (
+              {!inlineEntries.state.isVisible ? (
                 <Button
                   onClick={handleShowInlineInput}
                   className="w-full sm:w-auto"
@@ -2951,8 +2904,8 @@ export default function StocksPage() {
                         onClick={() => handleSortEntries("data")}
                       >
                         Data
-                        {sortColumnEntries === "data" &&
-                          (sortDirectionEntries === "asc" ? (
+                        {sorting.sortColumnEntries === "data" &&
+                          (sorting.sortDirectionEntries === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -2963,8 +2916,8 @@ export default function StocksPage() {
                         onClick={() => handleSortEntries("referencia")}
                       >
                         Referência
-                        {sortColumnEntries === "referencia" &&
-                          (sortDirectionEntries === "asc" ? (
+                        {sorting.sortColumnEntries === "referencia" &&
+                          (sorting.sortDirectionEntries === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -2975,8 +2928,8 @@ export default function StocksPage() {
                         onClick={() => handleSortEntries("material")}
                       >
                         Material
-                        {sortColumnEntries === "material" &&
-                          (sortDirectionEntries === "asc" ? (
+                        {sorting.sortColumnEntries === "material" &&
+                          (sorting.sortDirectionEntries === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -2987,8 +2940,8 @@ export default function StocksPage() {
                         onClick={() => handleSortEntries("fornecedor")}
                       >
                         Fornecedor
-                        {sortColumnEntries === "fornecedor" &&
-                          (sortDirectionEntries === "asc" ? (
+                        {sorting.sortColumnEntries === "fornecedor" &&
+                          (sorting.sortDirectionEntries === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -2999,8 +2952,8 @@ export default function StocksPage() {
                         onClick={() => handleSortEntries("quantidade")}
                       >
                         Quantidade
-                        {sortColumnEntries === "quantidade" &&
-                          (sortDirectionEntries === "asc" ? (
+                        {sorting.sortColumnEntries === "quantidade" &&
+                          (sorting.sortDirectionEntries === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -3011,8 +2964,8 @@ export default function StocksPage() {
                         onClick={() => handleSortEntries("vl_m2")}
                       >
                         VL_m2
-                        {sortColumnEntries === "vl_m2" &&
-                          (sortDirectionEntries === "asc" ? (
+                        {sorting.sortColumnEntries === "vl_m2" &&
+                          (sorting.sortDirectionEntries === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -3023,8 +2976,8 @@ export default function StocksPage() {
                         onClick={() => handleSortEntries("preco_unitario")}
                       >
                         Preço/Unidade
-                        {sortColumnEntries === "preco_unitario" &&
-                          (sortDirectionEntries === "asc" ? (
+                        {sorting.sortColumnEntries === "preco_unitario" &&
+                          (sorting.sortDirectionEntries === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -3035,8 +2988,8 @@ export default function StocksPage() {
                         onClick={() => handleSortEntries("valor_total")}
                       >
                         Valor Total
-                        {sortColumnEntries === "valor_total" &&
-                          (sortDirectionEntries === "asc" ? (
+                        {sorting.sortColumnEntries === "valor_total" &&
+                          (sorting.sortDirectionEntries === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -3047,8 +3000,8 @@ export default function StocksPage() {
                         onClick={() => handleSortEntries("n_palet")}
                       >
                         Palete
-                        {sortColumnEntries === "n_palet" &&
-                          (sortDirectionEntries === "asc" ? (
+                        {sorting.sortColumnEntries === "n_palet" &&
+                          (sorting.sortDirectionEntries === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -3397,8 +3350,8 @@ export default function StocksPage() {
                         onClick={() => handleSortCurrent("referencia")}
                       >
                         Referência
-                        {sortColumnCurrent === "referencia" &&
-                          (sortDirectionCurrent === "asc" ? (
+                        {sorting.sortColumnCurrent === "referencia" &&
+                          (sorting.sortDirectionCurrent === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -3409,8 +3362,8 @@ export default function StocksPage() {
                         onClick={() => handleSortCurrent("material")}
                       >
                         Material
-                        {sortColumnCurrent === "material" &&
-                          (sortDirectionCurrent === "asc" ? (
+                        {sorting.sortColumnCurrent === "material" &&
+                          (sorting.sortDirectionCurrent === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -3421,8 +3374,8 @@ export default function StocksPage() {
                         onClick={() => handleSortCurrent("total_recebido")}
                       >
                         Total Recebido
-                        {sortColumnCurrent === "total_recebido" &&
-                          (sortDirectionCurrent === "asc" ? (
+                        {sorting.sortColumnCurrent === "total_recebido" &&
+                          (sorting.sortDirectionCurrent === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -3433,8 +3386,8 @@ export default function StocksPage() {
                         onClick={() => handleSortCurrent("total_consumido")}
                       >
                         Total Consumido
-                        {sortColumnCurrent === "total_consumido" &&
-                          (sortDirectionCurrent === "asc" ? (
+                        {sorting.sortColumnCurrent === "total_consumido" &&
+                          (sorting.sortDirectionCurrent === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -3445,8 +3398,8 @@ export default function StocksPage() {
                         onClick={() => handleSortCurrent("stock_minimo")}
                       >
                         Mín (Amarelo)
-                        {sortColumnCurrent === "stock_minimo" &&
-                          (sortDirectionCurrent === "asc" ? (
+                        {sorting.sortColumnCurrent === "stock_minimo" &&
+                          (sorting.sortDirectionCurrent === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -3457,8 +3410,8 @@ export default function StocksPage() {
                         onClick={() => handleSortCurrent("stock_critico")}
                       >
                         Crítico (Vermelho)
-                        {sortColumnCurrent === "stock_critico" &&
-                          (sortDirectionCurrent === "asc" ? (
+                        {sorting.sortColumnCurrent === "stock_critico" &&
+                          (sorting.sortDirectionCurrent === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -3469,8 +3422,8 @@ export default function StocksPage() {
                         onClick={() => handleSortCurrent("stock_correct")}
                       >
                         CORREÇÃO MENSAL
-                        {sortColumnCurrent === "stock_correct" &&
-                          (sortDirectionCurrent === "asc" ? (
+                        {sorting.sortColumnCurrent === "stock_correct" &&
+                          (sorting.sortDirectionCurrent === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -3481,8 +3434,8 @@ export default function StocksPage() {
                         onClick={() => handleSortCurrent("stock_atual")}
                       >
                         STOCK FINAL
-                        {sortColumnCurrent === "stock_atual" &&
-                          (sortDirectionCurrent === "asc" ? (
+                        {sorting.sortColumnCurrent === "stock_atual" &&
+                          (sorting.sortDirectionCurrent === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -3521,17 +3474,17 @@ export default function StocksPage() {
                           <TableCell>
                             <Input
                               value={
-                                stockMinimoValueMap[stock.id] ??
+                                stocksUI.state.stockMinimoValueMap[stock.id] ??
                                 (stock.stock_minimo !== null &&
                                 stock.stock_minimo !== undefined
                                   ? stock.stock_minimo.toString()
                                   : "")
                               }
                               onChange={(e) =>
-                                setStockMinimoValueMap((prev) => ({
-                                  ...prev,
-                                  [stock.id]: e.target.value,
-                                }))
+                                stocksUI.updateStockMinimoValueMap(
+                                  stock.id,
+                                  e.target.value,
+                                )
                               }
                               onBlur={() => handleSaveStockMinimo(stock.id)}
                               type="number"
@@ -3542,17 +3495,17 @@ export default function StocksPage() {
                           <TableCell>
                             <Input
                               value={
-                                stockCriticoValueMap[stock.id] ??
+                                stocksUI.state.stockCriticoValueMap[stock.id] ??
                                 (stock.stock_critico !== null &&
                                 stock.stock_critico !== undefined
                                   ? stock.stock_critico.toString()
                                   : "")
                               }
                               onChange={(e) =>
-                                setStockCriticoValueMap((prev) => ({
-                                  ...prev,
-                                  [stock.id]: e.target.value,
-                                }))
+                                stocksUI.updateStockCriticoValueMap(
+                                  stock.id,
+                                  e.target.value,
+                                )
                               }
                               onBlur={() => handleSaveStockCritico(stock.id)}
                               type="number"
@@ -3563,17 +3516,17 @@ export default function StocksPage() {
                           <TableCell>
                             <Input
                               value={
-                                stockCorrectValueMap[stock.id] ??
+                                stocksUI.state.stockCorrectValueMap[stock.id] ??
                                 (stock.stock_correct !== null &&
                                 stock.stock_correct !== undefined
                                   ? stock.stock_correct.toString()
                                   : "")
                               }
                               onChange={(e) =>
-                                setStockCorrectValueMap((prev) => ({
-                                  ...prev,
-                                  [stock.id]: e.target.value,
-                                }))
+                                stocksUI.updateStockCorrectValueMap(
+                                  stock.id,
+                                  e.target.value,
+                                )
                               }
                               onBlur={() => handleSaveStockCorrect(stock.id)}
                               type="number"
@@ -3621,28 +3574,22 @@ export default function StocksPage() {
 
           <TabsContent value="palettes" className="space-y-4">
             <div className="w-full">
-              {showNewPaleteRow && (
+              {paletesUI.state.showNewPaleteRow && (
                 <div className="mb-4 imx-border p-4">
                   <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
                     <Input
                       placeholder="Nº Palete"
-                      value={newPaleteData.no_palete}
+                      value={paletesUI.state.newPaleteData.no_palete}
                       onChange={(e) =>
-                        setNewPaleteData((prev) => ({
-                          ...prev,
-                          no_palete: e.target.value,
-                        }))
+                        paletesUI.updateNewPaleteField('no_palete', e.target.value)
                       }
                       defaultValue={getNextPaleteNumber()}
                       className="h-10"
                     />
                     <Select
-                      value={newPaleteData.fornecedor_id}
+                      value={paletesUI.state.newPaleteData.fornecedor_id}
                       onValueChange={(value) =>
-                        setNewPaleteData((prev) => ({
-                          ...prev,
-                          fornecedor_id: value,
-                        }))
+                        paletesUI.updateNewPaleteField('fornecedor_id', value)
                       }
                     >
                       <SelectTrigger className="h-10">
@@ -3658,24 +3605,18 @@ export default function StocksPage() {
                     </Select>
                     <Input
                       placeholder="Nº Guia"
-                      value={newPaleteData.no_guia_forn}
+                      value={paletesUI.state.newPaleteData.no_guia_forn}
                       onChange={(e) =>
-                        setNewPaleteData((prev) => ({
-                          ...prev,
-                          no_guia_forn: e.target.value,
-                        }))
+                        paletesUI.updateNewPaleteField('no_guia_forn', e.target.value)
                       }
                       maxLength={20}
                       className="h-10"
                     />
                     <Input
                       placeholder="Ref. Cartão"
-                      value={newPaleteData.ref_cartao}
+                      value={paletesUI.state.newPaleteData.ref_cartao}
                       onChange={(e) =>
-                        setNewPaleteData((prev) => ({
-                          ...prev,
-                          ref_cartao: e.target.value,
-                        }))
+                        paletesUI.updateNewPaleteField('ref_cartao', e.target.value)
                       }
                       maxLength={30}
                       className="h-10"
@@ -3683,12 +3624,9 @@ export default function StocksPage() {
                     <Input
                       placeholder="Qt. Palete"
                       type="number"
-                      value={newPaleteData.qt_palete}
+                      value={paletesUI.state.newPaleteData.qt_palete}
                       onChange={(e) =>
-                        setNewPaleteData((prev) => ({
-                          ...prev,
-                          qt_palete: e.target.value,
-                        }))
+                        paletesUI.updateNewPaleteField('qt_palete', e.target.value)
                       }
                       maxLength={6}
                       max={999999}
@@ -3696,22 +3634,16 @@ export default function StocksPage() {
                     />
                     <Input
                       type="date"
-                      value={newPaleteData.data}
+                      value={paletesUI.state.newPaleteData.data}
                       onChange={(e) =>
-                        setNewPaleteData((prev) => ({
-                          ...prev,
-                          data: e.target.value,
-                        }))
+                        paletesUI.updateNewPaleteField('data', e.target.value)
                       }
                       className="h-10"
                     />
                     <Select
-                      value={newPaleteData.author_id}
+                      value={paletesUI.state.newPaleteData.author_id}
                       onValueChange={(value) =>
-                        setNewPaleteData((prev) => ({
-                          ...prev,
-                          author_id: value,
-                        }))
+                        paletesUI.updateNewPaleteField('author_id', value)
                       }
                     >
                       <SelectTrigger className="h-10">
@@ -3727,7 +3659,7 @@ export default function StocksPage() {
                     </Select>
                     <Button
                       onClick={handleSaveNewPalete}
-                      disabled={submittingPalete}
+                      disabled={paletesUI.state.isSubmitting}
                       className="h-10"
                     >
                       Guardar
@@ -3751,8 +3683,8 @@ export default function StocksPage() {
                         onClick={() => handleSortPaletes("no_palete")}
                       >
                         Nº Palete
-                        {sortColumnPaletes === "no_palete" &&
-                          (sortDirectionPaletes === "asc" ? (
+                        {sorting.sortColumnPaletes === "no_palete" &&
+                          (sorting.sortDirectionPaletes === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -3763,8 +3695,8 @@ export default function StocksPage() {
                         onClick={() => handleSortPaletes("fornecedor")}
                       >
                         Fornecedor
-                        {sortColumnPaletes === "fornecedor" &&
-                          (sortDirectionPaletes === "asc" ? (
+                        {sorting.sortColumnPaletes === "fornecedor" &&
+                          (sorting.sortDirectionPaletes === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -3775,8 +3707,8 @@ export default function StocksPage() {
                         onClick={() => handleSortPaletes("no_guia_forn")}
                       >
                         Nº Guia
-                        {sortColumnPaletes === "no_guia_forn" &&
-                          (sortDirectionPaletes === "asc" ? (
+                        {sorting.sortColumnPaletes === "no_guia_forn" &&
+                          (sorting.sortDirectionPaletes === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -3787,8 +3719,8 @@ export default function StocksPage() {
                         onClick={() => handleSortPaletes("ref_cartao")}
                       >
                         Ref. Cartão
-                        {sortColumnPaletes === "ref_cartao" &&
-                          (sortDirectionPaletes === "asc" ? (
+                        {sorting.sortColumnPaletes === "ref_cartao" &&
+                          (sorting.sortDirectionPaletes === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -3799,8 +3731,8 @@ export default function StocksPage() {
                         onClick={() => handleSortPaletes("qt_palete")}
                       >
                         Qt. Palete
-                        {sortColumnPaletes === "qt_palete" &&
-                          (sortDirectionPaletes === "asc" ? (
+                        {sorting.sortColumnPaletes === "qt_palete" &&
+                          (sorting.sortDirectionPaletes === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -3811,8 +3743,8 @@ export default function StocksPage() {
                         onClick={() => handleSortPaletes("data")}
                       >
                         Data
-                        {sortColumnPaletes === "data" &&
-                          (sortDirectionPaletes === "asc" ? (
+                        {sorting.sortColumnPaletes === "data" &&
+                          (sorting.sortDirectionPaletes === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -3823,8 +3755,8 @@ export default function StocksPage() {
                         onClick={() => handleSortPaletes("author")}
                       >
                         Autor
-                        {sortColumnPaletes === "author" &&
-                          (sortDirectionPaletes === "asc" ? (
+                        {sorting.sortColumnPaletes === "author" &&
+                          (sorting.sortDirectionPaletes === "asc" ? (
                             <ArrowUp className="ml-1 inline h-3 w-3" />
                           ) : (
                             <ArrowDown className="ml-1 inline h-3 w-3" />
@@ -3849,19 +3781,14 @@ export default function StocksPage() {
                       sortedPaletes.map((palete) => (
                         <TableRow key={palete.id} className="hover:bg-accent">
                           <TableCell>
-                            {editingPaleteId === palete.id ? (
+                            {paletesUI.state.editingPaleteId === palete.id ? (
                               <Input
                                 value={
-                                  editingPaleteData[palete.id]?.no_palete || ""
+                                  paletesUI.state.editingPaleteData[palete.id]
+                                    ?.no_palete || ""
                                 }
                                 onChange={(e) =>
-                                  setEditingPaleteData((prev) => ({
-                                    ...prev,
-                                    [palete.id]: {
-                                      ...prev[palete.id],
-                                      no_palete: e.target.value,
-                                    },
-                                  }))
+                                  paletesUI.updateEditingPaleteField(palete.id, 'no_palete', e.target.value)
                                 }
                                 className="h-8"
                               />
@@ -3870,20 +3797,14 @@ export default function StocksPage() {
                             )}
                           </TableCell>
                           <TableCell>
-                            {editingPaleteId === palete.id ? (
+                            {paletesUI.state.editingPaleteId === palete.id ? (
                               <Select
                                 value={
-                                  editingPaleteData[palete.id]?.fornecedor_id ||
-                                  ""
+                                  paletesUI.state.editingPaleteData[palete.id]
+                                    ?.fornecedor_id || ""
                                 }
                                 onValueChange={(value) =>
-                                  setEditingPaleteData((prev) => ({
-                                    ...prev,
-                                    [palete.id]: {
-                                      ...prev[palete.id],
-                                      fornecedor_id: value,
-                                    },
-                                  }))
+                                  paletesUI.updateEditingPaleteField(palete.id, 'fornecedor_id', value)
                                 }
                               >
                                 <SelectTrigger className="h-8">
@@ -3902,20 +3823,14 @@ export default function StocksPage() {
                             )}
                           </TableCell>
                           <TableCell>
-                            {editingPaleteId === palete.id ? (
+                            {paletesUI.state.editingPaleteId === palete.id ? (
                               <Input
                                 value={
-                                  editingPaleteData[palete.id]?.no_guia_forn ||
-                                  ""
+                                  paletesUI.state.editingPaleteData[palete.id]
+                                    ?.no_guia_forn || ""
                                 }
                                 onChange={(e) =>
-                                  setEditingPaleteData((prev) => ({
-                                    ...prev,
-                                    [palete.id]: {
-                                      ...prev[palete.id],
-                                      no_guia_forn: e.target.value,
-                                    },
-                                  }))
+                                  paletesUI.updateEditingPaleteField(palete.id, 'no_guia_forn', e.target.value)
                                 }
                                 className="h-8"
                               />
@@ -3924,19 +3839,14 @@ export default function StocksPage() {
                             )}
                           </TableCell>
                           <TableCell>
-                            {editingPaleteId === palete.id ? (
+                            {paletesUI.state.editingPaleteId === palete.id ? (
                               <Input
                                 value={
-                                  editingPaleteData[palete.id]?.ref_cartao || ""
+                                  paletesUI.state.editingPaleteData[palete.id]
+                                    ?.ref_cartao || ""
                                 }
                                 onChange={(e) =>
-                                  setEditingPaleteData((prev) => ({
-                                    ...prev,
-                                    [palete.id]: {
-                                      ...prev[palete.id],
-                                      ref_cartao: e.target.value,
-                                    },
-                                  }))
+                                  paletesUI.updateEditingPaleteField(palete.id, 'ref_cartao', e.target.value)
                                 }
                                 className="h-8"
                               />
@@ -3945,20 +3855,15 @@ export default function StocksPage() {
                             )}
                           </TableCell>
                           <TableCell>
-                            {editingPaleteId === palete.id ? (
+                            {paletesUI.state.editingPaleteId === palete.id ? (
                               <Input
                                 type="number"
                                 value={
-                                  editingPaleteData[palete.id]?.qt_palete || ""
+                                  paletesUI.state.editingPaleteData[palete.id]
+                                    ?.qt_palete || ""
                                 }
                                 onChange={(e) =>
-                                  setEditingPaleteData((prev) => ({
-                                    ...prev,
-                                    [palete.id]: {
-                                      ...prev[palete.id],
-                                      qt_palete: e.target.value,
-                                    },
-                                  }))
+                                  paletesUI.updateEditingPaleteField(palete.id, 'qt_palete', e.target.value)
                                 }
                                 className="h-8 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               />
@@ -3967,18 +3872,15 @@ export default function StocksPage() {
                             )}
                           </TableCell>
                           <TableCell>
-                            {editingPaleteId === palete.id ? (
+                            {paletesUI.state.editingPaleteId === palete.id ? (
                               <Input
                                 type="date"
-                                value={editingPaleteData[palete.id]?.data || ""}
+                                value={
+                                  paletesUI.state.editingPaleteData[palete.id]
+                                    ?.data || ""
+                                }
                                 onChange={(e) =>
-                                  setEditingPaleteData((prev) => ({
-                                    ...prev,
-                                    [palete.id]: {
-                                      ...prev[palete.id],
-                                      data: e.target.value,
-                                    },
-                                  }))
+                                  paletesUI.updateEditingPaleteField(palete.id, 'data', e.target.value)
                                 }
                                 className="h-8"
                               />
@@ -3987,19 +3889,14 @@ export default function StocksPage() {
                             )}
                           </TableCell>
                           <TableCell>
-                            {editingPaleteId === palete.id ? (
+                            {paletesUI.state.editingPaleteId === palete.id ? (
                               <Select
                                 value={
-                                  editingPaleteData[palete.id]?.author_id || ""
+                                  paletesUI.state.editingPaleteData[palete.id]
+                                    ?.author_id || ""
                                 }
                                 onValueChange={(value) =>
-                                  setEditingPaleteData((prev) => ({
-                                    ...prev,
-                                    [palete.id]: {
-                                      ...prev[palete.id],
-                                      author_id: value,
-                                    },
-                                  }))
+                                  paletesUI.updateEditingPaleteField(palete.id, 'author_id', value)
                                 }
                               >
                                 <SelectTrigger className="h-8">
@@ -4023,7 +3920,7 @@ export default function StocksPage() {
                             )}
                           </TableCell>
                           <TableCell className="flex justify-center gap-2">
-                            {editingPaleteId === palete.id ? (
+                            {paletesUI.state.editingPaleteId === palete.id ? (
                               <>
                                 <Button
                                   size="icon"
@@ -4031,7 +3928,7 @@ export default function StocksPage() {
                                   onClick={() =>
                                     handleSaveEditPalete(palete.id)
                                   }
-                                  disabled={submittingPalete}
+                                  disabled={paletesUI.state.isSubmitting}
                                 >
                                   OK
                                 </Button>
