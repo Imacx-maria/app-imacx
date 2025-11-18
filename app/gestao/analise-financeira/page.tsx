@@ -289,7 +289,12 @@ export default function AnaliseFinanceiraPage() {
   >("asc");
 
   // Pipeline Top 15 sort state
-  type PipelineTop15SortColumn = "cliente_nome" | "total" | "dias_decorridos";
+  type PipelineTop15SortColumn =
+    | "orcamento_id_humano"
+    | "document_date"
+    | "cliente_nome"
+    | "total"
+    | "dias_decorridos";
   const [top15SortColumn, setTop15SortColumn] =
     useState<PipelineTop15SortColumn>("total");
   const [top15SortDirection, setTop15SortDirection] = useState<"asc" | "desc">(
@@ -298,6 +303,8 @@ export default function AnaliseFinanceiraPage() {
 
   // Pipeline Needs Attention sort state
   type PipelineAttentionSortColumn =
+    | "orcamento_id_humano"
+    | "document_date"
     | "cliente_nome"
     | "total"
     | "dias_decorridos";
@@ -309,6 +316,8 @@ export default function AnaliseFinanceiraPage() {
 
   // Pipeline Perdidos sort state
   type PipelinePerdidosSortColumn =
+    | "orcamento_id_humano"
+    | "document_date"
     | "cliente_nome"
     | "total"
     | "dias_decorridos";
@@ -752,6 +761,13 @@ export default function AnaliseFinanceiraPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDepartment]);
 
+  // Switch away from PERDIDOS tab when switching to MÊS ATUAL (mtd)
+  useEffect(() => {
+    if (activeTab === "mtd" && pipelineTab === "lost") {
+      setPipelineTab("top15");
+    }
+  }, [activeTab, pipelineTab]);
+
   // ============================================================================
   // Formatters
   // ============================================================================
@@ -771,6 +787,12 @@ export default function AnaliseFinanceiraPage() {
 
   const formatPercent = (value: number) => {
     return `${value.toFixed(1)}%`;
+  };
+
+  const getDiasDecorridosClassName = (dias: number) => {
+    if (dias > 30) return "text-red-600 dark:text-red-400";
+    if (dias > 14) return "text-yellow-600 dark:text-yellow-400";
+    return "";
   };
 
   // ============================================================================
@@ -1458,6 +1480,14 @@ export default function AnaliseFinanceiraPage() {
       let av, bv;
 
       switch (top15SortColumn) {
+        case "orcamento_id_humano":
+          av = a.orcamento_id_humano || "";
+          bv = b.orcamento_id_humano || "";
+          break;
+        case "document_date":
+          av = new Date(a.document_date).getTime();
+          bv = new Date(b.document_date).getTime();
+          break;
         case "cliente_nome":
           av = a.cliente_nome || "";
           bv = b.cliente_nome || "";
@@ -1510,6 +1540,14 @@ export default function AnaliseFinanceiraPage() {
       let av, bv;
 
       switch (attentionSortColumn) {
+        case "orcamento_id_humano":
+          av = a.orcamento_id_humano || "";
+          bv = b.orcamento_id_humano || "";
+          break;
+        case "document_date":
+          av = new Date(a.document_date).getTime();
+          bv = new Date(b.document_date).getTime();
+          break;
         case "cliente_nome":
           av = a.cliente_nome || "";
           bv = b.cliente_nome || "";
@@ -1562,6 +1600,14 @@ export default function AnaliseFinanceiraPage() {
       let av, bv;
 
       switch (perdidosSortColumn) {
+        case "orcamento_id_humano":
+          av = a.orcamento_id_humano || "";
+          bv = b.orcamento_id_humano || "";
+          break;
+        case "document_date":
+          av = new Date(a.document_date).getTime();
+          bv = new Date(b.document_date).getTime();
+          break;
         case "cliente_nome":
           av = a.cliente_nome || "";
           bv = b.cliente_nome || "";
@@ -4173,13 +4219,16 @@ ${(() => {
                     </span>
                   )}
                 </Button>
-                <Button
-                  variant={pipelineTab === "lost" ? "default" : "outline"}
-                  onClick={() => setPipelineTab("lost")}
-                  className="h-10"
-                >
-                  PERDIDOS
-                </Button>
+                {/* PERDIDOS tab only visible in ANO ATUAL (ytd) mode */}
+                {activeTab !== "mtd" && (
+                  <Button
+                    variant={pipelineTab === "lost" ? "default" : "outline"}
+                    onClick={() => setPipelineTab("lost")}
+                    className="h-10"
+                  >
+                    PERDIDOS
+                  </Button>
+                )}
               </div>
 
               {/* TOP 15 */}
@@ -4199,8 +4248,20 @@ ${(() => {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-12"></TableHead>
-                        <TableHead>ORC#</TableHead>
-                        <TableHead>Data</TableHead>
+                        <TableHead
+                          className="cursor-pointer select-none"
+                          onClick={() => handleTop15Sort("orcamento_id_humano")}
+                        >
+                          ORC#
+                          {renderTop15SortIcon("orcamento_id_humano")}
+                        </TableHead>
+                        <TableHead
+                          className="cursor-pointer select-none"
+                          onClick={() => handleTop15Sort("document_date")}
+                        >
+                          Data
+                          {renderTop15SortIcon("document_date")}
+                        </TableHead>
                         <TableHead
                           className="cursor-pointer select-none"
                           onClick={() => handleTop15Sort("cliente_nome")}
@@ -4230,12 +4291,14 @@ ${(() => {
                         <TableRow key={idx}>
                           <TableCell>
                             <Checkbox
+                              checked={row.is_dismissed}
                               onCheckedChange={() =>
                                 handleDismissOrcamento(
                                   row.orcamento_id_humano?.replace(
                                     "ORC-",
                                     "",
                                   ) || row.document_number,
+                                  row.is_dismissed,
                                 )
                               }
                             />
@@ -4267,13 +4330,9 @@ ${(() => {
                           </TableCell>
                           <TableCell className="text-right">
                             <span
-                              className={
-                                row.dias_decorridos > 30
-                                  ? "text-red-600 dark:text-red-400"
-                                  : row.dias_decorridos > 14
-                                    ? "text-yellow-600 dark:text-yellow-400"
-                                    : ""
-                              }
+                              className={getDiasDecorridosClassName(
+                                row.dias_decorridos,
+                              )}
                             >
                               {row.dias_decorridos}
                             </span>
@@ -4303,8 +4362,22 @@ ${(() => {
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-12"></TableHead>
-                          <TableHead>ORC#</TableHead>
-                          <TableHead>Data</TableHead>
+                          <TableHead
+                            className="cursor-pointer select-none"
+                            onClick={() =>
+                              handleAttentionSort("orcamento_id_humano")
+                            }
+                          >
+                            ORC#
+                            {renderAttentionSortIcon("orcamento_id_humano")}
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer select-none"
+                            onClick={() => handleAttentionSort("document_date")}
+                          >
+                            Data
+                            {renderAttentionSortIcon("document_date")}
+                          </TableHead>
                           <TableHead
                             className="cursor-pointer select-none"
                             onClick={() => handleAttentionSort("cliente_nome")}
@@ -4338,12 +4411,14 @@ ${(() => {
                           >
                             <TableCell>
                               <Checkbox
+                                checked={row.is_dismissed}
                                 onCheckedChange={() =>
                                   handleDismissOrcamento(
                                     row.orcamento_id_humano?.replace(
                                       "ORC-",
                                       "",
                                     ) || row.document_number,
+                                    row.is_dismissed,
                                   )
                                 }
                               />
@@ -4394,8 +4469,22 @@ ${(() => {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-12"></TableHead>
-                        <TableHead>ORC#</TableHead>
-                        <TableHead>Data</TableHead>
+                        <TableHead
+                          className="cursor-pointer select-none"
+                          onClick={() =>
+                            handlePerdidosSort("orcamento_id_humano")
+                          }
+                        >
+                          ORC#
+                          {renderPerdidosSortIcon("orcamento_id_humano")}
+                        </TableHead>
+                        <TableHead
+                          className="cursor-pointer select-none"
+                          onClick={() => handlePerdidosSort("document_date")}
+                        >
+                          Data
+                          {renderPerdidosSortIcon("document_date")}
+                        </TableHead>
                         <TableHead
                           className="cursor-pointer select-none"
                           onClick={() => handlePerdidosSort("cliente_nome")}
@@ -4425,12 +4514,14 @@ ${(() => {
                         <TableRow key={idx}>
                           <TableCell>
                             <Checkbox
+                              checked={row.is_dismissed}
                               onCheckedChange={() =>
                                 handleDismissOrcamento(
                                   row.orcamento_id_humano?.replace(
                                     "ORC-",
                                     "",
                                   ) || row.document_number,
+                                  row.is_dismissed,
                                 )
                               }
                             />

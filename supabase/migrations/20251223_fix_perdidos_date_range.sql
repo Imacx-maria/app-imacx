@@ -24,7 +24,8 @@ RETURNS TABLE (
   quote_value NUMERIC,
   quote_status TEXT,
   quote_days_open INTEGER,
-  quote_category TEXT
+  quote_category TEXT,
+  is_dismissed BOOLEAN
 ) AS $$
 BEGIN
   RETURN QUERY
@@ -35,9 +36,11 @@ BEGIN
       cl.customer_name as c_name,
       bo.total_value as q_value,
       'Pendente'::TEXT as q_status,
-      (CURRENT_DATE - bo.document_date)::INTEGER as q_days_open
+      (CURRENT_DATE - bo.document_date)::INTEGER as q_days_open,
+      COALESCE(od.is_dismissed, FALSE) as q_is_dismissed
     FROM phc.bo bo
     LEFT JOIN phc.cl cl ON bo.customer_id = cl.customer_id
+    LEFT JOIN public.orcamentos_dismissed od ON bo.document_number::TEXT = od.orcamento_number
     LEFT JOIN public.user_siglas us
       ON UPPER(TRIM(COALESCE(cl.salesperson, 'IMACX'))) = UPPER(TRIM(us.sigla))
     LEFT JOIN public.profiles p ON us.profile_id = p.id
@@ -67,6 +70,7 @@ BEGIN
     SELECT
       dq.*,
       CASE
+        WHEN dq.q_is_dismissed THEN 'lost'  -- Dismissed quotes go to lost
         WHEN dq.q_days_open <= 30 THEN 'top_15'
         WHEN dq.q_days_open > 30 AND dq.q_days_open <= 60 THEN 'needs_attention'
         WHEN dq.q_days_open > 60 AND dq.q_days_open <= 90 THEN 'lost'  -- FIXED: 60-90 days only
@@ -75,6 +79,7 @@ BEGIN
       ROW_NUMBER() OVER (
         PARTITION BY
           CASE
+            WHEN dq.q_is_dismissed THEN 'lost'
             WHEN dq.q_days_open <= 30 THEN 'top_15'
             WHEN dq.q_days_open > 30 AND dq.q_days_open <= 60 THEN 'needs_attention'
             WHEN dq.q_days_open > 60 AND dq.q_days_open <= 90 THEN 'lost'
@@ -91,7 +96,8 @@ BEGIN
     ROUND(cq.q_value, 2) as q_value,
     cq.q_status,
     cq.q_days_open,
-    cq.q_category
+    cq.q_category,
+    cq.q_is_dismissed
   FROM categorized_quotes cq
   WHERE cq.category_rank <= 15
     AND cq.q_category != 'ancient'  -- Exclude >90 days
@@ -103,7 +109,7 @@ BEGIN
     END,
     cq.q_value DESC;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Grant permissions
 GRANT EXECUTE ON FUNCTION get_department_pipeline TO authenticated;

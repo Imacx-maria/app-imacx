@@ -55,7 +55,7 @@ BEGIN
     IF tab_type = 'top15' THEN
       -- TOP 15 ANUAL: Desde 1 janeiro até 60 dias atrás (auto-perdidos)
       start_date := DATE_TRUNC('year', CURRENT_DATE)::DATE;
-      end_date := CURRENT_DATE - INTERVAL '60 days';
+      end_date := CURRENT_DATE;
       days_ago_start := NULL;
       days_ago_end := NULL;
     ELSIF tab_type = 'attention' THEN
@@ -68,7 +68,7 @@ BEGIN
     ELSIF tab_type = 'perdidos' THEN
       -- PERDIDOS ANUAL: Desde 1 janeiro até 60 dias atrás
       start_date := DATE_TRUNC('year', CURRENT_DATE)::DATE;
-      end_date := CURRENT_DATE - INTERVAL '60 days';
+      end_date := CURRENT_DATE;
       days_ago_start := NULL;
       days_ago_end := NULL;
     END IF;
@@ -115,8 +115,18 @@ BEGIN
     -- Date range filter
     AND bo.document_date >= start_date
     AND bo.document_date <= end_date
-    -- Not dismissed
-    AND od.orcamento_number IS NULL
+    -- Dismissed handling
+    AND (
+      (period = 'anual' AND tab_type = 'perdidos') OR (period = 'anual' AND tab_type IN ('top15', 'attention') AND COALESCE(od.is_dismissed, FALSE) = FALSE)
+      OR (period != 'anual' AND od.orcamento_number IS NULL)
+    )
+    -- Annual status/day filters
+    AND (
+      period != 'anual'
+      OR (period = 'anual' AND tab_type = 'top15' AND bo.status = 'pendente' AND bo.document_date >= DATE_TRUNC('year', CURRENT_DATE))
+      OR (period = 'anual' AND tab_type = 'attention' AND bo.status = 'pendente' AND bo.document_date >= DATE_TRUNC('year', CURRENT_DATE) AND (CURRENT_DATE - bo.document_date::DATE) >= 30)
+      OR (period = 'anual' AND tab_type = 'perdidos' AND bo.document_date >= DATE_TRUNC('year', CURRENT_DATE) AND (bo.status = 'perdido' OR COALESCE(od.is_dismissed, FALSE) = TRUE))
+    )
     -- Not invoiced (BiStamp chain check)
     AND NOT EXISTS (
       SELECT 1

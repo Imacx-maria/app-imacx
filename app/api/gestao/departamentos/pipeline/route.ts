@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
  * - Needs Attention: Open quotes 30-60 days old
  * - Lost: Open quotes >60 days old
  *
- * Uses RPC function: get_department_pipeline
+ * Uses RPC function: get_department_pipeline_v2
  */
 export async function GET(request: Request) {
   try {
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
     const supabase = createAdminClient();
 
     const { data: pipelineData, error: pipelineError } = await supabase.rpc(
-      "get_department_pipeline",
+      "get_department_pipeline_v2",
       {
         departamento_nome: departamento,
         start_date: startDate.toISOString().split("T")[0],
