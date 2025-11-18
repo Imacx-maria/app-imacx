@@ -368,7 +368,7 @@ export default function StocksPage() {
     } finally {
       setCurrentStocksLoading(false);
     }
-  }, [supabase, fetchCurrentStocksManual]);
+  }, [supabase, fetchCurrentStocksManual, setCurrentStocksLoading]);
 
   const fetchPaletes = useCallback(
     async (filters: PaletesFilters = {}) => {
@@ -446,7 +446,7 @@ export default function StocksPage() {
         setPaletesLoading(false);
       }
     },
-    [supabase],
+    [supabase, setPaletesLoading],
   );
 
   const refreshPaletes = () => {
@@ -598,7 +598,7 @@ export default function StocksPage() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [inlineEntries.state.isVisible, addNewRow]);
+  }, [inlineEntries, addNewRow]);
 
   const getReferenciaByMaterialId = (materialId: string) => {
     const found = materials.find((m) => m.id === materialId);

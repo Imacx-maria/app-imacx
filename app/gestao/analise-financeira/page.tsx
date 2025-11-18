@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { createBrowserClient } from "@/utils/supabase";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -52,6 +53,23 @@ const COST_CENTERS = [
   "BR-Brindes",
   "IO-Impressão OFFSET",
 ] as const;
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+const escalaoOrder: { [key: string]: number } = {
+  "0-1500": 1,
+  "1500-2500": 2,
+  "2500-7500": 3,
+  "7500-15000": 4,
+  "15000-30000": 5,
+  "30000+": 6,
+};
+
+const getEscalaoOrder = (escalao: string): number => {
+  return escalaoOrder[escalao] || 999;
+};
 
 // ============================================================================
 // Helper Components
@@ -683,6 +701,41 @@ export default function AnaliseFinanceiraPage() {
     }
   }, [activeTab, mainTab, fetchAllData]);
 
+  const handleDismissOrcamento = useCallback(
+    async (orcamentoNumber: string, currentState: boolean) => {
+      const newState = !currentState;
+      const action = newState ? "inativar" : "reativar";
+
+      if (!confirm(`Deseja ${action} este orçamento?`)) {
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          "/api/gestao/departamentos/dismiss-orcamento",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orcamento_number: orcamentoNumber,
+              is_dismissed: newState,
+            }),
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to update orcamento");
+        }
+
+        await fetchAllData(activeTab, "departamentos");
+      } catch (error) {
+        console.error("Error updating orcamento:", error);
+        alert("Erro ao atualizar orçamento. Tente novamente.");
+      }
+    },
+    [activeTab, fetchAllData],
+  );
+
   useEffect(() => {
     fetchAllData(activeTab, mainTab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -716,23 +769,6 @@ export default function AnaliseFinanceiraPage() {
 
   const formatPercent = (value: number) => {
     return `${value.toFixed(1)}%`;
-  };
-
-  // ============================================================================
-  // Helper: Escalão Order (must be before useMemo that uses it)
-  // ============================================================================
-
-  const escalaoOrder: { [key: string]: number } = {
-    "0-1500": 1,
-    "1500-2500": 2,
-    "2500-7500": 3,
-    "7500-15000": 4,
-    "15000-30000": 5,
-    "30000+": 6,
-  };
-
-  const getEscalaoOrder = (escalao: string): number => {
-    return escalaoOrder[escalao] || 999;
   };
 
   // ============================================================================
@@ -4152,25 +4188,15 @@ ${(() => {
                       Top 15 Orçamentos - {selectedDepartment}
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {(() => {
-                        const now = new Date();
-                        const currentYear = now.getFullYear();
-
-                        if (activeTab === "mtd") {
-                          const startDate = new Date(currentYear, now.getMonth(), 1);
-                          const daysDiff = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-                          return `15 orçamentos de maior valor - Últimos ${daysDiff} dias (mês atual)`;
-                        } else {
-                          const startDate = new Date(currentYear, 0, 1);
-                          const daysDiff = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-                          return `15 orçamentos de maior valor - Últimos ${daysDiff} dias (ano atual)`;
-                        }
-                      })()}
+                      {activeTab === "mtd"
+                        ? "Maiores orçamentos dos últimos 45 dias ainda pendentes."
+                        : "Maiores orçamentos perdidos desde 1 de janeiro até hoje."}
                     </p>
                   </div>
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-12"></TableHead>
                         <TableHead>ORC#</TableHead>
                         <TableHead>Data</TableHead>
                         <TableHead
@@ -4200,6 +4226,18 @@ ${(() => {
                     <TableBody>
                       {sortedTop15.map((row: any, idx: number) => (
                         <TableRow key={idx}>
+                          <TableCell>
+                            <Checkbox
+                              onCheckedChange={() =>
+                                handleDismissOrcamento(
+                                  row.orcamento_id_humano?.replace(
+                                    "ORC-",
+                                    "",
+                                  ) || row.document_number,
+                                )
+                              }
+                            />
+                          </TableCell>
                           <TableCell className="font-mono text-sm">
                             {row.orcamento_id_humano}
                           </TableCell>
@@ -4253,13 +4291,16 @@ ${(() => {
                       Orçamentos que Precisam Atenção - {selectedDepartment}
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Orçamentos &gt;€7.500 com mais de 14 dias sem resposta
+                      {activeTab === "mtd"
+                        ? "Orçamentos entre 15 e 60 dias sem avanço."
+                        : "Clientes principais com orçamentos relevantes no ano e mais de 30 dias sem avanço."}
                     </p>
                   </div>
                   {pipelineData?.needsAttention?.length > 0 ? (
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-12"></TableHead>
                           <TableHead>ORC#</TableHead>
                           <TableHead>Data</TableHead>
                           <TableHead
@@ -4293,6 +4334,18 @@ ${(() => {
                             key={idx}
                             className="imx-border-l-4 imx-border-l-red-500"
                           >
+                            <TableCell>
+                              <Checkbox
+                                onCheckedChange={() =>
+                                  handleDismissOrcamento(
+                                    row.orcamento_id_humano?.replace(
+                                      "ORC-",
+                                      "",
+                                    ) || row.document_number,
+                                  )
+                                }
+                              />
+                            </TableCell>
                             <TableCell className="font-mono text-sm">
                               {row.orcamento_id_humano}
                             </TableCell>
@@ -4330,12 +4383,15 @@ ${(() => {
                       Orçamentos Perdidos - {selectedDepartment}
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Últimos 60 dias
+                      {activeTab === "mtd"
+                        ? "Orçamentos com mais de 60 dias sem resposta."
+                        : "Todos os orçamentos perdidos desde o início do ano."}
                     </p>
                   </div>
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-12"></TableHead>
                         <TableHead>ORC#</TableHead>
                         <TableHead>Data</TableHead>
                         <TableHead
@@ -4365,6 +4421,18 @@ ${(() => {
                     <TableBody>
                       {sortedPerdidos.map((row: any, idx: number) => (
                         <TableRow key={idx}>
+                          <TableCell>
+                            <Checkbox
+                              onCheckedChange={() =>
+                                handleDismissOrcamento(
+                                  row.orcamento_id_humano?.replace(
+                                    "ORC-",
+                                    "",
+                                  ) || row.document_number,
+                                )
+                              }
+                            />
+                          </TableCell>
                           <TableCell className="font-mono text-sm">
                             {row.orcamento_id_humano}
                           </TableCell>
