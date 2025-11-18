@@ -60,24 +60,31 @@ export async function GET(request: Request) {
       endDate = now;
     }
 
-    // Step 3: Query with admin client using RPC
+    // Step 3: Query with admin client using separate RPC functions per category
+    // This avoids the 1000 row limit by allowing each category to return up to 1000 rows
     const supabase = createAdminClient();
 
-    const { data: pipelineData, error: pipelineError } = await supabase.rpc(
-      "get_department_pipeline_v2",
-      {
-        departamento_nome: departamento,
-        start_date: startDate.toISOString().split("T")[0],
-        end_date: endDate.toISOString().split("T")[0],
-      },
-    );
+    const rpcParams = {
+      departamento_nome: departamento,
+      start_date: startDate.toISOString().split("T")[0],
+      end_date: endDate.toISOString().split("T")[0],
+    };
 
-    if (pipelineError) {
-      console.error("❌ [Pipeline] RPC Error:", pipelineError);
+    // Call all three functions in parallel
+    const [top15Result, needsAttentionResult, perdidosResult] =
+      await Promise.all([
+        supabase.rpc("get_department_pipeline_top15", rpcParams),
+        supabase.rpc("get_department_pipeline_needs_attention", rpcParams),
+        supabase.rpc("get_department_pipeline_perdidos", rpcParams),
+      ]);
+
+    // Check for errors
+    if (top15Result.error) {
+      console.error("❌ [Pipeline] Top15 RPC Error:", top15Result.error);
       return NextResponse.json(
         {
           error: "Database error",
-          message: pipelineError.message,
+          message: top15Result.error.message,
           departamento,
           top15: [],
           needsAttention: [],
@@ -87,45 +94,84 @@ export async function GET(request: Request) {
       );
     }
 
-    // Step 4: Split results by category
-    const top15 = (pipelineData || [])
-      .filter((row: any) => row.quote_category === "top_15") // FIXED: was row.category
-      .map((row: any) => ({
-        orcamento_id_humano: row.quote_number,
-        document_date: row.quote_date,
-        cliente_nome: row.customer_name,
-        total_value: row.quote_value,
-        status: row.quote_status, // FIXED: was row.status
-        dias_decorridos: row.quote_days_open, // FIXED: was row.days_open
-        is_dismissed: row.is_dismissed || false,
-        departamento,
-      }));
+    if (needsAttentionResult.error) {
+      console.error(
+        "❌ [Pipeline] NeedsAttention RPC Error:",
+        needsAttentionResult.error,
+      );
+      return NextResponse.json(
+        {
+          error: "Database error",
+          message: needsAttentionResult.error.message,
+          departamento,
+          top15: [],
+          needsAttention: [],
+          perdidos: [],
+        },
+        { status: 500 },
+      );
+    }
 
-    const needsAttention = (pipelineData || [])
-      .filter((row: any) => row.quote_category === "needs_attention") // FIXED: was row.category
-      .map((row: any) => ({
-        orcamento_id_humano: row.quote_number,
-        document_date: row.quote_date,
-        cliente_nome: row.customer_name,
-        total_value: row.quote_value,
-        status: row.quote_status, // FIXED: was row.status
-        dias_decorridos: row.quote_days_open, // FIXED: was row.days_open
-        is_dismissed: row.is_dismissed || false,
-        departamento,
-      }));
+    if (perdidosResult.error) {
+      console.error("❌ [Pipeline] Perdidos RPC Error:", perdidosResult.error);
+      return NextResponse.json(
+        {
+          error: "Database error",
+          message: perdidosResult.error.message,
+          departamento,
+          top15: [],
+          needsAttention: [],
+          perdidos: [],
+        },
+        { status: 500 },
+      );
+    }
 
-    const perdidos = (pipelineData || [])
-      .filter((row: any) => row.quote_category === "lost") // FIXED: was row.category
-      .map((row: any) => ({
-        orcamento_id_humano: row.quote_number,
-        document_date: row.quote_date,
-        cliente_nome: row.customer_name,
-        total_value: row.quote_value,
-        status: row.quote_status, // FIXED: was row.status
-        dias_decorridos: row.quote_days_open, // FIXED: was row.days_open
-        is_dismissed: row.is_dismissed || false,
-        departamento,
-      }));
+    // Warn if any category hit the 1000 row limit
+    if (needsAttentionResult.data?.length === 1000) {
+      console.warn(
+        `⚠️ [Pipeline] NeedsAttention returned exactly 1000 rows. Some quotes may be missing.`,
+      );
+    }
+    if (perdidosResult.data?.length === 1000) {
+      console.warn(
+        `⚠️ [Pipeline] Perdidos returned exactly 1000 rows. Some quotes may be missing.`,
+      );
+    }
+
+    // Step 4: Map results to response format
+    const top15 = (top15Result.data || []).map((row: any) => ({
+      orcamento_id_humano: row.quote_number,
+      document_date: row.quote_date,
+      cliente_nome: row.customer_name,
+      total_value: row.quote_value,
+      status: row.quote_status,
+      dias_decorridos: row.quote_days_open,
+      is_dismissed: row.is_dismissed || false,
+      departamento,
+    }));
+
+    const needsAttention = (needsAttentionResult.data || []).map((row: any) => ({
+      orcamento_id_humano: row.quote_number,
+      document_date: row.quote_date,
+      cliente_nome: row.customer_name,
+      total_value: row.quote_value,
+      status: row.quote_status,
+      dias_decorridos: row.quote_days_open,
+      is_dismissed: row.is_dismissed || false,
+      departamento,
+    }));
+
+    const perdidos = (perdidosResult.data || []).map((row: any) => ({
+      orcamento_id_humano: row.quote_number,
+      document_date: row.quote_date,
+      cliente_nome: row.customer_name,
+      total_value: row.quote_value,
+      status: row.quote_status,
+      dias_decorridos: row.quote_days_open,
+      is_dismissed: row.is_dismissed || false,
+      departamento,
+    }));
 
     // Format response
     const response = {

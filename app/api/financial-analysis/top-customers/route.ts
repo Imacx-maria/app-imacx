@@ -62,9 +62,10 @@ export async function GET(request: Request) {
     const startStr = startDate.toISOString().split("T")[0];
     const endStr = now.toISOString().split("T")[0];
 
-    // Use RPC function to fetch invoices (bypasses RLS permission issues)
-    const { data: invoices, error: invoicesError } = await supabase.rpc(
-      "get_invoices_for_period",
+    // Use aggregated RPC function to get customer metrics (avoids 1000 row limit)
+    // This aggregates at database level, returning one row per customer
+    const { data: customerMetrics, error: currentError } = await supabase.rpc(
+      "get_aggregated_top_customers",
       {
         start_date: startStr,
         end_date: endStr,
@@ -72,13 +73,17 @@ export async function GET(request: Request) {
       },
     );
 
-    if (invoicesError) {
-      console.error(`❌ [Top Customers] Query error on ft:`, invoicesError);
-      throw invoicesError;
+    if (currentError) {
+      console.error(`❌ [Top Customers] Query error:`, currentError);
+      throw currentError;
     }
 
+    console.log(
+      `✅ [Top Customers] Fetched ${customerMetrics?.length || 0} aggregated customer records`,
+    );
+
     // Previous-year YTD window (for YTD only) from phc.2years_ft
-    let prevRows: any[] = [];
+    let prevMetrics: any[] = [];
     if (period === "ytd") {
       const prevStart = new Date(startDate);
       prevStart.setFullYear(prevStart.getFullYear() - 1);
@@ -89,7 +94,7 @@ export async function GET(request: Request) {
       const prevEndStr = prevEnd.toISOString().split("T")[0];
 
       const { data: prevData, error: prevError } = await supabase.rpc(
-        "get_invoices_for_period",
+        "get_aggregated_top_customers",
         {
           start_date: prevStartStr,
           end_date: prevEndStr,
@@ -99,48 +104,16 @@ export async function GET(request: Request) {
 
       if (prevError) {
         console.error(
-          `❌ [Top Customers] Query error on 2years_ft:`,
+          `❌ [Top Customers] Query error on previous year:`,
           prevError,
         );
         throw prevError;
       }
 
-      prevRows = prevData || [];
+      prevMetrics = prevData || [];
     }
 
-    console.log(
-      `✅ [Top Customers] Current rows=${invoices.length}, Prev rows=${prevRows.length}`,
-    );
-
-    // Helper to filter valid documents (Factura + Nota de Crédito, not cancelled)
-    const filterValid = (rows: any[]) =>
-      (rows || []).filter((inv) => {
-        const isNotCancelled =
-          !inv.anulado || inv.anulado === false || inv.anulado === "False";
-        const isValidType =
-          inv.document_type === "Factura" ||
-          inv.document_type === "Nota de Crédito";
-        return isNotCancelled && isValidType;
-      });
-
-    const validInvoices = filterValid(invoices);
-    const validPrevInvoices = filterValid(prevRows || []);
-
-    console.log(
-      `✅ [Top Customers] Current valid: ${validInvoices.length}, Prev valid: ${validPrevInvoices.length}`,
-    );
-
-    // Get unique customer IDs from current-period invoices ONLY.
-    // IMPORTANT:
-    // - We intentionally DO NOT include validPrevInvoices here.
-    // - This ensures previous-year metrics are computed ONLY for customers
-    //   that exist in the current-period Top table (apples-to-apples YTD),
-    //   matching the SQL you just ran for HH PRINT (current ids only).
-    const customerIds = [
-      ...new Set(validInvoices.map((inv) => inv.customer_id)),
-    ];
-
-    if (customerIds.length === 0) {
+    if (!customerMetrics || customerMetrics.length === 0) {
       return NextResponse.json({
         customers: [],
         summary: {
@@ -157,258 +130,118 @@ export async function GET(request: Request) {
       });
     }
 
-    // Fetch customer details using RPC (bypasses RLS)
-    const { data: customers, error: customersError } = await supabase.rpc(
-      "get_customers_by_ids",
-      {
-        customer_ids: customerIds,
-      },
-    );
-
-    if (customersError) {
-      console.error("Customers Error:", customersError);
-      return NextResponse.json(
-        { error: customersError.message },
-        { status: 500 },
-      );
+    // Create lookup map for previous year metrics (by customer_id)
+    const prevMetricsMap = new Map<number, { netRevenue: number }>();
+    for (const prev of prevMetrics) {
+      // Handle HH Print consolidation: both 2043 and 2149 map to 2043
+      const customerId =
+        prev.customer_id === 2149 ? 2043 : prev.customer_id;
+      prevMetricsMap.set(customerId, {
+        netRevenue: prev.net_revenue || 0,
+      });
     }
 
-    // Create customer lookup map
-    const customerMap = new Map<
-      string | number,
-      {
-        rawId: string | number;
-        name: string;
-        city: string;
-        salesperson: string;
-      }
-    >(
-      customers?.map((c: any) => [
-        c.customer_id,
-        {
-          rawId: c.customer_id,
-          name: fixEncoding(c.customer_name) || "(Unknown)",
-          city: fixEncoding(c.city) || "",
-          salesperson: fixEncoding(c.salesperson?.trim()) || "(Unassigned)",
-        },
-      ]) || [],
-    );
+    // Convert aggregated data to response format
+    const customerResults = customerMetrics.map((customer: any) => {
+      const customerId = customer.customer_id;
+      const prev = prevMetricsMap.get(customerId);
+      const prevRevenue = prev ? prev.netRevenue : 0;
+      const current = customer.net_revenue || 0;
 
-    // Group invoices by customer (with special HH Print consolidation rule)
-    const customerMetrics = new Map<
-      string,
-      {
-        customerId: string;
-        customerName: string;
-        city: string;
-        salesperson: string;
-        invoiceCount: number;
-        netRevenue: number;
-        cancelledRevenue: number;
-        firstInvoice: Date;
-        lastInvoice: Date;
-      }
-    >();
+      const base = {
+        customerId: String(customerId),
+        customerName: fixEncoding(customer.customer_name) || "(Unknown)",
+        city: fixEncoding(customer.city) || "",
+        salesperson: fixEncoding(customer.salesperson?.trim()) || "(Unassigned)",
+        invoiceCount: customer.invoice_count || 0,
+        netRevenue: Math.round((customer.net_revenue || 0) * 100) / 100,
+        cancelledRevenue: 0, // Not tracked in aggregated function
+        firstInvoice: customer.first_invoice_date
+          ? (typeof customer.first_invoice_date === "string"
+              ? customer.first_invoice_date.split("T")[0]
+              : new Date(customer.first_invoice_date).toISOString().split("T")[0])
+          : "",
+        lastInvoice: customer.last_invoice_date
+          ? (typeof customer.last_invoice_date === "string"
+              ? customer.last_invoice_date.split("T")[0]
+              : new Date(customer.last_invoice_date).toISOString().split("T")[0])
+          : "",
+        daysSinceLastInvoice: customer.last_invoice_date
+          ? Math.floor(
+              (now.getTime() -
+                (typeof customer.last_invoice_date === "string"
+                  ? new Date(customer.last_invoice_date).getTime()
+                  : new Date(customer.last_invoice_date).getTime())) /
+                (1000 * 60 * 60 * 24),
+            )
+          : 0,
+      };
 
-    // Helper to normalize key for special grouped customers
-    const getCustomerKey = (info: {
-      rawId: number | string;
-      name: string;
-    }): string => {
-      const idNum =
-        typeof info.rawId === "string" ? parseInt(info.rawId, 10) : info.rawId;
+      if (period === "ytd") {
+        const previousNetRevenue = Math.round(prevRevenue * 100) / 100;
+        const previousDeltaValue =
+          Math.round((current - prevRevenue) * 100) / 100;
+        const previousDeltaPct =
+          prevRevenue !== 0
+            ? Math.round(
+                ((current - prevRevenue) / Math.abs(prevRevenue)) * 10000,
+              ) / 100
+            : null;
 
-      // Business rule (explicit, deterministic):
-      // - Group ONLY customer_id 2043 and 2149 together
-      // - Do NOT include any other ids, even if their names match
-      if (idNum === 2043 || idNum === 2149) {
-        return "HH_PRINT_MANAGEMENT_GROUP";
-      }
-
-      // Default: each raw id is its own key
-      return String(info.rawId);
-    };
-    for (const invoice of validInvoices) {
-      const originalCustomerId = invoice.customer_id;
-      const customerInfo = customerMap.get(originalCustomerId);
-      if (!customerInfo) continue;
-      if (!customerInfo.rawId || !customerInfo.name) continue;
-
-      // Apply consolidation rule (e.g., HH PRINT MANAGEMENT group)
-      const customerKey = getCustomerKey(customerInfo);
-
-      if (!customerMetrics.has(customerKey)) {
-        customerMetrics.set(customerKey, {
-          customerId: customerKey,
-          customerName:
-            customerKey === "HH_PRINT_MANAGEMENT_GROUP"
-              ? "HH PRINT MANAGEMENT [AGRUPADO]"
-              : customerInfo.name,
-          city: customerInfo.city,
-          salesperson: customerInfo.salesperson,
-          invoiceCount: 0,
-          netRevenue: 0,
-          cancelledRevenue: 0,
-          firstInvoice: new Date(invoice.invoice_date),
-          lastInvoice: new Date(invoice.invoice_date),
-        });
+        return {
+          ...base,
+          previousNetRevenue,
+          previousDeltaValue,
+          previousDeltaPct,
+        };
       }
 
-      const metrics = customerMetrics.get(customerKey)!;
-      const value = invoice.net_value || 0;
-      const invoiceDate = new Date(invoice.invoice_date);
+      return base;
+    });
 
-      // Update first and last invoice dates
-      if (invoiceDate < metrics.firstInvoice) {
-        metrics.firstInvoice = invoiceDate;
-      }
-      if (invoiceDate > metrics.lastInvoice) {
-        metrics.lastInvoice = invoiceDate;
-      }
-
-      // Revenue calculation:
-      // - Facturas: add net_value (positive)
-      // - Notas de Crédito: add net_value (already negative in DB)
-      // Cancelled invoices already filtered out by filterValid
-      const isFactura = invoice.document_type === "Factura";
-      const isNotaCredito = invoice.document_type === "Nota de Crédito";
-
-      if (isFactura) {
-        metrics.netRevenue += value;
-        metrics.invoiceCount++;
-      } else if (isNotaCredito) {
-        metrics.netRevenue += value; // add negative value -> subtracts correctly
-      }
-    }
-
-    // Optionally compute previous-year revenue per customer for YTD comparison
-    const prevMetrics = new Map<
-      string,
-      {
-        netRevenue: number;
-      }
-    >();
-
-    if (period === "ytd" && validPrevInvoices.length > 0) {
-      for (const inv of validPrevInvoices) {
-        const originalCustomerId = inv.customer_id;
-
-        // Try to map using current customer map (preferred for consistency)
-        const mapInfo = customerMap.get(originalCustomerId);
-
-        // If not found (historical-only id), derive minimal info from invoice
-        const fallbackName =
-          (inv as any).customer_name &&
-          typeof (inv as any).customer_name === "string"
-            ? fixEncoding((inv as any).customer_name)
-            : "";
-
-        const info: { rawId: number | string; name: string } = mapInfo
-          ? { rawId: mapInfo.rawId, name: mapInfo.name }
-          : {
-              rawId: originalCustomerId,
-              name: fallbackName || String(originalCustomerId),
-            };
-
-        const customerKey = getCustomerKey(info);
-        const isFactura = inv.document_type === "Factura";
-        const isNotaCredito = inv.document_type === "Nota de Crédito";
-        const value = inv.net_value || 0;
-
-        if (!isFactura && !isNotaCredito) continue;
-
-        const existing = prevMetrics.get(customerKey) || { netRevenue: 0 };
-        existing.netRevenue += value; // Facturas positive, NC negative
-        prevMetrics.set(customerKey, existing);
-      }
-    }
-
-    // Calculate total revenue for percentage calculations (current period only)
-    const totalRevenue = Array.from(customerMetrics.values()).reduce(
-      (sum, customer) => sum + customer.netRevenue,
+    // Calculate total revenue for percentage calculations
+    const totalRevenue = customerResults.reduce(
+      (sum: number, customer: any) => sum + customer.netRevenue,
       0,
     );
 
-    // Convert to array, calculate additional metrics, and sort by revenue
-    const customerResults = Array.from(customerMetrics.values())
-      .filter((customer) => customer.netRevenue > 0)
-      .map((customer) => {
-        const base = {
-          customerId: customer.customerId,
-          customerName: customer.customerName,
-          city: customer.city,
-          salesperson: customer.salesperson,
-          invoiceCount: customer.invoiceCount,
-          netRevenue: Math.round(customer.netRevenue * 100) / 100,
-          cancelledRevenue: Math.round(customer.cancelledRevenue * 100) / 100,
-          firstInvoice: customer.firstInvoice.toISOString().split("T")[0],
-          lastInvoice: customer.lastInvoice.toISOString().split("T")[0],
-          daysSinceLastInvoice: Math.floor(
-            (now.getTime() - customer.lastInvoice.getTime()) /
-              (1000 * 60 * 60 * 24),
-          ),
-        };
+    // Add revenue share percentage
+    const customersWithShare = customerResults.map((customer: any) => {
+      const revenueSharePct =
+        totalRevenue > 0
+          ? Math.round((customer.netRevenue / totalRevenue) * 10000) / 100
+          : 0;
+      return {
+        ...customer,
+        revenueSharePct,
+      };
+    });
 
-        const revenueSharePct =
-          totalRevenue > 0
-            ? Math.round((customer.netRevenue / totalRevenue) * 10000) / 100
-            : 0;
-
-        if (period === "ytd") {
-          const prev = prevMetrics.get(customer.customerId);
-          const prevRevenue = prev ? prev.netRevenue : 0;
-          const current = customer.netRevenue;
-
-          const previousNetRevenue = Math.round(prevRevenue * 100) / 100;
-
-          const previousDeltaValue =
-            Math.round((current - prevRevenue) * 100) / 100;
-
-          const previousDeltaPct =
-            prevRevenue !== 0
-              ? Math.round(
-                  ((current - prevRevenue) / Math.abs(prevRevenue)) * 10000,
-                ) / 100
-              : null;
-
-          return {
-            ...base,
-            revenueSharePct,
-            previousNetRevenue,
-            previousDeltaValue,
-            previousDeltaPct,
-          };
-        }
-
-        // Non-YTD periods: keep existing shape
-        return {
-          ...base,
-          revenueSharePct,
-        };
-      })
-      .sort((a, b) => b.netRevenue - a.netRevenue)
+    // Sort by revenue descending and apply limit
+    const sortedCustomers = customersWithShare
+      .sort((a: any, b: any) => b.netRevenue - a.netRevenue)
       .slice(0, limit)
-      .map((customer, index) => ({
+      .map((customer: any, index: number) => ({
         rank: index + 1,
         ...customer,
       }));
 
     // Calculate summary statistics
     const summary = {
-      totalCustomers: customerMetrics.size,
+      totalCustomers: customerMetrics.length,
       totalRevenue: Math.round(totalRevenue * 100) / 100,
-      totalInvoices: Array.from(customerMetrics.values()).reduce(
-        (sum, c) => sum + c.invoiceCount,
+      totalInvoices: customerMetrics.reduce(
+        (sum: number, c: any) => sum + (c.invoice_count || 0),
         0,
       ),
       topCustomersRevenue:
         Math.round(
-          customerResults.reduce((sum, c) => sum + c.netRevenue, 0) * 100,
+          sortedCustomers.reduce((sum: number, c: any) => sum + c.netRevenue, 0) * 100,
         ) / 100,
       topCustomersSharePct:
         totalRevenue > 0
           ? Math.round(
-              (customerResults.reduce((sum, c) => sum + c.netRevenue, 0) /
+              (sortedCustomers.reduce((sum: number, c: any) => sum + c.netRevenue, 0) /
                 totalRevenue) *
                 100 *
                 100,
@@ -417,7 +250,7 @@ export async function GET(request: Request) {
     };
 
     const response = {
-      customers: customerResults,
+      customers: sortedCustomers,
       summary,
       metadata: {
         period,
