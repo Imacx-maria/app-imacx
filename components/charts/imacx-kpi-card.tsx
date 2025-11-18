@@ -8,8 +8,12 @@
  * - UPPERCASE labels
  * - Primary color for values
  * - Green/Red for positive/negative changes
+ *
+ * Memoized for performance: prevents re-renders when parent updates
+ * unless props actually change
  */
 
+import { memo } from "react";
 import { cn } from "@/lib/utils";
 
 interface ImacxKpiCardProps {
@@ -39,7 +43,7 @@ interface ImacxKpiCardProps {
  * />
  * ```
  */
-export const ImacxKpiCard = ({
+const ImacxKpiCardComponent = ({
   label,
   value,
   change,
@@ -70,3 +74,5 @@ export const ImacxKpiCard = ({
     </div>
   );
 };
+
+export const ImacxKpiCard = memo(ImacxKpiCardComponent);
