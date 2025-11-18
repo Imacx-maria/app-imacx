@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { createBrowserClient } from "@/utils/supabase";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -720,6 +720,115 @@ export default function AnaliseFinanceiraPage() {
   };
 
   // ============================================================================
+  // Helper: Escalão Order (must be before useMemo that uses it)
+  // ============================================================================
+
+  const escalaoOrder: { [key: string]: number } = {
+    "0-1500": 1,
+    "1500-2500": 2,
+    "2500-7500": 3,
+    "7500-15000": 4,
+    "15000-30000": 5,
+    "30000+": 6,
+  };
+
+  const getEscalaoOrder = (escalao: string): number => {
+    return escalaoOrder[escalao] || 999;
+  };
+
+  // ============================================================================
+  // Company Conversion Calculations (must be before early returns)
+  // ============================================================================
+
+  const sortedCompanyConversao = useMemo(() => {
+    return companyConversao.slice().sort((a, b) => {
+      const dir = companyConvSortDirection === "asc" ? 1 : -1;
+      let av, bv;
+
+      switch (companyConvSortColumn) {
+        case "escalao":
+          // Use custom escalão order
+          av = getEscalaoOrder(a.escalao || "");
+          bv = getEscalaoOrder(b.escalao || "");
+          break;
+        case "total_orcamentos":
+          av = a.total_orcamentos;
+          bv = b.total_orcamentos;
+          break;
+        case "total_faturas":
+          av = a.total_faturas;
+          bv = b.total_faturas;
+          break;
+        case "taxa_conversao_pct":
+        default:
+          av = a.taxa_conversao_pct ?? -Infinity;
+          bv = b.taxa_conversao_pct ?? -Infinity;
+          break;
+      }
+
+      if (typeof av === "string" && typeof bv === "string") {
+        return av.localeCompare(bv) * dir;
+      }
+      return av > bv ? dir : av < bv ? -dir : 0;
+    });
+  }, [companyConversao, companyConvSortColumn, companyConvSortDirection]);
+
+  // Calculate totals and percentage weights for company conversion table
+  const companyConversaoTotals = useMemo(() => {
+    if (!companyConversao || companyConversao.length === 0) {
+      return {
+        totalOrcamentos: 0,
+        totalFaturas: 0,
+        totalValorOrcado: 0,
+        totalValorFaturado: 0,
+        totalRow: null,
+      };
+    }
+
+    const totals = companyConversao.reduce(
+      (acc, row) => {
+        acc.totalOrcamentos += row.total_orcamentos || 0;
+        acc.totalFaturas += row.total_faturas || 0;
+        acc.totalValorOrcado += row.total_valor_orcado || 0;
+        acc.totalValorFaturado += row.total_valor_faturado || 0;
+        return acc;
+      },
+      {
+        totalOrcamentos: 0,
+        totalFaturas: 0,
+        totalValorOrcado: 0,
+        totalValorFaturado: 0,
+      },
+    );
+
+    const avgValorOrcado =
+      totals.totalOrcamentos > 0
+        ? totals.totalValorOrcado / totals.totalOrcamentos
+        : 0;
+    const avgValorFaturado =
+      totals.totalFaturas > 0
+        ? totals.totalValorFaturado / totals.totalFaturas
+        : 0;
+    const taxaConversaoTotal =
+      totals.totalOrcamentos > 0
+        ? (totals.totalFaturas / totals.totalOrcamentos) * 100
+        : 0;
+
+    return {
+      ...totals,
+      totalRow: {
+        escalao: "TOTAL",
+        total_orcamentos: totals.totalOrcamentos,
+        total_faturas: totals.totalFaturas,
+        taxa_conversao_pct: taxaConversaoTotal,
+        peso_pct: 100,
+        avg_valor_orcado: avgValorOrcado,
+        avg_valor_faturado: avgValorFaturado,
+      },
+    };
+  }, [companyConversao]);
+
+  // ============================================================================
   // Render Loading State
   // ============================================================================
 
@@ -1116,23 +1225,6 @@ export default function AnaliseFinanceiraPage() {
       : null;
 
   // ============================================================================
-  // Helper: Escalão Order
-  // ============================================================================
-
-  const escalaoOrder: { [key: string]: number } = {
-    "0-1500": 1,
-    "1500-2500": 2,
-    "2500-7500": 3,
-    "7500-15000": 4,
-    "15000-30000": 5,
-    "30000+": 6,
-  };
-
-  const getEscalaoOrder = (escalao: string): number => {
-    return escalaoOrder[escalao] || 999;
-  };
-
-  // ============================================================================
   // Department Orçamentos Sorting
   // ============================================================================
 
@@ -1477,37 +1569,6 @@ export default function AnaliseFinanceiraPage() {
       <ArrowDown className="ml-1 inline h-3 w-3" />
     );
   };
-
-  const sortedCompanyConversao = companyConversao.slice().sort((a, b) => {
-    const dir = companyConvSortDirection === "asc" ? 1 : -1;
-    let av, bv;
-
-    switch (companyConvSortColumn) {
-      case "escalao":
-        // Use custom escalão order
-        av = getEscalaoOrder(a.escalao || "");
-        bv = getEscalaoOrder(b.escalao || "");
-        break;
-      case "total_orcamentos":
-        av = a.total_orcamentos;
-        bv = b.total_orcamentos;
-        break;
-      case "total_faturas":
-        av = a.total_faturas;
-        bv = b.total_faturas;
-        break;
-      case "taxa_conversao_pct":
-      default:
-        av = a.taxa_conversao_pct ?? -Infinity;
-        bv = b.taxa_conversao_pct ?? -Infinity;
-        break;
-    }
-
-    if (typeof av === "string" && typeof bv === "string") {
-      return av.localeCompare(bv) * dir;
-    }
-    return av > bv ? dir : av < bv ? -dir : 0;
-  });
 
   // ============================================================================
   // Gerar Relatório
@@ -2849,43 +2910,110 @@ ${(() => {
                           Taxa Conv.
                           {renderCompanyConvSortIcon("taxa_conversao_pct")}
                         </TableHead>
-                        <TableHead className="text-right">Valor Orç.</TableHead>
-                        <TableHead className="text-right">Valor Fat.</TableHead>
+                        <TableHead className="text-right">% Peso</TableHead>
+                        <TableHead className="text-right">Valor Orç. (AVG)</TableHead>
+                        <TableHead className="text-right">Valor Fat. (AVG)</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {sortedCompanyConversao.map((row: any, idx: number) => (
-                        <TableRow key={idx}>
-                          <TableCell className="font-medium">
-                            {row.escalao}
+                      {sortedCompanyConversao.map((row: any, idx: number) => {
+                        const pesoPct =
+                          companyConversaoTotals.totalOrcamentos > 0
+                            ? (row.total_orcamentos /
+                                companyConversaoTotals.totalOrcamentos) *
+                              100
+                            : 0;
+                        const avgValorOrcado =
+                          row.total_orcamentos > 0
+                            ? (row.total_valor_orcado || 0) /
+                              row.total_orcamentos
+                            : 0;
+                        const avgValorFaturado =
+                          row.total_faturas > 0
+                            ? (row.total_valor_faturado || 0) /
+                              row.total_faturas
+                            : 0;
+
+                        return (
+                          <TableRow key={idx}>
+                            <TableCell className="font-medium">
+                              {row.escalao}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {row.total_orcamentos}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {row.total_faturas}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <span
+                                className={
+                                  row.taxa_conversao_pct >= 30
+                                    ? "text-green-600 dark:text-green-400 font-medium"
+                                    : row.taxa_conversao_pct >= 15
+                                      ? "text-yellow-600 dark:text-yellow-400 font-medium"
+                                      : "text-red-600 dark:text-red-400 font-medium"
+                                }
+                              >
+                                {row.taxa_conversao_pct}%
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right text-sm text-muted-foreground">
+                              {pesoPct.toFixed(1)}%
+                            </TableCell>
+                            <TableCell className="text-right text-sm text-muted-foreground">
+                              {formatCurrency(avgValorOrcado)}
+                            </TableCell>
+                            <TableCell className="text-right text-sm text-muted-foreground">
+                              {formatCurrency(avgValorFaturado)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      {companyConversaoTotals.totalRow && (
+                        <TableRow className="font-semibold bg-muted/50">
+                          <TableCell className="font-semibold">
+                            {companyConversaoTotals.totalRow.escalao}
                           </TableCell>
-                          <TableCell className="text-right">
-                            {row.total_orcamentos}
+                          <TableCell className="text-right font-semibold">
+                            {companyConversaoTotals.totalRow.total_orcamentos}
                           </TableCell>
-                          <TableCell className="text-right">
-                            {row.total_faturas}
+                          <TableCell className="text-right font-semibold">
+                            {companyConversaoTotals.totalRow.total_faturas}
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right font-semibold">
                             <span
                               className={
-                                row.taxa_conversao_pct >= 30
-                                  ? "text-green-600 dark:text-green-400 font-medium"
-                                  : row.taxa_conversao_pct >= 15
-                                    ? "text-yellow-600 dark:text-yellow-400 font-medium"
-                                    : "text-red-600 dark:text-red-400 font-medium"
+                                companyConversaoTotals.totalRow
+                                  .taxa_conversao_pct >= 30
+                                  ? "text-green-600 dark:text-green-400"
+                                  : companyConversaoTotals.totalRow
+                                      .taxa_conversao_pct >= 15
+                                    ? "text-yellow-600 dark:text-yellow-400"
+                                    : "text-red-600 dark:text-red-400"
                               }
                             >
-                              {row.taxa_conversao_pct}%
+                              {companyConversaoTotals.totalRow.taxa_conversao_pct.toFixed(
+                                1,
+                              )}
+                              %
                             </span>
                           </TableCell>
-                          <TableCell className="text-right text-sm text-muted-foreground">
-                            {formatCurrency(row.total_valor_orcado || 0)}
+                          <TableCell className="text-right font-semibold">
+                            {companyConversaoTotals.totalRow.peso_pct.toFixed(1)}%
                           </TableCell>
-                          <TableCell className="text-right text-sm text-muted-foreground">
-                            {formatCurrency(row.total_valor_faturado || 0)}
+                          <TableCell className="text-right font-semibold">
+                            {formatCurrency(
+                              companyConversaoTotals.totalRow.avg_valor_orcado,
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {formatCurrency(
+                              companyConversaoTotals.totalRow.avg_valor_faturado,
+                            )}
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )}
                     </TableBody>
                   </Table>
                 </div>
