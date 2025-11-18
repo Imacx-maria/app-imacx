@@ -4140,9 +4140,29 @@ ${(() => {
               {/* TOP 15 */}
               {pipelineTab === "top15" && (
                 <Card className="p-6">
-                  <h3 className="text-lg font-medium mb-4">
-                    Top 15 Orçamentos - {selectedDepartment}
-                  </h3>
+                  <div className="mb-4">
+                    <h3 className="text-lg font-medium">
+                      Top 15 Orçamentos - {selectedDepartment}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {(() => {
+                        const periodo = activeTab === "mtd" ? "mensal" : "anual";
+                        const now = new Date();
+                        const currentYear = now.getFullYear();
+                        let daysDiff = 0;
+                        
+                        if (periodo === "mensal") {
+                          const startDate = new Date(currentYear, now.getMonth(), 1);
+                          daysDiff = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                          return `Últimos ${daysDiff} dias (mês atual)`;
+                        } else {
+                          const startDate = new Date(currentYear, 0, 1);
+                          daysDiff = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                          return `Últimos ${daysDiff} dias (ano atual)`;
+                        }
+                      })()}
+                    </p>
+                  </div>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -4223,9 +4243,14 @@ ${(() => {
               {/* NEEDS ATTENTION */}
               {pipelineTab === "attention" && (
                 <Card className="p-6">
-                  <h3 className="text-lg font-medium mb-4">
-                    Orçamentos que Precisam Atenção - {selectedDepartment}
-                  </h3>
+                  <div className="mb-4">
+                    <h3 className="text-lg font-medium">
+                      Orçamentos que Precisam Atenção - {selectedDepartment}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Orçamentos >€7.500 com mais de 14 dias sem resposta
+                    </p>
+                  </div>
                   {pipelineData?.needsAttention?.length > 0 ? (
                     <Table>
                       <TableHeader>
@@ -4295,9 +4320,14 @@ ${(() => {
               {/* PERDIDOS */}
               {pipelineTab === "lost" && (
                 <Card className="p-6">
-                  <h3 className="text-lg font-medium mb-4">
-                    Orçamentos Perdidos (últimos 60 dias) - {selectedDepartment}
-                  </h3>
+                  <div className="mb-4">
+                    <h3 className="text-lg font-medium">
+                      Orçamentos Perdidos - {selectedDepartment}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Últimos 60 dias
+                    </p>
+                  </div>
                   <Table>
                     <TableHeader>
                       <TableRow>
