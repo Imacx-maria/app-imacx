@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { createBrowserClient } from "@/utils/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,7 +54,7 @@ interface MaterialEditDrawerProps {
   onSave: () => void;
 }
 
-export default function MaterialEditDrawer({
+function MaterialEditDrawerComponent({
   open,
   onClose,
   material,
@@ -782,3 +782,5 @@ export default function MaterialEditDrawer({
     </Drawer>
   );
 }
+
+export default memo(MaterialEditDrawerComponent);

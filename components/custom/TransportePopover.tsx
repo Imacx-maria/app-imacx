@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, memo } from 'react'
 import {
   Popover,
   PopoverContent,
@@ -47,7 +47,7 @@ export interface TransportePopoverProps {
   centered?: boolean
 }
 
-const TransportePopover: React.FC<TransportePopoverProps> = ({
+const TransportePopoverInternal: React.FC<TransportePopoverProps> = ({
   localRecolha,
   localEntrega,
   transportadora,
@@ -333,5 +333,7 @@ const TransportePopover: React.FC<TransportePopoverProps> = ({
     </Popover>
   )
 }
+
+const TransportePopover = memo(TransportePopoverInternal);
 
 export default TransportePopover

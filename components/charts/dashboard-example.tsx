@@ -7,6 +7,7 @@
  * Use this as a reference for implementing charts in your pages
  */
 
+import { memo } from "react";
 import {
   ImacxBarChart,
   ImacxLineChart,
@@ -15,7 +16,7 @@ import {
   ImacxKpiCard,
 } from "./index";
 
-export const DashboardExample = () => {
+const DashboardExampleInternal = () => {
   // Sample data
   const salesData = [
     { month: "JAN", vendas: 45000, custos: 32000 },
@@ -120,3 +121,5 @@ export const DashboardExample = () => {
     </div>
   );
 };
+
+export const DashboardExample = memo(DashboardExampleInternal);

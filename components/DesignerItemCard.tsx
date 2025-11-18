@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, memo } from 'react'
 import type { CheckedState } from '@radix-ui/react-checkbox'
 import {
   ChevronDown,
@@ -170,7 +170,7 @@ const findLastApprovalDate = (item: Item): string | null => {
   return null
 }
 
-export default function DesignerItemCard({
+function DesignerItemCardComponent({
   item,
   jobId,
   jobDataIn,
@@ -1027,6 +1027,8 @@ export default function DesignerItemCard({
     </Collapsible>
   )
 }
+
+export default memo(DesignerItemCardComponent);
 
 type StageBlockProps = {
   label: string
