@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import { HelpCircle } from "lucide-react";
 import {
   Dialog,
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-export function DesignerFlowHelpDialog() {
+const DesignerFlowHelpDialogInternal = () => {
   const [open, setOpen] = useState(false);
 
   return (
@@ -197,11 +197,9 @@ export function DesignerFlowHelpDialog() {
       </DialogContent>
     </Dialog>
   );
-}
+};
 
-
-
-
+export const DesignerFlowHelpDialog = memo(DesignerFlowHelpDialogInternal);
 
 
 

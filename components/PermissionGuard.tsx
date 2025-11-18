@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode } from 'react'
+import { ReactNode, memo } from 'react'
 import { usePermissions } from '@/providers/PermissionsProvider'
 import { type PermissionId, type RoleId } from '@/types/permissions'
 
@@ -13,14 +13,14 @@ interface PermissionGuardProps {
   fallback?: ReactNode
 }
 
-export default function PermissionGuard({
+const PermissionGuardInternal = ({
   children,
   requiredPermission,
   requiredPermissionsAll,
   requiredRole,
   requiredAnyRole,
   fallback,
-}: PermissionGuardProps) {
+}: PermissionGuardProps) => {
   const {
     hasPermission,
     hasAllPermissions,
@@ -67,6 +67,9 @@ export default function PermissionGuard({
 
   return <>{children}</>
 }
+
+const PermissionGuard = memo(PermissionGuardInternal)
+export default PermissionGuard
 
 function DefaultDenied() {
   return (

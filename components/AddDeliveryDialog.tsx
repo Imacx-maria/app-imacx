@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -67,13 +67,13 @@ interface DeliveryFormData {
   notas?: string;
 }
 
-export function AddDeliveryDialog({
+const AddDeliveryDialogInternal = ({
   onSuccess,
   armazens,
   transportadoras,
   onArmazensUpdate,
   onTransportadorasUpdate,
-}: AddDeliveryDialogProps) {
+}: AddDeliveryDialogProps) => {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<DeliveryFormData>({});
@@ -577,4 +577,6 @@ export function AddDeliveryDialog({
       </DialogContent>
     </Dialog>
   );
-}
+};
+
+export const AddDeliveryDialog = memo(AddDeliveryDialogInternal);

@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, memo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -203,7 +203,7 @@ const SidebarSpinner = () => (
   </svg>
 );
 
-export function Navigation() {
+const NavigationInternal = () => {
   const navRef = useRef<HTMLDivElement | null>(null);
   const pathname = usePathname();
   const router = useRouter();
@@ -768,4 +768,6 @@ export function Navigation() {
       </div>
     </div>
   );
-}
+};
+
+export const Navigation = memo(NavigationInternal);

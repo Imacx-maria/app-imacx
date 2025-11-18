@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { memo } from 'react'
 import { TableCell } from '@/components/ui/table'
 
 /**
@@ -24,7 +24,7 @@ interface ActionColumnProps {
   className?: string
 }
 
-export const ActionColumn: React.FC<ActionColumnProps> = ({
+const ActionColumnInternal: React.FC<ActionColumnProps> = ({
   children,
   width = 'w-[140px]',
   className = '',
@@ -34,4 +34,5 @@ export const ActionColumn: React.FC<ActionColumnProps> = ({
   </TableCell>
 )
 
+export const ActionColumn = memo(ActionColumnInternal)
 export default ActionColumn

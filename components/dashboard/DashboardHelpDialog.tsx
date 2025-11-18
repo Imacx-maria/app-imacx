@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import { HelpCircle } from "lucide-react";
 import {
   Dialog,
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-export function DashboardHelpDialog() {
+const DashboardHelpDialogInternal = () => {
   const [open, setOpen] = useState(false);
 
   return (
@@ -141,4 +141,6 @@ export function DashboardHelpDialog() {
       </DialogContent>
     </Dialog>
   );
-}
+};
+
+export const DashboardHelpDialog = memo(DashboardHelpDialogInternal);

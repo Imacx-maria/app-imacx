@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, memo } from 'react'
 import {
   Popover,
   PopoverContent,
@@ -54,7 +54,7 @@ export interface NotasPopoverProps {
   centered?: boolean
 }
 
-const NotasPopover: React.FC<NotasPopoverProps> = ({
+const NotasPopoverInternal: React.FC<NotasPopoverProps> = ({
   value,
   onChange,
   onSave,
@@ -436,4 +436,5 @@ const NotasPopover: React.FC<NotasPopoverProps> = ({
   )
 }
 
+const NotasPopover = memo(NotasPopoverInternal)
 export default NotasPopover
