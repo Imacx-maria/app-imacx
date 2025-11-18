@@ -31,7 +31,6 @@ import CreatableTransportadoraCombobox, {
 } from "@/components/forms/CreatableTransportadoraCombobox";
 import NotasPopover from "@/components/custom/NotasPopover";
 import TransportePopover from "@/components/custom/TransportePopover";
-import { VirtualizedTableBodyEmCurso } from "@/components/DashboardLogisticaTable/VirtualizedTableBodyEmCurso";
 
 // Debug logging helper
 const debugLog = (label: string, data: any) => console.log(label, data);
@@ -1372,27 +1371,7 @@ export const DashboardLogisticaTable: React.FC<
                   </TableHead>
                 </TableRow>
               </TableHeader>
-              <VirtualizedTableBodyEmCurso
-                records={sortedEmCurso}
-                editValues={editValues}
-                updateEditValue={updateEditValue}
-                saveEditing={saveEditing}
-                handleRecolhaChange={handleRecolhaChange}
-                handleEntregaChange={handleEntregaChange}
-                handleTransportadoraChange={handleTransportadoraChange}
-                handleNotasSave={handleNotasSave}
-                handleDataSaidaUpdate={handleDataSaidaUpdate}
-                handleConcluidoUpdate={handleConcluidoUpdate}
-                handleSaiuUpdate={handleSaiuUpdate}
-                handleArmazensUpdate={handleArmazensUpdate}
-                handleTransportadorasUpdate={handleTransportadorasUpdate}
-                armazens={armazens}
-                transportadoras={transportadoras}
-                clienteLookup={clienteLookup}
-                parseDateFromYYYYMMDD={parseDateFromYYYYMMDD}
-              />
-              {/* Old TableBody replaced with VirtualizedTableBodyEmCurso - below is disabled*/}
-              {false && <TableBody>
+              <TableBody>
                 {sortedEmCurso.map((record) => {
                   const recordId = `${record.item_id}-${record.logistica_id || "no-logistics"}`;
                   const currentEditValues = editValues[recordId] || {};
@@ -1582,7 +1561,6 @@ export const DashboardLogisticaTable: React.FC<
                   </TableRow>
                 )}
               </TableBody>
-              }
             </Table>
           </div>
         </TabsContent>
