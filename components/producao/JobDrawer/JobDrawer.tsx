@@ -1129,15 +1129,29 @@ function JobDrawerContentComponent({
       );
     },
     onRecolhaChange: async (rowId: string, value: string) => {
-      await updateLogisticaField(rowId, "local_recolha", value || null, null);
+      // value is the warehouse ID, find the warehouse name from logisticaArmazens
+      const warehouse = logisticaArmazens.find((a) => String(a.value) === String(value));
+      const warehouseName = warehouse?.label || "";
+
+      // Update BOTH the ID and the name fields
+      await updateLogisticaField(rowId, "id_local_recolha", value || null, null);
+      await updateLogisticaField(rowId, "local_recolha", warehouseName || null, null);
+
       setLogisticaRows((prevRows) =>
-        prevRows.map((r) => (r.id === rowId ? { ...r, local_recolha: value || null } : r)),
+        prevRows.map((r) => (r.id === rowId ? { ...r, id_local_recolha: value || null, local_recolha: warehouseName || null } : r)),
       );
     },
     onEntregaChange: async (rowId: string, value: string) => {
-      await updateLogisticaField(rowId, "local_entrega", value || null, null);
+      // value is the warehouse ID, find the warehouse name from logisticaArmazens
+      const warehouse = logisticaArmazens.find((a) => String(a.value) === String(value));
+      const warehouseName = warehouse?.label || "";
+
+      // Update BOTH the ID and the name fields
+      await updateLogisticaField(rowId, "id_local_entrega", value || null, null);
+      await updateLogisticaField(rowId, "local_entrega", warehouseName || null, null);
+
       setLogisticaRows((prevRows) =>
-        prevRows.map((r) => (r.id === rowId ? { ...r, local_entrega: value || null } : r)),
+        prevRows.map((r) => (r.id === rowId ? { ...r, id_local_entrega: value || null, local_entrega: warehouseName || null } : r)),
       );
     },
     onTransportadoraChange: async (row: any, value: string) => {
