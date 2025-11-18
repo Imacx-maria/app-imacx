@@ -883,7 +883,13 @@ export const LogisticaTableWithCreatable: React.FC<
                     value={
                       row.id_local_recolha ? String(row.id_local_recolha) : ""
                     }
-                    displayLabel={row.local_recolha || ""}
+                    displayLabel={
+                      row.id_local_recolha
+                        ? armazemOptions.find(
+                            (opt) => opt.value === String(row.id_local_recolha),
+                          )?.label || row.local_recolha || ""
+                        : row.local_recolha || ""
+                    }
                     onChange={(value) =>
                       onRecolhaChange(row.id || row.items_base?.id || "", value)
                     }
@@ -903,7 +909,13 @@ export const LogisticaTableWithCreatable: React.FC<
                     value={
                       row.id_local_entrega ? String(row.id_local_entrega) : ""
                     }
-                    displayLabel={row.local_entrega || ""}
+                    displayLabel={
+                      row.id_local_entrega
+                        ? armazemOptions.find(
+                            (opt) => opt.value === String(row.id_local_entrega),
+                          )?.label || row.local_entrega || ""
+                        : row.local_entrega || ""
+                    }
                     onChange={(value) =>
                       onEntregaChange(row.id || row.items_base?.id || "", value)
                     }
