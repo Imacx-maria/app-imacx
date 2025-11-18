@@ -10,6 +10,7 @@
  * - UPPERCASE text
  */
 
+import { memo } from "react";
 import {
   BarChart,
   Bar,
@@ -73,7 +74,7 @@ interface ImacxBarChartProps {
  * @param height - Chart height in pixels (default: 400)
  * @param className - Additional CSS classes
  */
-export const ImacxBarChart = ({
+const ImacxBarChartInternal = ({
   data,
   dataKey,
   xAxisKey = "name",
@@ -137,3 +138,5 @@ export const ImacxBarChart = ({
     </ResponsiveContainer>
   );
 };
+
+export const ImacxBarChart = memo(ImacxBarChartInternal);

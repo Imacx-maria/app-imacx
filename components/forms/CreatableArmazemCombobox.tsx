@@ -3,7 +3,7 @@ import CreatableCombobox, {
   CreatableComboboxOption,
 } from '@/components/custom/CreatableCombobox'
 import { Loader2 } from 'lucide-react'
-import React from 'react'
+import React, { memo } from 'react'
 import { createBrowserClient } from '@/utils/supabase'
 
 export interface ArmazemOption {
@@ -28,7 +28,7 @@ interface CreatableArmazemComboboxProps {
   buttonClassName?: string
 }
 
-export const CreatableArmazemCombobox: React.FC<
+const CreatableArmazemComboboxInternal: React.FC<
   CreatableArmazemComboboxProps
 > = ({
   value,
@@ -133,5 +133,7 @@ export const CreatableArmazemCombobox: React.FC<
     </div>
   )
 }
+
+export const CreatableArmazemCombobox = memo(CreatableArmazemComboboxInternal);
 
 export default CreatableArmazemCombobox

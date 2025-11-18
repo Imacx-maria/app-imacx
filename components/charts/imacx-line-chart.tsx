@@ -10,6 +10,7 @@
  * - UPPERCASE text
  */
 
+import { memo } from "react";
 import {
   LineChart,
   Line,
@@ -45,7 +46,7 @@ interface ImacxLineChartProps {
  * @param height - Chart height in pixels (default: 400)
  * @param className - Additional CSS classes
  */
-export const ImacxLineChart = ({
+const ImacxLineChartInternal = ({
   data,
   lines,
   xAxisKey = "name",
@@ -109,3 +110,5 @@ export const ImacxLineChart = ({
     </ResponsiveContainer>
   );
 };
+
+export const ImacxLineChart = memo(ImacxLineChartInternal);

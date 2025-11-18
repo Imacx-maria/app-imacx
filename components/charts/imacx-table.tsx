@@ -10,6 +10,7 @@
  * - Proper accessibility (44px min height)
  */
 
+import { memo } from "react";
 import { cn } from "@/lib/utils";
 
 export interface ColumnConfig {
@@ -43,7 +44,7 @@ interface ImacxTableProps {
  * <ImacxTable columns={columns} data={tableData} />
  * ```
  */
-export const ImacxTable = ({ columns, data, className }: ImacxTableProps) => {
+const ImacxTableInternal = ({ columns, data, className }: ImacxTableProps) => {
   return (
     <div className={cn("w-full overflow-auto", className)}>
       {/* eslint-disable-next-line imx/no-tailwind-border */}
@@ -94,3 +95,5 @@ export const ImacxTable = ({ columns, data, className }: ImacxTableProps) => {
     </div>
   );
 };
+
+export const ImacxTable = memo(ImacxTableInternal);

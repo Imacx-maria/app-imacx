@@ -10,6 +10,7 @@
  * - External labels with values
  */
 
+import { memo } from 'react';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer
 } from 'recharts';
@@ -34,7 +35,7 @@ interface ImacxPieChartProps {
  * @param innerRadius - Inner radius for donut chart (0 = pie, 50 = donut)
  * @param className - Additional CSS classes
  */
-export const ImacxPieChart = ({
+const ImacxPieChartInternal = ({
   data,
   dataKey = 'value',
   nameKey = 'name',
@@ -88,3 +89,5 @@ export const ImacxPieChart = ({
     </ResponsiveContainer>
   );
 };
+
+export const ImacxPieChart = memo(ImacxPieChartInternal);

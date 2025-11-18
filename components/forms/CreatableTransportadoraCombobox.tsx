@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, memo } from 'react'
 import { createBrowserClient } from '@/utils/supabase'
 import {
   CreatableCombobox,
@@ -21,7 +21,7 @@ interface CreatableTransportadoraComboboxProps {
   disabled?: boolean
 }
 
-const CreatableTransportadoraCombobox: React.FC<
+const CreatableTransportadoraComboboxInternal: React.FC<
   CreatableTransportadoraComboboxProps
 > = ({
   value,
@@ -105,5 +105,7 @@ const CreatableTransportadoraCombobox: React.FC<
     </div>
   )
 }
+
+const CreatableTransportadoraCombobox = memo(CreatableTransportadoraComboboxInternal);
 
 export default CreatableTransportadoraCombobox

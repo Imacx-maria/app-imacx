@@ -1,4 +1,5 @@
 import * as React from "react";
+import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -24,7 +25,7 @@ export interface DatePickerProps {
   [key: string]: any;
 }
 
-export const DatePicker: React.FC<DatePickerProps> = ({
+const DatePickerInternal: React.FC<DatePickerProps> = ({
   selected,
   onSelect,
   holidays = [],
@@ -115,5 +116,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     </Popover>
   );
 };
+
+export const DatePicker = memo(DatePickerInternal);
 
 export default DatePicker;

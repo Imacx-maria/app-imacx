@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect, memo } from "react";
 import {
   Table,
   TableHeader,
@@ -146,7 +146,7 @@ type SortableLogisticaKey =
   | "concluido"
   | "saiu";
 
-export const DashboardLogisticaTable: React.FC<
+const DashboardLogisticaTableInternal: React.FC<
   DashboardLogisticaTableProps
 > = ({
   onRefresh,
@@ -1805,5 +1805,7 @@ export const DashboardLogisticaTable: React.FC<
     </div>
   );
 };
+
+export const DashboardLogisticaTable = memo(DashboardLogisticaTableInternal);
 
 export default DashboardLogisticaTable;
