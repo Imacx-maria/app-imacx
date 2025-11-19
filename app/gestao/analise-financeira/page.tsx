@@ -1683,26 +1683,71 @@ export default function AnaliseFinanceiraPage() {
       console.log("Clientes:", data.clientes);
 
       // Calcular métricas
-      const totalOrcamentosYTD = data.totais.orcamentos.ytd;
-      const totalOrcamentosLYTD = data.totais.orcamentos.lytd;
-      const totalFaturasYTD = data.totais.faturas.ytd;
-      const totalFaturasLYTD = data.totais.faturas.lytd;
+      const valorOrcamentosYTD = data.totais.orcamentos.ytd; // Valor monetário (€)
+      const valorOrcamentosLYTD = data.totais.orcamentos.lytd; // Valor monetário (€)
+      const valorFaturasYTD = data.totais.faturas.ytd; // Valor monetário (€)
+      const valorFaturasLYTD = data.totais.faturas.lytd; // Valor monetário (€)
+
+      // BUSCAR QUANTIDADES DO ENDPOINT DE KPI (fonte mais confiável)
+      let qtdOrcamentosYTD = 0;
+      let qtdFaturasYTD = 0;
+      try {
+        const kpiResponse = await fetch("/api/financial-analysis/kpi-dashboard");
+        if (kpiResponse.ok) {
+          const kpiData = await kpiResponse.json();
+          // O KPI dashboard retorna as quantidades corretas
+          qtdOrcamentosYTD = kpiData?.ytd?.quoteCount?.current || 0;
+          qtdFaturasYTD = kpiData?.ytd?.invoices?.current || 0;
+          console.log("✅ [Relatório] Dados do KPI:", {
+            qtdOrcamentosYTD,
+            qtdFaturasYTD,
+            kpiYtd: kpiData?.ytd,
+          });
+        }
+      } catch (err) {
+        console.error("❌ [Relatório] Erro ao buscar KPI:", err);
+        // Fallback: tentar usar salespersons
+        qtdOrcamentosYTD = (data.salespersons || []).reduce(
+          (sum: number, sp: any) => sum + (sp.total_quotes || 0),
+          0,
+        );
+        qtdFaturasYTD = data.totais?.qtd_faturas?.ytd || 0;
+        if (!qtdFaturasYTD && data.raw?.performance) {
+          qtdFaturasYTD = data.raw.performance.reduce(
+            (sum: number, dept: any) => sum + (Number(dept.invoices_ytd) || 0),
+            0,
+          );
+        }
+      }
 
       const crescimentoOrcamentos =
-        totalOrcamentosLYTD > 0
-          ? ((totalOrcamentosYTD - totalOrcamentosLYTD) / totalOrcamentosLYTD) *
+        valorOrcamentosLYTD > 0
+          ? ((valorOrcamentosYTD - valorOrcamentosLYTD) / valorOrcamentosLYTD) *
             100
           : 0;
 
       const crescimentoFaturas =
-        totalFaturasLYTD > 0
-          ? ((totalFaturasYTD - totalFaturasLYTD) / totalFaturasLYTD) * 100
+        valorFaturasLYTD > 0
+          ? ((valorFaturasYTD - valorFaturasLYTD) / valorFaturasLYTD) * 100
           : 0;
 
+      // 3. Calcular Taxa de Conversão Global (Quantidade / Quantidade)
+      // Ex: 929 faturas / 1702 orçamentos = 54.6%
       const taxaConversaoGlobal =
-        totalOrcamentosYTD > 0
-          ? (totalFaturasYTD / totalOrcamentosYTD) * 100
+        qtdOrcamentosYTD > 0 && qtdFaturasYTD > 0
+          ? (qtdFaturasYTD / qtdOrcamentosYTD) * 100
           : 0;
+
+      // Debug detalhado no console para conferência
+      console.log("📊 [Relatório] Taxa Conversão - DETALHADO:", {
+        qtdFaturasYTD,
+        qtdOrcamentosYTD,
+        taxa_resultante: taxaConversaoGlobal,
+        formula: `${qtdFaturasYTD} / ${qtdOrcamentosYTD} * 100`,
+        data_salespersons_length: data.salespersons?.length || 0,
+        data_totais_qtd_faturas: data.totais?.qtd_faturas,
+        data_raw_performance_length: data.raw?.performance?.length || 0,
+      });
 
       // Calcular total de needs attention
       const totalNeedsAttention = Object.values(data.pipeline).reduce(
@@ -1715,45 +1760,35 @@ export default function AnaliseFinanceiraPage() {
         0,
       );
 
-      // Calcular quantidade total de orçamentos YTD (count from all pipeline data)
-      const allQuotesYTD = Object.values(data.pipeline).reduce(
-        (total: number, dept: any) => {
-          // Count all quotes in this department's pipeline (top15 + needsAttention + perdidos + aprovados)
-          const deptQuotes =
-            (dept.top15?.length || 0) +
-            (dept.needsAttention?.length || 0) +
-            (dept.perdidos?.length || 0) +
-            (dept.aprovados?.length || 0);
-          return total + deptQuotes;
-        },
-        0,
-      );
+      // Calcular quantidade total de orçamentos YTD para exibição (deve bater com qtdOrcamentosYTD)
+      const allQuotesYTD = qtdOrcamentosYTD; // Reutilizar o valor calculado corretamente
 
       // Calcular orçamento médio
       const orcamentoMedio =
-        allQuotesYTD > 0 ? totalOrcamentosYTD / allQuotesYTD : 0;
+        allQuotesYTD > 0 ? valorOrcamentosYTD / allQuotesYTD : 0;
 
       // Formatar dados completos para o relatório
       const relatorio = `# RELATÓRIO FINANCEIRO IMACX COMPLETO - ${mes.toUpperCase()}
-
----
-**Data:** ${hoje}
-**Período:** YTD (Year-to-Date)
-**Preparado por:** Sistema de Análise IMACX
----
-
-## 📊 SUMÁRIO EXECUTIVO
-
-### KPIs Principais
-
-| Métrica | Valor YTD | Ano Anterior (LYTD) | Variação |
-|---------|-----------|---------------------|----------|
-| **Volume Orçamentos** | ${totalOrcamentosYTD.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${totalOrcamentosLYTD.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${crescimentoOrcamentos > 0 ? "+" : ""}${crescimentoOrcamentos.toFixed(1)}% |
-| **Nº Orçamentos** | ${allQuotesYTD} | - | - |
-| **Orçamento Médio** | ${orcamentoMedio.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | - | - |
-| **Volume Faturas** | ${totalFaturasYTD.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${totalFaturasLYTD.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${crescimentoFaturas > 0 ? "+" : ""}${crescimentoFaturas.toFixed(1)}% |
-| **Taxa de Conversão** | ${taxaConversaoGlobal.toFixed(1)}% | - | - |
-| **Nº de Departamentos** | 3 | - | - |
+  
+  ---
+  **Data:** ${hoje}
+  **Período:** YTD (Year-to-Date)
+  **Preparado por:** Sistema de Análise IMACX
+  ---
+  
+  ## 📊 SUMÁRIO EXECUTIVO
+  
+  ### KPIs Principais
+  
+  | Métrica | Valor YTD | Ano Anterior (LYTD) | Variação |
+  |---------|-----------|---------------------|----------|
+  | **Volume Orçamentos** | ${valorOrcamentosYTD.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${valorOrcamentosLYTD.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${crescimentoOrcamentos > 0 ? "+" : ""}${crescimentoOrcamentos.toFixed(1)}% |
+  | **Nº Orçamentos** | ${allQuotesYTD} | - | - |
+  | **Orçamento Médio** | ${orcamentoMedio.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | - | - |
+  | **Volume Faturas** | ${valorFaturasYTD.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${valorFaturasLYTD.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${crescimentoFaturas > 0 ? "+" : ""}${crescimentoFaturas.toFixed(1)}% |
+  | **Nº Faturas** | ${qtdFaturasYTD} | - | - |
+  | **Taxa de Conversão (Qtd)** | ${taxaConversaoGlobal.toFixed(1)}% | - | - |
+  | **Nº de Departamentos** | 3 | - | - |
 
 ${
   data.kpi
@@ -1829,31 +1864,33 @@ ${["Brindes", "Digital", "IMACX"]
       (sum: number, item: any) => sum + (item.total_orcamentos_lytd || 0),
       0,
     );
-    const totalFatDept = fatDept.reduce(
-      (sum: number, item: any) => sum + (item.total_faturas_ytd || 0),
-      0,
-    );
-    const totalFatDeptLYTD = fatDept.reduce(
-      (sum: number, item: any) => sum + (item.total_faturas_lytd || 0),
-      0,
-    );
+      const valorFatDept = fatDept.reduce(
+        (sum: number, item: any) => sum + (item.total_faturas_ytd || 0),
+        0,
+      );
+      const valorFatDeptLYTD = fatDept.reduce(
+        (sum: number, item: any) => sum + (item.total_faturas_lytd || 0),
+        0,
+      );
 
-    const crescDept =
-      totalOrcDeptLYTD > 0
-        ? ((totalOrcDept - totalOrcDeptLYTD) / totalOrcDeptLYTD) * 100
-        : 0;
+      const crescDept =
+        totalOrcDeptLYTD > 0
+          ? ((totalOrcDept - totalOrcDeptLYTD) / totalOrcDeptLYTD) * 100
+          : 0;
 
-    const crescFatDept =
-      totalFatDeptLYTD > 0
-        ? ((totalFatDept - totalFatDeptLYTD) / totalFatDeptLYTD) * 100
-        : 0;
+      const crescFatDept =
+        valorFatDeptLYTD > 0
+          ? ((valorFatDept - valorFatDeptLYTD) / valorFatDeptLYTD) * 100
+          : 0;
 
-    const taxaConvDept =
-      totalOrcDept > 0 ? (totalFatDept / totalOrcDept) * 100 : 0;
+      // Taxa de conversão por QUANTIDADE (coerente com a página principal)
+      const qtdFaturasDept = perfDept?.invoices_ytd || 0;
+      const taxaConvDept =
+        totalOrcDept > 0 ? (qtdFaturasDept / totalOrcDept) * 100 : 0;
 
-    const qtdFaturas = perfDept?.invoices_ytd || 0;
-    const qtdClientes = perfDept?.customers_ytd || 0;
-    const ticketMedio = qtdFaturas > 0 ? totalFatDept / qtdFaturas : 0;
+      const qtdFaturas = perfDept?.invoices_ytd || 0;
+      const qtdClientes = perfDept?.customers_ytd || 0;
+      const ticketMedio = qtdFaturas > 0 ? valorFatDept / qtdFaturas : 0;
 
     return `
 ### ${dept}
@@ -1863,7 +1900,7 @@ ${["Brindes", "Digital", "IMACX"]
 | Métrica | Valor YTD | Valor LYTD | Variação |
 |---------|-----------|------------|----------|
 | **Orçamentos** | ${totalOrcDept.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${totalOrcDeptLYTD.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${crescDept > 0 ? "+" : ""}${crescDept.toFixed(1)}% |
-| **Faturas** | ${totalFatDept.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${totalFatDeptLYTD > 0 ? totalFatDeptLYTD.toLocaleString("pt-PT", { style: "currency", currency: "EUR" }) : "-"} | ${totalFatDeptLYTD > 0 ? (crescFatDept > 0 ? "+" : "") + crescFatDept.toFixed(1) + "%" : "-"} |
+| **Faturas** | ${valorFatDept.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${valorFatDeptLYTD > 0 ? valorFatDeptLYTD.toLocaleString("pt-PT", { style: "currency", currency: "EUR" }) : "-"} | ${valorFatDeptLYTD > 0 ? (crescFatDept > 0 ? "+" : "") + crescFatDept.toFixed(1) + "%" : "-"} |
 | **Taxa Conversão** | ${taxaConvDept.toFixed(1)}% | - | - |
 
 #### Métricas Operacionais
@@ -2371,9 +2408,9 @@ ${
 
 | Indicador | Valor YTD | vs Ano Anterior | Status |
 |-----------|-----------|-----------------|--------|
-| **Orçamentos** | ${totalOrcamentosYTD.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${crescimentoOrcamentos > 0 ? "+" : ""}${crescimentoOrcamentos.toFixed(1)}% | ${crescimentoOrcamentos > 10 ? "🟢 Excelente" : crescimentoOrcamentos > 0 ? "🟡 Positivo" : crescimentoOrcamentos > -10 ? "🟠 Atenção" : "🔴 Crítico"} |
-| **Faturas** | ${totalFaturasYTD.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${crescimentoFaturas > 0 ? "+" : ""}${crescimentoFaturas.toFixed(1)}% | ${crescimentoFaturas > 10 ? "🟢 Excelente" : crescimentoFaturas > 0 ? "🟡 Positivo" : crescimentoFaturas > -10 ? "🟠 Atenção" : "🔴 Crítico"} |
-| **Taxa Conversão** | ${taxaConversaoGlobal.toFixed(1)}% | - | ${taxaConversaoGlobal > 70 ? "🟢 Ótima" : taxaConversaoGlobal > 50 ? "🟡 Boa" : taxaConversaoGlobal > 30 ? "🟠 Média" : "🔴 Baixa"} |
+| **Orçamentos** | ${valorOrcamentosYTD.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${crescimentoOrcamentos > 0 ? "+" : ""}${crescimentoOrcamentos.toFixed(1)}% | ${crescimentoOrcamentos > 10 ? "🟢 Excelente" : crescimentoOrcamentos > 0 ? "🟡 Positivo" : crescimentoOrcamentos > -10 ? "🟠 Atenção" : "🔴 Crítico"} |
+| **Faturas** | ${valorFaturasYTD.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${crescimentoFaturas > 0 ? "+" : ""}${crescimentoFaturas.toFixed(1)}% | ${crescimentoFaturas > 10 ? "🟢 Excelente" : crescimentoFaturas > 0 ? "🟡 Positivo" : crescimentoFaturas > -10 ? "🟠 Atenção" : "🔴 Crítico"} |
+| **Taxa Conversão (Qtd)** | ${taxaConversaoGlobal.toFixed(1)}% | - | ${taxaConversaoGlobal > 70 ? "🟢 Ótima" : taxaConversaoGlobal > 50 ? "🟡 Boa" : taxaConversaoGlobal > 30 ? "🟠 Média" : "🔴 Baixa"} |
 ${data.kpi ? `| **Clientes Ativos** | ${data.kpi.activeCustomers || 0} | - | - |` : ""}
 
 ### 📋 Ações Prioritárias
@@ -2441,7 +2478,7 @@ ${(() => {
     const top5Total = data.topCustomers
       .slice(0, 5)
       .reduce((sum: number, c: any) => sum + (c.total_revenue || 0), 0);
-    const percentTop5 = (top5Total / totalFaturasYTD) * 100;
+    const percentTop5 = (top5Total / valorFaturasYTD) * 100;
 
     if (percentTop5 > 50) {
       acoes.push(
@@ -2494,8 +2531,11 @@ ${(() => {
 
   // Taxa de conversão baixa
   if (taxaConversaoGlobal < 50) {
+    // Calcular valor adicional estimado baseado em quantidade de faturas adicionais
+    const faturasAdicionaisEstimadas = Math.round(qtdOrcamentosYTD * 0.1);
+    const valorAdicionalEstimado = faturasAdicionaisEstimadas * (valorFaturasYTD / qtdFaturasYTD);
     oportunidades.push(
-      `- Taxa de conversão de ${taxaConversaoGlobal.toFixed(1)}% indica potencial de melhoria - cada 10% de aumento representa ~${(totalOrcamentosYTD * 0.1).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} adicionais`,
+      `- Taxa de conversão de ${taxaConversaoGlobal.toFixed(1)}% indica potencial de melhoria - cada 10% de aumento representa ~${faturasAdicionaisEstimadas} faturas adicionais (~${valorAdicionalEstimado.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })})`,
     );
   }
 

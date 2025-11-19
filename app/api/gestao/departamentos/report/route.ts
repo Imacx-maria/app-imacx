@@ -588,6 +588,13 @@ export async function GET(request: Request) {
             0,
           ),
         },
+        // Quantidade de faturas (para cálculo de taxa de conversão por quantidade)
+        qtd_faturas: {
+          ytd: transformedData.reduce(
+            (sum: number, item: any) => sum + (item.qtd_faturas_ytd || 0),
+            0,
+          ),
+        },
       },
 
       // TODOS os dados adicionais
