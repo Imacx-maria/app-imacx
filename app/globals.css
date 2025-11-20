@@ -1047,6 +1047,10 @@ th:has([role="checkbox"]) {
     font-size: 12px;
 }
 
+.recharts-legend-item-text {
+    color: var(--foreground) !important;
+}
+
 .recharts-tooltip-wrapper {
     outline: none !important;
 }

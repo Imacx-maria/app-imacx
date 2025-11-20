@@ -4517,7 +4517,11 @@ ${(() => {
                                   formatCurrency(Number(value))
                                 }
                               />
-                              <Legend />
+                              <Legend
+                                wrapperStyle={{
+                                  color: "var(--foreground)",
+                                }}
+                              />
                               <Bar
                                 dataKey="orcamentosValor"
                                 stackId="a"
@@ -4561,7 +4565,11 @@ ${(() => {
                                   formatNumber(Number(value))
                                 }
                               />
-                              <Legend />
+                              <Legend
+                                wrapperStyle={{
+                                  color: "var(--foreground)",
+                                }}
+                              />
                               <Bar
                                 dataKey="orcamentosQtd"
                                 stackId="a"
@@ -4604,7 +4612,11 @@ ${(() => {
                                   formatNumber(Number(value))
                                 }
                               />
-                              <Legend />
+                              <Legend
+                                wrapperStyle={{
+                                  color: "var(--foreground)",
+                                }}
+                              />
                               <Bar
                                 dataKey="nClientes"
                                 fill="var(--primary)"
@@ -4643,7 +4655,11 @@ ${(() => {
                                   formatCurrency(Number(value))
                                 }
                               />
-                              <Legend />
+                              <Legend
+                                wrapperStyle={{
+                                  color: "var(--foreground)",
+                                }}
+                              />
                               <Bar
                                 dataKey="orcamentoMedio"
                                 fill="var(--accent)"
