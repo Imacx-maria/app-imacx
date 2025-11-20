@@ -25,6 +25,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { ImacxBarChart } from "@/components/charts";
 import {
   RefreshCw,
   TrendingUp,
@@ -173,10 +174,14 @@ export default function AnaliseFinanceiraPage() {
   const [pipelineTab, setPipelineTab] = useState<
     "top15" | "attention" | "lost"
   >("top15");
+  const [analiseTab, setAnaliseTab] = useState<
+    "orcamentos" | "faturas" | "conversao" | "graficos"
+  >("orcamentos");
 
   // Departamentos data - Análise
   const [departmentKpiData, setDepartmentKpiData] =
     useState<KPIDashboardData | null>(null);
+  const [allDepartmentsKpi, setAllDepartmentsKpi] = useState<any>(null);
   const [departmentOrcamentos, setDepartmentOrcamentos] = useState<any[]>([]);
   const [departmentFaturas, setDepartmentFaturas] = useState<any[]>([]);
   const [departmentConversao, setDepartmentConversao] = useState<any[]>([]);
@@ -357,6 +362,41 @@ export default function AnaliseFinanceiraPage() {
   // ============================================================================
   // Data Fetching
   // ============================================================================
+
+  // Fetch KPI data for all 3 departments (used in GRÁFICOS tab)
+  const fetchAllDepartmentsKpi = useCallback(async (period: "mtd" | "ytd") => {
+    const departments = ["Brindes", "Digital", "IMACX"];
+
+    try {
+      const results = await Promise.all(
+        departments.map((dept) =>
+          fetch(
+            `/api/gestao/departamentos/kpi?departamento=${encodeURIComponent(dept)}&period=${period}`,
+          )
+            .then((res) => {
+              if (!res.ok) {
+                console.warn(`Failed to fetch KPI for ${dept}:`, res.status);
+                return null;
+              }
+              return res.json();
+            })
+            .catch((err) => {
+              console.error(`Error fetching KPI for ${dept}:`, err);
+              return null;
+            }),
+        ),
+      );
+
+      return {
+        Brindes: results[0],
+        Digital: results[1],
+        IMACX: results[2],
+      };
+    } catch (error) {
+      console.error("Error fetching all departments KPI:", error);
+      return null;
+    }
+  }, []);
 
   const fetchAllData = useCallback(
     async (
@@ -857,6 +897,57 @@ export default function AnaliseFinanceiraPage() {
     [activeTab, fetchAllData],
   );
 
+  // ============================================================================
+  // Department Charts Data Preparation (useMemo hooks)
+  // ============================================================================
+
+  const departmentChartData1 = useMemo(() => {
+    if (!allDepartmentsKpi) return [];
+
+    return ["Brindes", "Digital", "IMACX"].map((dept) => ({
+      department: dept,
+      orcamentosValor:
+        allDepartmentsKpi[dept]?.[activeTab]?.quoteValue?.current || 0,
+      receitaTotal: allDepartmentsKpi[dept]?.[activeTab]?.revenue?.current || 0,
+    }));
+  }, [allDepartmentsKpi, activeTab]);
+
+  const departmentChartData2 = useMemo(() => {
+    if (!allDepartmentsKpi) return [];
+
+    return ["Brindes", "Digital", "IMACX"].map((dept) => ({
+      department: dept,
+      orcamentosQtd:
+        allDepartmentsKpi[dept]?.[activeTab]?.quoteCount?.current || 0,
+      nFaturas: allDepartmentsKpi[dept]?.[activeTab]?.invoices?.current || 0,
+    }));
+  }, [allDepartmentsKpi, activeTab]);
+
+  const departmentChartData3 = useMemo(() => {
+    if (!allDepartmentsKpi) return [];
+
+    return ["Brindes", "Digital", "IMACX"].map((dept) => ({
+      department: dept,
+      nClientes: allDepartmentsKpi[dept]?.[activeTab]?.customers?.current || 0,
+    }));
+  }, [allDepartmentsKpi, activeTab]);
+
+  const departmentChartData4 = useMemo(() => {
+    if (!allDepartmentsKpi) return [];
+
+    return ["Brindes", "Digital", "IMACX"].map((dept) => ({
+      department: dept,
+      orcamentoMedio:
+        allDepartmentsKpi[dept]?.[activeTab]?.avgQuoteValue?.current || 0,
+      ticketMedio:
+        allDepartmentsKpi[dept]?.[activeTab]?.avgInvoiceValue?.current || 0,
+    }));
+  }, [allDepartmentsKpi, activeTab]);
+
+  // ============================================================================
+  // Effects
+  // ============================================================================
+
   useEffect(() => {
     fetchAllData(activeTab, mainTab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -877,6 +968,20 @@ export default function AnaliseFinanceiraPage() {
       setPipelineTab("top15");
     }
   }, [activeTab, pipelineTab]);
+
+  // Fetch all departments KPI when GRÁFICOS tab is selected
+  useEffect(() => {
+    if (
+      mainTab === "departamentos" &&
+      departmentView === "analise" &&
+      analiseTab === "graficos"
+    ) {
+      const period = activeTab === "mtd" ? "mtd" : "ytd";
+      fetchAllDepartmentsKpi(period).then((data) => {
+        setAllDepartmentsKpi(data);
+      });
+    }
+  }, [analiseTab, mainTab, departmentView, activeTab, fetchAllDepartmentsKpi]);
 
   // ============================================================================
   // Formatters
@@ -3868,13 +3973,16 @@ ${(() => {
           {/* ANÁLISE VIEW */}
           {departmentView === "analise" && (
             <>
-              {/* Department Selector for Análise */}
+              {/* Department Selector with GRÁFICOS as 4th option */}
               <div className="flex gap-2 mb-6">
                 <Button
                   variant={
                     selectedDepartment === "Brindes" ? "default" : "outline"
                   }
-                  onClick={() => setSelectedDepartment("Brindes")}
+                  onClick={() => {
+                    setSelectedDepartment("Brindes");
+                    setAnaliseTab("orcamentos");
+                  }}
                   className="h-10"
                 >
                   BRINDES
@@ -3883,7 +3991,10 @@ ${(() => {
                   variant={
                     selectedDepartment === "Digital" ? "default" : "outline"
                   }
-                  onClick={() => setSelectedDepartment("Digital")}
+                  onClick={() => {
+                    setSelectedDepartment("Digital");
+                    setAnaliseTab("orcamentos");
+                  }}
                   className="h-10"
                 >
                   DIGITAL
@@ -3892,130 +4003,150 @@ ${(() => {
                   variant={
                     selectedDepartment === "IMACX" ? "default" : "outline"
                   }
-                  onClick={() => setSelectedDepartment("IMACX")}
+                  onClick={() => {
+                    setSelectedDepartment("IMACX");
+                    setAnaliseTab("orcamentos");
+                  }}
                   className="h-10"
                 >
                   IMACX
                 </Button>
+                <Button
+                  variant={analiseTab === "graficos" ? "default" : "outline"}
+                  onClick={() => setAnaliseTab("graficos")}
+                  className="h-10"
+                >
+                  GRÁFICOS
+                </Button>
               </div>
 
-              {/* KPI Cards - Filtrados por Departamento */}
-              {departmentKpiData && departmentKpiData[activeTab] && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
-                  <MetricCard
-                    title="Receita Total"
-                    value={departmentKpiData[activeTab].revenue.current}
-                    previousValue={
-                      departmentKpiData[activeTab].revenue.previous
-                    }
-                    change={departmentKpiData[activeTab].revenue.change}
-                    formatter={formatCurrency}
-                    subtitle={
-                      activeTab === "mtd"
-                        ? "vs. mês anterior"
-                        : "vs. período anterior"
-                    }
-                  />
-                  <MetricCard
-                    title="Nº Faturas"
-                    value={departmentKpiData[activeTab].invoices.current}
-                    previousValue={
-                      departmentKpiData[activeTab].invoices.previous
-                    }
-                    change={departmentKpiData[activeTab].invoices.change}
-                    formatter={formatNumber}
-                    subtitle={
-                      activeTab === "mtd"
-                        ? "vs. mês anterior"
-                        : "vs. período anterior"
-                    }
-                  />
-                  <MetricCard
-                    title="Nº Clientes"
-                    value={departmentKpiData[activeTab].customers.current}
-                    previousValue={
-                      departmentKpiData[activeTab].customers.previous
-                    }
-                    change={departmentKpiData[activeTab].customers.change}
-                    formatter={formatNumber}
-                    subtitle={
-                      activeTab === "mtd"
-                        ? "vs. mês anterior"
-                        : "vs. período anterior"
-                    }
-                  />
-                  <MetricCard
-                    title="Ticket Médio"
-                    value={departmentKpiData[activeTab].avgInvoiceValue.current}
-                    previousValue={
-                      departmentKpiData[activeTab].avgInvoiceValue.previous
-                    }
-                    change={departmentKpiData[activeTab].avgInvoiceValue.change}
-                    formatter={formatCurrency}
-                    subtitle={
-                      activeTab === "mtd"
-                        ? "vs. mês anterior"
-                        : "vs. período anterior"
-                    }
-                  />
-                  <MetricCard
-                    title="Orçamentos Valor"
-                    value={departmentKpiData[activeTab].quoteValue.current}
-                    previousValue={
-                      departmentKpiData[activeTab].quoteValue.previous
-                    }
-                    change={departmentKpiData[activeTab].quoteValue.change}
-                    formatter={formatCurrency}
-                    subtitle={
-                      activeTab === "mtd"
-                        ? "vs. mês anterior"
-                        : "vs. período anterior"
-                    }
-                  />
-                  <MetricCard
-                    title="Orçamentos Qtd"
-                    value={departmentKpiData[activeTab].quoteCount.current}
-                    previousValue={
-                      departmentKpiData[activeTab].quoteCount.previous
-                    }
-                    change={departmentKpiData[activeTab].quoteCount.change}
-                    formatter={formatNumber}
-                    subtitle={
-                      activeTab === "mtd"
-                        ? "vs. mês anterior"
-                        : "vs. período anterior"
-                    }
-                  />
-                  <MetricCard
-                    title="Taxa Conversão"
-                    value={departmentKpiData[activeTab].conversionRate.current}
-                    previousValue={
-                      departmentKpiData[activeTab].conversionRate.previous
-                    }
-                    change={departmentKpiData[activeTab].conversionRate.change}
-                    formatter={formatPercent}
-                    subtitle={
-                      activeTab === "mtd"
-                        ? "vs. mês anterior"
-                        : "vs. período anterior"
-                    }
-                  />
-                  <MetricCard
-                    title="Orçamento Médio"
-                    value={departmentKpiData[activeTab].avgQuoteValue.current}
-                    previousValue={
-                      departmentKpiData[activeTab].avgQuoteValue.previous
-                    }
-                    change={departmentKpiData[activeTab].avgQuoteValue.change}
-                    formatter={formatCurrency}
-                    subtitle={
-                      activeTab === "mtd"
-                        ? "vs. mês anterior"
-                        : "vs. período anterior"
-                    }
-                  />
-                </div>
-              )}
+              {/* KPI Cards - Filtrados por Departamento (hide for GRÁFICOS) */}
+              {analiseTab !== "graficos" &&
+                departmentKpiData &&
+                departmentKpiData[activeTab] && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
+                    <MetricCard
+                      title="Receita Total"
+                      value={departmentKpiData[activeTab].revenue.current}
+                      previousValue={
+                        departmentKpiData[activeTab].revenue.previous
+                      }
+                      change={departmentKpiData[activeTab].revenue.change}
+                      formatter={formatCurrency}
+                      subtitle={
+                        activeTab === "mtd"
+                          ? "vs. mês anterior"
+                          : "vs. período anterior"
+                      }
+                    />
+                    <MetricCard
+                      title="Nº Faturas"
+                      value={departmentKpiData[activeTab].invoices.current}
+                      previousValue={
+                        departmentKpiData[activeTab].invoices.previous
+                      }
+                      change={departmentKpiData[activeTab].invoices.change}
+                      formatter={formatNumber}
+                      subtitle={
+                        activeTab === "mtd"
+                          ? "vs. mês anterior"
+                          : "vs. período anterior"
+                      }
+                    />
+                    <MetricCard
+                      title="Nº Clientes"
+                      value={departmentKpiData[activeTab].customers.current}
+                      previousValue={
+                        departmentKpiData[activeTab].customers.previous
+                      }
+                      change={departmentKpiData[activeTab].customers.change}
+                      formatter={formatNumber}
+                      subtitle={
+                        activeTab === "mtd"
+                          ? "vs. mês anterior"
+                          : "vs. período anterior"
+                      }
+                    />
+                    <MetricCard
+                      title="Ticket Médio"
+                      value={
+                        departmentKpiData[activeTab].avgInvoiceValue.current
+                      }
+                      previousValue={
+                        departmentKpiData[activeTab].avgInvoiceValue.previous
+                      }
+                      change={
+                        departmentKpiData[activeTab].avgInvoiceValue.change
+                      }
+                      formatter={formatCurrency}
+                      subtitle={
+                        activeTab === "mtd"
+                          ? "vs. mês anterior"
+                          : "vs. período anterior"
+                      }
+                    />
+                    <MetricCard
+                      title="Orçamentos Valor"
+                      value={departmentKpiData[activeTab].quoteValue.current}
+                      previousValue={
+                        departmentKpiData[activeTab].quoteValue.previous
+                      }
+                      change={departmentKpiData[activeTab].quoteValue.change}
+                      formatter={formatCurrency}
+                      subtitle={
+                        activeTab === "mtd"
+                          ? "vs. mês anterior"
+                          : "vs. período anterior"
+                      }
+                    />
+                    <MetricCard
+                      title="Orçamentos Qtd"
+                      value={departmentKpiData[activeTab].quoteCount.current}
+                      previousValue={
+                        departmentKpiData[activeTab].quoteCount.previous
+                      }
+                      change={departmentKpiData[activeTab].quoteCount.change}
+                      formatter={formatNumber}
+                      subtitle={
+                        activeTab === "mtd"
+                          ? "vs. mês anterior"
+                          : "vs. período anterior"
+                      }
+                    />
+                    <MetricCard
+                      title="Taxa Conversão"
+                      value={
+                        departmentKpiData[activeTab].conversionRate.current
+                      }
+                      previousValue={
+                        departmentKpiData[activeTab].conversionRate.previous
+                      }
+                      change={
+                        departmentKpiData[activeTab].conversionRate.change
+                      }
+                      formatter={formatPercent}
+                      subtitle={
+                        activeTab === "mtd"
+                          ? "vs. mês anterior"
+                          : "vs. período anterior"
+                      }
+                    />
+                    <MetricCard
+                      title="Orçamento Médio"
+                      value={departmentKpiData[activeTab].avgQuoteValue.current}
+                      previousValue={
+                        departmentKpiData[activeTab].avgQuoteValue.previous
+                      }
+                      change={departmentKpiData[activeTab].avgQuoteValue.change}
+                      formatter={formatCurrency}
+                      subtitle={
+                        activeTab === "mtd"
+                          ? "vs. mês anterior"
+                          : "vs. período anterior"
+                      }
+                    />
+                  </div>
+                )}
 
               <Card className="p-6 mb-6">
                 <h2 className="text-xl text-foreground mb-4">
@@ -4025,297 +4156,511 @@ ${(() => {
                 </h2>
 
                 {/* KPI Card for selected department */}
-                {departmentClientes
-                  .filter(
-                    (dept: any) => dept.departamento === selectedDepartment,
-                  )
-                  .map((dept: any) => (
-                    <Card key={dept.departamento} className="p-4 mb-6">
-                      <h3 className="text-sm font-medium text-foreground mb-3">
-                        Movimento de Clientes (Comparação YTD {currentYear} vs
-                        YTD {previousYear})
-                      </h3>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div>
-                          <span className="text-xs text-muted-foreground block mb-1">
-                            Clientes Ativos (YTD {currentYear}):
-                          </span>
-                          <p className="text-2xl font-medium">
-                            {dept.clientes_ytd}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground mt-1">
-                            Total de clientes com faturas em {currentYear}
-                          </p>
+                {analiseTab !== "graficos" &&
+                  departmentClientes
+                    .filter(
+                      (dept: any) => dept.departamento === selectedDepartment,
+                    )
+                    .map((dept: any) => (
+                      <Card key={dept.departamento} className="p-4 mb-6">
+                        <h3 className="text-sm font-medium text-foreground mb-3">
+                          Movimento de Clientes (Comparação YTD {currentYear} vs
+                          YTD {previousYear})
+                        </h3>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div>
+                            <span className="text-xs text-muted-foreground block mb-1">
+                              Clientes Ativos (YTD {currentYear}):
+                            </span>
+                            <p className="text-2xl font-medium">
+                              {dept.clientes_ytd}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-1">
+                              Total de clientes com faturas em {currentYear}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-xs text-muted-foreground block mb-1">
+                              Novos em {currentYear}:
+                            </span>
+                            <p className="text-2xl font-medium text-green-600 dark:text-green-400">
+                              +{dept.clientes_novos}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-1">
+                              Clientes que não existiam em {previousYear}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-xs text-muted-foreground block mb-1">
+                              Perdidos de {previousYear}:
+                            </span>
+                            <p className="text-2xl font-medium text-red-600 dark:text-red-400">
+                              -{dept.clientes_perdidos}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-1">
+                              Clientes de {previousYear} que não voltaram
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <span className="text-xs text-muted-foreground block mb-1">
-                            Novos em {currentYear}:
-                          </span>
-                          <p className="text-2xl font-medium text-green-600 dark:text-green-400">
-                            +{dept.clientes_novos}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground mt-1">
-                            Clientes que não existiam em {previousYear}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-xs text-muted-foreground block mb-1">
-                            Perdidos de {previousYear}:
-                          </span>
-                          <p className="text-2xl font-medium text-red-600 dark:text-red-400">
-                            -{dept.clientes_perdidos}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground mt-1">
-                            Clientes de {previousYear} que não voltaram
-                          </p>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
+                      </Card>
+                    ))}
 
                 {/* Orçamentos por Escalão */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-medium">
-                      Orçamentos por Escalão - {currentYear}{" "}
-                      {activeTab === "mtd" ? "(Mês Atual)" : "(YTD)"}
-                    </h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    Fonte: phc.bo • Apenas orçamentos de {currentYear}{" "}
-                    {activeTab === "mtd"
-                      ? "do mês corrente"
-                      : "acumulados no ano"}
-                  </p>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead
-                          className="cursor-pointer select-none"
-                          onClick={() => handleDeptOrcSort("escaloes_valor")}
-                        >
-                          Escalão
-                          {renderDeptOrcSortIcon("escaloes_valor")}
-                        </TableHead>
-                        <TableHead
-                          className="text-right cursor-pointer select-none"
-                          onClick={() => handleDeptOrcSort("total_orcamentos")}
-                        >
-                          Quantidade
-                          {renderDeptOrcSortIcon("total_orcamentos")}
-                        </TableHead>
-                        <TableHead
-                          className="text-right cursor-pointer select-none"
-                          onClick={() => handleDeptOrcSort("total_valor")}
-                        >
-                          Valor Total
-                          {renderDeptOrcSortIcon("total_valor")}
-                        </TableHead>
-                        <TableHead className="text-right">% Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sortedDepartmentOrcamentos.map(
-                        (row: any, idx: number) => {
-                          const totalValor = sortedDepartmentOrcamentos.reduce(
-                            (sum: number, r: any) =>
-                              sum + parseFloat(r.total_valor),
-                            0,
-                          );
-                          const percentage =
-                            totalValor > 0
-                              ? (
-                                  (parseFloat(row.total_valor) / totalValor) *
-                                  100
-                                ).toFixed(1)
-                              : "0.0";
+                {analiseTab === "orcamentos" && (
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-lg font-medium">
+                        Orçamentos por Escalão - {currentYear}{" "}
+                        {activeTab === "mtd" ? "(Mês Atual)" : "(YTD)"}
+                      </h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Fonte: phc.bo • Apenas orçamentos de {currentYear}{" "}
+                      {activeTab === "mtd"
+                        ? "do mês corrente"
+                        : "acumulados no ano"}
+                    </p>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead
+                            className="cursor-pointer select-none"
+                            onClick={() => handleDeptOrcSort("escaloes_valor")}
+                          >
+                            Escalão
+                            {renderDeptOrcSortIcon("escaloes_valor")}
+                          </TableHead>
+                          <TableHead
+                            className="text-right cursor-pointer select-none"
+                            onClick={() =>
+                              handleDeptOrcSort("total_orcamentos")
+                            }
+                          >
+                            Quantidade
+                            {renderDeptOrcSortIcon("total_orcamentos")}
+                          </TableHead>
+                          <TableHead
+                            className="text-right cursor-pointer select-none"
+                            onClick={() => handleDeptOrcSort("total_valor")}
+                          >
+                            Valor Total
+                            {renderDeptOrcSortIcon("total_valor")}
+                          </TableHead>
+                          <TableHead className="text-right">% Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sortedDepartmentOrcamentos.map(
+                          (row: any, idx: number) => {
+                            const totalValor =
+                              sortedDepartmentOrcamentos.reduce(
+                                (sum: number, r: any) =>
+                                  sum + parseFloat(r.total_valor),
+                                0,
+                              );
+                            const percentage =
+                              totalValor > 0
+                                ? (
+                                    (parseFloat(row.total_valor) / totalValor) *
+                                    100
+                                  ).toFixed(1)
+                                : "0.0";
 
-                          return (
+                            return (
+                              <TableRow key={idx}>
+                                <TableCell className="font-medium">
+                                  {row.escaloes_valor}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {row.total_orcamentos}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {formatCurrency(row.total_valor)}
+                                </TableCell>
+                                <TableCell className="text-right text-muted-foreground">
+                                  {percentage}%
+                                </TableCell>
+                              </TableRow>
+                            );
+                          },
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                {/* Faturas por Escalão */}
+                {analiseTab === "faturas" && (
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-lg font-medium">
+                        Faturas por Escalão - {currentYear}{" "}
+                        {activeTab === "mtd" ? "(Mês Atual)" : "(Ano Atual)"}
+                      </h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Fonte: phc.ft • Apenas faturas de {currentYear}{" "}
+                      {activeTab === "mtd"
+                        ? "do mês corrente"
+                        : "acumuladas no ano"}
+                    </p>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead
+                            className="cursor-pointer select-none"
+                            onClick={() => handleDeptFatSort("escaloes_valor")}
+                          >
+                            Escalão
+                            {renderDeptFatSortIcon("escaloes_valor")}
+                          </TableHead>
+                          <TableHead
+                            className="text-right cursor-pointer select-none"
+                            onClick={() => handleDeptFatSort("total_faturas")}
+                          >
+                            Quantidade
+                            {renderDeptFatSortIcon("total_faturas")}
+                          </TableHead>
+                          <TableHead
+                            className="text-right cursor-pointer select-none"
+                            onClick={() => handleDeptFatSort("total_valor")}
+                          >
+                            Valor Total
+                            {renderDeptFatSortIcon("total_valor")}
+                          </TableHead>
+                          <TableHead className="text-right">% Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sortedDepartmentFaturas.map(
+                          (row: any, idx: number) => {
+                            const totalValor = sortedDepartmentFaturas.reduce(
+                              (sum: number, r: any) =>
+                                sum + parseFloat(r.total_valor),
+                              0,
+                            );
+                            const percentage =
+                              totalValor > 0
+                                ? (
+                                    (parseFloat(row.total_valor) / totalValor) *
+                                    100
+                                  ).toFixed(1)
+                                : "0.0";
+
+                            return (
+                              <TableRow key={idx}>
+                                <TableCell className="font-medium">
+                                  {row.escaloes_valor}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {row.total_faturas}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {formatCurrency(row.total_valor)}
+                                </TableCell>
+                                <TableCell className="text-right text-muted-foreground">
+                                  {percentage}%
+                                </TableCell>
+                              </TableRow>
+                            );
+                          },
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                {/* Taxa de Conversão por Escalão */}
+                {analiseTab === "conversao" && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-lg font-medium">
+                        Taxa de Conversão por Escalão - {currentYear}{" "}
+                        {activeTab === "mtd" ? "(Mês Atual)" : "(Ano Atual)"}
+                      </h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Orçamentos vs Faturas do mesmo período {currentYear}{" "}
+                      {activeTab === "mtd"
+                        ? "(mês corrente)"
+                        : "(ano corrente)"}
+                    </p>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead
+                            className="cursor-pointer select-none"
+                            onClick={() => handleDeptConvSort("escalao")}
+                          >
+                            Escalão
+                            {renderDeptConvSortIcon("escalao")}
+                          </TableHead>
+                          <TableHead
+                            className="text-right cursor-pointer select-none"
+                            onClick={() =>
+                              handleDeptConvSort("total_orcamentos")
+                            }
+                          >
+                            Orçamentos
+                            {renderDeptConvSortIcon("total_orcamentos")}
+                          </TableHead>
+                          <TableHead
+                            className="text-right cursor-pointer select-none"
+                            onClick={() => handleDeptConvSort("total_faturas")}
+                          >
+                            Faturas
+                            {renderDeptConvSortIcon("total_faturas")}
+                          </TableHead>
+                          <TableHead
+                            className="text-right cursor-pointer select-none"
+                            onClick={() =>
+                              handleDeptConvSort("taxa_conversao_pct")
+                            }
+                          >
+                            Taxa Conv.
+                            {renderDeptConvSortIcon("taxa_conversao_pct")}
+                          </TableHead>
+                          <TableHead className="text-right">
+                            Valor Orç.
+                          </TableHead>
+                          <TableHead className="text-right">
+                            Valor Fat.
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sortedDepartmentConversao.map(
+                          (row: any, idx: number) => (
                             <TableRow key={idx}>
                               <TableCell className="font-medium">
-                                {row.escaloes_valor}
+                                {row.escalao}
                               </TableCell>
                               <TableCell className="text-right">
                                 {row.total_orcamentos}
                               </TableCell>
                               <TableCell className="text-right">
-                                {formatCurrency(row.total_valor)}
+                                {row.total_faturas}
                               </TableCell>
-                              <TableCell className="text-right text-muted-foreground">
-                                {percentage}%
+                              <TableCell className="text-right">
+                                <span
+                                  className={
+                                    row.taxa_conversao_pct >= 30
+                                      ? "text-green-600 dark:text-green-400 font-medium"
+                                      : row.taxa_conversao_pct >= 15
+                                        ? "text-yellow-600 dark:text-yellow-400 font-medium"
+                                        : "text-red-600 dark:text-red-400 font-medium"
+                                  }
+                                >
+                                  {row.taxa_conversao_pct}%
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right text-sm text-muted-foreground">
+                                {formatCurrency(row.total_valor_orcado || 0)}
+                              </TableCell>
+                              <TableCell className="text-right text-sm text-muted-foreground">
+                                {formatCurrency(row.total_valor_faturado || 0)}
                               </TableCell>
                             </TableRow>
-                          );
-                        },
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                {/* Faturas por Escalão */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-medium">
-                      Faturas por Escalão - {currentYear}{" "}
-                      {activeTab === "mtd" ? "(Mês Atual)" : "(Ano Atual)"}
-                    </h3>
+                          ),
+                        )}
+                      </TableBody>
+                    </Table>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    Fonte: phc.ft • Apenas faturas de {currentYear}{" "}
-                    {activeTab === "mtd"
-                      ? "do mês corrente"
-                      : "acumuladas no ano"}
-                  </p>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead
-                          className="cursor-pointer select-none"
-                          onClick={() => handleDeptFatSort("escaloes_valor")}
-                        >
-                          Escalão
-                          {renderDeptFatSortIcon("escaloes_valor")}
-                        </TableHead>
-                        <TableHead
-                          className="text-right cursor-pointer select-none"
-                          onClick={() => handleDeptFatSort("total_faturas")}
-                        >
-                          Quantidade
-                          {renderDeptFatSortIcon("total_faturas")}
-                        </TableHead>
-                        <TableHead
-                          className="text-right cursor-pointer select-none"
-                          onClick={() => handleDeptFatSort("total_valor")}
-                        >
-                          Valor Total
-                          {renderDeptFatSortIcon("total_valor")}
-                        </TableHead>
-                        <TableHead className="text-right">% Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sortedDepartmentFaturas.map((row: any, idx: number) => {
-                        const totalValor = sortedDepartmentFaturas.reduce(
-                          (sum: number, r: any) =>
-                            sum + parseFloat(r.total_valor),
-                          0,
-                        );
-                        const percentage =
-                          totalValor > 0
-                            ? (
-                                (parseFloat(row.total_valor) / totalValor) *
-                                100
-                              ).toFixed(1)
-                            : "0.0";
+                )}
 
-                        return (
-                          <TableRow key={idx}>
-                            <TableCell className="font-medium">
-                              {row.escaloes_valor}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {row.total_faturas}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {formatCurrency(row.total_valor)}
-                            </TableCell>
-                            <TableCell className="text-right text-muted-foreground">
-                              {percentage}%
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
+                {/* GRÁFICOS Tab */}
+                {analiseTab === "graficos" && (
+                  <div className="space-y-6">
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Comparação visual entre os 3 departamentos (Brindes,
+                      Digital, IMACX) -{" "}
+                      {activeTab === "mtd" ? "Mês Atual" : "Ano Atual"}
+                    </p>
 
-                {/* Taxa de Conversão por Escalão */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-medium">
-                      Taxa de Conversão por Escalão - {currentYear}{" "}
-                      {activeTab === "mtd" ? "(Mês Atual)" : "(Ano Atual)"}
-                    </h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    Orçamentos vs Faturas do mesmo período {currentYear}{" "}
-                    {activeTab === "mtd" ? "(mês corrente)" : "(ano corrente)"}
-                  </p>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead
-                          className="cursor-pointer select-none"
-                          onClick={() => handleDeptConvSort("escalao")}
-                        >
-                          Escalão
-                          {renderDeptConvSortIcon("escalao")}
-                        </TableHead>
-                        <TableHead
-                          className="text-right cursor-pointer select-none"
-                          onClick={() => handleDeptConvSort("total_orcamentos")}
-                        >
-                          Orçamentos
-                          {renderDeptConvSortIcon("total_orcamentos")}
-                        </TableHead>
-                        <TableHead
-                          className="text-right cursor-pointer select-none"
-                          onClick={() => handleDeptConvSort("total_faturas")}
-                        >
-                          Faturas
-                          {renderDeptConvSortIcon("total_faturas")}
-                        </TableHead>
-                        <TableHead
-                          className="text-right cursor-pointer select-none"
-                          onClick={() =>
-                            handleDeptConvSort("taxa_conversao_pct")
-                          }
-                        >
-                          Taxa Conv.
-                          {renderDeptConvSortIcon("taxa_conversao_pct")}
-                        </TableHead>
-                        <TableHead className="text-right">Valor Orç.</TableHead>
-                        <TableHead className="text-right">Valor Fat.</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sortedDepartmentConversao.map(
-                        (row: any, idx: number) => (
-                          <TableRow key={idx}>
-                            <TableCell className="font-medium">
-                              {row.escalao}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {row.total_orcamentos}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {row.total_faturas}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <span
-                                className={
-                                  row.taxa_conversao_pct >= 30
-                                    ? "text-green-600 dark:text-green-400 font-medium"
-                                    : row.taxa_conversao_pct >= 15
-                                      ? "text-yellow-600 dark:text-yellow-400 font-medium"
-                                      : "text-red-600 dark:text-red-400 font-medium"
+                    {!allDepartmentsKpi ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="text-center">
+                          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">
+                            A CARREGAR DADOS...
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Chart 1: Stacked Bar - Orçamentos Valor + Receita Total */}
+                        <div className="imx-border bg-card p-6">
+                          <h3 className="text-lg font-medium mb-2">
+                            ORÇAMENTOS VALOR VS RECEITA TOTAL
+                          </h3>
+                          <p className="text-xs text-muted-foreground mb-4">
+                            Comparação do valor total de orçamentos e receita
+                            efetiva por departamento
+                          </p>
+                          <ResponsiveContainer width="100%" height={350}>
+                            <BarChart
+                              data={departmentChartData1}
+                              margin={{
+                                top: 10,
+                                right: 30,
+                                bottom: 60,
+                                left: 80,
+                              }}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="department" />
+                              <YAxis
+                                tickFormatter={(value) => formatCurrency(value)}
+                              />
+                              <Tooltip
+                                formatter={(value: any) =>
+                                  formatCurrency(Number(value))
                                 }
-                              >
-                                {row.taxa_conversao_pct}%
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-right text-sm text-muted-foreground">
-                              {formatCurrency(row.total_valor_orcado || 0)}
-                            </TableCell>
-                            <TableCell className="text-right text-sm text-muted-foreground">
-                              {formatCurrency(row.total_valor_faturado || 0)}
-                            </TableCell>
-                          </TableRow>
-                        ),
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
+                              />
+                              <Legend />
+                              <Bar
+                                dataKey="orcamentosValor"
+                                stackId="a"
+                                fill="var(--accent)"
+                                name="Orçamentos Valor"
+                              />
+                              <Bar
+                                dataKey="receitaTotal"
+                                stackId="a"
+                                fill="var(--primary)"
+                                name="Receita Total"
+                              />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+
+                        {/* Chart 2: Stacked Bar - Orçamentos Qtd + Nº Faturas */}
+                        <div className="imx-border bg-card p-6">
+                          <h3 className="text-lg font-medium mb-2">
+                            ORÇAMENTOS QUANTIDADE VS Nº FATURAS
+                          </h3>
+                          <p className="text-xs text-muted-foreground mb-4">
+                            Comparação do número de orçamentos e faturas
+                            emitidas por departamento
+                          </p>
+                          <ResponsiveContainer width="100%" height={350}>
+                            <BarChart
+                              data={departmentChartData2}
+                              margin={{
+                                top: 10,
+                                right: 30,
+                                bottom: 60,
+                                left: 80,
+                              }}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="department" />
+                              <YAxis />
+                              <Tooltip
+                                formatter={(value: any) =>
+                                  formatNumber(Number(value))
+                                }
+                              />
+                              <Legend />
+                              <Bar
+                                dataKey="orcamentosQtd"
+                                stackId="a"
+                                fill="var(--accent)"
+                                name="Orçamentos Qtd"
+                              />
+                              <Bar
+                                dataKey="nFaturas"
+                                stackId="a"
+                                fill="var(--primary)"
+                                name="Nº Faturas"
+                              />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+
+                        {/* Chart 3: Simple Bar - Nº Clientes */}
+                        <div className="imx-border bg-card p-6">
+                          <h3 className="text-lg font-medium mb-2">
+                            NÚMERO DE CLIENTES
+                          </h3>
+                          <p className="text-xs text-muted-foreground mb-4">
+                            Total de clientes ativos por departamento
+                          </p>
+                          <ResponsiveContainer width="100%" height={350}>
+                            <BarChart
+                              data={departmentChartData3}
+                              margin={{
+                                top: 10,
+                                right: 30,
+                                bottom: 60,
+                                left: 80,
+                              }}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="department" />
+                              <YAxis />
+                              <Tooltip
+                                formatter={(value: any) =>
+                                  formatNumber(Number(value))
+                                }
+                              />
+                              <Legend />
+                              <Bar
+                                dataKey="nClientes"
+                                fill="var(--primary)"
+                                name="Nº Clientes"
+                              />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+
+                        {/* Chart 4: Grouped Bar - Orçamento Médio + Ticket Médio */}
+                        <div className="imx-border bg-card p-6">
+                          <h3 className="text-lg font-medium mb-2">
+                            ORÇAMENTO MÉDIO VS TICKET MÉDIO
+                          </h3>
+                          <p className="text-xs text-muted-foreground mb-4">
+                            Comparação dos valores médios de orçamentos e
+                            faturas por departamento
+                          </p>
+                          <ResponsiveContainer width="100%" height={350}>
+                            <BarChart
+                              data={departmentChartData4}
+                              margin={{
+                                top: 10,
+                                right: 30,
+                                bottom: 60,
+                                left: 80,
+                              }}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="department" />
+                              <YAxis
+                                tickFormatter={(value) => formatCurrency(value)}
+                              />
+                              <Tooltip
+                                formatter={(value: any) =>
+                                  formatCurrency(Number(value))
+                                }
+                              />
+                              <Legend />
+                              <Bar
+                                dataKey="orcamentoMedio"
+                                fill="var(--accent)"
+                                name="Orçamento Médio"
+                              />
+                              <Bar
+                                dataKey="ticketMedio"
+                                fill="var(--primary)"
+                                name="Ticket Médio"
+                              />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </Card>
             </>
           )}
