@@ -17,6 +17,7 @@ import { ImacxBarChart } from "@/components/charts/imacx-bar-chart";
 import { ImacxLineChart } from "@/components/charts/imacx-line-chart";
 import { ImacxKpiCard } from "@/components/charts/imacx-kpi-card";
 import { ImacxTable } from "@/components/charts/imacx-table";
+import { ImacxSortableTable } from "@/components/charts/imacx-sortable-table";
 import { RefreshCw } from "lucide-react";
 import Link from "next/link";
 import type {
@@ -228,16 +229,67 @@ export default function DesignerAnalyticsPage() {
     return Array.from(designers);
   }, [workloadData]);
 
-  // Bottleneck table columns
+  // Bottleneck table columns (sortable)
   const bottleneckColumns = [
-    { key: "numero_fo", header: "FO" },
-    { key: "nome_campanha", header: "Campanha" },
-    { key: "descricao", header: "Item" },
-    { key: "designer", header: "Designer" },
-    { key: "current_stage", header: "Estado" },
-    { key: "days_in_stage", header: "Dias", align: "right" as const },
-    { key: "complexidade", header: "Complexidade" },
+    { key: "numero_fo", header: "FO", sortable: true },
+    { key: "nome_campanha", header: "Campanha", sortable: true },
+    { key: "descricao", header: "Item", sortable: true },
+    { key: "designer", header: "Designer", sortable: true },
+    { key: "current_stage", header: "Estado", sortable: true },
+    {
+      key: "days_in_stage",
+      header: "Dias",
+      align: "right" as const,
+      sortable: true,
+    },
+    { key: "complexidade", header: "Complexidade", sortable: true },
   ];
+
+  // Matrix: Jobs by Designer and Complexity
+  const matrixData = useMemo(() => {
+    if (!complexityData.length)
+      return { rows: [], designers: [], complexities: [] };
+
+    const designers = Array.from(
+      new Set(complexityData.map((row) => row.designer)),
+    ).sort();
+    const complexities = Array.from(
+      new Set(complexityData.map((row) => row.complexidade)),
+    ).sort();
+
+    const matrix = designers.map((designer) => {
+      const row: any = { designer };
+      let total = 0;
+
+      complexities.forEach((complexity) => {
+        const count =
+          complexityData.find(
+            (d) => d.designer === designer && d.complexidade === complexity,
+          )?.item_count || 0;
+        row[complexity] = count;
+        total += count;
+      });
+
+      row.total = total;
+      return row;
+    });
+
+    // Add totals row
+    const totalsRow: any = { designer: "TOTAL" };
+    let grandTotal = 0;
+
+    complexities.forEach((complexity) => {
+      const total = matrix.reduce(
+        (sum, row) => sum + (row[complexity] || 0),
+        0,
+      );
+      totalsRow[complexity] = total;
+      grandTotal += total;
+    });
+    totalsRow.total = grandTotal;
+
+    return { rows: [...matrix, totalsRow], designers, complexities };
+  }, [complexityData]);
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -311,6 +363,75 @@ export default function DesignerAnalyticsPage() {
               changeLabel={`${kpiData?.bottleneck_items || 0} bloqueados`}
             />
           </div>
+
+          {/* Matrix Table: Designer × Complexity */}
+          <Card className="imx-border p-6">
+            <h3 className="text-lg mb-4">
+              DISTRIBUIÇÃO: DESIGNERS × COMPLEXIDADE
+            </h3>
+            <p className="text-xs text-muted-foreground mb-4 uppercase">
+              Contagem de itens por designer e nível de complexidade
+            </p>
+            {matrixData.rows.length > 0 ? (
+              <div className="overflow-auto">
+                {/* eslint-disable-next-line imx/no-tailwind-border */}
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="imx-border-b bg-accent">
+                      <th className="px-4 py-3 text-sm font-normal uppercase text-accent-foreground text-left sticky left-0 bg-accent">
+                        Designer
+                      </th>
+                      {matrixData.complexities.map((complexity) => (
+                        <th
+                          key={complexity}
+                          className="px-4 py-3 text-sm font-normal uppercase text-accent-foreground text-center"
+                        >
+                          {complexity}
+                        </th>
+                      ))}
+                      <th className="px-4 py-3 text-sm font-normal uppercase text-accent-foreground text-right bg-primary/10">
+                        Total
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {matrixData.rows.map((row, idx) => {
+                      const isTotal = row.designer === "TOTAL";
+                      return (
+                        <tr
+                          key={row.designer}
+                          className={`imx-border-b ${isTotal ? "bg-primary/5 font-bold" : "hover:bg-accent/50"}`}
+                        >
+                          <td
+                            className={`px-4 py-3 text-sm sticky left-0 ${isTotal ? "bg-primary/5 font-bold" : "bg-background"}`}
+                          >
+                            {row.designer}
+                          </td>
+                          {matrixData.complexities.map((complexity) => (
+                            <td
+                              key={complexity}
+                              className="px-4 py-3 text-sm text-center"
+                            >
+                              {row[complexity] || 0}
+                            </td>
+                          ))}
+                          <td
+                            className={`px-4 py-3 text-sm text-right ${isTotal ? "bg-primary/10 font-bold" : "bg-accent/30"}`}
+                          >
+                            {row.total}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                Sem dados disponíveis
+              </p>
+            )}
+          </Card>
 
           {/* Distribution Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -432,7 +553,12 @@ export default function DesignerAnalyticsPage() {
             <p className="text-xs text-muted-foreground mb-4 uppercase">
               {bottleneckData.length} itens sem progresso há mais de 7 dias
             </p>
-            <ImacxTable data={bottleneckData} columns={bottleneckColumns} />
+            <ImacxSortableTable
+              data={bottleneckData}
+              columns={bottleneckColumns}
+              defaultSortColumn="days_in_stage"
+              defaultSortDirection="desc"
+            />
           </Card>
         </>
       )}
