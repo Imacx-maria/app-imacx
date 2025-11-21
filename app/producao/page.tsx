@@ -98,9 +98,6 @@ import {
   XSquare,
 } from "lucide-react";
 import { ViewButton, DeleteButton } from "@/components/custom/ActionButtons";
-import LogisticaTableWithCreatable from "@/components/custom/LogisticaTableWithCreatable";
-import { LogisticaRecord, Cliente } from "@/types/logistica";
-import { useLogisticaData } from "@/utils/useLogisticaData";
 // PERFORMANCE: ExcelJS is lazy loaded (500KB) - only loads when user exports
 import { Suspense } from "react";
 import type {
@@ -150,11 +147,38 @@ const ITEMS_FETCH_LIMIT = 200; // Reasonable limit for items per request
 /* ---------- Loading Components ---------- */
 // Types and helpers now imported from centralized locations
 const JobsTableSkeleton = () => (
-  <div className="space-y-2">
-    <div className="h-10 animate-pulse bg-muted opacity-80" /> {/* Header */}
-    {[...Array(8)].map((_, i) => (
-      <div key={i} className="h-12 animate-pulse bg-muted opacity-60" />
-    ))}
+  <div className="bg-background w-full">
+    <div className="w-full">
+      <div className="imx-border rounded-lg overflow-hidden">
+        {/* Table Header Skeleton */}
+        <div className="imx-bg-header flex gap-4 p-3 imx-border-b">
+          <div className="h-5 w-24 animate-pulse bg-muted rounded" />
+          <div className="h-5 w-32 animate-pulse bg-muted rounded" />
+          <div className="h-5 w-32 animate-pulse bg-muted rounded" />
+          <div className="h-5 w-40 animate-pulse bg-muted rounded" />
+          <div className="h-5 w-24 animate-pulse bg-muted rounded" />
+          <div className="h-5 w-20 animate-pulse bg-muted rounded" />
+          <div className="h-5 w-16 animate-pulse bg-muted rounded" />
+        </div>
+        {/* Table Rows Skeleton */}
+        <div className="divide-y imx-divide-row">
+          {[...Array(10)].map((_, i) => (
+            <div
+              key={i}
+              className="flex gap-4 p-3 hover:imx-bg-row-hover transition-colors"
+            >
+              <div className="h-5 w-24 animate-pulse bg-muted rounded opacity-70" />
+              <div className="h-5 w-32 animate-pulse bg-muted rounded opacity-70" />
+              <div className="h-5 w-32 animate-pulse bg-muted rounded opacity-70" />
+              <div className="h-5 w-40 animate-pulse bg-muted rounded opacity-70" />
+              <div className="h-5 w-24 animate-pulse bg-muted rounded opacity-70" />
+              <div className="h-5 w-20 animate-pulse bg-muted rounded opacity-70" />
+              <div className="h-5 w-16 animate-pulse bg-muted rounded opacity-70" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   </div>
 );
 
@@ -444,7 +468,7 @@ export default function ProducaoPage() {
             notas: null,
             id_cliente: header
               ? (await resolveClienteName(header.customer_id ?? null))
-                .id_cliente
+                  .id_cliente
               : null,
             data_in: header?.folha_obra_date ?? null,
           } as Job;
@@ -492,11 +516,9 @@ export default function ProducaoPage() {
     const loadInitialData = async () => {
       setError(null);
 
-      // Load clientes FIRST and wait for completion
-      await fetchClientes();
-
-      // Load holidays
-      fetchHolidays();
+      // Load clientes and holidays in parallel for better performance
+      // clientes must complete before jobs load (needed for cliente_name resolution)
+      await Promise.all([fetchClientes(), fetchHolidays()]);
 
       // Then load jobs - clientes will already be in the ref
       await fetchJobs(0, true, { activeTab });
@@ -574,11 +596,16 @@ export default function ProducaoPage() {
   // Load items and operacoes when job IDs change
   useEffect(() => {
     if (jobIds.length > 0) {
-      fetchItems(jobIds);
-      fetchOperacoes(jobIds);
-      fetchJobsSaiuStatus(jobIds);
-      fetchJobsCompletionStatus(jobIds);
-      fetchJobTotalValues(jobIds);
+      // Fetch all data in parallel for better performance
+      Promise.all([
+        fetchItems(jobIds),
+        fetchOperacoes(jobIds),
+        fetchJobsSaiuStatus(jobIds),
+        fetchJobsCompletionStatus(jobIds),
+        fetchJobTotalValues(jobIds),
+      ]).catch((error) => {
+        console.error("Error fetching job data:", error);
+      });
     }
   }, [
     jobIds,
@@ -1446,7 +1473,7 @@ export default function ProducaoPage() {
                           // Resolve transportadora ID to name
                           const transportadoraName = log.transportadora
                             ? transportadorasMap.get(log.transportadora) ||
-                            log.transportadora
+                              log.transportadora
                             : "";
 
                           exportRows.push({
@@ -1562,8 +1589,8 @@ export default function ProducaoPage() {
                                     const transportadoraName =
                                       log.transportadora
                                         ? transportadorasMap.get(
-                                          log.transportadora,
-                                        ) || log.transportadora
+                                            log.transportadora,
+                                          ) || log.transportadora
                                         : "";
 
                                     emCursoRows.push({
@@ -1693,8 +1720,8 @@ export default function ProducaoPage() {
                                     const transportadoraName =
                                       log.transportadora
                                         ? transportadorasMap.get(
-                                          log.transportadora,
-                                        ) || log.transportadora
+                                            log.transportadora,
+                                          ) || log.transportadora
                                         : "";
 
                                     pendentesRows.push({
@@ -2156,9 +2183,9 @@ export default function ProducaoPage() {
                                             prevJobs.map((j) =>
                                               j.id === job.id
                                                 ? {
-                                                  ...j,
-                                                  numero_orc: job.numero_orc,
-                                                }
+                                                    ...j,
+                                                    numero_orc: job.numero_orc,
+                                                  }
                                                 : j,
                                             ),
                                           );
@@ -2314,10 +2341,10 @@ export default function ProducaoPage() {
                                                 prevJobs.map((j) =>
                                                   j.id === job.id
                                                     ? {
-                                                      ...j,
-                                                      numero_fo:
-                                                        job.numero_fo,
-                                                    }
+                                                        ...j,
+                                                        numero_fo:
+                                                          job.numero_fo,
+                                                      }
                                                     : j,
                                                 ),
                                               );
@@ -2367,12 +2394,12 @@ export default function ProducaoPage() {
                                       prevJobs.map((j) =>
                                         j.id === job.id
                                           ? {
-                                            ...j,
-                                            id_cliente: selectedId,
-                                            cliente: selected
-                                              ? selected.label
-                                              : "",
-                                          }
+                                              ...j,
+                                              id_cliente: selectedId,
+                                              cliente: selected
+                                                ? selected.label
+                                                : "",
+                                            }
                                           : j,
                                       ),
                                     );
@@ -2483,11 +2510,11 @@ export default function ProducaoPage() {
                                     null;
                                   return valor !== null && valor > 0
                                     ? new Intl.NumberFormat("pt-PT", {
-                                      style: "currency",
-                                      currency: "EUR",
-                                      minimumFractionDigits: 0,
-                                      maximumFractionDigits: 0,
-                                    }).format(valor)
+                                        style: "currency",
+                                        currency: "EUR",
+                                        minimumFractionDigits: 0,
+                                        maximumFractionDigits: 0,
+                                      }).format(valor)
                                     : "—";
                                 })()}
                               </TableCell>
@@ -2499,10 +2526,10 @@ export default function ProducaoPage() {
                                     job.prioridade
                                       ? "Prioritário"
                                       : job.data_in &&
-                                        (Date.now() -
-                                          new Date(job.data_in).getTime()) /
-                                        (1000 * 60 * 60 * 24) >
-                                        3
+                                          (Date.now() -
+                                            new Date(job.data_in).getTime()) /
+                                            (1000 * 60 * 60 * 24) >
+                                            3
                                         ? "Aguardando há mais de 3 dias"
                                         : "Normal"
                                   }
@@ -2961,9 +2988,9 @@ export default function ProducaoPage() {
                                             prevJobs.map((j) =>
                                               j.id === job.id
                                                 ? {
-                                                  ...j,
-                                                  numero_orc: job.numero_orc,
-                                                }
+                                                    ...j,
+                                                    numero_orc: job.numero_orc,
+                                                  }
                                                 : j,
                                             ),
                                           );
@@ -3119,10 +3146,10 @@ export default function ProducaoPage() {
                                                 prevJobs.map((j) =>
                                                   j.id === job.id
                                                     ? {
-                                                      ...j,
-                                                      numero_fo:
-                                                        job.numero_fo,
-                                                    }
+                                                        ...j,
+                                                        numero_fo:
+                                                          job.numero_fo,
+                                                      }
                                                     : j,
                                                 ),
                                               );
@@ -3172,12 +3199,12 @@ export default function ProducaoPage() {
                                       prevJobs.map((j) =>
                                         j.id === job.id
                                           ? {
-                                            ...j,
-                                            id_cliente: selectedId,
-                                            cliente: selected
-                                              ? selected.label
-                                              : "",
-                                          }
+                                              ...j,
+                                              id_cliente: selectedId,
+                                              cliente: selected
+                                                ? selected.label
+                                                : "",
+                                            }
                                           : j,
                                       ),
                                     );
@@ -3326,9 +3353,9 @@ export default function ProducaoPage() {
                                                   (ji) => ji.id === item.id,
                                                 )
                                                   ? {
-                                                    ...item,
-                                                    concluido: newStatus,
-                                                  }
+                                                      ...item,
+                                                      concluido: newStatus,
+                                                    }
                                                   : item,
                                               ),
                                             );
@@ -3684,9 +3711,9 @@ export default function ProducaoPage() {
                                             prevJobs.map((j) =>
                                               j.id === job.id
                                                 ? {
-                                                  ...j,
-                                                  numero_orc: job.numero_orc,
-                                                }
+                                                    ...j,
+                                                    numero_orc: job.numero_orc,
+                                                  }
                                                 : j,
                                             ),
                                           );
@@ -3842,10 +3869,10 @@ export default function ProducaoPage() {
                                                 prevJobs.map((j) =>
                                                   j.id === job.id
                                                     ? {
-                                                      ...j,
-                                                      numero_fo:
-                                                        job.numero_fo,
-                                                    }
+                                                        ...j,
+                                                        numero_fo:
+                                                          job.numero_fo,
+                                                      }
                                                     : j,
                                                 ),
                                               );
@@ -3895,12 +3922,12 @@ export default function ProducaoPage() {
                                       prevJobs.map((j) =>
                                         j.id === job.id
                                           ? {
-                                            ...j,
-                                            id_cliente: selectedId,
-                                            cliente: selected
-                                              ? selected.label
-                                              : "",
-                                          }
+                                              ...j,
+                                              id_cliente: selectedId,
+                                              cliente: selected
+                                                ? selected.label
+                                                : "",
+                                            }
                                           : j,
                                       ),
                                     );
@@ -4011,11 +4038,11 @@ export default function ProducaoPage() {
                                     null;
                                   return valor !== null && valor > 0
                                     ? new Intl.NumberFormat("pt-PT", {
-                                      style: "currency",
-                                      currency: "EUR",
-                                      minimumFractionDigits: 0,
-                                      maximumFractionDigits: 0,
-                                    }).format(valor)
+                                        style: "currency",
+                                        currency: "EUR",
+                                        minimumFractionDigits: 0,
+                                        maximumFractionDigits: 0,
+                                      }).format(valor)
                                     : "—";
                                 })()}
                               </TableCell>
@@ -4027,10 +4054,10 @@ export default function ProducaoPage() {
                                     job.prioridade
                                       ? "Prioritário"
                                       : job.data_in &&
-                                        (Date.now() -
-                                          new Date(job.data_in).getTime()) /
-                                        (1000 * 60 * 60 * 24) >
-                                        3
+                                          (Date.now() -
+                                            new Date(job.data_in).getTime()) /
+                                            (1000 * 60 * 60 * 24) >
+                                            3
                                         ? "Aguardando há mais de 3 dias"
                                         : "Normal"
                                   }

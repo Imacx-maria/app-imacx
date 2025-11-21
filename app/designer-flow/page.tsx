@@ -645,11 +645,11 @@ export default function DesignerFlow() {
 
       const jobIds = jobs.map((job) => job.id);
 
-      // Fetch all items
+      // Fetch items first to get item IDs
       const itemsData = await fetchItems(supabase, jobIds);
       setAllItems(itemsData);
 
-      // Fetch all designer items with designer info
+      // Now fetch designer items in parallel with any other queries
       try {
         const { data: designerData, error } = await supabase
           .from("designer_items")

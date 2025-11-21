@@ -1,84 +1,91 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useCallback } from 'react'
-import { FullYearCalendar } from '@/components/FullYearCalendar'
-import DashboardLogisticaTable from '@/components/DashboardLogisticaTable'
-import { AddDeliveryDialog } from '@/components/AddDeliveryDialog'
-import { createBrowserClient } from '@/utils/supabase'
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { FullYearCalendar } from "@/components/FullYearCalendar";
+import { AddDeliveryDialog } from "@/components/AddDeliveryDialog";
+
+// Lazy load the heavy table component for better performance
+const DashboardLogisticaTable = lazy(
+  () => import("@/components/DashboardLogisticaTable"),
+);
+import { createBrowserClient } from "@/utils/supabase";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { DashboardHelpDialog } from '@/components/dashboard/DashboardHelpDialog'
+} from "@/components/ui/tooltip";
+import { DashboardHelpDialog } from "@/components/dashboard/DashboardHelpDialog";
+import { DashboardTableSkeleton } from "@/components/dashboard/DashboardTableSkeleton";
 
 interface Holiday {
-  id: string
-  holiday_date: string
-  description?: string
+  id: string;
+  holiday_date: string;
+  description?: string;
 }
 
 interface ArmazemOption {
-  value: string
-  label: string
-  morada?: string
-  codigo_pos?: string
+  value: string;
+  label: string;
+  morada?: string;
+  codigo_pos?: string;
 }
 
 interface TransportadoraOption {
-  value: string
-  label: string
+  value: string;
+  label: string;
 }
 
 export default function DashboardPage() {
-  const [holidays, setHolidays] = useState<Holiday[]>([])
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
-  const [armazens, setArmazens] = useState<ArmazemOption[]>([])
-  const [transportadoras, setTransportadoras] = useState<TransportadoraOption[]>([])
-  const [refreshKey, setRefreshKey] = useState(0)
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [armazens, setArmazens] = useState<ArmazemOption[]>([]);
+  const [transportadoras, setTransportadoras] = useState<
+    TransportadoraOption[]
+  >([]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const supabase = createBrowserClient()
+  const supabase = createBrowserClient();
 
   const fetchHolidays = useCallback(async () => {
     try {
-      const today = new Date()
-      const startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1)
-      const endDate = new Date(today.getFullYear(), today.getMonth() + 2, 0)
-      
-      const startDateStr = startDate.toISOString().split('T')[0]
-      const endDateStr = endDate.toISOString().split('T')[0]
+      const today = new Date();
+      const startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const endDate = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+
+      const startDateStr = startDate.toISOString().split("T")[0];
+      const endDateStr = endDate.toISOString().split("T")[0];
 
       const { data, error } = await supabase
-        .from('feriados')
-        .select('id, holiday_date, description')
-        .gte('holiday_date', startDateStr)
-        .lte('holiday_date', endDateStr)
-        .order('holiday_date', { ascending: true })
+        .from("feriados")
+        .select("id, holiday_date, description")
+        .gte("holiday_date", startDateStr)
+        .lte("holiday_date", endDateStr)
+        .order("holiday_date", { ascending: true });
 
       if (error) {
-        console.error('Error fetching holidays:', error)
-        return
+        console.error("Error fetching holidays:", error);
+        return;
       }
 
       if (data) {
-        setHolidays(data)
+        setHolidays(data);
       }
     } catch (error) {
-      console.error('Error fetching holidays:', error)
+      console.error("Error fetching holidays:", error);
     }
-  }, [supabase])
+  }, [supabase]);
 
   const fetchArmazens = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('armazens')
-        .select('id, nome_arm, morada, codigo_pos')
-        .order('nome_arm')
+        .from("armazens")
+        .select("id, nome_arm, morada, codigo_pos")
+        .order("nome_arm");
 
       if (error) {
-        console.error('Error fetching armazens:', error)
-        return
+        console.error("Error fetching armazens:", error);
+        return;
       }
 
       if (data) {
@@ -88,24 +95,24 @@ export default function DashboardPage() {
             label: a.nome_arm,
             morada: a.morada,
             codigo_pos: a.codigo_pos,
-          }))
-        )
+          })),
+        );
       }
     } catch (error) {
-      console.error('Error fetching armazens:', error)
+      console.error("Error fetching armazens:", error);
     }
-  }, [supabase])
+  }, [supabase]);
 
   const fetchTransportadoras = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('transportadora')
-        .select('id, name')
-        .order('name')
+        .from("transportadora")
+        .select("id, name")
+        .order("name");
 
       if (error) {
-        console.error('Error fetching transportadoras:', error)
-        return
+        console.error("Error fetching transportadoras:", error);
+        return;
       }
 
       if (data) {
@@ -113,19 +120,24 @@ export default function DashboardPage() {
           data.map((t: any) => ({
             value: t.id,
             label: t.name,
-          }))
-        )
+          })),
+        );
       }
     } catch (error) {
-      console.error('Error fetching transportadoras:', error)
+      console.error("Error fetching transportadoras:", error);
     }
-  }, [supabase])
+  }, [supabase]);
 
   useEffect(() => {
-    fetchHolidays()
-    fetchArmazens()
-    fetchTransportadoras()
-  }, [fetchHolidays, fetchArmazens, fetchTransportadoras])
+    // Fetch all data in parallel for better performance
+    Promise.all([
+      fetchHolidays(),
+      fetchArmazens(),
+      fetchTransportadoras(),
+    ]).catch((error) => {
+      console.error("Error fetching initial data:", error);
+    });
+  }, [fetchHolidays, fetchArmazens, fetchTransportadoras]);
 
   return (
     <div className="w-full space-y-8 px-6">
@@ -133,7 +145,9 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between gap-2">
         <div>
           <h1 className="text-3xl">Painel de Controlo</h1>
-          <p className="mt-2">Bem-vindo ao Sistema de Gestão de Produção IMACX</p>
+          <p className="mt-2">
+            Bem-vindo ao Sistema de Gestão de Produção IMACX
+          </p>
         </div>
         <DashboardHelpDialog />
       </div>
@@ -141,7 +155,7 @@ export default function DashboardPage() {
       {/* Calendar */}
       <div className="mt-8">
         <h2 className="text-2xl font-bold mb-6">Calendário</h2>
-        <FullYearCalendar 
+        <FullYearCalendar
           holidays={holidays}
           year={new Date().getFullYear()}
           onSelect={(date) => setSelectedDate(date)}
@@ -171,16 +185,18 @@ export default function DashboardPage() {
             </TooltipProvider>
           </div>
         </div>
-        <DashboardLogisticaTable
-          key={refreshKey}
-          selectedDate={selectedDate}
-          onClearDate={() => setSelectedDate(undefined)}
-          armazens={armazens}
-          transportadoras={transportadoras}
-          onArmazensUpdate={fetchArmazens}
-          onTransportadorasUpdate={fetchTransportadoras}
-        />
+        <Suspense fallback={<DashboardTableSkeleton />}>
+          <DashboardLogisticaTable
+            key={refreshKey}
+            selectedDate={selectedDate}
+            onClearDate={() => setSelectedDate(undefined)}
+            armazens={armazens}
+            transportadoras={transportadoras}
+            onArmazensUpdate={fetchArmazens}
+            onTransportadorasUpdate={fetchTransportadoras}
+          />
+        </Suspense>
       </div>
     </div>
-  )
+  );
 }
