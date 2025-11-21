@@ -398,440 +398,311 @@ export default function AnaliseFinanceiraPage() {
     }
   }, []);
 
-  const fetchAllData = useCallback(
-    async (
-      tab: "mtd" | "ytd" | "qtd" = activeTab,
-      section:
-        | "visao-geral"
-        | "centro-custo"
-        | "departamentos"
-        | "tabelas-temp"
-        | "operacoes" = mainTab,
-      forceRefresh: boolean = false,
-    ) => {
-      // Check cache first (unless forcing refresh)
-      const cacheKey = `${section}-${tab}-${selectedDepartment}`;
-      const cached = dataCache.current[cacheKey];
-      const cacheAge = cached ? Date.now() - cached.timestamp : Infinity;
-      const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  // ============================================================================
+  // NEW: Fetch ALL data at once for ALL tabs (only on initial load or PHC refresh)
+  // ============================================================================
+  const fetchAllInitialData = useCallback(async () => {
+    console.log("🔄 [Initial Load] Fetching ALL tab data in parallel...");
+    setLoading(true);
+    setError(null);
 
-      if (!forceRefresh && cached && cacheAge < CACHE_DURATION && cached.data) {
-        console.log("📦 [Cache HIT] Using cached data for:", cacheKey);
+    try {
+      // Fetch ALL data for ALL tabs and periods in parallel (27 API calls)
+      const results = await Promise.allSettled([
+        // KPI (used by all tabs)
+        fetch("/api/financial-analysis/kpi-dashboard"),
 
-        // Validate that cached data has actual content before restoring
-        let hasValidData = false;
+        // VISÃO GERAL data (both periods + multi-year)
+        fetch("/api/financial-analysis/monthly-revenue"),
+        fetch("/api/financial-analysis/top-customers?limit=20&period=mtd"),
+        fetch("/api/financial-analysis/top-customers?limit=20&period=ytd"),
+        fetch("/api/financial-analysis/multi-year-revenue"),
+        fetch("/api/financial-analysis/conversion-rates?period=mtd"),
+        fetch("/api/financial-analysis/conversion-rates?period=ytd"),
 
-        if (section === "visao-geral") {
-          hasValidData =
-            cached.data.monthlyRevenue?.length > 0 ||
-            cached.data.topCustomers?.length > 0;
-          if (hasValidData) {
-            setMonthlyRevenue(cached.data.monthlyRevenue);
-            setTopCustomers(cached.data.topCustomers);
-            setMultiYearRevenue(cached.data.multiYearRevenue);
-            setCompanyConversao(cached.data.companyConversao);
-          }
-        } else if (section === "centro-custo") {
-          hasValidData = cached.data.costCenterPerformance?.length > 0;
-          if (hasValidData) {
-            setCostCenterPerformance(cached.data.costCenterPerformance);
-            setCostCenterSales(cached.data.costCenterSales);
-            setCostCenterTopCustomers(cached.data.costCenterTopCustomers);
-            setSelectedCostCenter(cached.data.selectedCostCenter);
-          }
-        } else if (section === "departamentos") {
-          // For departamentos, validate that we have KPI data
-          hasValidData =
-            cached.data.departmentKpiData !== null &&
-            cached.data.departmentKpiData !== undefined;
-          if (hasValidData) {
-            setDepartmentKpiData(cached.data.departmentKpiData);
-            setDepartmentOrcamentos(cached.data.departmentOrcamentos);
-            setDepartmentFaturas(cached.data.departmentFaturas);
-            setDepartmentConversao(cached.data.departmentConversao);
-            setDepartmentClientes(cached.data.departmentClientes);
-            setPipelineData(cached.data.pipelineData);
-          }
+        // CENTRO CUSTO data (both periods)
+        fetch("/api/financial-analysis/cost-center-performance?period=mtd"),
+        fetch("/api/financial-analysis/cost-center-performance?period=ytd"),
+        fetch("/api/financial-analysis/cost-center-sales?period=mtd"),
+        fetch("/api/financial-analysis/cost-center-sales?period=ytd"),
+        fetch(
+          "/api/financial-analysis/cost-center-top-customers?period=mtd&limit=20",
+        ),
+        fetch(
+          "/api/financial-analysis/cost-center-top-customers?period=ytd&limit=20",
+        ),
+
+        // DEPARTAMENTOS data (all 3 departments, both periods)
+        fetch("/api/gestao/departamentos/kpi?departamento=Brindes&period=mtd"),
+        fetch("/api/gestao/departamentos/kpi?departamento=Brindes&period=ytd"),
+        fetch("/api/gestao/departamentos/kpi?departamento=Digital&period=mtd"),
+        fetch("/api/gestao/departamentos/kpi?departamento=Digital&period=ytd"),
+        fetch("/api/gestao/departamentos/kpi?departamento=IMACX&period=mtd"),
+        fetch("/api/gestao/departamentos/kpi?departamento=IMACX&period=ytd"),
+        fetch("/api/gestao/departamentos/analise?periodo=mensal"),
+        fetch("/api/gestao/departamentos/analise?periodo=anual"),
+        fetch(
+          "/api/gestao/departamentos/pipeline?departamento=Brindes&periodo=mensal",
+        ),
+        fetch(
+          "/api/gestao/departamentos/pipeline?departamento=Brindes&periodo=anual",
+        ),
+        fetch(
+          "/api/gestao/departamentos/pipeline?departamento=Digital&periodo=mensal",
+        ),
+        fetch(
+          "/api/gestao/departamentos/pipeline?departamento=Digital&periodo=anual",
+        ),
+        fetch(
+          "/api/gestao/departamentos/pipeline?departamento=IMACX&periodo=mensal",
+        ),
+        fetch(
+          "/api/gestao/departamentos/pipeline?departamento=IMACX&periodo=anual",
+        ),
+      ]);
+
+      // Parse results (handle fulfilled/rejected)
+      const [
+        kpiResult,
+        monthlyRevenueResult,
+        topCustomersMtdResult,
+        topCustomersYtdResult,
+        multiYearRevenueResult,
+        conversionMtdResult,
+        conversionYtdResult,
+        ccPerfMtdResult,
+        ccPerfYtdResult,
+        ccSalesMtdResult,
+        ccSalesYtdResult,
+        ccTopMtdResult,
+        ccTopYtdResult,
+        brindesKpiMtdResult,
+        brindesKpiYtdResult,
+        digitalKpiMtdResult,
+        digitalKpiYtdResult,
+        imacxKpiMtdResult,
+        imacxKpiYtdResult,
+        analiseMonthResult,
+        analiseYearResult,
+        brindesPipeMtdResult,
+        brindesPipeYtdResult,
+        digitalPipeMtdResult,
+        digitalPipeYtdResult,
+        imacxPipeMtdResult,
+        imacxPipeYtdResult,
+      ] = results;
+
+      // Helper to safely extract JSON from fulfilled promises
+      const extractJson = async (result: PromiseSettledResult<Response>) => {
+        if (result.status === "fulfilled" && result.value.ok) {
+          return await result.value.json();
         }
+        return null;
+      };
 
-        // Only skip fetching if we actually restored valid data
-        if (hasValidData) {
-          return;
-        } else {
-          console.log("⚠️ [Cache] Cached data was empty, fetching fresh data");
-        }
+      // Extract all JSON responses
+      const [
+        kpiData,
+        monthlyRevData,
+        topMtdData,
+        topYtdData,
+        multiYearData,
+        convMtdData,
+        convYtdData,
+        ccPerfMtdData,
+        ccPerfYtdData,
+        ccSalesMtdData,
+        ccSalesYtdData,
+        ccTopMtdData,
+        ccTopYtdData,
+        brindesKpiMtdData,
+        brindesKpiYtdData,
+        digitalKpiMtdData,
+        digitalKpiYtdData,
+        imacxKpiMtdData,
+        imacxKpiYtdData,
+        analiseMtdData,
+        analiseYtdData,
+        brindesPipeMtdData,
+        brindesPipeYtdData,
+        digitalPipeMtdData,
+        digitalPipeYtdData,
+        imacxPipeMtdData,
+        imacxPipeYtdData,
+      ] = await Promise.all([
+        extractJson(kpiResult),
+        extractJson(monthlyRevenueResult),
+        extractJson(topCustomersMtdResult),
+        extractJson(topCustomersYtdResult),
+        extractJson(multiYearRevenueResult),
+        extractJson(conversionMtdResult),
+        extractJson(conversionYtdResult),
+        extractJson(ccPerfMtdResult),
+        extractJson(ccPerfYtdResult),
+        extractJson(ccSalesMtdResult),
+        extractJson(ccSalesYtdResult),
+        extractJson(ccTopMtdResult),
+        extractJson(ccTopYtdResult),
+        extractJson(brindesKpiMtdResult),
+        extractJson(brindesKpiYtdResult),
+        extractJson(digitalKpiMtdResult),
+        extractJson(digitalKpiYtdResult),
+        extractJson(imacxKpiMtdResult),
+        extractJson(imacxKpiYtdResult),
+        extractJson(analiseMonthResult),
+        extractJson(analiseYearResult),
+        extractJson(brindesPipeMtdResult),
+        extractJson(brindesPipeYtdResult),
+        extractJson(digitalPipeMtdResult),
+        extractJson(digitalPipeYtdResult),
+        extractJson(imacxPipeMtdResult),
+        extractJson(imacxPipeYtdResult),
+      ]);
+
+      // Store all data in cache for instant access
+      dataCache.current = {
+        kpi: { timestamp: Date.now(), data: kpiData },
+
+        // VISÃO GERAL data
+        monthlyRevenue: { timestamp: Date.now(), data: monthlyRevData },
+        topCustomers: {
+          timestamp: Date.now(),
+          data: { mtd: topMtdData, ytd: topYtdData },
+        },
+        multiYearRevenue: { timestamp: Date.now(), data: multiYearData },
+        companyConversao: {
+          timestamp: Date.now(),
+          data: {
+            mtd: convMtdData?.conversao || [],
+            ytd: convYtdData?.conversao || [],
+          },
+        },
+
+        // CENTRO CUSTO data
+        costCenterPerformance: {
+          timestamp: Date.now(),
+          data: { mtd: ccPerfMtdData, ytd: ccPerfYtdData },
+        },
+        costCenterSales: {
+          timestamp: Date.now(),
+          data: { mtd: ccSalesMtdData, ytd: ccSalesYtdData },
+        },
+        costCenterTopCustomers: {
+          timestamp: Date.now(),
+          data: { mtd: ccTopMtdData, ytd: ccTopYtdData },
+        },
+
+        // DEPARTAMENTOS data (stored by department and period)
+        departmentKpi: {
+          timestamp: Date.now(),
+          data: {
+            Brindes: { mtd: brindesKpiMtdData, ytd: brindesKpiYtdData },
+            Digital: { mtd: digitalKpiMtdData, ytd: digitalKpiYtdData },
+            IMACX: { mtd: imacxKpiMtdData, ytd: imacxKpiYtdData },
+          },
+        },
+        departmentAnalise: {
+          timestamp: Date.now(),
+          data: { mtd: analiseMtdData, ytd: analiseYtdData },
+        },
+        departmentPipeline: {
+          timestamp: Date.now(),
+          data: {
+            Brindes: { mtd: brindesPipeMtdData, ytd: brindesPipeYtdData },
+            Digital: { mtd: digitalPipeMtdData, ytd: digitalPipeYtdData },
+            IMACX: { mtd: imacxPipeMtdData, ytd: imacxPipeYtdData },
+          },
+        },
+      };
+
+      // Update state with initial period (defaults to YTD)
+      setKpiData(kpiData);
+      setMonthlyRevenue(monthlyRevData);
+      setTopCustomers(topYtdData);
+      setMultiYearRevenue(multiYearData);
+      setCompanyConversao(convYtdData?.conversao || []);
+
+      setCostCenterPerformance(ccPerfYtdData);
+      setCostCenterSales(ccSalesYtdData);
+      setCostCenterTopCustomers(ccTopYtdData);
+      if (ccTopYtdData?.costCenters?.[0]) {
+        setSelectedCostCenter(ccTopYtdData.costCenters[0].costCenter);
       }
 
-      console.log("🌐 [Cache MISS] Fetching fresh data for:", cacheKey);
-      setLoading(true);
-      setError(null);
+      // Set department data (default to Brindes YTD)
+      setDepartmentKpiData(brindesKpiYtdData);
+      setDepartmentOrcamentos(analiseYtdData?.orcamentos || []);
+      setDepartmentFaturas(analiseYtdData?.faturas || []);
+      setDepartmentConversao(analiseYtdData?.conversao || []);
+      setDepartmentClientes(analiseYtdData?.clientes || []);
+      setPipelineData(brindesPipeYtdData);
 
-      try {
-        // Always fetch KPI data (used across multiple tabs)
-        const kpiResponse = await fetch(
-          "/api/financial-analysis/kpi-dashboard",
+      console.log("✅ [Initial Load] All data fetched successfully!");
+    } catch (err) {
+      console.error("❌ [Initial Load] Error:", err);
+      setError(err instanceof Error ? err.message : "Failed to load data");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // ============================================================================
+  // Helper function to sync state from cache based on active tab and period
+  // ============================================================================
+  const syncStateFromCache = useCallback(
+    (tab: "mtd" | "ytd" | "qtd", dept: "Brindes" | "Digital" | "IMACX") => {
+      const cache = dataCache.current;
+
+      // For qtd, default to ytd data
+      const effectiveTab = tab === "qtd" ? "ytd" : tab;
+
+      // Update state based on selected period
+      if (cache.topCustomers?.data) {
+        setTopCustomers(cache.topCustomers.data[effectiveTab] || null);
+      }
+      if (cache.companyConversao?.data) {
+        setCompanyConversao(cache.companyConversao.data[effectiveTab] || []);
+      }
+      if (cache.costCenterPerformance?.data) {
+        setCostCenterPerformance(
+          cache.costCenterPerformance.data[effectiveTab] || null,
         );
-        if (!kpiResponse.ok) {
-          throw new Error("Failed to fetch KPI data");
-        }
-        const kpiJson = await kpiResponse.json();
-        setKpiData(kpiJson);
+      }
+      if (cache.costCenterSales?.data) {
+        setCostCenterSales(cache.costCenterSales.data[effectiveTab] || null);
+      }
+      if (cache.costCenterTopCustomers?.data) {
+        setCostCenterTopCustomers(
+          cache.costCenterTopCustomers.data[effectiveTab] || null,
+        );
+      }
 
-        // Conditional data fetching based on active section
-        if (section === "visao-geral") {
-          // ============================================================
-          // PERFORMANCE OPTIMIZATION: Parallelize all fetches in visão-geral
-          // ============================================================
-          // BEFORE: 4 sequential API calls (~1.2-1.6 seconds)
-          // AFTER: 4 parallel API calls (~0.4-0.5 seconds)
-          // Expected savings: ~0.8-1.2 seconds
-          // ============================================================
-          console.log("📊 [Frontend] Parallelizing VISÃO GERAL fetches...");
-
-          const topPeriod = tab === "mtd" ? "mtd" : "ytd";
-          const conversionPeriod = tab === "mtd" ? "mtd" : "ytd";
-
-          const [
-            revenueResponse,
-            customersResponse,
-            multiYearResponse,
-            conversionResponse,
-          ] = await Promise.all([
-            fetch("/api/financial-analysis/monthly-revenue"),
-            fetch(
-              `/api/financial-analysis/top-customers?limit=20&period=${topPeriod}`,
-            ),
-            fetch("/api/financial-analysis/multi-year-revenue"),
-            fetch(
-              `/api/financial-analysis/conversion-rates?period=${conversionPeriod}`,
-            ),
-          ]);
-
-          // Handle MONTHLY REVENUE
-          if (!revenueResponse.ok) {
-            throw new Error("Failed to fetch monthly revenue data");
-          }
-          const revenueJson = await revenueResponse.json();
-          setMonthlyRevenue(revenueJson);
-
-          // Handle TOP CUSTOMERS
-          if (!customersResponse.ok) {
-            throw new Error("Failed to fetch top customers data");
-          }
-          const customersJson = await customersResponse.json();
-          setTopCustomers(customersJson);
-
-          // Handle MULTI-YEAR REVENUE
-          if (!multiYearResponse.ok) {
-            throw new Error("Failed to fetch multi-year revenue data");
-          }
-          const multiYearJson = await multiYearResponse.json();
-          console.log("📊 [Frontend] Multi-Year Revenue Response:", {
-            years: multiYearJson.years,
-            monthsCount: multiYearJson.months?.length,
-            seriesCount: multiYearJson.series?.length,
-            series0PointsCount: multiYearJson.series?.[0]?.points?.length,
-            series1PointsCount: multiYearJson.series?.[1]?.points?.length,
-            series2PointsCount: multiYearJson.series?.[2]?.points?.length,
-          });
-          console.log(
-            "📊 [Frontend] Series 0 (2025) points:",
-            multiYearJson.series?.[0]?.points,
-          );
-          console.log(
-            "📊 [Frontend] Series 1 (2024) points:",
-            multiYearJson.series?.[1]?.points,
-          );
-          console.log(
-            "📊 [Frontend] Series 2 (2023) points:",
-            multiYearJson.series?.[2]?.points,
-          );
-          setMultiYearRevenue(multiYearJson);
-
-          // Handle COMPANY CONVERSION RATES
-          if (!conversionResponse.ok) {
-            console.error("❌ Failed to fetch company conversion rates:", {
-              status: conversionResponse.status,
-              statusText: conversionResponse.statusText,
-            });
-            setCompanyConversao([]);
-          } else {
-            const conversionJson = await conversionResponse.json();
-            console.log("📊 [Frontend] Company Conversion Rates Response:", {
-              period: conversionPeriod,
-              count: conversionJson.conversao?.length || 0,
-              fullResponse: conversionJson,
-            });
-            setCompanyConversao(conversionJson.conversao || []);
-          }
-        } else if (section === "centro-custo") {
-          // ============================================================
-          // PERFORMANCE OPTIMIZATION: Parallelize all fetches in centro-custo
-          // ============================================================
-          // BEFORE: 3 sequential API calls (~0.9-1.2 seconds)
-          // AFTER: 3 parallel API calls (~0.3-0.4 seconds)
-          // Expected savings: ~0.6-0.8 seconds
-          // ============================================================
-          console.log("📊 [Frontend] Parallelizing CENTRO CUSTO fetches...");
-
-          const costCenterPeriod = tab === "mtd" ? "mtd" : "ytd";
-
-          const [
-            costCenterResponse,
-            costCenterSalesResponse,
-            topCustomersResponse,
-          ] = await Promise.all([
-            fetch(
-              `/api/financial-analysis/cost-center-performance?period=${costCenterPeriod}`,
-            ),
-            fetch(`/api/financial-analysis/cost-center-sales?period=${tab}`),
-            fetch(
-              `/api/financial-analysis/cost-center-top-customers?period=${tab}&limit=20`,
-            ),
-          ]);
-
-          // Handle COST CENTER PERFORMANCE
-          if (!costCenterResponse.ok) {
-            console.warn("Failed to fetch cost center performance data");
-          } else {
-            const costCenterJson = await costCenterResponse.json();
-            setCostCenterPerformance(costCenterJson);
-          }
-
-          // Handle COST CENTER SALES
-          if (!costCenterSalesResponse.ok) {
-            console.warn("Failed to fetch cost center sales data");
-          } else {
-            const costCenterSalesJson = await costCenterSalesResponse.json();
-            setCostCenterSales(costCenterSalesJson);
-          }
-
-          // Handle COST CENTER TOP CUSTOMERS
-          if (!topCustomersResponse.ok) {
-            console.warn(
-              "Failed to fetch cost center top customers - showing empty state",
-            );
-            // Create empty response structure so table still renders
-            const now = new Date();
-            const emptyResponse: CostCenterTopCustomersResponse = {
-              costCenters: COST_CENTERS.map((center) => ({
-                costCenter: center,
-                customers: [],
-                summary: {
-                  totalCustomers: 0,
-                  totalRevenue: 0,
-                  totalInvoices: 0,
-                },
-              })),
-              metadata: {
-                period: tab as "ytd" | "mtd",
-                startDate:
-                  tab === "mtd"
-                    ? new Date(now.getFullYear(), now.getMonth(), 1)
-                        .toISOString()
-                        .split("T")[0]
-                    : new Date(now.getFullYear(), 0, 1)
-                        .toISOString()
-                        .split("T")[0],
-                endDate: now.toISOString().split("T")[0],
-                limit: 20,
-                generatedAt: now.toISOString(),
-              },
-            };
-            setCostCenterTopCustomers(emptyResponse);
-            setSelectedCostCenter(COST_CENTERS[0]);
-          } else {
-            const topCustomersJson =
-              (await topCustomersResponse.json()) as CostCenterTopCustomersResponse;
-            console.log(
-              "📊 [Cost Center Top Customers] Response:",
-              topCustomersJson,
-            );
-            console.log(
-              "📊 [Cost Center Top Customers] First center customers:",
-              topCustomersJson.costCenters[0]?.customers?.length || 0,
-            );
-            setCostCenterTopCustomers(topCustomersJson);
-            setSelectedCostCenter((previous) => {
-              if (
-                previous &&
-                topCustomersJson.costCenters.some(
-                  (cc) => cc.costCenter === previous,
-                )
-              ) {
-                return previous;
-              }
-              return topCustomersJson.costCenters[0]?.costCenter ?? null;
-            });
-          }
-        } else if (section === "departamentos") {
-          // ============================================================
-          // PERFORMANCE OPTIMIZATION: Parallelize all fetches in departamentos
-          // ============================================================
-          // BEFORE: 3 sequential API calls (~0.9-1.2 seconds)
-          // AFTER: 3 parallel API calls (~0.3-0.4 seconds)
-          // Expected savings: ~0.6-0.8 seconds
-          // ============================================================
-          console.log("📊 [Frontend] Parallelizing DEPARTAMENTOS fetches...");
-
-          const deptPeriod = tab === "mtd" ? "mtd" : "ytd";
-          const periodo = tab === "mtd" ? "mensal" : "anual";
-
-          console.log(
-            "[fetchAllData] Fetching KPI for department:",
-            selectedDepartment,
-            "period:",
-            tab,
-          );
-
-          const deptKpiUrl = `/api/gestao/departamentos/kpi?departamento=${encodeURIComponent(selectedDepartment)}&period=${deptPeriod}`;
-          console.log("[fetchAllData] Fetching from:", deptKpiUrl);
-
-          const [deptKpiResponse, analiseResponse, pipelineResponse] =
-            await Promise.all([
-              fetch(deptKpiUrl),
-              fetch(`/api/gestao/departamentos/analise?periodo=${periodo}`),
-              fetch(
-                `/api/gestao/departamentos/pipeline?departamento=${selectedDepartment}&periodo=${periodo}`,
-              ),
-            ]);
-
-          // Handle DEPARTMENT KPI
-          try {
-            if (!deptKpiResponse.ok) {
-              console.warn(
-                "[fetchAllData] KPI API returned:",
-                deptKpiResponse.status,
-              );
-              setDepartmentKpiData(null);
-            } else {
-              const deptKpiJson = await deptKpiResponse.json();
-              console.log("[fetchAllData] KPI data loaded:", {
-                department: selectedDepartment,
-                period: deptPeriod,
-                hasData: !!deptKpiJson,
-              });
-              setDepartmentKpiData(deptKpiJson);
-            }
-          } catch (err) {
-            console.error("[fetchAllData] Error fetching KPI:", err);
-            setDepartmentKpiData(null);
-          }
-
-          // Handle DEPARTAMENTOS ANALISE
-          if (!analiseResponse.ok) {
-            console.warn("Failed to fetch departamentos analise data");
-          } else {
-            const analiseJson = await analiseResponse.json();
-            console.log("📊 [Departamentos] Análise data received:", {
-              orcamentos: analiseJson.orcamentos?.length || 0,
-              faturas: analiseJson.faturas?.length || 0,
-              conversao: analiseJson.conversao?.length || 0,
-              clientes: analiseJson.clientes?.length || 0,
-            });
-            if (analiseJson.orcamentos?.length > 0) {
-              console.log("  Sample orcamento:", analiseJson.orcamentos[0]);
-            }
-            if (analiseJson.faturas?.length > 0) {
-              console.log("  Sample fatura:", analiseJson.faturas[0]);
-            }
-            setDepartmentOrcamentos(analiseJson.orcamentos || []);
-            setDepartmentFaturas(analiseJson.faturas || []);
-            setDepartmentConversao(analiseJson.conversao || []);
-            setDepartmentClientes(analiseJson.clientes || []);
-          }
-
-          // Handle PIPELINE DATA
-          if (!pipelineResponse.ok) {
-            console.warn("Failed to fetch departamentos pipeline data");
-          } else {
-            const pipelineJson = await pipelineResponse.json();
-            console.log(
-              "📊 [Frontend] Pipeline data received for",
-              selectedDepartment,
-            );
-            console.log(
-              "  - Top15 count:",
-              pipelineJson.metadata?.counts?.top15,
-            );
-            console.log(
-              "  - NeedsAttention count:",
-              pipelineJson.metadata?.counts?.needsAttention,
-            );
-            console.log(
-              "  - Perdidos count:",
-              pipelineJson.metadata?.counts?.perdidos,
-            );
-            console.log(
-              "  - Aprovados count:",
-              pipelineJson.metadata?.counts?.aprovados,
-            );
-            if (pipelineJson.top15?.length > 0) {
-              console.log(
-                "  - Top15[0] cliente:",
-                pipelineJson.top15[0]?.cliente_nome,
-              );
-            }
-            if (pipelineJson.needsAttention?.length > 0) {
-              console.log(
-                "  - NeedsAttention[0] cliente:",
-                pipelineJson.needsAttention[0]?.cliente_nome,
-              );
-            }
-            setPipelineData(pipelineJson);
-          }
-        }
-        // OPERACOES section has no data fetching yet (placeholder)
-
-        // Store data in cache
-        if (section === "visao-geral") {
-          dataCache.current[cacheKey] = {
-            timestamp: Date.now(),
-            data: {
-              monthlyRevenue,
-              topCustomers,
-              multiYearRevenue,
-              companyConversao,
-            },
-          };
-        } else if (section === "centro-custo") {
-          dataCache.current[cacheKey] = {
-            timestamp: Date.now(),
-            data: {
-              costCenterPerformance,
-              costCenterSales,
-              costCenterTopCustomers,
-              selectedCostCenter,
-            },
-          };
-        } else if (section === "departamentos") {
-          dataCache.current[cacheKey] = {
-            timestamp: Date.now(),
-            data: {
-              departmentKpiData,
-              departmentOrcamentos,
-              departmentFaturas,
-              departmentConversao,
-              departmentClientes,
-              pipelineData,
-            },
-          };
-        }
-      } catch (err) {
-        console.error("Error fetching financial analysis data:", err);
-        setError(err instanceof Error ? err.message : "Failed to load data");
-      } finally {
-        setLoading(false);
+      // Update department data based on selected department and period
+      if (cache.departmentKpi?.data?.[dept]) {
+        setDepartmentKpiData(
+          cache.departmentKpi.data[dept][effectiveTab] || null,
+        );
+      }
+      if (cache.departmentAnalise?.data) {
+        const analiseData = cache.departmentAnalise.data[effectiveTab];
+        setDepartmentOrcamentos(analiseData?.orcamentos || []);
+        setDepartmentFaturas(analiseData?.faturas || []);
+        setDepartmentConversao(analiseData?.conversao || []);
+        setDepartmentClientes(analiseData?.clientes || []);
+      }
+      if (cache.departmentPipeline?.data?.[dept]) {
+        setPipelineData(
+          cache.departmentPipeline.data[dept][effectiveTab] || null,
+        );
       }
     },
-    [activeTab, mainTab, selectedDepartment],
+    [],
   );
 
   const handleFastRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      // Clear cache to force fresh data
-      console.log("🗑️ [Refresh] Clearing cache...");
+      console.log("🗑️ [Refresh] Clearing cache and refreshing data...");
       dataCache.current = {};
 
       // Fast incremental ETL (3-day window, upsert only) then reload dashboard data
@@ -849,7 +720,11 @@ export default function AnaliseFinanceiraPage() {
         throw new Error(message);
       }
 
-      await fetchAllData(activeTab, mainTab, true);
+      // Re-fetch ALL data (same as initial load)
+      await fetchAllInitialData();
+
+      // Sync state to currently selected tab/period
+      syncStateFromCache(activeTab, selectedDepartment);
     } catch (err) {
       console.error("Erro ao executar atualizacao rapida do PHC:", err);
       alert(
@@ -858,7 +733,7 @@ export default function AnaliseFinanceiraPage() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [activeTab, mainTab, fetchAllData]);
+  }, [fetchAllInitialData, syncStateFromCache, activeTab, selectedDepartment]);
 
   // Handle dismiss/undismiss orcamento (toggle checkbox)
   const handleDismissOrcamento = useCallback(
@@ -887,14 +762,33 @@ export default function AnaliseFinanceiraPage() {
           throw new Error("Failed to update orcamento");
         }
 
-        // Refresh pipeline data after dismissing/undismissing
-        await fetchAllData(activeTab, "departamentos");
+        // Update local state to reflect the change
+        setPipelineData((prev: any) => {
+          if (!prev) return prev;
+
+          // Update the dismissed state in all relevant arrays
+          const updateOrcamentos = (orcamentos: any[]) =>
+            orcamentos.map((orc) =>
+              orc.orcamento_id_humano === orcamentoNumber
+                ? { ...orc, is_dismissed: newState }
+                : orc,
+            );
+
+          return {
+            ...prev,
+            top15: prev.top15 ? updateOrcamentos(prev.top15) : [],
+            needsAttention: prev.needsAttention
+              ? updateOrcamentos(prev.needsAttention)
+              : [],
+            perdidos: prev.perdidos ? updateOrcamentos(prev.perdidos) : [],
+          };
+        });
       } catch (err) {
         console.error("Error dismissing orcamento:", err);
         alert("Falha ao atualizar o orçamento. Tenta novamente.");
       }
     },
-    [activeTab, fetchAllData],
+    [],
   );
 
   // ============================================================================
@@ -948,19 +842,16 @@ export default function AnaliseFinanceiraPage() {
   // Effects
   // ============================================================================
 
+  // Initial load: Fetch ALL data once on mount
   useEffect(() => {
-    fetchAllData(activeTab, mainTab);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    fetchAllInitialData();
+  }, [fetchAllInitialData]);
 
-  // Fetch data when selectedDepartment changes (both Análise and Reuniões)
+  // Sync state from cache when activeTab (MTD/YTD) changes
   useEffect(() => {
-    if (mainTab === "departamentos") {
-      console.log("[useEffect] Department changed to:", selectedDepartment);
-      fetchAllData(activeTab, "departamentos");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDepartment]);
+    console.log("📊 [Tab Switch] Syncing state for period:", activeTab);
+    syncStateFromCache(activeTab, selectedDepartment);
+  }, [activeTab, selectedDepartment, syncStateFromCache]);
 
   // Switch away from PERDIDOS tab when switching to MÊS ATUAL (mtd)
   useEffect(() => {
@@ -969,19 +860,27 @@ export default function AnaliseFinanceiraPage() {
     }
   }, [activeTab, pipelineTab]);
 
-  // Fetch all departments KPI when GRÁFICOS tab is selected
+  // Load all departments KPI when GRÁFICOS tab is selected (only if not already loaded)
   useEffect(() => {
     if (
       mainTab === "departamentos" &&
       departmentView === "analise" &&
-      analiseTab === "graficos"
+      analiseTab === "graficos" &&
+      !allDepartmentsKpi
     ) {
       const period = activeTab === "mtd" ? "mtd" : "ytd";
       fetchAllDepartmentsKpi(period).then((data) => {
         setAllDepartmentsKpi(data);
       });
     }
-  }, [analiseTab, mainTab, departmentView, activeTab, fetchAllDepartmentsKpi]);
+  }, [
+    analiseTab,
+    mainTab,
+    departmentView,
+    activeTab,
+    fetchAllDepartmentsKpi,
+    allDepartmentsKpi,
+  ]);
 
   // ============================================================================
   // Formatters
@@ -1147,10 +1046,7 @@ export default function AnaliseFinanceiraPage() {
             <p className="text-foreground mb-4">
               Erro ao carregar dados: {error}
             </p>
-            <Button
-              variant="default"
-              onClick={() => fetchAllData(activeTab, mainTab)}
-            >
+            <Button variant="default" onClick={() => fetchAllInitialData()}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Tentar novamente
             </Button>
@@ -2860,49 +2756,35 @@ ${(() => {
       <div className="flex gap-2">
         <Button
           variant={mainTab === "visao-geral" ? "default" : "outline"}
-          onClick={() => {
-            setMainTab("visao-geral");
-            fetchAllData(activeTab, "visao-geral");
-          }}
+          onClick={() => setMainTab("visao-geral")}
           className="h-10"
         >
           VISÃO GERAL
         </Button>
         <Button
           variant={mainTab === "centro-custo" ? "default" : "outline"}
-          onClick={() => {
-            setMainTab("centro-custo");
-            fetchAllData(activeTab, "centro-custo");
-          }}
+          onClick={() => setMainTab("centro-custo")}
           className="h-10"
         >
           CENTRO CUSTO
         </Button>
         <Button
           variant={mainTab === "departamentos" ? "default" : "outline"}
-          onClick={() => {
-            setMainTab("departamentos");
-            fetchAllData(activeTab, "departamentos");
-          }}
+          onClick={() => setMainTab("departamentos")}
           className="h-10"
         >
           DEPARTAMENTOS
         </Button>
         <Button
           variant={mainTab === "tabelas-temp" ? "default" : "outline"}
-          onClick={() => {
-            setMainTab("tabelas-temp");
-          }}
+          onClick={() => setMainTab("tabelas-temp")}
           className="h-10"
         >
           TABELAS TEMP
         </Button>
         <Button
           variant={mainTab === "operacoes" ? "default" : "outline"}
-          onClick={() => {
-            setMainTab("operacoes");
-            fetchAllData(activeTab, "operacoes");
-          }}
+          onClick={() => setMainTab("operacoes")}
           className="h-10"
         >
           OPERAÇÕES
@@ -2914,20 +2796,14 @@ ${(() => {
         <div className="flex gap-2">
           <Button
             variant={activeTab === "mtd" ? "default" : "outline"}
-            onClick={() => {
-              setActiveTab("mtd");
-              fetchAllData("mtd", mainTab);
-            }}
+            onClick={() => setActiveTab("mtd")}
             className="h-10"
           >
             Mês Atual
           </Button>
           <Button
             variant={activeTab === "ytd" ? "default" : "outline"}
-            onClick={() => {
-              setActiveTab("ytd");
-              fetchAllData("ytd", mainTab);
-            }}
+            onClick={() => setActiveTab("ytd")}
             className="h-10"
           >
             Ano Atual
