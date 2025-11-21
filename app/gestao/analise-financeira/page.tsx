@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createBrowserClient } from "@/utils/supabase";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -25,6 +25,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { ImacxBarChart } from "@/components/charts";
 import {
   RefreshCw,
   TrendingUp,
@@ -153,8 +154,15 @@ export default function AnaliseFinanceiraPage() {
 
   // Main tab navigation
   const [mainTab, setMainTab] = useState<
-    "visao-geral" | "centro-custo" | "departamentos" | "operacoes"
+    | "visao-geral"
+    | "centro-custo"
+    | "departamentos"
+    | "tabelas-temp"
+    | "operacoes"
   >("visao-geral");
+
+  // Tabelas Temp tab state
+  const [selectedTempTable, setSelectedTempTable] = useState<string>("1");
 
   // Departamentos tab states
   const [departmentView, setDepartmentView] = useState<"analise" | "reunioes">(
@@ -166,10 +174,14 @@ export default function AnaliseFinanceiraPage() {
   const [pipelineTab, setPipelineTab] = useState<
     "top15" | "attention" | "lost"
   >("top15");
+  const [analiseTab, setAnaliseTab] = useState<
+    "orcamentos" | "faturas" | "conversao" | "graficos"
+  >("orcamentos");
 
   // Departamentos data - Análise
   const [departmentKpiData, setDepartmentKpiData] =
     useState<KPIDashboardData | null>(null);
+  const [allDepartmentsKpi, setAllDepartmentsKpi] = useState<any>(null);
   const [departmentOrcamentos, setDepartmentOrcamentos] = useState<any[]>([]);
   const [departmentFaturas, setDepartmentFaturas] = useState<any[]>([]);
   const [departmentConversao, setDepartmentConversao] = useState<any[]>([]);
@@ -180,6 +192,14 @@ export default function AnaliseFinanceiraPage() {
 
   // Company-wide conversion rates (VISÃO GERAL)
   const [companyConversao, setCompanyConversao] = useState<any[]>([]);
+
+  // Data cache to prevent recalculation on tab switches
+  const dataCache = useRef<{
+    [key: string]: {
+      timestamp: number;
+      data: any;
+    };
+  }>({});
 
   // Period tab navigation (within each main tab)
   const [activeTab, setActiveTab] = useState<"mtd" | "ytd" | "qtd">("mtd");
@@ -343,6 +363,41 @@ export default function AnaliseFinanceiraPage() {
   // Data Fetching
   // ============================================================================
 
+  // Fetch KPI data for all 3 departments (used in GRÁFICOS tab)
+  const fetchAllDepartmentsKpi = useCallback(async (period: "mtd" | "ytd") => {
+    const departments = ["Brindes", "Digital", "IMACX"];
+
+    try {
+      const results = await Promise.all(
+        departments.map((dept) =>
+          fetch(
+            `/api/gestao/departamentos/kpi?departamento=${encodeURIComponent(dept)}&period=${period}`,
+          )
+            .then((res) => {
+              if (!res.ok) {
+                console.warn(`Failed to fetch KPI for ${dept}:`, res.status);
+                return null;
+              }
+              return res.json();
+            })
+            .catch((err) => {
+              console.error(`Error fetching KPI for ${dept}:`, err);
+              return null;
+            }),
+        ),
+      );
+
+      return {
+        Brindes: results[0],
+        Digital: results[1],
+        IMACX: results[2],
+      };
+    } catch (error) {
+      console.error("Error fetching all departments KPI:", error);
+      return null;
+    }
+  }, []);
+
   const fetchAllData = useCallback(
     async (
       tab: "mtd" | "ytd" | "qtd" = activeTab,
@@ -350,8 +405,64 @@ export default function AnaliseFinanceiraPage() {
         | "visao-geral"
         | "centro-custo"
         | "departamentos"
+        | "tabelas-temp"
         | "operacoes" = mainTab,
+      forceRefresh: boolean = false,
     ) => {
+      // Check cache first (unless forcing refresh)
+      const cacheKey = `${section}-${tab}-${selectedDepartment}`;
+      const cached = dataCache.current[cacheKey];
+      const cacheAge = cached ? Date.now() - cached.timestamp : Infinity;
+      const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+      if (!forceRefresh && cached && cacheAge < CACHE_DURATION && cached.data) {
+        console.log("📦 [Cache HIT] Using cached data for:", cacheKey);
+
+        // Validate that cached data has actual content before restoring
+        let hasValidData = false;
+
+        if (section === "visao-geral") {
+          hasValidData =
+            cached.data.monthlyRevenue?.length > 0 ||
+            cached.data.topCustomers?.length > 0;
+          if (hasValidData) {
+            setMonthlyRevenue(cached.data.monthlyRevenue);
+            setTopCustomers(cached.data.topCustomers);
+            setMultiYearRevenue(cached.data.multiYearRevenue);
+            setCompanyConversao(cached.data.companyConversao);
+          }
+        } else if (section === "centro-custo") {
+          hasValidData = cached.data.costCenterPerformance?.length > 0;
+          if (hasValidData) {
+            setCostCenterPerformance(cached.data.costCenterPerformance);
+            setCostCenterSales(cached.data.costCenterSales);
+            setCostCenterTopCustomers(cached.data.costCenterTopCustomers);
+            setSelectedCostCenter(cached.data.selectedCostCenter);
+          }
+        } else if (section === "departamentos") {
+          // For departamentos, validate that we have KPI data
+          hasValidData =
+            cached.data.departmentKpiData !== null &&
+            cached.data.departmentKpiData !== undefined;
+          if (hasValidData) {
+            setDepartmentKpiData(cached.data.departmentKpiData);
+            setDepartmentOrcamentos(cached.data.departmentOrcamentos);
+            setDepartmentFaturas(cached.data.departmentFaturas);
+            setDepartmentConversao(cached.data.departmentConversao);
+            setDepartmentClientes(cached.data.departmentClientes);
+            setPipelineData(cached.data.pipelineData);
+          }
+        }
+
+        // Only skip fetching if we actually restored valid data
+        if (hasValidData) {
+          return;
+        } else {
+          console.log("⚠️ [Cache] Cached data was empty, fetching fresh data");
+        }
+      }
+
+      console.log("🌐 [Cache MISS] Fetching fresh data for:", cacheKey);
       setLoading(true);
       setError(null);
 
@@ -671,6 +782,41 @@ export default function AnaliseFinanceiraPage() {
           }
         }
         // OPERACOES section has no data fetching yet (placeholder)
+
+        // Store data in cache
+        if (section === "visao-geral") {
+          dataCache.current[cacheKey] = {
+            timestamp: Date.now(),
+            data: {
+              monthlyRevenue,
+              topCustomers,
+              multiYearRevenue,
+              companyConversao,
+            },
+          };
+        } else if (section === "centro-custo") {
+          dataCache.current[cacheKey] = {
+            timestamp: Date.now(),
+            data: {
+              costCenterPerformance,
+              costCenterSales,
+              costCenterTopCustomers,
+              selectedCostCenter,
+            },
+          };
+        } else if (section === "departamentos") {
+          dataCache.current[cacheKey] = {
+            timestamp: Date.now(),
+            data: {
+              departmentKpiData,
+              departmentOrcamentos,
+              departmentFaturas,
+              departmentConversao,
+              departmentClientes,
+              pipelineData,
+            },
+          };
+        }
       } catch (err) {
         console.error("Error fetching financial analysis data:", err);
         setError(err instanceof Error ? err.message : "Failed to load data");
@@ -684,6 +830,10 @@ export default function AnaliseFinanceiraPage() {
   const handleFastRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
+      // Clear cache to force fresh data
+      console.log("🗑️ [Refresh] Clearing cache...");
+      dataCache.current = {};
+
       // Fast incremental ETL (3-day window, upsert only) then reload dashboard data
       const resp = await fetch("/api/etl/incremental", {
         method: "POST",
@@ -699,7 +849,7 @@ export default function AnaliseFinanceiraPage() {
         throw new Error(message);
       }
 
-      await fetchAllData(activeTab, mainTab);
+      await fetchAllData(activeTab, mainTab, true);
     } catch (err) {
       console.error("Erro ao executar atualizacao rapida do PHC:", err);
       alert(
@@ -747,6 +897,57 @@ export default function AnaliseFinanceiraPage() {
     [activeTab, fetchAllData],
   );
 
+  // ============================================================================
+  // Department Charts Data Preparation (useMemo hooks)
+  // ============================================================================
+
+  const departmentChartData1 = useMemo(() => {
+    if (!allDepartmentsKpi) return [];
+
+    return ["Brindes", "Digital", "IMACX"].map((dept) => ({
+      department: dept,
+      orcamentosValor:
+        allDepartmentsKpi[dept]?.[activeTab]?.quoteValue?.current || 0,
+      receitaTotal: allDepartmentsKpi[dept]?.[activeTab]?.revenue?.current || 0,
+    }));
+  }, [allDepartmentsKpi, activeTab]);
+
+  const departmentChartData2 = useMemo(() => {
+    if (!allDepartmentsKpi) return [];
+
+    return ["Brindes", "Digital", "IMACX"].map((dept) => ({
+      department: dept,
+      orcamentosQtd:
+        allDepartmentsKpi[dept]?.[activeTab]?.quoteCount?.current || 0,
+      nFaturas: allDepartmentsKpi[dept]?.[activeTab]?.invoices?.current || 0,
+    }));
+  }, [allDepartmentsKpi, activeTab]);
+
+  const departmentChartData3 = useMemo(() => {
+    if (!allDepartmentsKpi) return [];
+
+    return ["Brindes", "Digital", "IMACX"].map((dept) => ({
+      department: dept,
+      nClientes: allDepartmentsKpi[dept]?.[activeTab]?.customers?.current || 0,
+    }));
+  }, [allDepartmentsKpi, activeTab]);
+
+  const departmentChartData4 = useMemo(() => {
+    if (!allDepartmentsKpi) return [];
+
+    return ["Brindes", "Digital", "IMACX"].map((dept) => ({
+      department: dept,
+      orcamentoMedio:
+        allDepartmentsKpi[dept]?.[activeTab]?.avgQuoteValue?.current || 0,
+      ticketMedio:
+        allDepartmentsKpi[dept]?.[activeTab]?.avgInvoiceValue?.current || 0,
+    }));
+  }, [allDepartmentsKpi, activeTab]);
+
+  // ============================================================================
+  // Effects
+  // ============================================================================
+
   useEffect(() => {
     fetchAllData(activeTab, mainTab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -767,6 +968,20 @@ export default function AnaliseFinanceiraPage() {
       setPipelineTab("top15");
     }
   }, [activeTab, pipelineTab]);
+
+  // Fetch all departments KPI when GRÁFICOS tab is selected
+  useEffect(() => {
+    if (
+      mainTab === "departamentos" &&
+      departmentView === "analise" &&
+      analiseTab === "graficos"
+    ) {
+      const period = activeTab === "mtd" ? "mtd" : "ytd";
+      fetchAllDepartmentsKpi(period).then((data) => {
+        setAllDepartmentsKpi(data);
+      });
+    }
+  }, [analiseTab, mainTab, departmentView, activeTab, fetchAllDepartmentsKpi]);
 
   // ============================================================================
   // Formatters
@@ -1692,7 +1907,9 @@ export default function AnaliseFinanceiraPage() {
       let qtdOrcamentosYTD = 0;
       let qtdFaturasYTD = 0;
       try {
-        const kpiResponse = await fetch("/api/financial-analysis/kpi-dashboard");
+        const kpiResponse = await fetch(
+          "/api/financial-analysis/kpi-dashboard",
+        );
         if (kpiResponse.ok) {
           const kpiData = await kpiResponse.json();
           // O KPI dashboard retorna as quantidades corretas
@@ -1769,17 +1986,17 @@ export default function AnaliseFinanceiraPage() {
 
       // Formatar dados completos para o relatório
       const relatorio = `# RELATÓRIO FINANCEIRO IMACX COMPLETO - ${mes.toUpperCase()}
-  
+
   ---
   **Data:** ${hoje}
   **Período:** YTD (Year-to-Date)
   **Preparado por:** Sistema de Análise IMACX
   ---
-  
+
   ## 📊 SUMÁRIO EXECUTIVO
-  
+
   ### KPIs Principais
-  
+
   | Métrica | Valor YTD | Ano Anterior (LYTD) | Variação |
   |---------|-----------|---------------------|----------|
   | **Volume Orçamentos** | ${valorOrcamentosYTD.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${valorOrcamentosLYTD.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })} | ${crescimentoOrcamentos > 0 ? "+" : ""}${crescimentoOrcamentos.toFixed(1)}% |
@@ -1864,33 +2081,33 @@ ${["Brindes", "Digital", "IMACX"]
       (sum: number, item: any) => sum + (item.total_orcamentos_lytd || 0),
       0,
     );
-      const valorFatDept = fatDept.reduce(
-        (sum: number, item: any) => sum + (item.total_faturas_ytd || 0),
-        0,
-      );
-      const valorFatDeptLYTD = fatDept.reduce(
-        (sum: number, item: any) => sum + (item.total_faturas_lytd || 0),
-        0,
-      );
+    const valorFatDept = fatDept.reduce(
+      (sum: number, item: any) => sum + (item.total_faturas_ytd || 0),
+      0,
+    );
+    const valorFatDeptLYTD = fatDept.reduce(
+      (sum: number, item: any) => sum + (item.total_faturas_lytd || 0),
+      0,
+    );
 
-      const crescDept =
-        totalOrcDeptLYTD > 0
-          ? ((totalOrcDept - totalOrcDeptLYTD) / totalOrcDeptLYTD) * 100
-          : 0;
+    const crescDept =
+      totalOrcDeptLYTD > 0
+        ? ((totalOrcDept - totalOrcDeptLYTD) / totalOrcDeptLYTD) * 100
+        : 0;
 
-      const crescFatDept =
-        valorFatDeptLYTD > 0
-          ? ((valorFatDept - valorFatDeptLYTD) / valorFatDeptLYTD) * 100
-          : 0;
+    const crescFatDept =
+      valorFatDeptLYTD > 0
+        ? ((valorFatDept - valorFatDeptLYTD) / valorFatDeptLYTD) * 100
+        : 0;
 
-      // Taxa de conversão por QUANTIDADE (coerente com a página principal)
-      const qtdFaturasDept = perfDept?.invoices_ytd || 0;
-      const taxaConvDept =
-        totalOrcDept > 0 ? (qtdFaturasDept / totalOrcDept) * 100 : 0;
+    // Taxa de conversão por QUANTIDADE (coerente com a página principal)
+    const qtdFaturasDept = perfDept?.invoices_ytd || 0;
+    const taxaConvDept =
+      totalOrcDept > 0 ? (qtdFaturasDept / totalOrcDept) * 100 : 0;
 
-      const qtdFaturas = perfDept?.invoices_ytd || 0;
-      const qtdClientes = perfDept?.customers_ytd || 0;
-      const ticketMedio = qtdFaturas > 0 ? valorFatDept / qtdFaturas : 0;
+    const qtdFaturas = perfDept?.invoices_ytd || 0;
+    const qtdClientes = perfDept?.customers_ytd || 0;
+    const ticketMedio = qtdFaturas > 0 ? valorFatDept / qtdFaturas : 0;
 
     return `
 ### ${dept}
@@ -2533,7 +2750,8 @@ ${(() => {
   if (taxaConversaoGlobal < 50) {
     // Calcular valor adicional estimado baseado em quantidade de faturas adicionais
     const faturasAdicionaisEstimadas = Math.round(qtdOrcamentosYTD * 0.1);
-    const valorAdicionalEstimado = faturasAdicionaisEstimadas * (valorFaturasYTD / qtdFaturasYTD);
+    const valorAdicionalEstimado =
+      faturasAdicionaisEstimadas * (valorFaturasYTD / qtdFaturasYTD);
     oportunidades.push(
       `- Taxa de conversão de ${taxaConversaoGlobal.toFixed(1)}% indica potencial de melhoria - cada 10% de aumento representa ~${faturasAdicionaisEstimadas} faturas adicionais (~${valorAdicionalEstimado.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })})`,
     );
@@ -2671,6 +2889,15 @@ ${(() => {
           DEPARTAMENTOS
         </Button>
         <Button
+          variant={mainTab === "tabelas-temp" ? "default" : "outline"}
+          onClick={() => {
+            setMainTab("tabelas-temp");
+          }}
+          className="h-10"
+        >
+          TABELAS TEMP
+        </Button>
+        <Button
           variant={mainTab === "operacoes" ? "default" : "outline"}
           onClick={() => {
             setMainTab("operacoes");
@@ -2683,7 +2910,7 @@ ${(() => {
       </div>
 
       {/* Period Tabs (shown for tabs that have MTD/YTD views) */}
-      {mainTab !== "operacoes" && (
+      {mainTab !== "operacoes" && mainTab !== "tabelas-temp" && (
         <div className="flex gap-2">
           <Button
             variant={activeTab === "mtd" ? "default" : "outline"}
@@ -3746,13 +3973,16 @@ ${(() => {
           {/* ANÁLISE VIEW */}
           {departmentView === "analise" && (
             <>
-              {/* Department Selector for Análise */}
+              {/* Department Selector with GRÁFICOS as 4th option */}
               <div className="flex gap-2 mb-6">
                 <Button
                   variant={
                     selectedDepartment === "Brindes" ? "default" : "outline"
                   }
-                  onClick={() => setSelectedDepartment("Brindes")}
+                  onClick={() => {
+                    setSelectedDepartment("Brindes");
+                    setAnaliseTab("orcamentos");
+                  }}
                   className="h-10"
                 >
                   BRINDES
@@ -3761,7 +3991,10 @@ ${(() => {
                   variant={
                     selectedDepartment === "Digital" ? "default" : "outline"
                   }
-                  onClick={() => setSelectedDepartment("Digital")}
+                  onClick={() => {
+                    setSelectedDepartment("Digital");
+                    setAnaliseTab("orcamentos");
+                  }}
                   className="h-10"
                 >
                   DIGITAL
@@ -3770,130 +4003,150 @@ ${(() => {
                   variant={
                     selectedDepartment === "IMACX" ? "default" : "outline"
                   }
-                  onClick={() => setSelectedDepartment("IMACX")}
+                  onClick={() => {
+                    setSelectedDepartment("IMACX");
+                    setAnaliseTab("orcamentos");
+                  }}
                   className="h-10"
                 >
                   IMACX
                 </Button>
+                <Button
+                  variant={analiseTab === "graficos" ? "default" : "outline"}
+                  onClick={() => setAnaliseTab("graficos")}
+                  className="h-10"
+                >
+                  GRÁFICOS
+                </Button>
               </div>
 
-              {/* KPI Cards - Filtrados por Departamento */}
-              {departmentKpiData && departmentKpiData[activeTab] && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
-                  <MetricCard
-                    title="Receita Total"
-                    value={departmentKpiData[activeTab].revenue.current}
-                    previousValue={
-                      departmentKpiData[activeTab].revenue.previous
-                    }
-                    change={departmentKpiData[activeTab].revenue.change}
-                    formatter={formatCurrency}
-                    subtitle={
-                      activeTab === "mtd"
-                        ? "vs. mês anterior"
-                        : "vs. período anterior"
-                    }
-                  />
-                  <MetricCard
-                    title="Nº Faturas"
-                    value={departmentKpiData[activeTab].invoices.current}
-                    previousValue={
-                      departmentKpiData[activeTab].invoices.previous
-                    }
-                    change={departmentKpiData[activeTab].invoices.change}
-                    formatter={formatNumber}
-                    subtitle={
-                      activeTab === "mtd"
-                        ? "vs. mês anterior"
-                        : "vs. período anterior"
-                    }
-                  />
-                  <MetricCard
-                    title="Nº Clientes"
-                    value={departmentKpiData[activeTab].customers.current}
-                    previousValue={
-                      departmentKpiData[activeTab].customers.previous
-                    }
-                    change={departmentKpiData[activeTab].customers.change}
-                    formatter={formatNumber}
-                    subtitle={
-                      activeTab === "mtd"
-                        ? "vs. mês anterior"
-                        : "vs. período anterior"
-                    }
-                  />
-                  <MetricCard
-                    title="Ticket Médio"
-                    value={departmentKpiData[activeTab].avgInvoiceValue.current}
-                    previousValue={
-                      departmentKpiData[activeTab].avgInvoiceValue.previous
-                    }
-                    change={departmentKpiData[activeTab].avgInvoiceValue.change}
-                    formatter={formatCurrency}
-                    subtitle={
-                      activeTab === "mtd"
-                        ? "vs. mês anterior"
-                        : "vs. período anterior"
-                    }
-                  />
-                  <MetricCard
-                    title="Orçamentos Valor"
-                    value={departmentKpiData[activeTab].quoteValue.current}
-                    previousValue={
-                      departmentKpiData[activeTab].quoteValue.previous
-                    }
-                    change={departmentKpiData[activeTab].quoteValue.change}
-                    formatter={formatCurrency}
-                    subtitle={
-                      activeTab === "mtd"
-                        ? "vs. mês anterior"
-                        : "vs. período anterior"
-                    }
-                  />
-                  <MetricCard
-                    title="Orçamentos Qtd"
-                    value={departmentKpiData[activeTab].quoteCount.current}
-                    previousValue={
-                      departmentKpiData[activeTab].quoteCount.previous
-                    }
-                    change={departmentKpiData[activeTab].quoteCount.change}
-                    formatter={formatNumber}
-                    subtitle={
-                      activeTab === "mtd"
-                        ? "vs. mês anterior"
-                        : "vs. período anterior"
-                    }
-                  />
-                  <MetricCard
-                    title="Taxa Conversão"
-                    value={departmentKpiData[activeTab].conversionRate.current}
-                    previousValue={
-                      departmentKpiData[activeTab].conversionRate.previous
-                    }
-                    change={departmentKpiData[activeTab].conversionRate.change}
-                    formatter={formatPercent}
-                    subtitle={
-                      activeTab === "mtd"
-                        ? "vs. mês anterior"
-                        : "vs. período anterior"
-                    }
-                  />
-                  <MetricCard
-                    title="Orçamento Médio"
-                    value={departmentKpiData[activeTab].avgQuoteValue.current}
-                    previousValue={
-                      departmentKpiData[activeTab].avgQuoteValue.previous
-                    }
-                    change={departmentKpiData[activeTab].avgQuoteValue.change}
-                    formatter={formatCurrency}
-                    subtitle={
-                      activeTab === "mtd"
-                        ? "vs. mês anterior"
-                        : "vs. período anterior"
-                    }
-                  />
-                </div>
-              )}
+              {/* KPI Cards - Filtrados por Departamento (hide for GRÁFICOS) */}
+              {analiseTab !== "graficos" &&
+                departmentKpiData &&
+                departmentKpiData[activeTab] && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
+                    <MetricCard
+                      title="Receita Total"
+                      value={departmentKpiData[activeTab].revenue.current}
+                      previousValue={
+                        departmentKpiData[activeTab].revenue.previous
+                      }
+                      change={departmentKpiData[activeTab].revenue.change}
+                      formatter={formatCurrency}
+                      subtitle={
+                        activeTab === "mtd"
+                          ? "vs. mês anterior"
+                          : "vs. período anterior"
+                      }
+                    />
+                    <MetricCard
+                      title="Nº Faturas"
+                      value={departmentKpiData[activeTab].invoices.current}
+                      previousValue={
+                        departmentKpiData[activeTab].invoices.previous
+                      }
+                      change={departmentKpiData[activeTab].invoices.change}
+                      formatter={formatNumber}
+                      subtitle={
+                        activeTab === "mtd"
+                          ? "vs. mês anterior"
+                          : "vs. período anterior"
+                      }
+                    />
+                    <MetricCard
+                      title="Nº Clientes"
+                      value={departmentKpiData[activeTab].customers.current}
+                      previousValue={
+                        departmentKpiData[activeTab].customers.previous
+                      }
+                      change={departmentKpiData[activeTab].customers.change}
+                      formatter={formatNumber}
+                      subtitle={
+                        activeTab === "mtd"
+                          ? "vs. mês anterior"
+                          : "vs. período anterior"
+                      }
+                    />
+                    <MetricCard
+                      title="Ticket Médio"
+                      value={
+                        departmentKpiData[activeTab].avgInvoiceValue.current
+                      }
+                      previousValue={
+                        departmentKpiData[activeTab].avgInvoiceValue.previous
+                      }
+                      change={
+                        departmentKpiData[activeTab].avgInvoiceValue.change
+                      }
+                      formatter={formatCurrency}
+                      subtitle={
+                        activeTab === "mtd"
+                          ? "vs. mês anterior"
+                          : "vs. período anterior"
+                      }
+                    />
+                    <MetricCard
+                      title="Orçamentos Valor"
+                      value={departmentKpiData[activeTab].quoteValue.current}
+                      previousValue={
+                        departmentKpiData[activeTab].quoteValue.previous
+                      }
+                      change={departmentKpiData[activeTab].quoteValue.change}
+                      formatter={formatCurrency}
+                      subtitle={
+                        activeTab === "mtd"
+                          ? "vs. mês anterior"
+                          : "vs. período anterior"
+                      }
+                    />
+                    <MetricCard
+                      title="Orçamentos Qtd"
+                      value={departmentKpiData[activeTab].quoteCount.current}
+                      previousValue={
+                        departmentKpiData[activeTab].quoteCount.previous
+                      }
+                      change={departmentKpiData[activeTab].quoteCount.change}
+                      formatter={formatNumber}
+                      subtitle={
+                        activeTab === "mtd"
+                          ? "vs. mês anterior"
+                          : "vs. período anterior"
+                      }
+                    />
+                    <MetricCard
+                      title="Taxa Conversão"
+                      value={
+                        departmentKpiData[activeTab].conversionRate.current
+                      }
+                      previousValue={
+                        departmentKpiData[activeTab].conversionRate.previous
+                      }
+                      change={
+                        departmentKpiData[activeTab].conversionRate.change
+                      }
+                      formatter={formatPercent}
+                      subtitle={
+                        activeTab === "mtd"
+                          ? "vs. mês anterior"
+                          : "vs. período anterior"
+                      }
+                    />
+                    <MetricCard
+                      title="Orçamento Médio"
+                      value={departmentKpiData[activeTab].avgQuoteValue.current}
+                      previousValue={
+                        departmentKpiData[activeTab].avgQuoteValue.previous
+                      }
+                      change={departmentKpiData[activeTab].avgQuoteValue.change}
+                      formatter={formatCurrency}
+                      subtitle={
+                        activeTab === "mtd"
+                          ? "vs. mês anterior"
+                          : "vs. período anterior"
+                      }
+                    />
+                  </div>
+                )}
 
               <Card className="p-6 mb-6">
                 <h2 className="text-xl text-foreground mb-4">
@@ -3903,297 +4156,527 @@ ${(() => {
                 </h2>
 
                 {/* KPI Card for selected department */}
-                {departmentClientes
-                  .filter(
-                    (dept: any) => dept.departamento === selectedDepartment,
-                  )
-                  .map((dept: any) => (
-                    <Card key={dept.departamento} className="p-4 mb-6">
-                      <h3 className="text-sm font-medium text-foreground mb-3">
-                        Movimento de Clientes (Comparação YTD {currentYear} vs
-                        YTD {previousYear})
-                      </h3>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div>
-                          <span className="text-xs text-muted-foreground block mb-1">
-                            Clientes Ativos (YTD {currentYear}):
-                          </span>
-                          <p className="text-2xl font-medium">
-                            {dept.clientes_ytd}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground mt-1">
-                            Total de clientes com faturas em {currentYear}
-                          </p>
+                {analiseTab !== "graficos" &&
+                  departmentClientes
+                    .filter(
+                      (dept: any) => dept.departamento === selectedDepartment,
+                    )
+                    .map((dept: any) => (
+                      <Card key={dept.departamento} className="p-4 mb-6">
+                        <h3 className="text-sm font-medium text-foreground mb-3">
+                          Movimento de Clientes (Comparação YTD {currentYear} vs
+                          YTD {previousYear})
+                        </h3>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div>
+                            <span className="text-xs text-muted-foreground block mb-1">
+                              Clientes Ativos (YTD {currentYear}):
+                            </span>
+                            <p className="text-2xl font-medium">
+                              {dept.clientes_ytd}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-1">
+                              Total de clientes com faturas em {currentYear}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-xs text-muted-foreground block mb-1">
+                              Novos em {currentYear}:
+                            </span>
+                            <p className="text-2xl font-medium text-green-600 dark:text-green-400">
+                              +{dept.clientes_novos}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-1">
+                              Clientes que não existiam em {previousYear}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-xs text-muted-foreground block mb-1">
+                              Perdidos de {previousYear}:
+                            </span>
+                            <p className="text-2xl font-medium text-red-600 dark:text-red-400">
+                              -{dept.clientes_perdidos}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-1">
+                              Clientes de {previousYear} que não voltaram
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <span className="text-xs text-muted-foreground block mb-1">
-                            Novos em {currentYear}:
-                          </span>
-                          <p className="text-2xl font-medium text-green-600 dark:text-green-400">
-                            +{dept.clientes_novos}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground mt-1">
-                            Clientes que não existiam em {previousYear}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-xs text-muted-foreground block mb-1">
-                            Perdidos de {previousYear}:
-                          </span>
-                          <p className="text-2xl font-medium text-red-600 dark:text-red-400">
-                            -{dept.clientes_perdidos}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground mt-1">
-                            Clientes de {previousYear} que não voltaram
-                          </p>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
+                      </Card>
+                    ))}
 
                 {/* Orçamentos por Escalão */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-medium">
-                      Orçamentos por Escalão - {currentYear}{" "}
-                      {activeTab === "mtd" ? "(Mês Atual)" : "(YTD)"}
-                    </h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    Fonte: phc.bo • Apenas orçamentos de {currentYear}{" "}
-                    {activeTab === "mtd"
-                      ? "do mês corrente"
-                      : "acumulados no ano"}
-                  </p>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead
-                          className="cursor-pointer select-none"
-                          onClick={() => handleDeptOrcSort("escaloes_valor")}
-                        >
-                          Escalão
-                          {renderDeptOrcSortIcon("escaloes_valor")}
-                        </TableHead>
-                        <TableHead
-                          className="text-right cursor-pointer select-none"
-                          onClick={() => handleDeptOrcSort("total_orcamentos")}
-                        >
-                          Quantidade
-                          {renderDeptOrcSortIcon("total_orcamentos")}
-                        </TableHead>
-                        <TableHead
-                          className="text-right cursor-pointer select-none"
-                          onClick={() => handleDeptOrcSort("total_valor")}
-                        >
-                          Valor Total
-                          {renderDeptOrcSortIcon("total_valor")}
-                        </TableHead>
-                        <TableHead className="text-right">% Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sortedDepartmentOrcamentos.map(
-                        (row: any, idx: number) => {
-                          const totalValor = sortedDepartmentOrcamentos.reduce(
-                            (sum: number, r: any) =>
-                              sum + parseFloat(r.total_valor),
-                            0,
-                          );
-                          const percentage =
-                            totalValor > 0
-                              ? (
-                                  (parseFloat(row.total_valor) / totalValor) *
-                                  100
-                                ).toFixed(1)
-                              : "0.0";
+                {analiseTab === "orcamentos" && (
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-lg font-medium">
+                        Orçamentos por Escalão - {currentYear}{" "}
+                        {activeTab === "mtd" ? "(Mês Atual)" : "(YTD)"}
+                      </h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Fonte: phc.bo • Apenas orçamentos de {currentYear}{" "}
+                      {activeTab === "mtd"
+                        ? "do mês corrente"
+                        : "acumulados no ano"}
+                    </p>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead
+                            className="cursor-pointer select-none"
+                            onClick={() => handleDeptOrcSort("escaloes_valor")}
+                          >
+                            Escalão
+                            {renderDeptOrcSortIcon("escaloes_valor")}
+                          </TableHead>
+                          <TableHead
+                            className="text-right cursor-pointer select-none"
+                            onClick={() =>
+                              handleDeptOrcSort("total_orcamentos")
+                            }
+                          >
+                            Quantidade
+                            {renderDeptOrcSortIcon("total_orcamentos")}
+                          </TableHead>
+                          <TableHead
+                            className="text-right cursor-pointer select-none"
+                            onClick={() => handleDeptOrcSort("total_valor")}
+                          >
+                            Valor Total
+                            {renderDeptOrcSortIcon("total_valor")}
+                          </TableHead>
+                          <TableHead className="text-right">% Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sortedDepartmentOrcamentos.map(
+                          (row: any, idx: number) => {
+                            const totalValor =
+                              sortedDepartmentOrcamentos.reduce(
+                                (sum: number, r: any) =>
+                                  sum + parseFloat(r.total_valor),
+                                0,
+                              );
+                            const percentage =
+                              totalValor > 0
+                                ? (
+                                    (parseFloat(row.total_valor) / totalValor) *
+                                    100
+                                  ).toFixed(1)
+                                : "0.0";
 
-                          return (
+                            return (
+                              <TableRow key={idx}>
+                                <TableCell className="font-medium">
+                                  {row.escaloes_valor}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {row.total_orcamentos}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {formatCurrency(row.total_valor)}
+                                </TableCell>
+                                <TableCell className="text-right text-muted-foreground">
+                                  {percentage}%
+                                </TableCell>
+                              </TableRow>
+                            );
+                          },
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                {/* Faturas por Escalão */}
+                {analiseTab === "faturas" && (
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-lg font-medium">
+                        Faturas por Escalão - {currentYear}{" "}
+                        {activeTab === "mtd" ? "(Mês Atual)" : "(Ano Atual)"}
+                      </h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Fonte: phc.ft • Apenas faturas de {currentYear}{" "}
+                      {activeTab === "mtd"
+                        ? "do mês corrente"
+                        : "acumuladas no ano"}
+                    </p>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead
+                            className="cursor-pointer select-none"
+                            onClick={() => handleDeptFatSort("escaloes_valor")}
+                          >
+                            Escalão
+                            {renderDeptFatSortIcon("escaloes_valor")}
+                          </TableHead>
+                          <TableHead
+                            className="text-right cursor-pointer select-none"
+                            onClick={() => handleDeptFatSort("total_faturas")}
+                          >
+                            Quantidade
+                            {renderDeptFatSortIcon("total_faturas")}
+                          </TableHead>
+                          <TableHead
+                            className="text-right cursor-pointer select-none"
+                            onClick={() => handleDeptFatSort("total_valor")}
+                          >
+                            Valor Total
+                            {renderDeptFatSortIcon("total_valor")}
+                          </TableHead>
+                          <TableHead className="text-right">% Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sortedDepartmentFaturas.map(
+                          (row: any, idx: number) => {
+                            const totalValor = sortedDepartmentFaturas.reduce(
+                              (sum: number, r: any) =>
+                                sum + parseFloat(r.total_valor),
+                              0,
+                            );
+                            const percentage =
+                              totalValor > 0
+                                ? (
+                                    (parseFloat(row.total_valor) / totalValor) *
+                                    100
+                                  ).toFixed(1)
+                                : "0.0";
+
+                            return (
+                              <TableRow key={idx}>
+                                <TableCell className="font-medium">
+                                  {row.escaloes_valor}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {row.total_faturas}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {formatCurrency(row.total_valor)}
+                                </TableCell>
+                                <TableCell className="text-right text-muted-foreground">
+                                  {percentage}%
+                                </TableCell>
+                              </TableRow>
+                            );
+                          },
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                {/* Taxa de Conversão por Escalão */}
+                {analiseTab === "conversao" && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-lg font-medium">
+                        Taxa de Conversão por Escalão - {currentYear}{" "}
+                        {activeTab === "mtd" ? "(Mês Atual)" : "(Ano Atual)"}
+                      </h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Orçamentos vs Faturas do mesmo período {currentYear}{" "}
+                      {activeTab === "mtd"
+                        ? "(mês corrente)"
+                        : "(ano corrente)"}
+                    </p>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead
+                            className="cursor-pointer select-none"
+                            onClick={() => handleDeptConvSort("escalao")}
+                          >
+                            Escalão
+                            {renderDeptConvSortIcon("escalao")}
+                          </TableHead>
+                          <TableHead
+                            className="text-right cursor-pointer select-none"
+                            onClick={() =>
+                              handleDeptConvSort("total_orcamentos")
+                            }
+                          >
+                            Orçamentos
+                            {renderDeptConvSortIcon("total_orcamentos")}
+                          </TableHead>
+                          <TableHead
+                            className="text-right cursor-pointer select-none"
+                            onClick={() => handleDeptConvSort("total_faturas")}
+                          >
+                            Faturas
+                            {renderDeptConvSortIcon("total_faturas")}
+                          </TableHead>
+                          <TableHead
+                            className="text-right cursor-pointer select-none"
+                            onClick={() =>
+                              handleDeptConvSort("taxa_conversao_pct")
+                            }
+                          >
+                            Taxa Conv.
+                            {renderDeptConvSortIcon("taxa_conversao_pct")}
+                          </TableHead>
+                          <TableHead className="text-right">
+                            Valor Orç.
+                          </TableHead>
+                          <TableHead className="text-right">
+                            Valor Fat.
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sortedDepartmentConversao.map(
+                          (row: any, idx: number) => (
                             <TableRow key={idx}>
                               <TableCell className="font-medium">
-                                {row.escaloes_valor}
+                                {row.escalao}
                               </TableCell>
                               <TableCell className="text-right">
                                 {row.total_orcamentos}
                               </TableCell>
                               <TableCell className="text-right">
-                                {formatCurrency(row.total_valor)}
+                                {row.total_faturas}
                               </TableCell>
-                              <TableCell className="text-right text-muted-foreground">
-                                {percentage}%
+                              <TableCell className="text-right">
+                                <span
+                                  className={
+                                    row.taxa_conversao_pct >= 30
+                                      ? "text-green-600 dark:text-green-400 font-medium"
+                                      : row.taxa_conversao_pct >= 15
+                                        ? "text-yellow-600 dark:text-yellow-400 font-medium"
+                                        : "text-red-600 dark:text-red-400 font-medium"
+                                  }
+                                >
+                                  {row.taxa_conversao_pct}%
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right text-sm text-muted-foreground">
+                                {formatCurrency(row.total_valor_orcado || 0)}
+                              </TableCell>
+                              <TableCell className="text-right text-sm text-muted-foreground">
+                                {formatCurrency(row.total_valor_faturado || 0)}
                               </TableCell>
                             </TableRow>
-                          );
-                        },
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                {/* Faturas por Escalão */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-medium">
-                      Faturas por Escalão - {currentYear}{" "}
-                      {activeTab === "mtd" ? "(Mês Atual)" : "(Ano Atual)"}
-                    </h3>
+                          ),
+                        )}
+                      </TableBody>
+                    </Table>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    Fonte: phc.ft • Apenas faturas de {currentYear}{" "}
-                    {activeTab === "mtd"
-                      ? "do mês corrente"
-                      : "acumuladas no ano"}
-                  </p>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead
-                          className="cursor-pointer select-none"
-                          onClick={() => handleDeptFatSort("escaloes_valor")}
-                        >
-                          Escalão
-                          {renderDeptFatSortIcon("escaloes_valor")}
-                        </TableHead>
-                        <TableHead
-                          className="text-right cursor-pointer select-none"
-                          onClick={() => handleDeptFatSort("total_faturas")}
-                        >
-                          Quantidade
-                          {renderDeptFatSortIcon("total_faturas")}
-                        </TableHead>
-                        <TableHead
-                          className="text-right cursor-pointer select-none"
-                          onClick={() => handleDeptFatSort("total_valor")}
-                        >
-                          Valor Total
-                          {renderDeptFatSortIcon("total_valor")}
-                        </TableHead>
-                        <TableHead className="text-right">% Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sortedDepartmentFaturas.map((row: any, idx: number) => {
-                        const totalValor = sortedDepartmentFaturas.reduce(
-                          (sum: number, r: any) =>
-                            sum + parseFloat(r.total_valor),
-                          0,
-                        );
-                        const percentage =
-                          totalValor > 0
-                            ? (
-                                (parseFloat(row.total_valor) / totalValor) *
-                                100
-                              ).toFixed(1)
-                            : "0.0";
+                )}
 
-                        return (
-                          <TableRow key={idx}>
-                            <TableCell className="font-medium">
-                              {row.escaloes_valor}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {row.total_faturas}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {formatCurrency(row.total_valor)}
-                            </TableCell>
-                            <TableCell className="text-right text-muted-foreground">
-                              {percentage}%
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
+                {/* GRÁFICOS Tab */}
+                {analiseTab === "graficos" && (
+                  <div className="space-y-6">
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Comparação visual entre os 3 departamentos (Brindes,
+                      Digital, IMACX) -{" "}
+                      {activeTab === "mtd" ? "Mês Atual" : "Ano Atual"}
+                    </p>
 
-                {/* Taxa de Conversão por Escalão */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-medium">
-                      Taxa de Conversão por Escalão - {currentYear}{" "}
-                      {activeTab === "mtd" ? "(Mês Atual)" : "(Ano Atual)"}
-                    </h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    Orçamentos vs Faturas do mesmo período {currentYear}{" "}
-                    {activeTab === "mtd" ? "(mês corrente)" : "(ano corrente)"}
-                  </p>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead
-                          className="cursor-pointer select-none"
-                          onClick={() => handleDeptConvSort("escalao")}
-                        >
-                          Escalão
-                          {renderDeptConvSortIcon("escalao")}
-                        </TableHead>
-                        <TableHead
-                          className="text-right cursor-pointer select-none"
-                          onClick={() => handleDeptConvSort("total_orcamentos")}
-                        >
-                          Orçamentos
-                          {renderDeptConvSortIcon("total_orcamentos")}
-                        </TableHead>
-                        <TableHead
-                          className="text-right cursor-pointer select-none"
-                          onClick={() => handleDeptConvSort("total_faturas")}
-                        >
-                          Faturas
-                          {renderDeptConvSortIcon("total_faturas")}
-                        </TableHead>
-                        <TableHead
-                          className="text-right cursor-pointer select-none"
-                          onClick={() =>
-                            handleDeptConvSort("taxa_conversao_pct")
-                          }
-                        >
-                          Taxa Conv.
-                          {renderDeptConvSortIcon("taxa_conversao_pct")}
-                        </TableHead>
-                        <TableHead className="text-right">Valor Orç.</TableHead>
-                        <TableHead className="text-right">Valor Fat.</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sortedDepartmentConversao.map(
-                        (row: any, idx: number) => (
-                          <TableRow key={idx}>
-                            <TableCell className="font-medium">
-                              {row.escalao}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {row.total_orcamentos}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {row.total_faturas}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <span
-                                className={
-                                  row.taxa_conversao_pct >= 30
-                                    ? "text-green-600 dark:text-green-400 font-medium"
-                                    : row.taxa_conversao_pct >= 15
-                                      ? "text-yellow-600 dark:text-yellow-400 font-medium"
-                                      : "text-red-600 dark:text-red-400 font-medium"
+                    {!allDepartmentsKpi ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="text-center">
+                          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">
+                            A CARREGAR DADOS...
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Chart 1: Stacked Bar - Orçamentos Valor + Receita Total */}
+                        <div className="imx-border bg-card p-6">
+                          <h3 className="text-lg font-medium mb-2">
+                            ORÇAMENTOS VALOR VS RECEITA TOTAL
+                          </h3>
+                          <p className="text-xs text-muted-foreground mb-4">
+                            Comparação do valor total de orçamentos e receita
+                            efetiva por departamento
+                          </p>
+                          <ResponsiveContainer width="100%" height={350}>
+                            <BarChart
+                              data={departmentChartData1}
+                              margin={{
+                                top: 10,
+                                right: 30,
+                                bottom: 60,
+                                left: 80,
+                              }}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="department" />
+                              <YAxis
+                                tickFormatter={(value) => formatCurrency(value)}
+                              />
+                              <Tooltip
+                                formatter={(value: any) =>
+                                  formatCurrency(Number(value))
                                 }
-                              >
-                                {row.taxa_conversao_pct}%
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-right text-sm text-muted-foreground">
-                              {formatCurrency(row.total_valor_orcado || 0)}
-                            </TableCell>
-                            <TableCell className="text-right text-sm text-muted-foreground">
-                              {formatCurrency(row.total_valor_faturado || 0)}
-                            </TableCell>
-                          </TableRow>
-                        ),
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
+                              />
+                              <Legend
+                                wrapperStyle={{
+                                  color: "var(--foreground)",
+                                }}
+                              />
+                              <Bar
+                                dataKey="orcamentosValor"
+                                stackId="a"
+                                fill="var(--accent)"
+                                name="Orçamentos Valor"
+                              />
+                              <Bar
+                                dataKey="receitaTotal"
+                                stackId="a"
+                                fill="var(--primary)"
+                                name="Receita Total"
+                              />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+
+                        {/* Chart 2: Stacked Bar - Orçamentos Qtd + Nº Faturas */}
+                        <div className="imx-border bg-card p-6">
+                          <h3 className="text-lg font-medium mb-2">
+                            ORÇAMENTOS QUANTIDADE VS Nº FATURAS
+                          </h3>
+                          <p className="text-xs text-muted-foreground mb-4">
+                            Comparação do número de orçamentos e faturas
+                            emitidas por departamento
+                          </p>
+                          <ResponsiveContainer width="100%" height={350}>
+                            <BarChart
+                              data={departmentChartData2}
+                              margin={{
+                                top: 10,
+                                right: 30,
+                                bottom: 60,
+                                left: 80,
+                              }}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="department" />
+                              <YAxis />
+                              <Tooltip
+                                formatter={(value: any) =>
+                                  formatNumber(Number(value))
+                                }
+                              />
+                              <Legend
+                                wrapperStyle={{
+                                  color: "var(--foreground)",
+                                }}
+                              />
+                              <Bar
+                                dataKey="orcamentosQtd"
+                                stackId="a"
+                                fill="var(--accent)"
+                                name="Orçamentos Qtd"
+                              />
+                              <Bar
+                                dataKey="nFaturas"
+                                stackId="a"
+                                fill="var(--primary)"
+                                name="Nº Faturas"
+                              />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+
+                        {/* Chart 3: Simple Bar - Nº Clientes */}
+                        <div className="imx-border bg-card p-6">
+                          <h3 className="text-lg font-medium mb-2">
+                            NÚMERO DE CLIENTES
+                          </h3>
+                          <p className="text-xs text-muted-foreground mb-4">
+                            Total de clientes ativos por departamento
+                          </p>
+                          <ResponsiveContainer width="100%" height={350}>
+                            <BarChart
+                              data={departmentChartData3}
+                              margin={{
+                                top: 10,
+                                right: 30,
+                                bottom: 60,
+                                left: 80,
+                              }}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="department" />
+                              <YAxis />
+                              <Tooltip
+                                formatter={(value: any) =>
+                                  formatNumber(Number(value))
+                                }
+                              />
+                              <Legend
+                                wrapperStyle={{
+                                  color: "var(--foreground)",
+                                }}
+                              />
+                              <Bar
+                                dataKey="nClientes"
+                                fill="var(--primary)"
+                                name="Nº Clientes"
+                              />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+
+                        {/* Chart 4: Grouped Bar - Orçamento Médio + Ticket Médio */}
+                        <div className="imx-border bg-card p-6">
+                          <h3 className="text-lg font-medium mb-2">
+                            ORÇAMENTO MÉDIO VS TICKET MÉDIO
+                          </h3>
+                          <p className="text-xs text-muted-foreground mb-4">
+                            Comparação dos valores médios de orçamentos e
+                            faturas por departamento
+                          </p>
+                          <ResponsiveContainer width="100%" height={350}>
+                            <BarChart
+                              data={departmentChartData4}
+                              margin={{
+                                top: 10,
+                                right: 30,
+                                bottom: 60,
+                                left: 80,
+                              }}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="department" />
+                              <YAxis
+                                tickFormatter={(value) => formatCurrency(value)}
+                              />
+                              <Tooltip
+                                formatter={(value: any) =>
+                                  formatCurrency(Number(value))
+                                }
+                              />
+                              <Legend
+                                wrapperStyle={{
+                                  color: "var(--foreground)",
+                                }}
+                              />
+                              <Bar
+                                dataKey="orcamentoMedio"
+                                fill="var(--accent)"
+                                name="Orçamento Médio"
+                              />
+                              <Bar
+                                dataKey="ticketMedio"
+                                fill="var(--primary)"
+                                name="Ticket Médio"
+                              />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </Card>
             </>
           )}
@@ -4592,6 +5075,1113 @@ ${(() => {
               )}
             </>
           )}
+        </>
+      )}
+
+      {/* ========================================== */}
+      {/* ========================================== */}
+      {/* TABELAS TEMP TAB CONTENT */}
+      {/* ========================================== */}
+      {mainTab === "tabelas-temp" && (
+        <>
+          {/* Table Selector and Content */}
+          <Card className="p-6">
+            <div className="mb-6">
+              <h2 className="text-xl text-foreground mb-4 imx-border-b pb-3">
+                TABELAS DE ANÁLISE TEMPORÁRIAS - VENDEDOR RUI (DIGITAL)
+              </h2>
+
+              {/* Table Selector Dropdown */}
+              <div className="flex items-center gap-4 mb-6">
+                <label className="text-sm font-medium text-foreground">
+                  Selecionar Tabela:
+                </label>
+                <select
+                  value={selectedTempTable || "1"}
+                  onChange={(e) => setSelectedTempTable(e.target.value)}
+                  className="w-full max-w-md px-3 py-2 text-sm bg-background imx-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <optgroup label="Análise por Vendedor">
+                    <option value="1">1. Orçamentos por Vendedor e Ano</option>
+                    <option value="2">
+                      2. Faturas e Notas de Crédito por Vendedor
+                    </option>
+                    <option value="3">3. Resumo Combinado por Vendedor</option>
+                  </optgroup>
+                  <optgroup label="Análise por Cliente">
+                    <option value="4">
+                      4. Orçamentos para Clientes Específicos
+                    </option>
+                    <option value="5">
+                      5. Faturas e NC para Clientes Específicos
+                    </option>
+                    <option value="6">6. Resumo Combinado para Clientes</option>
+                  </optgroup>
+                  <optgroup label="Evolução e Tendências">
+                    <option value="7">
+                      7. Contagem de Clientes Ativos por Ano
+                    </option>
+                  </optgroup>
+                  <optgroup label="Lista Detalhada de Clientes">
+                    <option value="8">
+                      8. Lista Completa de Clientes 2025
+                    </option>
+                    <option value="9">
+                      9. Lista Completa de Clientes 2024
+                    </option>
+                    <option value="10">
+                      10. Lista Completa de Clientes 2023
+                    </option>
+                  </optgroup>
+                  <optgroup label="Análise de Concentração (Pareto)">
+                    <option value="11">11. Concentração de Vendas 2025</option>
+                    <option value="12">12. Concentração de Vendas 2024</option>
+                    <option value="13">13. Concentração de Vendas 2023</option>
+                  </optgroup>
+                  <optgroup label="Resumos e Métricas">
+                    <option value="14">14. Top 5 Clientes por Ano</option>
+                    <option value="15">
+                      15. Métricas de Risco de Concentração
+                    </option>
+                  </optgroup>
+                </select>
+              </div>
+            </div>
+
+            {/* Table 1: Orçamentos by Salesperson and Year */}
+            {selectedTempTable === "1" && (
+              <div>
+                <h3 className="text-lg font-medium text-foreground mb-3">
+                  1. Orçamentos por Vendedor e Ano
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Análise de orçamentos do vendedor Rui (inclui RB e RBX
+                  consolidados)
+                </p>
+                <div className="rounded-md imx-border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Ano</TableHead>
+                        <TableHead>Vendedor</TableHead>
+                        <TableHead className="text-right">
+                          Qtd Orçamentos
+                        </TableHead>
+                        <TableHead className="text-right">
+                          Valor Total
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell className="font-medium">2025</TableCell>
+                        <TableCell>Rui</TableCell>
+                        <TableCell className="text-right">947</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(3979318.56)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium">2024</TableCell>
+                        <TableCell>Rui</TableCell>
+                        <TableCell className="text-right">1,370</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(8188837.85)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium">2023</TableCell>
+                        <TableCell>Rui</TableCell>
+                        <TableCell className="text-right">1,396</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(9633657.73)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+
+            {/* Table 2: Faturas and Notas de Crédito by Salesperson */}
+            {selectedTempTable === "2" && (
+              <div>
+                <h3 className="text-lg font-medium text-foreground mb-3">
+                  2. Faturas e Notas de Crédito por Vendedor e Ano
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Detalhe de faturas e notas de crédito (RB e RBX consolidados
+                  como Rui)
+                </p>
+                <div className="rounded-md imx-border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Ano</TableHead>
+                        <TableHead>Vendedor</TableHead>
+                        <TableHead>Tipo Documento</TableHead>
+                        <TableHead className="text-right">Quantidade</TableHead>
+                        <TableHead className="text-right">
+                          Valor Líquido
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {/* 2025 */}
+                      <TableRow>
+                        <TableCell className="font-medium" rowSpan={2}>
+                          2025
+                        </TableCell>
+                        <TableCell rowSpan={2}>Rui</TableCell>
+                        <TableCell>Factura</TableCell>
+                        <TableCell className="text-right">317</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(887822.86)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Nota de Crédito</TableCell>
+                        <TableCell className="text-right">30</TableCell>
+                        <TableCell className="text-right text-red-600 dark:text-red-400">
+                          -{formatCurrency(32665.62)}
+                        </TableCell>
+                      </TableRow>
+                      {/* 2024 */}
+                      <TableRow>
+                        <TableCell className="font-medium" rowSpan={2}>
+                          2024
+                        </TableCell>
+                        <TableCell rowSpan={2}>Rui</TableCell>
+                        <TableCell>Factura</TableCell>
+                        <TableCell className="text-right">475</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(1064537.73)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Nota de Crédito</TableCell>
+                        <TableCell className="text-right">13</TableCell>
+                        <TableCell className="text-right text-red-600 dark:text-red-400">
+                          -{formatCurrency(16635.89)}
+                        </TableCell>
+                      </TableRow>
+                      {/* 2023 */}
+                      <TableRow>
+                        <TableCell className="font-medium" rowSpan={2}>
+                          2023
+                        </TableCell>
+                        <TableCell rowSpan={2}>Rui</TableCell>
+                        <TableCell>Factura</TableCell>
+                        <TableCell className="text-right">485</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(1459240.0)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Nota de Crédito</TableCell>
+                        <TableCell className="text-right">57</TableCell>
+                        <TableCell className="text-right text-red-600 dark:text-red-400">
+                          -{formatCurrency(51519.76)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+
+            {/* Table 3: Combined Summary by Salesperson */}
+            {selectedTempTable === "3" && (
+              <div>
+                <h3 className="text-lg font-medium text-foreground mb-3">
+                  3. Resumo Combinado por Vendedor e Ano
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Visão consolidada de orçamentos, faturas e notas de crédito
+                </p>
+                <div className="rounded-md imx-border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Ano</TableHead>
+                        <TableHead>Vendedor</TableHead>
+                        <TableHead className="text-right">Orç. Qtd</TableHead>
+                        <TableHead className="text-right">Orç. Valor</TableHead>
+                        <TableHead className="text-right">Fat. Qtd</TableHead>
+                        <TableHead className="text-right">Fat. Valor</TableHead>
+                        <TableHead className="text-right">NC Qtd</TableHead>
+                        <TableHead className="text-right">NC Valor</TableHead>
+                        <TableHead className="text-right">
+                          Vendas Líquidas
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell className="font-medium">2025</TableCell>
+                        <TableCell>Rui</TableCell>
+                        <TableCell className="text-right">947</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(3979318.56)}
+                        </TableCell>
+                        <TableCell className="text-right">317</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(887822.86)}
+                        </TableCell>
+                        <TableCell className="text-right">30</TableCell>
+                        <TableCell className="text-right text-red-600 dark:text-red-400">
+                          -{formatCurrency(32665.62)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(855157.24)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium">2024</TableCell>
+                        <TableCell>Rui</TableCell>
+                        <TableCell className="text-right">1,370</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(8188837.85)}
+                        </TableCell>
+                        <TableCell className="text-right">475</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(1064537.73)}
+                        </TableCell>
+                        <TableCell className="text-right">13</TableCell>
+                        <TableCell className="text-right text-red-600 dark:text-red-400">
+                          -{formatCurrency(16635.89)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(1047901.84)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium">2023</TableCell>
+                        <TableCell>Rui</TableCell>
+                        <TableCell className="text-right">1,396</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(9633657.73)}
+                        </TableCell>
+                        <TableCell className="text-right">485</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(1459240.0)}
+                        </TableCell>
+                        <TableCell className="text-right">57</TableCell>
+                        <TableCell className="text-right text-red-600 dark:text-red-400">
+                          -{formatCurrency(51519.76)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(1407720.24)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+
+            {/* Table 4: Orçamentos for Specific Customers */}
+            {selectedTempTable === "4" && (
+              <div>
+                <h3 className="text-lg font-medium text-foreground mb-3">
+                  4. Orçamentos para Clientes Específicos
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Total de orçamentos para clientes chave (2023-2025) -
+                  Consolidando IDs 2149, 2043, 775 como &quot;HH Group&quot;
+                </p>
+                <div className="rounded-md imx-border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead className="text-right">
+                          Qtd Orçamentos
+                        </TableHead>
+                        <TableHead className="text-right">
+                          Valor Total
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell className="font-medium">HH Group</TableCell>
+                        <TableCell className="text-right">2,093</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(12554816.3)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium">1506</TableCell>
+                        <TableCell className="text-right">16</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(53569.84)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium">2053</TableCell>
+                        <TableCell className="text-right">2</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(2175.0)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium">2129</TableCell>
+                        <TableCell className="text-right">3</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(4825.0)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+
+            {/* Table 5: Faturas and NC for Specific Customers */}
+            {selectedTempTable === "5" && (
+              <div>
+                <h3 className="text-lg font-medium text-foreground mb-3">
+                  5. Faturas e Notas de Crédito para Clientes Específicos
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Total de faturas e NC para clientes chave (2023-2025) -
+                  Consolidando IDs 2149, 2043, 775 como &quot;HH Group&quot;
+                </p>
+                <div className="rounded-md imx-border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Tipo Documento</TableHead>
+                        <TableHead className="text-right">Quantidade</TableHead>
+                        <TableHead className="text-right">
+                          Valor Líquido
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell className="font-medium" rowSpan={2}>
+                          HH Group
+                        </TableCell>
+                        <TableCell>Factura</TableCell>
+                        <TableCell className="text-right">567</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(1751592.98)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Nota de Crédito</TableCell>
+                        <TableCell className="text-right">40</TableCell>
+                        <TableCell className="text-right text-red-600 dark:text-red-400">
+                          -{formatCurrency(25186.38)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium">1506</TableCell>
+                        <TableCell>Factura</TableCell>
+                        <TableCell className="text-right">4</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(11540.34)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium" rowSpan={2}>
+                          2053
+                        </TableCell>
+                        <TableCell>Factura</TableCell>
+                        <TableCell className="text-right">2</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(2175.0)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Nota de Crédito</TableCell>
+                        <TableCell className="text-right">1</TableCell>
+                        <TableCell className="text-right text-red-600 dark:text-red-400">
+                          -{formatCurrency(1455.0)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium">2129</TableCell>
+                        <TableCell>Factura</TableCell>
+                        <TableCell className="text-right">2</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(2765.0)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+
+            {/* Table 6: Combined Summary for All Customers */}
+            {selectedTempTable === "6" && (
+              <div>
+                <h3 className="text-lg font-medium text-foreground mb-3">
+                  6. Resumo Combinado para Clientes
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Resumo completo para clientes chave - IDs 2149, 2043, 775
+                  consolidados como &quot;HH Group&quot;
+                </p>
+                <div className="rounded-md imx-border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead className="text-right">Orç. Qtd</TableHead>
+                        <TableHead className="text-right">Orç. Valor</TableHead>
+                        <TableHead className="text-right">Fat. Qtd</TableHead>
+                        <TableHead className="text-right">Fat. Valor</TableHead>
+                        <TableHead className="text-right">NC Qtd</TableHead>
+                        <TableHead className="text-right">NC Valor</TableHead>
+                        <TableHead className="text-right">
+                          Vendas Líquidas
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell className="font-medium">HH Group</TableCell>
+                        <TableCell className="text-right">2,093</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(12554816.3)}
+                        </TableCell>
+                        <TableCell className="text-right">567</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(1751592.98)}
+                        </TableCell>
+                        <TableCell className="text-right">40</TableCell>
+                        <TableCell className="text-right text-red-600 dark:text-red-400">
+                          -{formatCurrency(25186.38)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(1726406.6)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium">1506</TableCell>
+                        <TableCell className="text-right">16</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(53569.84)}
+                        </TableCell>
+                        <TableCell className="text-right">4</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(11540.34)}
+                        </TableCell>
+                        <TableCell className="text-right">0</TableCell>
+                        <TableCell className="text-right">€0</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(11540.34)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium">2053</TableCell>
+                        <TableCell className="text-right">2</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(2175.0)}
+                        </TableCell>
+                        <TableCell className="text-right">2</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(2175.0)}
+                        </TableCell>
+                        <TableCell className="text-right">1</TableCell>
+                        <TableCell className="text-right text-red-600 dark:text-red-400">
+                          -{formatCurrency(1455.0)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(720.0)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium">2129</TableCell>
+                        <TableCell className="text-right">3</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(4825.0)}
+                        </TableCell>
+                        <TableCell className="text-right">2</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(2765.0)}
+                        </TableCell>
+                        <TableCell className="text-right">0</TableCell>
+                        <TableCell className="text-right">€0</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(2765.0)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+
+            {/* Table 7: Active Clients Count by Year */}
+            {selectedTempTable === "7" && (
+              <div>
+                <h3 className="text-lg font-medium text-foreground mb-3">
+                  7. Contagem de Clientes Ativos por Ano
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Evolução do número de clientes ativos do vendedor Rui
+                </p>
+                <div className="rounded-md imx-border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Ano</TableHead>
+                        <TableHead className="text-right">
+                          Clientes Ativos
+                        </TableHead>
+                        <TableHead className="text-right">
+                          Variação YoY (%)
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell className="font-medium">2023</TableCell>
+                        <TableCell className="text-right">53</TableCell>
+                        <TableCell className="text-right text-muted-foreground">
+                          —
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium">2024</TableCell>
+                        <TableCell className="text-right">72</TableCell>
+                        <TableCell className="text-right">
+                          <span className="text-green-600 dark:text-green-400 font-medium">
+                            +35.85%
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium">2025</TableCell>
+                        <TableCell className="text-right">58</TableCell>
+                        <TableCell className="text-right">
+                          <span className="text-red-600 dark:text-red-400 font-medium">
+                            -19.44%
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+
+            {/* Table 8: 2025 Customer List - First 10 rows for brevity */}
+            {selectedTempTable === "8" && (
+              <div>
+                <h3 className="text-lg font-medium text-foreground mb-3">
+                  8. Lista Completa de Clientes 2025
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Detalhamento completo de todos os clientes ativos em 2025 (Top
+                  10 para brevidade)
+                </p>
+                <div className="rounded-md imx-border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Rank</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Cidade</TableHead>
+                        <TableHead className="text-right">Orç.</TableHead>
+                        <TableHead className="text-right">Orç. Valor</TableHead>
+                        <TableHead className="text-right">Fat.</TableHead>
+                        <TableHead className="text-right">Fat. Valor</TableHead>
+                        <TableHead className="text-right">NC</TableHead>
+                        <TableHead className="text-right">NC Valor</TableHead>
+                        <TableHead className="text-right">
+                          Vendas Líq.
+                        </TableHead>
+                        <TableHead className="text-right">%</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell>1</TableCell>
+                        <TableCell className="font-medium">
+                          HH PRINT MANAGEMENT SPAIN SL
+                        </TableCell>
+                        <TableCell>BARCELONA</TableCell>
+                        <TableCell className="text-right">737</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(3391215.49)}
+                        </TableCell>
+                        <TableCell className="text-right">212</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(689596.07)}
+                        </TableCell>
+                        <TableCell className="text-right">22</TableCell>
+                        <TableCell className="text-right text-red-600 dark:text-red-400">
+                          -{formatCurrency(20381.85)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(669214.22)}
+                        </TableCell>
+                        <TableCell className="text-right">78.26%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>2</TableCell>
+                        <TableCell className="font-medium">
+                          MANUEL RUI AZINHAIS NABEIRO, LDA
+                        </TableCell>
+                        <TableCell>Campo Maior</TableCell>
+                        <TableCell className="text-right">39</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(159521.7)}
+                        </TableCell>
+                        <TableCell className="text-right">24</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(75262.7)}
+                        </TableCell>
+                        <TableCell className="text-right">1</TableCell>
+                        <TableCell className="text-right text-red-600 dark:text-red-400">
+                          -{formatCurrency(4769.27)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(70493.43)}
+                        </TableCell>
+                        <TableCell className="text-right">8.24%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>3</TableCell>
+                        <TableCell className="font-medium">
+                          PLANETEXPAND - DESIGN STUDIO LDA
+                        </TableCell>
+                        <TableCell>SACAVÉM</TableCell>
+                        <TableCell className="text-right">38</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(118166.95)}
+                        </TableCell>
+                        <TableCell className="text-right">25</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(45184.3)}
+                        </TableCell>
+                        <TableCell className="text-right">0</TableCell>
+                        <TableCell className="text-right">€0</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(45184.3)}
+                        </TableCell>
+                        <TableCell className="text-right">5.28%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>4</TableCell>
+                        <TableCell className="font-medium">
+                          FM PARTNERS-COMUNICAÇÃO LDA
+                        </TableCell>
+                        <TableCell>MASSAMA</TableCell>
+                        <TableCell className="text-right">2</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(14688.0)}
+                        </TableCell>
+                        <TableCell className="text-right">2</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(14688.0)}
+                        </TableCell>
+                        <TableCell className="text-right">0</TableCell>
+                        <TableCell className="text-right">€0</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(14688.0)}
+                        </TableCell>
+                        <TableCell className="text-right">1.72%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>5</TableCell>
+                        <TableCell className="font-medium">
+                          ICEBERGUE - PUBLICIDADE LDA
+                        </TableCell>
+                        <TableCell>SACAVÉM</TableCell>
+                        <TableCell className="text-right">9</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(42125.0)}
+                        </TableCell>
+                        <TableCell className="text-right">8</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(12220.0)}
+                        </TableCell>
+                        <TableCell className="text-right">0</TableCell>
+                        <TableCell className="text-right">€0</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(12220.0)}
+                        </TableCell>
+                        <TableCell className="text-right">1.43%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>6</TableCell>
+                        <TableCell className="font-medium">
+                          BRUNO CUNHA SILVA UNIPESSOAL LDA
+                        </TableCell>
+                        <TableCell>LISBOA</TableCell>
+                        <TableCell className="text-right">1</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(165.0)}
+                        </TableCell>
+                        <TableCell className="text-right">2</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(7000.0)}
+                        </TableCell>
+                        <TableCell className="text-right">0</TableCell>
+                        <TableCell className="text-right">€0</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(7000.0)}
+                        </TableCell>
+                        <TableCell className="text-right">0.82%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>7</TableCell>
+                        <TableCell className="font-medium">
+                          FUTURE COSMETICS LABS SL
+                        </TableCell>
+                        <TableCell>Barcelona</TableCell>
+                        <TableCell className="text-right">6</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(42536.2)}
+                        </TableCell>
+                        <TableCell className="text-right">2</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(6588.2)}
+                        </TableCell>
+                        <TableCell className="text-right">0</TableCell>
+                        <TableCell className="text-right">€0</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(6588.2)}
+                        </TableCell>
+                        <TableCell className="text-right">0.77%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>8</TableCell>
+                        <TableCell className="font-medium">
+                          Adega Mayor SA
+                        </TableCell>
+                        <TableCell>Campo Maior</TableCell>
+                        <TableCell className="text-right">3</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(10540.0)}
+                        </TableCell>
+                        <TableCell className="text-right">2</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(3515.0)}
+                        </TableCell>
+                        <TableCell className="text-right">0</TableCell>
+                        <TableCell className="text-right">€0</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(3515.0)}
+                        </TableCell>
+                        <TableCell className="text-right">0.41%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>9</TableCell>
+                        <TableCell className="font-medium">
+                          Farmailing Marketing Direto, Lda
+                        </TableCell>
+                        <TableCell>Amadora</TableCell>
+                        <TableCell className="text-right">3</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(29050.0)}
+                        </TableCell>
+                        <TableCell className="text-right">2</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(3500.0)}
+                        </TableCell>
+                        <TableCell className="text-right">0</TableCell>
+                        <TableCell className="text-right">€0</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(3500.0)}
+                        </TableCell>
+                        <TableCell className="text-right">0.41%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>10</TableCell>
+                        <TableCell className="font-medium">
+                          PAYSHOP PORTUGAL SA
+                        </TableCell>
+                        <TableCell>LISBOA</TableCell>
+                        <TableCell className="text-right">1</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(3350.0)}
+                        </TableCell>
+                        <TableCell className="text-right">1</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(3350.0)}
+                        </TableCell>
+                        <TableCell className="text-right">0</TableCell>
+                        <TableCell className="text-right">€0</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(3350.0)}
+                        </TableCell>
+                        <TableCell className="text-right">0.39%</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+                <p className="text-sm text-muted-foreground mt-4">
+                  Mostrando top 10 de 52 clientes totais. Total de vendas
+                  líquidas 2025: {formatCurrency(855157.24)}
+                </p>
+              </div>
+            )}
+
+            {/* Table 14: Top 5 Customers by Year */}
+            {selectedTempTable === "14" && (
+              <div>
+                <h3 className="text-lg font-medium text-foreground mb-3">
+                  14. Top 5 Clientes por Ano
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Os 5 maiores clientes e sua representatividade por ano
+                </p>
+                <div className="rounded-md imx-border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Ano</TableHead>
+                        <TableHead>Rank</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead className="text-right">
+                          Vendas Líquidas
+                        </TableHead>
+                        <TableHead className="text-right">% do Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {/* 2025 */}
+                      <TableRow>
+                        <TableCell rowSpan={5} className="font-medium">
+                          2025
+                        </TableCell>
+                        <TableCell>1</TableCell>
+                        <TableCell>HH PRINT MANAGEMENT SPAIN SL</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(669214.22)}
+                        </TableCell>
+                        <TableCell className="text-right">78.26%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>2</TableCell>
+                        <TableCell>MANUEL RUI AZINHAIS NABEIRO, LDA</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(70493.43)}
+                        </TableCell>
+                        <TableCell className="text-right">8.24%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>3</TableCell>
+                        <TableCell>PLANETEXPAND - DESIGN STUDIO LDA</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(45184.3)}
+                        </TableCell>
+                        <TableCell className="text-right">5.28%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>4</TableCell>
+                        <TableCell>FM PARTNERS-COMUNICAÇÃO LDA</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(14688.0)}
+                        </TableCell>
+                        <TableCell className="text-right">1.72%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>5</TableCell>
+                        <TableCell>ICEBERGUE - PUBLICIDADE LDA</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(12220.0)}
+                        </TableCell>
+                        <TableCell className="text-right">1.43%</TableCell>
+                      </TableRow>
+                      {/* 2024 */}
+                      <TableRow>
+                        <TableCell rowSpan={5} className="font-medium">
+                          2024
+                        </TableCell>
+                        <TableCell>1</TableCell>
+                        <TableCell>HH Group</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(822127.23)}
+                        </TableCell>
+                        <TableCell className="text-right">78.46%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>2</TableCell>
+                        <TableCell>MANUEL RUI AZINHAIS NABEIRO, LDA</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(93642.28)}
+                        </TableCell>
+                        <TableCell className="text-right">8.94%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>3</TableCell>
+                        <TableCell>PLANETEXPAND - DESIGN STUDIO LDA</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(29306.85)}
+                        </TableCell>
+                        <TableCell className="text-right">2.80%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>4</TableCell>
+                        <TableCell>Laboratórios Sarbec, Lda</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(27092.15)}
+                        </TableCell>
+                        <TableCell className="text-right">2.59%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>5</TableCell>
+                        <TableCell>JDM DEIGRATIA LDA</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(12014.66)}
+                        </TableCell>
+                        <TableCell className="text-right">1.15%</TableCell>
+                      </TableRow>
+                      {/* 2023 */}
+                      <TableRow>
+                        <TableCell rowSpan={5} className="font-medium">
+                          2023
+                        </TableCell>
+                        <TableCell>1</TableCell>
+                        <TableCell>HH Group</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(1051298.45)}
+                        </TableCell>
+                        <TableCell className="text-right">74.68%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>2</TableCell>
+                        <TableCell>Laboratórios Sarbec, Lda</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(86925.65)}
+                        </TableCell>
+                        <TableCell className="text-right">6.17%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>3</TableCell>
+                        <TableCell>PLANETEXPAND - DESIGN STUDIO LDA</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(74494.5)}
+                        </TableCell>
+                        <TableCell className="text-right">5.29%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>4</TableCell>
+                        <TableCell>MANUEL RUI AZINHAIS NABEIRO, LDA</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(70986.1)}
+                        </TableCell>
+                        <TableCell className="text-right">5.04%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>5</TableCell>
+                        <TableCell>Farmailing Marketing Direto, Lda</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(38105.0)}
+                        </TableCell>
+                        <TableCell className="text-right">2.71%</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+
+            {/* Table 15: Concentration Risk Metrics */}
+            {selectedTempTable === "15" && (
+              <div>
+                <h3 className="text-lg font-medium text-foreground mb-3">
+                  15. Métricas de Risco de Concentração
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Análise de concentração de vendas e índice
+                  Herfindahl-Hirschman (HHI)
+                </p>
+                <div className="rounded-md imx-border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Ano</TableHead>
+                        <TableHead className="text-right">
+                          Total Clientes
+                        </TableHead>
+                        <TableHead className="text-right">
+                          Total Vendas
+                        </TableHead>
+                        <TableHead className="text-right">Índice HHI</TableHead>
+                        <TableHead>Risco de Concentração</TableHead>
+                        <TableHead className="text-right">
+                          Top 1 Cliente (%)
+                        </TableHead>
+                        <TableHead className="text-right">
+                          Top 3 Clientes (%)
+                        </TableHead>
+                        <TableHead className="text-right">
+                          Top 5 Clientes (%)
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell className="font-medium">2025</TableCell>
+                        <TableCell className="text-right">29</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(855157.24)}
+                        </TableCell>
+                        <TableCell className="text-right">6,227</TableCell>
+                        <TableCell>
+                          <span className="text-red-600 dark:text-red-400 font-medium">
+                            Alta Concentração (Risco)
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">78.26%</TableCell>
+                        <TableCell className="text-right">91.78%</TableCell>
+                        <TableCell className="text-right">94.93%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium">2024</TableCell>
+                        <TableCell className="text-right">40</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(1047901.84)}
+                        </TableCell>
+                        <TableCell className="text-right">3,342</TableCell>
+                        <TableCell>
+                          <span className="text-red-600 dark:text-red-400 font-medium">
+                            Alta Concentração (Risco)
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">48.32%</TableCell>
+                        <TableCell className="text-right">87.39%</TableCell>
+                        <TableCell className="text-right">92.77%</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium">2023</TableCell>
+                        <TableCell className="text-right">31</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(1407720.24)}
+                        </TableCell>
+                        <TableCell className="text-right">4,007</TableCell>
+                        <TableCell>
+                          <span className="text-red-600 dark:text-red-400 font-medium">
+                            Alta Concentração (Risco)
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">60.96%</TableCell>
+                        <TableCell className="text-right">80.86%</TableCell>
+                        <TableCell className="text-right">91.19%</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="mt-4 p-4 bg-muted/50 rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Índice HHI:</strong> &lt; 1,500 = Baixa concentração
+                    | 1,500-2,500 = Moderada | &gt; 2,500 = Alta concentração
+                  </p>
+                </div>
+              </div>
+            )}
+          </Card>
         </>
       )}
 

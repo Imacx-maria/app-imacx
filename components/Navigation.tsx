@@ -98,12 +98,6 @@ const menuItems: MenuItem[] = [
     pageId: "stocks",
     submenu: [
       {
-        title: "Resumo",
-        href: "/stocks",
-        icon: <Warehouse className="h-4 w-4" />,
-        pageId: "stocks",
-      },
-      {
         title: "Gestão de Stocks",
         href: "/stocks/gestao",
         icon: <Warehouse className="h-4 w-4" />,

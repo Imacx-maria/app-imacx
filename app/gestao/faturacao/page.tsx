@@ -64,6 +64,7 @@ export default function FaturacaoPage() {
   const [subTab, setSubTab] = useState<"em_curso" | "pendentes">("em_curso"); // Sub-tab for por_facturar
   const [items, setItems] = useState<ItemRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Pagination state for main items table
   const [currentPage, setCurrentPage] = useState(1);
@@ -336,6 +337,76 @@ export default function FaturacaoPage() {
     fetchItems();
   }, [fetchItems]);
 
+  // Handle refresh with ETL sync + auto-mark facturado
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing) {
+      console.log("⚠️ Refresh already in progress, ignoring click");
+      return;
+    }
+
+    setIsRefreshing(true);
+    try {
+      console.log("🔄 [Faturacao] Starting refresh...");
+
+      // Step 1: Run ETL sync (same as "Atualizar PHC" button)
+      console.log("📊 [Faturacao] Step 1: Running ETL sync...");
+      const etlResp = await fetch("/api/etl/incremental", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "fast_all" }),
+      });
+
+      if (!etlResp.ok) {
+        const details = await etlResp.json().catch(() => ({}));
+        const message =
+          (details && (details.message || details.error)) ||
+          "Erro ao correr a atualização rápida do PHC.";
+        console.error("❌ [Faturacao] ETL sync failed:", message);
+        throw new Error(message);
+      }
+      console.log("✅ [Faturacao] Step 1 complete: ETL sync done");
+
+      // Step 2: Check for converted quotes and mark items as facturado
+      console.log("🔄 [Faturacao] Step 2: Checking for converted quotes...");
+      const autoDismissResp = await fetch(
+        "/api/gestao/departamentos/auto-dismiss-converted",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+
+      if (autoDismissResp.ok) {
+        const autoDismissData = await autoDismissResp.json();
+        console.log("✅ [Faturacao] Step 2 complete:", autoDismissData);
+        if (autoDismissData.itemsMarked > 0) {
+          console.log(
+            `✅ Marked ${autoDismissData.itemsMarked} item(s) as facturado from ${autoDismissData.quoteNumbers.length} converted quote(s)`,
+            autoDismissData.jobsUpdated,
+          );
+        } else {
+          console.log("ℹ️ No new items to mark as facturado");
+        }
+      } else {
+        console.warn("⚠️ [Faturacao] Auto-mark check failed (non-critical)");
+      }
+
+      // Step 3: Refresh items to show updated data
+      console.log("🔄 [Faturacao] Step 3: Refreshing table...");
+      await fetchItems();
+      console.log("✅ [Faturacao] All steps complete!");
+    } catch (error) {
+      console.error("❌ [Faturacao] Error during refresh:", error);
+      alert(
+        "Falha ao atualizar PHC. Verifica a configuração do ETL e tenta novamente.",
+      );
+      // Still try to fetch items even if ETL/auto-mark failed
+      await fetchItems();
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [fetchItems, isRefreshing]);
+
   // Handle individual item facturado toggle
   const handleItemFacturadoToggle = useCallback(
     async (itemId: string, newValue: boolean) => {
@@ -571,12 +642,19 @@ export default function FaturacaoPage() {
                             <Button
                               variant="outline"
                               size="icon"
-                              onClick={fetchItems}
+                              onClick={handleRefresh}
+                              disabled={isRefreshing}
                             >
-                              <RotateCw className="h-4 w-4" />
+                              <RotateCw
+                                className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+                              />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Atualizar</TooltipContent>
+                          <TooltipContent>
+                            {isRefreshing
+                              ? "A atualizar PHC e verificar faturas..."
+                              : "Atualizar e verificar faturas"}
+                          </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     </div>

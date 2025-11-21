@@ -76,7 +76,9 @@ import {
   Users,
   FolderSync,
   FileUser,
+  BarChart3,
 } from "lucide-react";
+import Link from "next/link";
 import CreatableClienteCombobox from "@/components/forms/CreatableClienteCombobox";
 import SimpleNotasPopover from "@/components/custom/SimpleNotasPopover";
 import {
@@ -1774,6 +1776,12 @@ export default function ProducaoPage() {
                 <TooltipContent>Exportar Excel</TooltipContent>
               </Tooltip>
             </TooltipProvider>
+            <Link href="/producao/analytics">
+              <Button variant="outline" size="sm">
+                <BarChart3 className="h-4 w-4 mr-2" />
+                ANÁLISE
+              </Button>
+            </Link>
             {activeTab === "em_curso" && (
               <TooltipProvider>
                 <Tooltip>

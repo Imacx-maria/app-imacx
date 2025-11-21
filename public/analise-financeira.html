@@ -1,0 +1,2285 @@
+<!doctype html>
+<html lang="pt">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Análise Financeira - Relatório YTD</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            /* ============================================
+           JOCRIL DESIGN TOKENS
+           ============================================ */
+            :root {
+                /* Spacing System */
+                --spacing: 0.25rem;
+
+                /* Orange Accent System */
+                --accent-100: #ff9900;
+                --accent-200: #e68a00;
+                --accent-300: #ffaa33;
+                /* Border Radius */
+                --radius-xs: 2px;
+                --radius-sm: 4px;
+                --radius-md: 8px;
+                --radius-lg: 12px;
+
+                /* Transitions */
+                --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+                --default-transition-duration: 200ms;
+
+                /* Typography */
+                --font-geist-sans:
+                    "Geist", -apple-system, BlinkMacSystemFont, sans-serif;
+                --font-geist-mono: "Geist Mono", "SF Mono", Monaco, monospace;
+
+                /* Dark Theme Colors (Default) */
+                --background: #0a0a0a;
+                --foreground: #fafafa;
+                --card: #141414;
+                --border: #3f3f3f;
+                --muted-foreground: #a3a3a3;
+                --primary: var(--accent-100);
+                --primary-foreground: #0a0a0a;
+                --success: #10b981;
+                --warning: #f59e0b;
+                --destructive: #ef4444;
+                --success-foreground: #000000;
+                --warning-foreground: #000000;
+                --destructive-foreground: #ffffff;
+            }
+
+            /* Light Theme */
+            :root:not(.dark) {
+                --page-background: #eae7e2;
+                --card-background: #f4f1ec;
+                --background: var(
+                    --page-background
+                ); /* Assign new page background */
+                --foreground: #0a0a0a;
+                --card: var(--card-background); /* Assign new card background */
+                --border: #d1cdc7; /* A border color that fits the beige theme */
+                --muted-foreground: #6b6762; /* A muted color that fits the beige theme */
+            }
+            /* ============================================
+           UNIVERSAL RULES
+           ============================================ */
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                background: var(--background);
+                color: var(--foreground);
+                font-family: var(--font-geist-sans);
+                line-height: 1.6;
+                padding: calc(var(--spacing) * 8);
+                font-size: 16px;
+                transition:
+                    background-color var(--default-transition-duration)
+                        var(--ease-out),
+                    color var(--default-transition-duration) var(--ease-out);
+            }
+
+            body.theme-transitioning * {
+                transition: none !important;
+            }
+
+            /* ============================================
+           TYPOGRAPHY
+           ============================================ */
+            h1 {
+                font-family: var(--font-geist-sans);
+                font-size: clamp(36px, 6vw, 72px);
+                line-height: 1.1;
+                font-weight: 600;
+                margin: 0 0 calc(var(--spacing) * 8) 0;
+                letter-spacing: -0.02em;
+                border-bottom: 2px dashed var(--border);
+                padding-bottom: calc(var(--spacing) * 4);
+            }
+
+            h2 {
+                font-family: var(--font-geist-sans);
+                font-size: clamp(28px, 4vw, 48px);
+                line-height: 1.2;
+                font-weight: 600;
+                margin: calc(var(--spacing) * 12) 0 calc(var(--spacing) * 6) 0;
+                letter-spacing: -0.015em;
+                border-left: 4px solid var(--accent-100);
+                padding-left: calc(var(--spacing) * 4);
+            }
+
+            h3 {
+                font-family: var(--font-geist-sans);
+                font-size: clamp(20px, 3vw, 32px);
+                line-height: 1.25;
+                font-weight: 600;
+                margin: calc(var(--spacing) * 8) 0 calc(var(--spacing) * 4) 0;
+                letter-spacing: -0.01em;
+            }
+
+            h4 {
+                font-family: var(--font-geist-sans);
+                font-size: clamp(16px, 2.5vw, 24px);
+                line-height: 1.35;
+                font-weight: 600;
+                margin: calc(var(--spacing) * 6) 0 calc(var(--spacing) * 3) 0;
+            }
+
+            p {
+                margin: calc(var(--spacing) * 3) 0;
+            }
+
+            strong {
+                font-weight: 600;
+            }
+
+            ul,
+            ol {
+                margin: calc(var(--spacing) * 3) 0;
+                padding-left: calc(var(--spacing) * 8);
+            }
+
+            li {
+                margin: calc(var(--spacing) * 2) 0;
+            }
+
+            /* ============================================
+           LAYOUT
+           ============================================ */
+            .container {
+                max-width: 1400px;
+                margin: 0 auto;
+            }
+
+            .section {
+                display: none;
+                margin: calc(var(--spacing) * 12) 0;
+                padding: calc(var(--spacing) * 8);
+                border: 1px dashed var(--border);
+                background: var(--card);
+                transition: border-color var(--default-transition-duration)
+                    var(--ease-out);
+            }
+
+            .section:hover {
+                border-color: var(--accent-100);
+            }
+
+            .active-page {
+                display: block !important;
+            }
+
+            .page-break {
+                page-break-before: always;
+            }
+
+            /* ============================================
+           BUTTONS & NAVIGATION
+           ============================================ */
+            .nav-btn,
+            .period-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: calc(var(--spacing) * 3) calc(var(--spacing) * 5);
+                font-family: var(--font-geist-mono);
+                font-size: 14px;
+                text-transform: uppercase;
+                letter-spacing: -0.015rem;
+                border: 1px dashed var(--border);
+                background: var(--card);
+                color: var(--foreground);
+                cursor: pointer;
+                transition: all var(--default-transition-duration)
+                    var(--ease-out);
+                min-height: 44px;
+                font-weight: 500;
+            }
+
+            .nav-btn:hover,
+            .period-btn:hover {
+                border-color: var(--accent-100);
+                color: var(--accent-100);
+            }
+
+            .nav-btn.active,
+            .period-btn.active {
+                background: var(--accent-100);
+                color: var(--primary-foreground);
+                border-color: var(--accent-100);
+            }
+
+            .theme-toggle {
+                position: fixed;
+                top: calc(var(--spacing) * 8);
+                right: calc(var(--spacing) * 8);
+                padding: calc(var(--spacing) * 3) calc(var(--spacing) * 5);
+                font-family: var(--font-geist-mono);
+                font-size: 12px;
+                text-transform: uppercase;
+                letter-spacing: -0.015rem;
+                border: 1px dashed var(--border);
+                background: var(--card);
+                color: var(--foreground);
+                cursor: pointer;
+                transition: all var(--default-transition-duration)
+                    var(--ease-out);
+                z-index: 1000;
+            }
+
+            .theme-toggle:hover {
+                border-color: var(--accent-100);
+                color: var(--accent-100);
+            }
+
+            /* ============================================
+           ALERTS
+           ============================================ */
+            .alert {
+                border: 1px dashed var(--border);
+                padding: calc(var(--spacing) * 6);
+                margin: calc(var(--spacing) * 6) 0;
+                background: var(--card);
+                transition: border-color var(--default-transition-duration)
+                    var(--ease-out);
+            }
+
+            .alert:hover {
+                border-color: var(--accent-100);
+            }
+
+            .alert h3 {
+                margin-top: 0;
+            }
+
+            .alert-critical {
+                border-left: 4px solid var(--destructive);
+                background: var(--card);
+            }
+
+            .alert-warning {
+                border-left: 4px solid var(--warning);
+                background: var(--card);
+            }
+
+            .alert-success {
+                border-left: 4px solid var(--success);
+                background: var(--card);
+            }
+
+            /* ============================================
+           METRICS
+           ============================================ */
+            .metric-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                gap: calc(var(--spacing) * 4);
+                margin: calc(var(--spacing) * 8) 0;
+            }
+
+            .metric-card {
+                position: relative;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                border: 1px solid var(--border);
+                background: var(--card-background);
+                padding: calc(var(--spacing) * 6);
+                min-height: 180px; /* Adjusted for better layout */
+            }
+
+            .metric-label {
+                font-family: var(
+                    --font-geist-sans
+                ); /* Changed from mono for consistency with image */
+                font-size: 14px; /* Adjusted for better proportion */
+                text-transform: uppercase;
+                color: var(--muted-foreground);
+            }
+
+            .metric-value {
+                font-size: 48px; /* Significantly larger to match image */
+                font-weight: 600; /* Bolder for emphasis */
+                line-height: 1.1;
+                color: var(--foreground); /* Black/dark text as in image */
+                margin: calc(var(--spacing) * 1) 0;
+            }
+
+            .metric-comparison {
+                display: flex;
+                align-items: center;
+                gap: calc(var(--spacing) * 1.5);
+                margin-top: calc(var(--spacing) * 4);
+            }
+
+            .metric-change {
+                font-family: var(--font-geist-sans);
+                font-size: 14px;
+                font-weight: 600;
+            }
+
+            .metric-change-text {
+                font-size: 14px;
+                color: var(--muted-foreground);
+            }
+
+            .metric-change.positive {
+                color: var(--success);
+            }
+
+            .metric-change.negative {
+                color: var(--destructive);
+            }
+
+            .metric-previous-year {
+                position: absolute;
+                bottom: calc(var(--spacing) * 6);
+                right: calc(var(--spacing) * 6);
+                text-align: right;
+            }
+
+            .metric-previous-year .label {
+                font-size: 14px;
+                color: var(--muted-foreground);
+            }
+
+            .metric-previous-year .value {
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--muted-foreground);
+            }
+
+            .trend-metric {
+                font-size: 14px;
+                font-weight: 600;
+            }
+
+            .trend-metric.positive {
+                color: var(--success);
+            }
+
+            .trend-metric.negative {
+                color: var(--destructive);
+            }
+
+            /* ============================================
+           DEPARTMENT SCORES
+           ============================================ */
+            .dept-score {
+                display: inline-block;
+                padding: calc(var(--spacing) * 2) calc(var(--spacing) * 4);
+                font-family: var(--font-geist-mono);
+                font-size: 12px;
+                text-transform: uppercase;
+                letter-spacing: -0.015rem;
+                font-weight: 500;
+                margin-bottom: calc(var(--spacing) * 4);
+                border: 1px dashed var(--border);
+            }
+
+            .score-strategic {
+                background: var(--success);
+                color: var(--success-foreground);
+                border-color: var(--success);
+            }
+
+            .score-star {
+                background: var(--accent-100);
+                color: var(--primary-foreground);
+                border-color: var(--accent-100);
+            }
+
+            .score-fail {
+                background: var(--destructive);
+                color: var(--destructive-foreground);
+                border-color: var(--destructive);
+            }
+
+            /* ============================================
+           TABLES
+           ============================================ */
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: calc(var(--spacing) * 6) 0;
+                border: 1px dashed var(--border);
+                background: var(--card);
+                font-size: 14px;
+            }
+
+            th,
+            td {
+                text-align: left;
+                padding: calc(var(--spacing) * 4);
+                border: 1px dashed var(--border);
+            }
+
+            th {
+                background: var(--accent-100);
+                color: var(--primary-foreground);
+                font-family: var(--font-geist-mono);
+                font-size: 12px;
+                text-transform: uppercase;
+                letter-spacing: -0.0175rem;
+                font-weight: 500;
+                cursor: pointer;
+                transition: background-color var(--default-transition-duration)
+                    var(--ease-out);
+            }
+
+            th:hover {
+                background: var(--accent-200);
+            }
+
+            tbody tr {
+                transition: background-color var(--default-transition-duration)
+                    var(--ease-out);
+            }
+
+            tbody tr:hover {
+                background: rgba(255, 153, 0, 0.05);
+            }
+
+            tfoot tr {
+                background: rgba(255, 153, 0, 0.1);
+                font-weight: 600;
+            }
+
+            th[data-sort] {
+                cursor: pointer;
+                user-select: none;
+            }
+
+            .sort-indicator {
+                font-size: 10px;
+                opacity: 0.6;
+                margin-left: calc(var(--spacing) * 1);
+                font-family: var(--font-geist-mono);
+            }
+
+            th[data-order="asc"] .sort-indicator::after {
+                content: " ▲";
+                color: var(--primary-foreground);
+            }
+
+            th[data-order="desc"] .sort-indicator::after {
+                content: " ▼";
+                color: var(--primary-foreground);
+            }
+
+            .client-meta {
+                font-size: 12px;
+                color: var(--muted-foreground);
+                margin-top: calc(var(--spacing) * 1);
+                font-family: var(--font-geist-mono);
+            }
+
+            /* ============================================
+           CHARTS
+           ============================================ */
+            .chart-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+                gap: calc(var(--spacing) * 6);
+                margin: calc(var(--spacing) * 8) 0;
+            }
+
+            .chart-card {
+                border: 1px dashed var(--border);
+                padding: calc(var(--spacing) * 6);
+                background: var(--card);
+                transition: border-color var(--default-transition-duration)
+                    var(--ease-out);
+            }
+
+            .chart-card:hover {
+                border-color: var(--accent-100);
+            }
+
+            .chart-card h3,
+            .chart-card h4 {
+                margin-top: 0;
+                margin-bottom: calc(var(--spacing) * 3);
+            }
+
+            .chart-note {
+                font-size: 12px;
+                color: var(--muted-foreground);
+                margin-bottom: calc(var(--spacing) * 4);
+                font-family: var(--font-geist-mono);
+                text-transform: uppercase;
+                letter-spacing: -0.015rem;
+            }
+
+            .sparkline {
+                display: inline-block;
+                width: 100px;
+                height: 30px;
+            }
+
+            /* ============================================
+           UTILITY CLASSES
+           ============================================ */
+            .text-sm {
+                font-size: 14px;
+            }
+
+            .text-muted-foreground {
+                color: var(--muted-foreground);
+            }
+
+            .positive {
+                color: var(--success);
+            }
+
+            .negative {
+                color: var(--destructive);
+            }
+
+            /* ============================================
+           FOCUS STATES
+           ============================================ */
+            *:focus {
+                outline: 2px solid var(--accent-100);
+                outline-offset: 2px;
+            }
+
+            /* ============================================
+           RESPONSIVE
+           ============================================ */
+            @media (max-width: 768px) {
+                body {
+                    padding: calc(var(--spacing) * 4);
+                }
+
+                .metric-grid {
+                    grid-template-columns: 1fr;
+                }
+
+                .chart-grid {
+                    grid-template-columns: 1fr;
+                }
+
+                .theme-toggle {
+                    top: calc(var(--spacing) * 4);
+                    right: calc(var(--spacing) * 4);
+                }
+
+                h1 {
+                    font-size: 32px;
+                }
+
+                h2 {
+                    font-size: 24px;
+                }
+
+                h3 {
+                    font-size: 20px;
+                }
+
+                table {
+                    font-size: 12px;
+                }
+
+                th,
+                td {
+                    padding: calc(var(--spacing) * 2);
+                }
+            }
+
+            /* ============================================
+           PRINT STYLES
+           ============================================ */
+            @media print {
+                body {
+                    background: white;
+                    color: black;
+                    padding: 0;
+                }
+
+                .theme-toggle {
+                    display: none !important;
+                }
+
+                nav,
+                .period-btn,
+                .nav-btn {
+                    display: none !important;
+                }
+
+                .section {
+                    border: 1px solid #000;
+                    page-break-inside: avoid;
+                }
+
+                .chart-card,
+                .metric-card,
+                .alert {
+                    border: 1px solid #000;
+                }
+
+                table {
+                    border: 1px solid #000;
+                }
+
+                th {
+                    background: #f0f0f0 !important;
+                    color: #000 !important;
+                }
+            }
+        </style>
+    </head>
+
+    <body>
+        <button class="theme-toggle" onclick="toggleTheme()">
+            Toggle Dark Mode
+        </button>
+
+        <div class="container">
+            <h1>ANÁLISE FINANCEIRA<br />RELATÓRIO YTD</h1>
+
+            <!-- Navigation Menu -->
+            <nav
+                style="
+                    display: flex;
+                    gap: 0.5rem;
+                    padding: 1rem;
+                    border-bottom: 1px solid var(--border);
+                    margin-bottom: 1rem;
+                "
+            >
+                <button
+                    class="nav-btn active"
+                    data-target="visao-geral"
+                    onclick="showPage('visao-geral')"
+                >
+                    VISÃO GERAL
+                </button>
+                <button
+                    class="nav-btn"
+                    data-target="centro-custo"
+                    onclick="showPage('centro-custo')"
+                >
+                    CENTRO CUSTO
+                </button>
+                <button
+                    class="nav-btn"
+                    data-target="departamentos"
+                    onclick="showPage('departamentos')"
+                >
+                    DEPARTAMENTOS
+                </button>
+                <button
+                    class="nav-btn"
+                    data-target="conclusoes"
+                    onclick="showPage('conclusoes')"
+                >
+                    CONCLUSÕES
+                </button>
+            </nav>
+
+            <!-- Period Selector -->
+            <div
+                style="
+                    display: flex;
+                    gap: 0.5rem;
+                    padding: 1rem;
+                    border-bottom: 1px solid var(--border);
+                    margin-bottom: 1rem;
+                "
+            >
+                <button
+                    class="period-btn active"
+                    onclick="setPeriod('ytd')"
+                    data-period="ytd"
+                >
+                    ANO ATUAL
+                </button>
+                <button
+                    class="period-btn"
+                    onclick="setPeriod('mtd')"
+                    data-period="mtd"
+                >
+                    MÊS ATUAL
+                </button>
+            </div>
+
+            <section class="section active-page" data-page="visao-geral">
+                <h2>VISÃO GERAL - ANO ATUAL (YTD)</h2>
+
+                <div class="metric-grid">
+                    <div class="metric-card">
+                        <div>
+                            <div class="metric-label">RECEITA TOTAL</div>
+                            <div
+                                class="metric-value"
+                                id="kpi-revenue-value"
+                            ></div>
+                        </div>
+                        <div>
+                            <div class="metric-comparison">
+                                <span
+                                    class="metric-change"
+                                    id="kpi-revenue-change"
+                                ></span>
+                                <span class="metric-change-text"
+                                    >vs. Período Anterior</span
+                                >
+                            </div>
+                            <div class="metric-previous-year">
+                                <div class="label">Ano Anterior</div>
+                                <div class="value" id="kpi-revenue-prev"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div>
+                            <div class="metric-label">Nº Faturas</div>
+                            <div
+                                class="metric-value"
+                                id="kpi-invoices-value"
+                            ></div>
+                        </div>
+                        <div>
+                            <div class="metric-comparison">
+                                <span
+                                    class="metric-change"
+                                    id="kpi-invoices-change"
+                                ></span>
+                                <span class="metric-change-text"
+                                    >vs. Período Anterior</span
+                                >
+                            </div>
+                            <div class="metric-previous-year">
+                                <div class="label">Ano Anterior</div>
+                                <div class="value" id="kpi-invoices-prev"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div>
+                            <div class="metric-label">Nº Clientes</div>
+                            <div
+                                class="metric-value"
+                                id="kpi-clients-value"
+                            ></div>
+                        </div>
+                        <div>
+                            <div class="metric-comparison">
+                                <span
+                                    class="metric-change"
+                                    id="kpi-clients-change"
+                                ></span>
+                                <span class="metric-change-text"
+                                    >vs. Período Anterior</span
+                                >
+                            </div>
+                            <div class="metric-previous-year">
+                                <div class="label">Ano Anterior</div>
+                                <div class="value" id="kpi-clients-prev"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div>
+                            <div class="metric-label">Ticket Médio</div>
+                            <div
+                                class="metric-value"
+                                id="kpi-ticket-value"
+                            ></div>
+                        </div>
+                        <div>
+                            <div class="metric-comparison">
+                                <span
+                                    class="metric-change"
+                                    id="kpi-ticket-change"
+                                ></span>
+                                <span class="metric-change-text"
+                                    >vs. Período Anterior</span
+                                >
+                            </div>
+                            <div class="metric-previous-year">
+                                <div class="label">Ano Anterior</div>
+                                <div class="value" id="kpi-ticket-prev"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div>
+                            <div class="metric-label">Orçamentos Valor</div>
+                            <div
+                                class="metric-value"
+                                id="kpi-quote-value-card"
+                            ></div>
+                        </div>
+                        <div>
+                            <div class="metric-comparison">
+                                <span
+                                    class="metric-change"
+                                    id="kpi-quote-value-change"
+                                ></span>
+                                <span class="metric-change-text"
+                                    >vs. Período Anterior</span
+                                >
+                            </div>
+                            <div class="metric-previous-year">
+                                <div class="label">Ano Anterior</div>
+                                <div
+                                    class="value"
+                                    id="kpi-quote-value-prev"
+                                ></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div>
+                            <div class="metric-label">Orçamentos Qtd</div>
+                            <div
+                                class="metric-value"
+                                id="kpi-quote-count-card"
+                            ></div>
+                        </div>
+                        <div>
+                            <div class="metric-comparison">
+                                <span
+                                    class="metric-change"
+                                    id="kpi-quote-count-change"
+                                ></span>
+                                <span class="metric-change-text"
+                                    >vs. Período Anterior</span
+                                >
+                            </div>
+                            <div class="metric-previous-year">
+                                <div class="label">Ano Anterior</div>
+                                <div
+                                    class="value"
+                                    id="kpi-quote-count-prev"
+                                ></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div>
+                            <div class="metric-label">Taxa Conversão</div>
+                            <div
+                                class="metric-value"
+                                id="kpi-conversion-value"
+                            ></div>
+                        </div>
+                        <div>
+                            <div class="metric-comparison">
+                                <span
+                                    class="metric-change"
+                                    id="kpi-conversion-change"
+                                ></span>
+                                <span class="metric-change-text"
+                                    >vs. Período Anterior</span
+                                >
+                            </div>
+                            <div class="metric-previous-year">
+                                <div class="label">Ano Anterior</div>
+                                <div
+                                    class="value"
+                                    id="kpi-conversion-prev"
+                                ></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div>
+                            <div class="metric-label">Orçamento Médio</div>
+                            <div
+                                class="metric-value"
+                                id="kpi-avg-quote-value"
+                            ></div>
+                        </div>
+                        <div>
+                            <div class="metric-comparison">
+                                <span
+                                    class="metric-change"
+                                    id="kpi-avg-quote-change"
+                                ></span>
+                                <span class="metric-change-text"
+                                    >vs. Período Anterior</span
+                                >
+                            </div>
+                            <div class="metric-previous-year">
+                                <div class="label">Ano Anterior</div>
+                                <div
+                                    class="value"
+                                    id="kpi-avg-quote-prev"
+                                ></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-grid">
+                    <div class="chart-card">
+                        <h3>COMPARAÇÃO MENSAL DE RECEITA</h3>
+                        <p class="chart-note">
+                            Receita líquida 2025 vs 2024 vs 2023
+                        </p>
+                        <canvas id="chart-multi-year"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>CONTRIBUIÇÃO POR DEPARTAMENTO</h3>
+                        <p class="chart-note">
+                            Participação relativa por centro de custo
+                        </p>
+                        <canvas id="chart-dept-share"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-grid">
+                    <div class="chart-card">
+                        <h3>FUNIL ORÇAMENTO → FATURA</h3>
+                        <p class="chart-note">
+                            Comparação entre pedidos e conversões no período
+                        </p>
+                        <canvas id="chart-conversion-funnel"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>TAXA DE CONVERSÃO POR ESCALÃO</h3>
+                        <p class="chart-note">Performance por tier de valor</p>
+                        <canvas id="chart-conversion-bar"></canvas>
+                    </div>
+                </div>
+
+                <h3>TABELA DE CONVERSÃO POR ESCALÃO</h3>
+                <p class="text-sm text-muted-foreground">
+                    Distribuição completa de orçamentos, faturas e valores
+                    médios por escalão de valor.
+                </p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th data-sort="tier" data-type="text">
+                                Escalão <span class="sort-indicator"></span>
+                            </th>
+                            <th data-sort="quotes" data-type="number">
+                                Orçamentos <span class="sort-indicator"></span>
+                            </th>
+                            <th data-sort="invoices" data-type="number">
+                                Faturas <span class="sort-indicator"></span>
+                            </th>
+                            <th data-sort="rate" data-type="number">
+                                Taxa Conv. <span class="sort-indicator"></span>
+                            </th>
+                            <th data-sort="weight" data-type="number">
+                                % Peso <span class="sort-indicator"></span>
+                            </th>
+                            <th data-sort="avgQuote" data-type="number">
+                                Valor Médio Orç.
+                                <span class="sort-indicator"></span>
+                            </th>
+                            <th data-sort="avgInvoice" data-type="number">
+                                Valor Médio Fat.
+                                <span class="sort-indicator"></span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="conversion-table-body"></tbody>
+                    <tfoot>
+                        <tr>
+                            <td><strong>Total</strong></td>
+                            <td id="conversion-total-quotes">-</td>
+                            <td id="conversion-total-invoices">-</td>
+                            <td id="conversion-total-rate">-</td>
+                            <td id="conversion-total-weight">100%</td>
+                            <td id="conversion-total-avgquote">-</td>
+                            <td id="conversion-total-avginvoice">-</td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <h3>ANÁLISE DETALHADA</h3>
+                <p>
+                    Com os dados atuais, verifico que a receita total acumulada
+                    está nos €3.256.000, representando uma descida de 8,3% face
+                    ao ano anterior (€3.553.000 no período homólogo). É
+                    necessário perceber as razões desta quebra.
+                </p>
+
+                <p>
+                    O volume de faturação também reduziu: este ano foram
+                    emitidas 1.904 faturas, uma descida de 8,9% face às 2.088 do
+                    ano anterior. Ou seja, faturámos menos e também produzimos
+                    menos trabalho.
+                </p>
+
+                <p>
+                    <strong>CONTRADIÇÃO INTERESSANTE:</strong> O valor médio dos
+                    orçamentos desceu de €4.613 para €3.680 (-20%), mas o ticket
+                    médio das faturas manteve-se estável ou subiu ligeiramente.
+                    Isto significa que
+                    <strong
+                        >os trabalhos fechados acabam por ser de montante
+                        superior ao inicialmente orçamentado</strong
+                    >. Possível upsell durante execução ou orçamentos
+                    conservadores que depois expandem.
+                </p>
+
+                <div class="alert alert-warning">
+                    <h3>⚠️ ORÇAMENTOS: O PROBLEMA CENTRAL</h3>
+                    <p>
+                        <strong>Em valor:</strong> Quebra de 33.8% (€21.9M →
+                        €14.5M)
+                    </p>
+                    <p>
+                        <strong>Em quantidade:</strong> Dados não disponíveis,
+                        mas provavelmente também significativa
+                    </p>
+                    <p>
+                        <strong>Taxa de conversão:</strong> Subiu ligeiramente
+                        para 22.4%
+                    </p>
+                    <p>
+                        <strong>Diagnóstico:</strong> Estão a pedir-nos
+                        <strong>muito menos orçamentos</strong>. Quando chegam,
+                        convertemos bem (+2pp vs ano anterior). Isto indica
+                        falha de esforço comercial ou problema de geração de
+                        leads.
+                    </p>
+                </div>
+
+                <h3>TOP 20 CLIENTES - ANÁLISE DE RISCO</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th data-sort="rank" data-type="number">
+                                # <span class="sort-indicator"></span>
+                            </th>
+                            <th data-sort="name" data-type="text">
+                                Cliente <span class="sort-indicator"></span>
+                            </th>
+                            <th data-sort="revenue" data-type="number">
+                                Receita <span class="sort-indicator"></span>
+                            </th>
+                            <th data-sort="share" data-type="number">
+                                % Total <span class="sort-indicator"></span>
+                            </th>
+                            <th data-sort="trend" data-type="number">
+                                Trend 6M <span class="sort-indicator"></span>
+                            </th>
+                            <th data-sort="change" data-type="number">
+                                Variação YoY
+                                <span class="sort-indicator"></span>
+                            </th>
+                            <th data-sort="risk" data-type="text">
+                                Risco <span class="sort-indicator"></span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="top-clients-body"></tbody>
+                </table>
+
+                <div class="alert alert-warning">
+                    <h3>CONCENTRAÇÃO DE RISCO</h3>
+                    <p>
+                        <strong>Top 3 clientes = 57.9% da receita total</strong>
+                    </p>
+                    <p>
+                        <strong>Top 5 clientes = 68.7% da receita total</strong>
+                    </p>
+                    <p>
+                        Dois dos três maiores clientes estão em quebra
+                        significativa (-20% e -26%). Se perdermos Communisis ou
+                        HH Print, o impacto é devastador.
+                        <strong>Diversificação urgente necessária.</strong>
+                    </p>
+                </div>
+            </section>
+
+            <section class="section page-break" data-page="centro-custo">
+                <h2>ANÁLISE POR CENTRO DE CUSTO</h2>
+
+                <p>
+                    <strong>Contexto:</strong> Os centros de custo refletem
+                    apenas gastos diretamente associados à produção (materiais e
+                    subcontratações), excluindo custos gerais. Existem três
+                    áreas: Impressão Digital (núcleo, alto valor), Brindes
+                    (complementar, low-touch), e Impressão Offset (complementar,
+                    pura comissão).
+                </p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th data-sort="centro" data-type="text">
+                                Centro de Custo
+                                <span class="sort-indicator"></span>
+                            </th>
+                            <th data-sort="y2024" data-type="number">
+                                2024 YTD <span class="sort-indicator"></span>
+                            </th>
+                            <th data-sort="y2025" data-type="number">
+                                2025 YTD <span class="sort-indicator"></span>
+                            </th>
+                            <th data-sort="var" data-type="number">
+                                Variação <span class="sort-indicator"></span>
+                            </th>
+                            <th data-sort="margem" data-type="number">
+                                Margem Bruta
+                                <span class="sort-indicator"></span>
+                            </th>
+                            <th data-sort="recursos" data-type="text">
+                                Recursos <span class="sort-indicator"></span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Impressão Digital</strong></td>
+                            <td>€2.751M</td>
+                            <td>€2.693M</td>
+                            <td style="color: var(--destructive)">-2.1%</td>
+                            <td>~68%</td>
+                            <td>ALTO (pessoal + equip)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Brindes</strong></td>
+                            <td>€391K</td>
+                            <td>€350K</td>
+                            <td style="color: var(--destructive)">-10.4%</td>
+                            <td>~23%</td>
+                            <td>ZERO (coordenação)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Offset</strong></td>
+                            <td>€390K</td>
+                            <td>€176K</td>
+                            <td style="color: var(--destructive)">-55.0%</td>
+                            <td>~38%</td>
+                            <td>ZERO (comissão)</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="chart-grid">
+                    <div class="chart-card">
+                        <h4>Brindes · Receita Mensal</h4>
+                        <p class="chart-note">Comparação 2025 vs 2024</p>
+                        <canvas id="chart-brindes-trend"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h4>Digital · Receita Mensal</h4>
+                        <p class="chart-note">Comparação 2025 vs 2024</p>
+                        <canvas id="chart-digital-trend"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <h3>COMPARAÇÃO 3 ANOS POR CENTRO</h3>
+                    <p class="chart-note">Receita acumulada 2023-2025</p>
+                    <canvas id="chart-cost-centers"></canvas>
+                </div>
+
+                <h3>1. IMPRESSÃO DIGITAL - O NÚCLEO</h3>
+                <p>
+                    Área mais relevante onde compramos materiais, transformamos
+                    e produzimos o produto final (margens mais elevadas, 68%).
+                    Representa o core business.
+                </p>
+                <p>
+                    <strong>Performance:</strong> Quebra ligeira de -2.1%, não
+                    severa considerando a dimensão. Mas preocupante em contexto
+                    global.
+                </p>
+
+                <h3>2. BRINDES - O COMPLEMENTO ESTRATÉGICO</h3>
+                <p>
+                    Funciona como one-stop shop para multinacionais. Operação
+                    simples: recebe pedido → solicita preço a parceiro → aplica
+                    margem → coordena entrega.
+                </p>
+                <p>
+                    <strong>Performance:</strong> -10.4%, mas margens baixas
+                    (23%) compensadas por custo operacional quase zero.
+                </p>
+                <p>
+                    <strong>Oportunidade:</strong> É investimento financeiro
+                    puro (compramos €20K, recebemos 90-120 dias depois). Custo =
+                    capital de giro apenas.
+                </p>
+
+                <div class="alert alert-success">
+                    <h3>💡 PRIORIDADE: CROSS-SELL BRINDES</h3>
+                    <p>
+                        <strong>Margem:</strong> 23% ×
+                        <strong>Recursos:</strong> 0 =
+                        <strong>ROI INFINITO</strong>
+                    </p>
+                    <p>
+                        Cada €1 vendido = €0.23 lucro sem consumir tempo de
+                        colaboradores.
+                    </p>
+                    <p>
+                        <strong>Oportunidade imediata:</strong> Top 3 clientes
+                        (Communisis €772K, HH Print €621K, Konica €492K) quase
+                        não compram Brindes. São compradores profissionais que
+                        já nos conhecem. Cross-sell potencial =
+                        <strong>€100K-200K+ a margem de 23%</strong>.
+                    </p>
+                </div>
+
+                <h3>3. OFFSET - O COLAPSO</h3>
+                <p>
+                    <strong>Quebra de -55%</strong> - a maior do relatório. Área
+                    complementar sem colaborador dedicado. Trabalhamos com
+                    parceiro: pedimos orçamento, apresentamos ao cliente,
+                    recebemos rappel.
+                </p>
+
+                <div class="alert alert-critical">
+                    <h3>
+                        DIAGNÓSTICO OFFSET: PROBLEMA OPERACIONAL, NÃO DE MERCADO
+                    </h3>
+                    <p><strong>Causas identificadas:</strong></p>
+                    <ul>
+                        <li>
+                            <strong>Parceiro lento:</strong> Demora dias a
+                            enviar orçamentos, dificulta resposta rápida
+                        </li>
+                        <li>
+                            <strong>Departamentos não priorizam:</strong> Emax e
+                            Digital não respondem emails de Offset
+                        </li>
+                        <li>
+                            <strong>Conhecimento técnico:</strong> Falta
+                            expertise para solicitar orçamentos corretamente
+                        </li>
+                    </ul>
+                    <p>
+                        <strong>Potencial de recuperação:</strong> Totalmente
+                        interno e fixável. Estimativa: recuperar 30-40% =
+                        €60K-80K com margem de 38% e ZERO investimento.
+                    </p>
+                </div>
+
+                <h3>MATRIZ CROSS-SELL - ONDE ESTÃO AS OPORTUNIDADES</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>Total Geral</th>
+                            <th>Impressão Digital</th>
+                            <th>Brindes</th>
+                            <th>Offset</th>
+                            <th>GAP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Communisis</strong></td>
+                            <td>€772K (#1)</td>
+                            <td>€690K (#1)</td>
+                            <td>€0</td>
+                            <td>€0</td>
+                            <td
+                                style="
+                                    background: var(--destructive);
+                                    color: var(--destructive-foreground);
+                                "
+                            >
+                                ENORME
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>HH Print</strong></td>
+                            <td>€621K (#2)</td>
+                            <td>€555K (#2)</td>
+                            <td>€0</td>
+                            <td>€33K (#2)</td>
+                            <td
+                                style="
+                                    background: var(--warning);
+                                    color: var(--warning-foreground);
+                                "
+                            >
+                                BRINDES
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Konica</strong></td>
+                            <td>€492K (#3)</td>
+                            <td>€421K (#3)</td>
+                            <td>€0</td>
+                            <td>€36K (#1)</td>
+                            <td
+                                style="
+                                    background: var(--warning);
+                                    color: var(--warning-foreground);
+                                "
+                            >
+                                BRINDES
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p>
+                    <strong>ANÁLISE:</strong> Os 3 maiores clientes quase não
+                    compram Brindes, apesar de serem compradores profissionais
+                    com forte relação comercial. Se clientes portugueses
+                    pequenos compram Brindes, os grandes multinacionais também
+                    têm necessidades.
+                    <strong>Gap = oportunidade clara de cross-sell</strong>.
+                </p>
+            </section>
+
+            <section class="section page-break" data-page="departamentos">
+                <h2>ANÁLISE POR DEPARTAMENTO</h2>
+
+                <div class="alert">
+                    <h3>CONTEXTO: ESTRUTURA DE 1 PESSOA POR DEPARTAMENTO</h3>
+                    <p>
+                        Cada departamento tem
+                        <strong>1 comercial dedicado</strong>. Isto permite
+                        benchmarking direto: revenue/pessoa, quotes/pessoa,
+                        eficiência relativa.
+                    </p>
+                </div>
+
+                <h3>1. DEPARTAMENTO BRINDES</h3>
+                <div class="dept-score score-strategic">
+                    DECISÃO ESTRATÉGICA - FUNCIONOU
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Métrica</th>
+                            <th>2024</th>
+                            <th>2025</th>
+                            <th>Variação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Revenue</strong></td>
+                            <td>€169K</td>
+                            <td>€134K</td>
+                            <td style="color: var(--destructive)">-20.8%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Faturas</strong></td>
+                            <td>251</td>
+                            <td>165</td>
+                            <td style="color: var(--destructive)">-34%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Clientes</strong></td>
+                            <td>108</td>
+                            <td>52</td>
+                            <td style="color: var(--destructive)">-52%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ticket Médio</strong></td>
+                            <td>€674</td>
+                            <td>€814</td>
+                            <td style="color: var(--success)">+21%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Taxa Conversão</strong></td>
+                            <td>71%</td>
+                            <td>80.4%</td>
+                            <td style="color: var(--success)">+9.4pp</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Headcount</strong></td>
+                            <td>2 pessoas</td>
+                            <td>1 pessoa</td>
+                            <td style="color: var(--success)">-50%</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="alert alert-success">
+                    <h3>CLASSIFICAÇÃO: PODA INTENCIONAL BEM-SUCEDIDA</h3>
+                    <p>
+                        <strong>O que aconteceu:</strong> Eliminação deliberada
+                        de clientes pequenos com pedidos pequenos que exigiam
+                        grande esforço. No ano anterior existiam muitos clientes
+                        pequenos que justificavam 2 pessoas. Este ano, com 1
+                        pessoa, as vendas caíram apenas 20% (vs -52% em
+                        clientes).
+                    </p>
+                    <p>
+                        <strong>Resultado:</strong> Mantivemos os clientes
+                        rentáveis. Área existe para one-stop shop, não faz
+                        sentido dedicar recursos a trabalhos minúsculos quando o
+                        esforço é o mesmo para 20 ou 20.000 unidades.
+                    </p>
+                    <p>
+                        <strong>Conversão subiu para 80.4%:</strong> Maior
+                        qualidade dos pedidos recebidos. Orçamentos que chegam
+                        são de clientes sérios.
+                    </p>
+                    <p><strong>Eficiência por pessoa:</strong></p>
+                    <ul>
+                        <li>
+                            2024: €169K / 2 pessoas =
+                            <strong>€84.5K per capita</strong>
+                        </li>
+                        <li>
+                            2025: €134K / 1 pessoa =
+                            <strong>€134K per capita</strong>
+                        </li>
+                        <li>
+                            <strong
+                                >Ganho: +59% de produtividade por pessoa</strong
+                            >
+                        </li>
+                    </ul>
+                    <p>
+                        <strong
+                            >Veredicto: ESTRATÉGIA FUNCIONOU. Manter
+                            curso.</strong
+                        >
+                    </p>
+                </div>
+
+                <h3>2. DEPARTAMENTO DIGITAL</h3>
+                <div class="dept-score score-fail">COLAPSO COMERCIAL</div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Métrica</th>
+                            <th>2024</th>
+                            <th>2025</th>
+                            <th>Variação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Revenue</strong></td>
+                            <td>€1.035M</td>
+                            <td>€929K</td>
+                            <td style="color: var(--destructive)">-10.2%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Faturas</strong></td>
+                            <td>472</td>
+                            <td>351</td>
+                            <td style="color: var(--destructive)">-25.6%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Clientes</strong></td>
+                            <td>34</td>
+                            <td>31</td>
+                            <td style="color: var(--destructive)">-8.8%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ticket Médio</strong></td>
+                            <td>€2.072</td>
+                            <td>€2.691</td>
+                            <td style="color: var(--success)">+29.9%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Orçamentos (valor)</strong></td>
+                            <td>€7.052M</td>
+                            <td>€3.996M</td>
+                            <td style="color: var(--destructive)">-43.3%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Taxa Conversão</strong></td>
+                            <td>~18%</td>
+                            <td>21.6%</td>
+                            <td style="color: var(--success)">+3.6pp</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="alert alert-critical">
+                    <h3>🚨 DIAGNÓSTICO: FALHA COMERCIAL GRAVE</h3>
+                    <p><strong>Sinais de colapso:</strong></p>
+                    <ul>
+                        <li>
+                            <strong>Orçamentos -43.3%:</strong> Atividade
+                            comercial despencou
+                        </li>
+                        <li>
+                            <strong>Volume anormalmente baixo:</strong>
+                            Estimativa ~500-700 quotes/ano vs benchmark IMACX de
+                            2,780
+                        </li>
+                        <li>
+                            <strong>Distribição anómala:</strong> Apenas 4.4% no
+                            escalão €1.5K-2.5K (devia ser 15-20%)
+                        </li>
+                        <li>
+                            <strong>Movimento:</strong> 12 novos clientes, 17
+                            perdidos = saldo negativo
+                        </li>
+                    </ul>
+                    <p>
+                        <strong>O que funciona:</strong> Taxa de conversão
+                        melhorou (+3.6pp), ticket médio subiu (+30%). Quando há
+                        trabalho, fecha-se bem.
+                    </p>
+                    <p>
+                        <strong>O que falha:</strong> GERAÇÃO DE OPORTUNIDADES.
+                        Ou o comercial não está a fazer prospeção, ou os pedidos
+                        deixaram de aparecer.
+                    </p>
+                </div>
+
+                <h3>BENCHMARK: DIGITAL VS IMACX (ambos 1 pessoa)</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Métrica</th>
+                            <th>Digital</th>
+                            <th>IMACX</th>
+                            <th>Digital é X% do IMACX</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Revenue/pessoa</strong></td>
+                            <td>€929K</td>
+                            <td>€2.203M</td>
+                            <td style="color: var(--destructive)">
+                                <strong>42%</strong>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Quotes/pessoa (est.)</strong></td>
+                            <td>~600</td>
+                            <td>2,780</td>
+                            <td style="color: var(--destructive)">
+                                <strong>22%</strong>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Faturas/pessoa</strong></td>
+                            <td>351</td>
+                            <td>1,418</td>
+                            <td style="color: var(--destructive)">
+                                <strong>25%</strong>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="alert alert-critical">
+                    <h3>
+                        CONCLUSÃO BRUTAL: DIGITAL PRODUZ 22-42% DO BENCHMARK
+                    </h3>
+                    <p>
+                        Digital tem o mesmo headcount (1 pessoa) mas produz
+                        entre 1/5 e 1/2 do output do IMACX. Três possibilidades:
+                    </p>
+                    <ul>
+                        <li>
+                            <strong
+                                >1. Comercial incompetente ou
+                                desmotivado</strong
+                            >
+                            - não está a fazer o trabalho
+                        </li>
+                        <li>
+                            <strong>2. Segmento 3-5x mais difícil</strong> -
+                            mercado Digital exige mais tempo/esforço por deal
+                        </li>
+                        <li>
+                            <strong>3. Falta de leads</strong> - marketing não
+                            está a alimentar pipeline
+                        </li>
+                    </ul>
+                    <p><strong>AÇÃO NECESSÁRIA:</strong></p>
+                    <ul>
+                        <li>
+                            <strong>Investigação imediata:</strong> Auditar CRM,
+                            check activity logs, entrevistar comercial
+                        </li>
+                        <li>
+                            <strong>Se incompetência:</strong> Substituir
+                            comercial
+                        </li>
+                        <li>
+                            <strong>Se desmotivação:</strong> Criar incentivos
+                            ou reatribuir
+                        </li>
+                        <li>
+                            <strong>Se mercado difícil:</strong> Contratar
+                            segundo comercial ou aceitar target menor
+                        </li>
+                    </ul>
+                </div>
+
+                <h3>RISCO DE CONCENTRAÇÃO - DIGITAL</h3>
+                <p>
+                    O relatório não detalha, mas com apenas 31 clientes e €929K
+                    de revenue, existe risco elevado de dependência de poucos
+                    clientes. Se top 3 clientes representam >50% (padrão comum),
+                    perder um é devastador para este departamento já
+                    fragilizado.
+                </p>
+
+                <h3>3. DEPARTAMENTO IMACX</h3>
+                <div class="dept-score score-star">⭐ ESTRELA DA EMPRESA</div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Métrica</th>
+                            <th>2024</th>
+                            <th>2025</th>
+                            <th>Variação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Revenue</strong></td>
+                            <td>€2.272M</td>
+                            <td>€2.203M</td>
+                            <td style="color: var(--destructive)">-3.0%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Faturas</strong></td>
+                            <td>1,373</td>
+                            <td>1,418</td>
+                            <td style="color: var(--success)">+3.3%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Clientes</strong></td>
+                            <td>102</td>
+                            <td>101</td>
+                            <td style="color: var(--foreground)">-1%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Orçamentos (valor)</strong></td>
+                            <td>€11.576M</td>
+                            <td>€9.398M</td>
+                            <td style="color: var(--destructive)">-18.8%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Nº Orçamentos</strong></td>
+                            <td>3,072</td>
+                            <td>2,780</td>
+                            <td style="color: var(--destructive)">-9.5%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Taxa Conversão</strong></td>
+                            <td>~40%</td>
+                            <td>54.6%</td>
+                            <td style="color: var(--success)">+14pp</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="alert alert-success">
+                    <h3>🏆 PERFORMANCE EXCECIONAL</h3>
+                    <p><strong>Com 1 pessoa, este departamento:</strong></p>
+                    <ul>
+                        <li>
+                            Produziu <strong>€2.2M de receita</strong> (+2% em #
+                            faturas)
+                        </li>
+                        <li>
+                            Emitiu <strong>2,780 orçamentos</strong> (7-8 por
+                            dia útil!)
+                        </li>
+                        <li>Gere <strong>101 clientes ativos</strong></li>
+                        <li>Conversão <strong>54.6%</strong> - excelente</li>
+                        <li>
+                            Presente em <strong>TODOS os escalões</strong>:
+                            pequenos jobs + mega deals
+                        </li>
+                    </ul>
+                    <p><strong>Distribuição multiescalão:</strong></p>
+                    <ul>
+                        <li>
+                            1,842 quotes no escalão €0-1.5K (volume massivo)
+                        </li>
+                        <li>
+                            54 quotes acima de €30K (35.8% do valor total
+                            orçamentado)
+                        </li>
+                        <li>Presença forte em todos os tiers intermédios</li>
+                    </ul>
+                    <p>
+                        <strong>Este é o motor da empresa.</strong> Uma pessoa
+                        faz o trabalho de três. Seja processo excelente, seja
+                        pessoa excecional (provavelmente ambos).
+                    </p>
+                </div>
+
+                <div class="alert alert-warning">
+                    <h3>⚠️ RISCO: KEY PERSON DEPENDENCY</h3>
+                    <p>
+                        Se esta pessoa sair ou adoecer, o departamento colapsa.
+                        <strong>€2.2M em risco direto</strong>.
+                    </p>
+                    <p><strong>Ações imediatas:</strong></p>
+                    <ul>
+                        <li>
+                            <strong>Documentar processos:</strong> Como consegue
+                            emitir 7-8 quotes/dia? Templates? Workflow?
+                        </li>
+                        <li>
+                            <strong>Proteger:</strong> Compensação adequada,
+                            condições de trabalho, backup administrativo
+                        </li>
+                        <li>
+                            <strong>Clonar:</strong> Estudar workflow para
+                            replicar noutros departamentos
+                        </li>
+                        <li>
+                            <strong>Shadowing:</strong> Outra pessoa deve
+                            aprender este processo como backup
+                        </li>
+                    </ul>
+                </div>
+
+                <h3>PARADOXO: FATURAS PEQUENAS APESAR DE QUOTES GRANDES</h3>
+                <p>
+                    IMACX cita valores elevados (54 quotes >€30K), mas muitas
+                    faturas acabam nos escalões baixos (12.3% do faturado em
+                    €0-1.5K). <strong>Explicação:</strong> Nem sempre o cliente
+                    aceita a totalidade do orçamento. Muitas vezes apenas parte
+                    é executada. Dado o enorme volume de quotes, isto gera
+                    naturalmente muitas small invoices.
+                </p>
+                <p>
+                    <strong>Isto não é problema</strong> - é o modelo de
+                    negócio. Quote grande → cliente aprova parcial → múltiplas
+                    small invoices.
+                </p>
+            </section>
+
+            <section class="section page-break" data-page="conclusoes">
+                <h2>CONCLUSÕES E RECOMENDAÇÕES</h2>
+
+                <div class="alert alert-critical">
+                    <h3>DIAGNÓSTICO FINAL</h3>
+                    <p>
+                        <strong>O problema é claro e mensurável:</strong> Crise
+                        de atividade comercial. Quotes caíram 33.8% mas
+                        conversão mantém-se (22.4%). Quando há oportunidades,
+                        fechamos. O problema é que
+                        <strong
+                            >não estamos a gerar oportunidades
+                            suficientes</strong
+                        >.
+                    </p>
+                </div>
+
+                <h3>AÇÕES IMEDIATAS (ESTA SEMANA)</h3>
+
+                <div class="alert alert-critical">
+                    <h4>1. DEPARTAMENTO DIGITAL - INTERVENÇÃO URGENTE</h4>
+                    <ul>
+                        <li>
+                            <strong>Auditar atividade:</strong> CRM logs, calls,
+                            meetings últimos 3 meses
+                        </li>
+                        <li>
+                            <strong>Entrevistar comercial:</strong> Obstáculos?
+                            Desmotivação? Falta de leads?
+                        </li>
+                        <li>
+                            <strong>Decisão em 7 dias:</strong>
+                            <ul>
+                                <li>Se incompetência → Substituir</li>
+                                <li>
+                                    Se desmotivação → Incentivos ou reatribuir
+                                </li>
+                                <li>
+                                    Se falta leads → Investir em marketing
+                                    Digital
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <p>
+                        <strong>Expected outcome:</strong> Identificar causa
+                        raiz e definir plano de recuperação.
+                    </p>
+                </div>
+
+                <div class="alert alert-critical">
+                    <h4>2. OFFSET - FIXAR BOTTLENECK OPERACIONAL</h4>
+                    <ul>
+                        <li>
+                            <strong>Partner SLA:</strong> Máximo 4h para
+                            resposta de orçamento (medir compliance)
+                        </li>
+                        <li>
+                            <strong>Department priority:</strong> Incluir Offset
+                            response time nos KPIs de Emax e Digital
+                        </li>
+                        <li>
+                            <strong>Accountability:</strong> Responsável Brindes
+                            assume também gestão Offset
+                        </li>
+                    </ul>
+                    <p>
+                        <strong>Expected outcome:</strong> Recuperar €60K-80K
+                        nos próximos 6 meses (30-40% recovery) com margem 38% e
+                        zero investimento = €23K-30K margem bruta adicional.
+                    </p>
+                </div>
+
+                <h3>AÇÕES CURTO PRAZO (ESTE MÊS)</h3>
+
+                <div class="alert alert-warning">
+                    <h4>3. CROSS-SELL BRINDES - QUICK WINS</h4>
+                    <ul>
+                        <li>
+                            <strong>Target:</strong> Top 10 clientes Digital que
+                            não compram Brindes
+                        </li>
+                        <li>
+                            <strong>Approach:</strong> "Sabiam que também
+                            fazemos brindes corporativos? Aqui estão 3 casos de
+                            clientes similares"
+                        </li>
+                        <li>
+                            <strong>Goal:</strong> Fechar 3-5 deals nos próximos
+                            30 dias
+                        </li>
+                    </ul>
+                    <p>
+                        <strong>Potencial conservador:</strong> Se 5 clientes
+                        comprarem €10K cada = €50K × 23% margin = €11.5K lucro
+                        com ZERO recursos adicionais.
+                    </p>
+                </div>
+
+                <div class="alert alert-warning">
+                    <h4>4. DOCUMENTAR PROCESSO IMACX</h4>
+                    <ul>
+                        <li>
+                            <strong>Goal:</strong> Mapear workflow completo de
+                            IMACX (templates, processo, ferramentas)
+                        </li>
+                        <li><strong>Output:</strong> Playbook replicável</li>
+                        <li>
+                            <strong>Why:</strong> Reduzir key person risk +
+                            clonar boas práticas
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="alert alert-warning">
+                    <h4>5. CAMPANHA DE PROSPEÇÃO - ALL HANDS</h4>
+                    <ul>
+                        <li>
+                            <strong>Goal:</strong> Gerar 300+ novos quotes em 30
+                            dias
+                        </li>
+                        <li>
+                            <strong>Tactics:</strong>
+                            <ul>
+                                <li>
+                                    Reactivar lost clients (157 perdidos YTD)
+                                </li>
+                                <li>
+                                    Referrals de clientes satisfeitos (focus
+                                    IMACX clients)
+                                </li>
+                                <li>Cold outreach em segmentos performantes</li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <p>
+                        <strong>Expected outcome:</strong> Reverter tendência
+                        negativa de quotes, alimentar pipeline Q1 2026.
+                    </p>
+                </div>
+
+                <h3>AÇÕES ESTRATÉGICAS (ESTE TRIMESTRE)</h3>
+
+                <div class="alert">
+                    <h4>6. DECISÃO ESTRUTURAL SOBRE DIGITAL</h4>
+                    <p>Com base na investigação da semana 1:</p>
+                    <ul>
+                        <li>
+                            <strong>Opção A:</strong> Substituir comercial se
+                            incompetência confirmada
+                        </li>
+                        <li>
+                            <strong>Opção B:</strong> Contratar segundo
+                            comercial ("hunter") se mercado for mais difícil
+                            <ul>
+                                <li>
+                                    ROI esperado: Se novo hire atinge 70% do
+                                    benchmark IMACX = €1.5M revenue
+                                </li>
+                                <li>Custo: €60K/ano = 25x ROI se margem 68%</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <strong>Opção C:</strong> Aceitar target menor para
+                            Digital se análise mostrar que mercado é
+                            estruturalmente diferente
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="alert">
+                    <h4>7. PROGRAMA DE DIVERSIFICAÇÃO</h4>
+                    <ul>
+                        <li>
+                            <strong>Goal:</strong> Reduzir concentração Top 3 de
+                            58% para <45% em 6 meses
+                        </li>
+                        <li>
+                            <strong>Tactics:</strong>
+                            <ul>
+                                <li>
+                                    Identificar 20 prospects perfil similar aos
+                                    Top 3
+                                </li>
+                                <li>Account-based marketing campaign</li>
+                                <li>
+                                    Incentivos específicos para new logos >€50K
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+
+                <h3>MÉTRICAS DE SUCESSO - REVISAR MENSALMENTE</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Métrica</th>
+                            <th>Atual</th>
+                            <th>Target 3M</th>
+                            <th>Target 6M</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Volume Quotes (total)</td>
+                            <td>€14.5M YTD</td>
+                            <td>+20% vs 2024</td>
+                            <td>+30% vs 2024</td>
+                        </tr>
+                        <tr>
+                            <td>Digital Revenue/mês</td>
+                            <td>€103K avg</td>
+                            <td>€120K</td>
+                            <td>€150K</td>
+                        </tr>
+                        <tr>
+                            <td>Offset Recovery</td>
+                            <td>€176K YTD</td>
+                            <td>+€20K</td>
+                            <td>+€60K</td>
+                        </tr>
+                        <tr>
+                            <td>Cross-sell Brindes</td>
+                            <td>Baseline</td>
+                            <td>+€50K</td>
+                            <td>+€100K</td>
+                        </tr>
+                        <tr>
+                            <td>Concentração Top 3</td>
+                            <td>58%</td>
+                            <td>52%</td>
+                            <td>45%</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>INVESTMENT SUMMARY</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Iniciativa</th>
+                            <th>Investimento</th>
+                            <th>ROI Esperado</th>
+                            <th>Payback</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Fix Offset (SLA+process)</td>
+                            <td>€0 (apenas processo)</td>
+                            <td>€60K-80K revenue</td>
+                            <td>Imediato</td>
+                        </tr>
+                        <tr>
+                            <td>Cross-sell Brindes</td>
+                            <td>€0 (sales time)</td>
+                            <td>€100K+ revenue</td>
+                            <td>30-60 dias</td>
+                        </tr>
+                        <tr>
+                            <td>Campanha Prospeção</td>
+                            <td>€10K (marketing)</td>
+                            <td>€200K+ pipeline</td>
+                            <td>60-90 dias</td>
+                        </tr>
+                        <tr>
+                            <td>Novo comercial Digital (se necessário)</td>
+                            <td>€60K/ano</td>
+                            <td>€1.5M revenue</td>
+                            <td>6-9 meses</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <footer>
+                <p>RELATÓRIO GERADO: 18 NOVEMBRO 2025</p>
+                <p>ANÁLISE COMERCIAL IMACX - CONFIDENCIAL</p>
+                <p>Sistema de Análise: IMACX Commercial Analyst v2.0</p>
+            </footer>
+        </div>
+
+        <script>
+            function showPage(pageId) {
+                const sections = document.querySelectorAll(
+                    ".section[data-page]",
+                );
+                sections.forEach((section) => {
+                    section.classList.remove("active-page");
+                });
+                document
+                    .querySelector(`.section[data-page="${pageId}"]`)
+                    .classList.add("active-page");
+
+                const navButtons = document.querySelectorAll(".nav-btn");
+                navButtons.forEach((button) => {
+                    button.classList.remove("active");
+                });
+                document
+                    .querySelector(`.nav-btn[data-target="${pageId}"]`)
+                    .classList.add("active");
+            }
+
+            function toggleTheme() {
+                document.body.classList.add("theme-transitioning");
+                document.documentElement.classList.toggle("dark");
+                const isDark =
+                    document.documentElement.classList.contains("dark");
+                localStorage.setItem("theme", isDark ? "dark" : "light");
+                setTimeout(() => {
+                    document.body.classList.remove("theme-transitioning");
+                }, 300);
+            }
+
+            (function () {
+                const savedTheme = localStorage.getItem("theme");
+                const prefersDark = window.matchMedia(
+                    "(prefers-color-scheme: dark)",
+                ).matches;
+
+                if (savedTheme === "dark" || (!savedTheme && prefersDark)) {
+                    document.documentElement.classList.add("dark");
+                } else {
+                    document.documentElement.classList.remove("dark");
+                }
+            })();
+
+            const state = {
+                page: "visao-geral",
+                period: "ytd",
+            };
+
+            const cardData = {
+                ytd: {
+                    receitaTotal: {
+                        current: 249512,
+                        previous: 199903,
+                        change: 24.8,
+                        isCurrency: true,
+                    },
+                    nFaturas: { current: 115, previous: 112, change: 2.7 },
+                    nClientes: { current: 33, previous: 38, change: -13.2 },
+                    ticketMedio: {
+                        current: 2208,
+                        previous: 1887,
+                        change: 17.0,
+                        isCurrency: true,
+                    },
+                    orcamentosValor: {
+                        current: 785475,
+                        previous: 1523706,
+                        change: -48.5,
+                        isCurrency: true,
+                    },
+                    orcamentosQtd: { current: 226, previous: 213, change: 6.1 },
+                    taxaConversao: {
+                        current: 50.9,
+                        previous: 52.6,
+                        change: -3.2,
+                        isPercentage: true,
+                    },
+                    orcamentoMedio: {
+                        current: 3476,
+                        previous: 7154,
+                        change: -51.4,
+                        isCurrency: true,
+                    },
+                },
+            };
+
+            const currencyFormatter = new Intl.NumberFormat("pt-PT", {
+                style: "currency",
+                currency: "EUR",
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+            });
+
+            const numberFormatter = new Intl.NumberFormat("pt-PT", {
+                useGrouping: true,
+            });
+
+            const percentFormatter = new Intl.NumberFormat("pt-PT", {
+                style: "percent",
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+            });
+
+            function renderKPIs() {
+                const periodData = cardData[state.period];
+
+                const config = [
+                    {
+                        key: "receitaTotal",
+                        valueId: "kpi-revenue-value",
+                        changeId: "kpi-revenue-change",
+                        prevId: "kpi-revenue-prev",
+                    },
+                    {
+                        key: "nFaturas",
+                        valueId: "kpi-invoices-value",
+                        changeId: "kpi-invoices-change",
+                        prevId: "kpi-invoices-prev",
+                    },
+                    {
+                        key: "nClientes",
+                        valueId: "kpi-clients-value",
+                        changeId: "kpi-clients-change",
+                        prevId: "kpi-clients-prev",
+                    },
+                    {
+                        key: "ticketMedio",
+                        valueId: "kpi-ticket-value",
+                        changeId: "kpi-ticket-change",
+                        prevId: "kpi-ticket-prev",
+                    },
+                    {
+                        key: "orcamentosValor",
+                        valueId: "kpi-quote-value",
+                        changeId: "kpi-quote-value-change",
+                        prevId: "kpi-quote-value-prev",
+                    },
+                    {
+                        key: "orcamentosQtd",
+                        valueId: "kpi-quote-count-value",
+                        changeId: "kpi-quote-count-change",
+                        prevId: "kpi-quote-count-prev",
+                    },
+                    {
+                        key: "taxaConversao",
+                        valueId: "kpi-conversion-value",
+                        changeId: "kpi-conversion-change",
+                        prevId: "kpi-conversion-prev",
+                    },
+                    {
+                        key: "orcamentoMedio",
+                        valueId: "kpi-avg-quote-value",
+                        changeId: "kpi-avg-quote-change",
+                        prevId: "kpi-avg-quote-prev",
+                    },
+                ];
+
+                config.forEach((item) => {
+                    const metric = periodData[item.key];
+                    const valueEl = document.getElementById(item.valueId);
+                    const changeEl = document.getElementById(item.changeId);
+                    const prevEl = document.getElementById(item.prevId);
+
+                    if (!metric || !valueEl || !changeEl || !prevEl) {
+                        console.error(
+                            "Missing elements for KPI key:",
+                            item.key,
+                        );
+                        return;
+                    }
+
+                    let formattedValue = metric.isCurrency
+                        ? currencyFormatter
+                              .format(metric.current)
+                              .replace(/\s?€/, " €")
+                        : metric.isPercentage
+                          ? (metric.current / 100).toLocaleString("pt-PT", {
+                                style: "percent",
+                                minimumFractionDigits: 1,
+                            })
+                          : numberFormatter.format(metric.current);
+
+                    let formattedPrevValue = metric.isCurrency
+                        ? currencyFormatter
+                              .format(metric.previous)
+                              .replace(/\s?€/, " €")
+                        : metric.isPercentage
+                          ? (metric.previous / 100).toLocaleString("pt-PT", {
+                                style: "percent",
+                                minimumFractionDigits: 1,
+                            })
+                          : numberFormatter.format(metric.previous);
+
+                    valueEl.textContent = formattedValue;
+                    prevEl.textContent = formattedPrevValue;
+
+                    const trendIcon = metric.change >= 0 ? "▲" : "▼";
+                    changeEl.textContent = `${trendIcon} ${Math.abs(metric.change).toFixed(1)}%`;
+
+                    changeEl.classList.remove("positive", "negative");
+                    if (metric.change > 0) {
+                        changeEl.classList.add("positive");
+                    } else if (metric.change < 0) {
+                        changeEl.classList.add("negative");
+                    }
+                });
+            }
+
+            function setPeriod(period) {
+                state.period = period;
+                document.querySelectorAll(".period-btn").forEach((btn) => {
+                    btn.classList.toggle(
+                        "active",
+                        btn.dataset.period === period,
+                    );
+                });
+                renderKPIs();
+            }
+
+            function initializeDashboard() {
+                renderKPIs();
+            }
+
+            initializeDashboard();
+        </script>
+    </body>
+</html>

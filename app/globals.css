@@ -1039,12 +1039,38 @@ th:has([role="checkbox"]) {
 }
 
 /* Recharts specific overrides */
+.recharts-surface {
+    background: transparent !important;
+}
+
+.recharts-wrapper .recharts-surface {
+    background-color: transparent !important;
+}
+
+.recharts-rectangle.recharts-tooltip-cursor {
+    fill: var(--accent) !important;
+    opacity: 0.3;
+}
+
+/* Remove the white background rectangle that Recharts adds */
+.recharts-surface > rect[fill="#fff"],
+.recharts-surface > rect[fill="#ffffff"],
+.recharts-surface > rect[fill="white"],
+.recharts-surface > rect:first-child {
+    fill: transparent !important;
+    opacity: 0 !important;
+}
+
 .recharts-text {
     fill: var(--foreground);
 }
 
 .recharts-cartesian-axis-tick-value {
     font-size: 12px;
+}
+
+.recharts-legend-item-text {
+    color: var(--foreground) !important;
 }
 
 .recharts-tooltip-wrapper {

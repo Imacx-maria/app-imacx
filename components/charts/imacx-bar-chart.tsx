@@ -23,22 +23,30 @@ import {
 } from "recharts";
 import { cn } from "@/lib/utils";
 
-// IMACX Chart Colors - matching design system OKLCH values
-// These correspond to --chart-1 through --chart-12 in globals.css
-export const CHART_COLORS = [
-  "oklch(0.47 0.08 230)", // chart-1: Muted teal blue
-  "oklch(0.65 0.1 140)", // chart-2: Earthy green
-  "oklch(0.87 0.1 95)", // chart-3: Soft pastel yellow
-  "oklch(0.77 0.02 75)", // chart-4: Warm beige
-  "oklch(0.28 0.01 35)", // chart-5: Dark charcoal brown
-  "oklch(0.62 0.1 235)", // chart-6: Sky blue
-  "oklch(0.58 0.15 35)", // chart-7: Burnt orange
-  "oklch(0.52 0.08 285)", // chart-8: Purple
-  "oklch(0.68 0.12 155)", // chart-9: Light green
-  "oklch(0.72 0.15 55)", // chart-10: Orange
-  "oklch(0.62 0.18 25)", // chart-11: Red-orange
-  "oklch(0.42 0.06 245)", // chart-12: Navy blue
+// IMACX Chart Colors - Colorful Palette (Default)
+export const CHART_COLORS_COLORFUL = [
+  "#ffa600", // Bright orange
+  "#ff7c43", // Orange
+  "#f95d6a", // Coral
+  "#d45087", // Pink
+  "#a05195", // Magenta
+  "#665191", // Purple
+  "#2f4b7c", // Blue
+  "#003f5c", // Dark blue
 ];
+
+// IMACX Chart Colors - Monochromatic Palette
+export const CHART_COLORS_MONO = [
+  "#ff9b19", // Orange 1
+  "#ffa844", // Orange 2
+  "#ffb564", // Orange 3
+  "#ffc283", // Orange 4
+  "#ffcfa1", // Orange 5
+  "#fedcbf", // Orange 6
+];
+
+// Default color palette
+export const CHART_COLORS = CHART_COLORS_COLORFUL;
 
 // Custom Tooltip Component
 export const CustomTooltip = ({ active, payload, label }: any) => {
@@ -63,6 +71,7 @@ interface ImacxBarChartProps {
   xAxisKey?: string;
   height?: number;
   className?: string;
+  stacked?: boolean;
 }
 
 /**
@@ -73,6 +82,7 @@ interface ImacxBarChartProps {
  * @param xAxisKey - Key for x-axis labels (default: 'name')
  * @param height - Chart height in pixels (default: 400)
  * @param className - Additional CSS classes
+ * @param stacked - Whether to stack bars (default: false)
  */
 const ImacxBarChartInternal = ({
   data,
@@ -80,6 +90,7 @@ const ImacxBarChartInternal = ({
   xAxisKey = "name",
   height = 400,
   className,
+  stacked = false,
 }: ImacxBarChartProps) => {
   const dataKeys = Array.isArray(dataKey) ? dataKey : [dataKey];
 
@@ -119,10 +130,13 @@ const ImacxBarChartInternal = ({
         <Tooltip content={<CustomTooltip />} />
         {dataKeys.length > 1 && (
           <Legend
+            align="right"
+            verticalAlign="top"
             wrapperStyle={{
               textTransform: "uppercase",
               fontFamily: "var(--font-atkinson)",
               fontSize: 12,
+              paddingBottom: 10,
             }}
           />
         )}
@@ -132,6 +146,7 @@ const ImacxBarChartInternal = ({
             dataKey={key}
             fill={CHART_COLORS[index % CHART_COLORS.length]}
             radius={[0, 0, 0, 0]} // No rounded corners
+            stackId={stacked ? "stack" : undefined}
           />
         ))}
       </BarChart>
