@@ -97,13 +97,13 @@ export async function POST(request: Request) {
       });
     }
 
-    // Step 4: Get BO records for these quotes (BO.document_number is TEXT)
-    const { data: boData, error: boError } = await supabase
-      .schema("phc")
-      .from("bo")
-      .select("document_id, document_number")
-      .in("document_number", normalizedQuoteNumbers)
-      .eq("document_type", "Orçamento");
+    // Step 4: Get BO records for these quotes using RPC (avoids permission issues)
+    const { data: boData, error: boError } = await supabase.rpc(
+      "get_quotes_by_numbers",
+      {
+        quote_numbers: normalizedQuoteNumbers,
+      },
+    );
 
     if (boError) {
       console.error("? Error fetching BO data:", boError);
@@ -128,12 +128,13 @@ export async function POST(request: Request) {
 
     const documentIds = boData.map((bo) => bo.document_id);
 
-    // Step 5: Check BI table - find which quotes have been invoiced
-    const { data: biData, error: biError } = await supabase
-      .schema("phc")
-      .from("bi")
-      .select("document_id, line_id")
-      .in("document_id", documentIds);
+    // Step 5: Check BI table - find which quotes have been invoiced (using RPC)
+    const { data: biData, error: biError } = await supabase.rpc(
+      "get_bi_by_document_ids",
+      {
+        doc_ids: documentIds,
+      },
+    );
 
     if (biError) {
       console.error("? Error fetching BI data:", biError);
@@ -159,12 +160,13 @@ export async function POST(request: Request) {
     // Get bistamps to check against FI/FT
     const bistamps = biData.map((bi) => bi.line_id);
 
-    // Step 6: Check FI table to verify these bistamps have invoices
-    const { data: fiData, error: fiError } = await supabase
-      .schema("phc")
-      .from("fi")
-      .select("bistamp, invoice_id")
-      .in("bistamp", bistamps);
+    // Step 6: Check FI table to verify these bistamps have invoices (using RPC)
+    const { data: fiData, error: fiError } = await supabase.rpc(
+      "get_fi_by_bistamps",
+      {
+        bistamp_list: bistamps,
+      },
+    );
 
     if (fiError) {
       console.error("? Error fetching FI data:", fiError);
@@ -189,13 +191,13 @@ export async function POST(request: Request) {
 
     const invoiceIds = fiData.map((fi) => fi.invoice_id);
 
-    // Step 7: Check FT table to verify these are valid non-cancelled invoices
-    const { data: ftData, error: ftError } = await supabase
-      .schema("phc")
-      .from("ft")
-      .select("invoice_id")
-      .in("invoice_id", invoiceIds)
-      .or("anulado.is.null,anulado.neq.True");
+    // Step 7: Check FT table to verify these are valid non-cancelled invoices (using RPC)
+    const { data: ftData, error: ftError } = await supabase.rpc(
+      "get_ft_by_invoice_ids",
+      {
+        inv_ids: invoiceIds,
+      },
+    );
 
     if (ftError) {
       console.error("? Error fetching FT data:", ftError);
