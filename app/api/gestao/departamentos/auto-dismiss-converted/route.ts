@@ -5,6 +5,31 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
+// Type definitions for RPC responses
+type BoRecord = {
+  document_id: string;
+  document_number: string;
+  document_date: string;
+  customer_id: number;
+  total_value: number;
+};
+
+type BiRecord = {
+  document_id: string;
+  line_id: string;
+};
+
+type FiRecord = {
+  bistamp: string;
+  invoice_id: string;
+};
+
+type FtRecord = {
+  invoice_id: string;
+  document_type: string;
+  anulado: string | null;
+};
+
 /**
  * Auto-mark items as facturado for converted quotes
  *
@@ -98,12 +123,12 @@ export async function POST(request: Request) {
     }
 
     // Step 4: Get BO records for these quotes using RPC (avoids permission issues)
-    const { data: boData, error: boError } = await supabase.rpc(
+    const { data: boData, error: boError } = (await supabase.rpc(
       "get_quotes_by_numbers",
       {
         quote_numbers: normalizedQuoteNumbers,
       },
-    );
+    )) as { data: BoRecord[] | null; error: any };
 
     if (boError) {
       console.error("? Error fetching BO data:", boError);
@@ -129,12 +154,12 @@ export async function POST(request: Request) {
     const documentIds = boData.map((bo) => bo.document_id);
 
     // Step 5: Check BI table - find which quotes have been invoiced (using RPC)
-    const { data: biData, error: biError } = await supabase.rpc(
+    const { data: biData, error: biError } = (await supabase.rpc(
       "get_bi_by_document_ids",
       {
         doc_ids: documentIds,
       },
-    );
+    )) as { data: BiRecord[] | null; error: any };
 
     if (biError) {
       console.error("? Error fetching BI data:", biError);
@@ -161,12 +186,12 @@ export async function POST(request: Request) {
     const bistamps = biData.map((bi) => bi.line_id);
 
     // Step 6: Check FI table to verify these bistamps have invoices (using RPC)
-    const { data: fiData, error: fiError } = await supabase.rpc(
+    const { data: fiData, error: fiError } = (await supabase.rpc(
       "get_fi_by_bistamps",
       {
         bistamp_list: bistamps,
       },
-    );
+    )) as { data: FiRecord[] | null; error: any };
 
     if (fiError) {
       console.error("? Error fetching FI data:", fiError);
@@ -192,12 +217,12 @@ export async function POST(request: Request) {
     const invoiceIds = fiData.map((fi) => fi.invoice_id);
 
     // Step 7: Check FT table to verify these are valid non-cancelled invoices (using RPC)
-    const { data: ftData, error: ftError } = await supabase.rpc(
+    const { data: ftData, error: ftError } = (await supabase.rpc(
       "get_ft_by_invoice_ids",
       {
         inv_ids: invoiceIds,
       },
-    );
+    )) as { data: FtRecord[] | null; error: any };
 
     if (ftError) {
       console.error("? Error fetching FT data:", ftError);
@@ -219,22 +244,27 @@ export async function POST(request: Request) {
       });
     }
 
-    // Get valid invoice IDs
-    const validInvoiceIds = ftData.map((ft) => ft.invoice_id);
+    // OPTIMIZED: Use Sets for O(1) lookups instead of O(n) with .includes()
+    // Get valid invoice IDs as a Set
+    const validInvoiceIdsSet = new Set(ftData.map((ft) => ft.invoice_id));
 
     // Get bistamps that have valid invoices
-    const validBistamps = fiData
-      .filter((fi) => validInvoiceIds.includes(fi.invoice_id))
-      .map((fi) => fi.bistamp);
+    const validBistampsSet = new Set(
+      fiData
+        .filter((fi) => validInvoiceIdsSet.has(fi.invoice_id))
+        .map((fi) => fi.bistamp),
+    );
 
     // Get document_ids that have valid invoices
-    const validDocumentIds = biData
-      .filter((bi) => validBistamps.includes(bi.line_id))
-      .map((bi) => bi.document_id);
+    const validDocumentIdsSet = new Set(
+      biData
+        .filter((bi) => validBistampsSet.has(bi.line_id))
+        .map((bi) => bi.document_id),
+    );
 
     // Get quote numbers that have valid invoices (as TEXT)
     const invoicedQuotes = boData
-      .filter((bo) => validDocumentIds.includes(bo.document_id))
+      .filter((bo) => validDocumentIdsSet.has(bo.document_id))
       .map((bo) => bo.document_number);
 
     console.log(
