@@ -72,7 +72,7 @@ export default function DesignerAnalyticsPage() {
         fetch(`/api/designer-analytics/kpi?period=${activeTab}`),
         fetch(`/api/designer-analytics/complexity?period=${activeTab}`),
         fetch(
-          `/api/designer-analytics/cycle-times?period=${activeTab}&group_by=month`,
+          `/api/designer-analytics/cycle-times?period=${activeTab}&group_by=time_range`,
         ),
         fetch(
           `/api/designer-analytics/cycle-times?period=${activeTab}&group_by=complexity`,
@@ -134,48 +134,31 @@ export default function DesignerAnalyticsPage() {
     return grouped;
   }, [complexityData]);
 
-  // Get unique designer names for Chart 1
+  // Get unique designer names for stacked chart
   const designerNames = useMemo(() => {
     const names = new Set<string>();
     complexityData.forEach((row) => names.add(row.designer));
     return Array.from(names);
   }, [complexityData]);
 
-  // Transform complexity data for Chart 2: By Designer (stacked by complexity)
-  const complexityByDesignerData = useMemo(() => {
-    if (!complexityData.length) return [];
-
-    // Group by designer, with complexities as columns
-    const grouped = complexityData.reduce((acc, row) => {
-      const existing = acc.find((item: any) => item.designer === row.designer);
-      if (existing) {
-        existing[row.complexidade] = row.item_count;
-      } else {
-        acc.push({
-          designer: row.designer,
-          [row.complexidade]: row.item_count,
-        });
-      }
-      return acc;
-    }, [] as ChartDataPoint[]);
-
-    return grouped;
-  }, [complexityData]);
-
-  // Get unique complexity levels for Chart 2
-  const complexityLevels = useMemo(() => {
-    const levels = new Set<string>();
-    complexityData.forEach((row) => levels.add(row.complexidade));
-    return Array.from(levels);
-  }, [complexityData]);
-
-  // Transform cycle time data for Chart 3
+  // Transform cycle time data for Chart 3 (time ranges)
   const cycleTimeChartData = useMemo(() => {
-    return cycleTimeData.map((row) => ({
-      month: row.grouping_key,
-      "Entrada → Saída": row.avg_days_entrada_saida,
-      "Entrada → Paginação": row.avg_days_entrada_paginacao || 0,
-    }));
+    // Define proper order for ranges
+    const rangeOrder: Record<string, number> = {
+      "1-2 DIAS": 1,
+      "3-4 DIAS": 2,
+      "5-6 DIAS": 3,
+      "7-10 DIAS": 4,
+      "10+ DIAS": 5,
+    };
+
+    return cycleTimeData
+      .map((row) => ({
+        range: row.grouping_key,
+        "Nº Itens": row.completed_items,
+        order: rangeOrder[row.grouping_key] || 999,
+      }))
+      .sort((a, b) => a.order - b.order);
   }, [cycleTimeData]);
 
   // Transform cycle time by complexity for Chart 4
@@ -248,7 +231,7 @@ export default function DesignerAnalyticsPage() {
   // Matrix: Jobs by Designer and Complexity
   const matrixData = useMemo(() => {
     if (!complexityData.length)
-      return { rows: [], designers: [], complexities: [] };
+      return { rows: [], designers: [], complexities: [], columns: [] };
 
     const designers = Array.from(
       new Set(complexityData.map((row) => row.designer)),
@@ -288,7 +271,52 @@ export default function DesignerAnalyticsPage() {
     });
     totalsRow.total = grandTotal;
 
-    return { rows: [...matrix, totalsRow], designers, complexities };
+    // Build columns configuration for sortable table
+    const columns = [
+      {
+        key: "designer",
+        header: "Designer",
+        align: "left" as const,
+        sortable: true,
+      },
+      ...complexities.map((complexity) => ({
+        key: complexity,
+        header: complexity,
+        align: "center" as const,
+        sortable: true,
+      })),
+      {
+        key: "total",
+        header: "Total",
+        align: "right" as const,
+        sortable: true,
+      },
+    ];
+
+    return { rows: [...matrix, totalsRow], designers, complexities, columns };
+  }, [complexityData]);
+
+  // Chart data: Total jobs by designer
+  const jobsByDesignerData = useMemo(() => {
+    if (!complexityData.length) return [];
+
+    const designerTotals = complexityData.reduce(
+      (acc, row) => {
+        if (!acc[row.designer]) {
+          acc[row.designer] = 0;
+        }
+        acc[row.designer] += row.item_count;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    return Object.entries(designerTotals)
+      .map(([designer, total]) => ({
+        designer,
+        "Total Itens": total,
+      }))
+      .sort((a, b) => b["Total Itens"] - a["Total Itens"]);
   }, [complexityData]);
 
   return (
@@ -373,59 +401,12 @@ export default function DesignerAnalyticsPage() {
               Contagem de itens por designer e nível de complexidade
             </p>
             {matrixData.rows.length > 0 ? (
-              <div className="overflow-auto">
-                {/* eslint-disable-next-line imx/no-tailwind-border */}
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="imx-border-b bg-accent">
-                      <th className="px-4 py-3 text-sm font-normal uppercase text-accent-foreground text-left sticky left-0 bg-accent">
-                        Designer
-                      </th>
-                      {matrixData.complexities.map((complexity) => (
-                        <th
-                          key={complexity}
-                          className="px-4 py-3 text-sm font-normal uppercase text-accent-foreground text-center"
-                        >
-                          {complexity}
-                        </th>
-                      ))}
-                      <th className="px-4 py-3 text-sm font-normal uppercase text-accent-foreground text-right bg-primary/10">
-                        Total
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {matrixData.rows.map((row, idx) => {
-                      const isTotal = row.designer === "TOTAL";
-                      return (
-                        <tr
-                          key={row.designer}
-                          className={`imx-border-b ${isTotal ? "bg-primary/5 font-bold" : "hover:bg-accent/50"}`}
-                        >
-                          <td
-                            className={`px-4 py-3 text-sm sticky left-0 ${isTotal ? "bg-primary/5 font-bold" : "bg-background"}`}
-                          >
-                            {row.designer}
-                          </td>
-                          {matrixData.complexities.map((complexity) => (
-                            <td
-                              key={complexity}
-                              className="px-4 py-3 text-sm text-center"
-                            >
-                              {row[complexity] || 0}
-                            </td>
-                          ))}
-                          <td
-                            className={`px-4 py-3 text-sm text-right ${isTotal ? "bg-primary/10 font-bold" : "bg-accent/30"}`}
-                          >
-                            {row.total}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <ImacxSortableTable
+                data={matrixData.rows}
+                columns={matrixData.columns}
+                defaultSortColumn="total"
+                defaultSortDirection="desc"
+              />
             ) : (
               <p className="text-sm text-muted-foreground text-center py-8">
                 Sem dados disponíveis
@@ -433,47 +414,47 @@ export default function DesignerAnalyticsPage() {
             )}
           </Card>
 
-          {/* Distribution Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="imx-border p-6">
-              <h3 className="text-lg mb-4">TRABALHOS POR COMPLEXIDADE</h3>
-              <p className="text-xs text-muted-foreground mb-4 uppercase">
-                Distribuição por nível de complexidade (designers empilhados)
-              </p>
-              <ImacxBarChart
-                data={complexityByComplexityData}
-                dataKey={designerNames}
-                xAxisKey="complexidade"
-                height={350}
-              />
-            </Card>
+          {/* Total Jobs by Designer Chart */}
+          <Card className="imx-border p-6">
+            <h3 className="text-lg mb-4">TOTAL DE TRABALHOS POR DESIGNER</h3>
+            <p className="text-xs text-muted-foreground mb-4 uppercase">
+              Volume total de itens concluídos por designer
+            </p>
+            <ImacxBarChart
+              data={jobsByDesignerData}
+              dataKey="Total Itens"
+              xAxisKey="designer"
+              height={400}
+            />
+          </Card>
 
-            <Card className="imx-border p-6">
-              <h3 className="text-lg mb-4">TRABALHOS POR DESIGNER</h3>
-              <p className="text-xs text-muted-foreground mb-4 uppercase">
-                Distribuição por designer (complexidade empilhada)
-              </p>
-              <ImacxBarChart
-                data={complexityByDesignerData}
-                dataKey={complexityLevels}
-                xAxisKey="designer"
-                height={350}
-              />
-            </Card>
-          </div>
+          {/* Distribution Chart */}
+          <Card className="imx-border p-6">
+            <h3 className="text-lg mb-4">TRABALHOS POR COMPLEXIDADE</h3>
+            <p className="text-xs text-muted-foreground mb-4 uppercase">
+              Distribuição por nível de complexidade (designers empilhados)
+            </p>
+            <ImacxBarChart
+              data={complexityByComplexityData}
+              dataKey={designerNames}
+              xAxisKey="complexidade"
+              height={500}
+              stacked={true}
+            />
+          </Card>
 
           {/* Cycle Time Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card className="imx-border p-6">
-              <h3 className="text-lg mb-4">TEMPO MÉDIO DE CICLO</h3>
+              <h3 className="text-lg mb-4">DISTRIBUIÇÃO POR TEMPO DE CICLO</h3>
               <p className="text-xs text-muted-foreground mb-4 uppercase">
-                Evolução mensal dos tempos de processamento
+                Número de itens por intervalo de tempo (entrada → saída)
               </p>
               <ImacxBarChart
                 data={cycleTimeChartData}
-                dataKey={["Entrada → Saída", "Entrada → Paginação"]}
-                xAxisKey="month"
-                height={350}
+                dataKey="Nº Itens"
+                xAxisKey="range"
+                height={500}
               />
             </Card>
 
@@ -486,7 +467,7 @@ export default function DesignerAnalyticsPage() {
                 data={cycleTimeComplexityChartData}
                 dataKey="Dias Médios"
                 xAxisKey="complexidade"
-                height={350}
+                height={500}
               />
             </Card>
           </div>
@@ -527,7 +508,7 @@ export default function DesignerAnalyticsPage() {
               data={approvalCyclesChartData}
               dataKey="count"
               xAxisKey="cycles"
-              height={300}
+              height={450}
             />
           </Card>
 
@@ -543,7 +524,7 @@ export default function DesignerAnalyticsPage() {
                 dataKey: designer,
               }))}
               xAxisKey="month"
-              height={350}
+              height={500}
             />
           </Card>
 

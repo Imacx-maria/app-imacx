@@ -55,6 +55,12 @@ TEMP/docs/
 
 Project root stays clean (only permanent config files)
 
+✔ C. Supabase migrations housekeeping
+
+- Keep only the active, unapplied SQL files inside `supabase/migrations/`
+- After a migration has been applied everywhere and pushed, move it to `supabase/migrations_archive_YYYYMMDD/` (current folder: `supabase/migrations_archive_20250118/`) to keep the working directory tidy
+- If you need to provision a fresh environment, restore archived migrations (or replay them manually) in their original chronological order before running new ones
+
 Before Claude creates a new file:
 
 1. Check if it exists

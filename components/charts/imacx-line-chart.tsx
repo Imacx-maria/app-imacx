@@ -87,10 +87,13 @@ const ImacxLineChartInternal = ({
         <Tooltip content={<CustomTooltip />} />
         {lines.length > 1 && (
           <Legend
+            align="right"
+            verticalAlign="top"
             wrapperStyle={{
               textTransform: "uppercase",
               fontFamily: "var(--font-atkinson)",
               fontSize: 12,
+              paddingBottom: 10,
             }}
           />
         )}
