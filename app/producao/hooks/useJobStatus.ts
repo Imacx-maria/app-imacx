@@ -177,7 +177,7 @@ export function useJobStatus(
 
       try {
         // Get all jobs with their FO numbers and existing PHC values
-        const { data: jobsData, error: jobsError} = await supabase
+        const { data: jobsData, error: jobsError } = await supabase
           .from('folhas_obras')
           .select('id, Numero_do_, Euro__tota')
           .in('id', jobIds)
@@ -222,18 +222,12 @@ export function useJobStatus(
           // Prefer PHC cache if available, otherwise use Euro__tota if it was manually refreshed
           if (phcCacheValue > 0) {
             finalValue = phcCacheValue
-            console.log(`💰 PHC value for FO ${job.Numero_do_} (cache):`, finalValue)
           } else if (euroTotaValue > 0) {
             finalValue = euroTotaValue
-            console.log(`💰 PHC value for FO ${job.Numero_do_} (from Euro__tota):`, finalValue)
-          } else {
-            console.log(`⚠️ No value found for FO ${job.Numero_do_}`)
           }
 
           jobValuesMap[job.id] = finalValue
         })
-
-        console.log('💰 Updating job values (merging):', jobValuesMap)
 
         // CRITICAL: Merge with existing values instead of replacing the entire state
         // This prevents wiping out values for other jobs when refreshing a single job

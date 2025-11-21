@@ -92,9 +92,9 @@ function JobDrawerContentComponent({
 
     try {
       setRefreshingValor(true);
-      console.log("🔄 Starting PHC VALOR refresh for FO:", job.numero_fo);
+      // console.log("🔄 Starting PHC VALOR refresh for FO:", job.numero_fo);
       await onRefreshValorFromPhc(job.id);
-      console.log("✅ PHC VALOR refresh complete for FO:", job.numero_fo);
+      // console.log("✅ PHC VALOR refresh complete for FO:", job.numero_fo);
       alert(`Valor atualizado com sucesso para FO ${job.numero_fo}!`);
     } catch (error) {
       console.error("❌ Error refreshing PHC VALOR:", error);
@@ -145,7 +145,7 @@ function JobDrawerContentComponent({
       };
 
       // 1. Save the item to database
-      console.log("🔄 Inserting item with data:", finalData);
+      // console.log("🔄 Inserting item with data:", finalData);
       const { data: baseData, error: baseError } = await supabase
         .from("items_base")
         .insert(finalData)
@@ -164,7 +164,7 @@ function JobDrawerContentComponent({
       }
 
       // 2. Create designer_items row
-      console.log("🎨 Creating designer_items entry for item:", baseData.id);
+      // console.log("🎨 Creating designer_items entry for item:", baseData.id);
       const { data: designerData, error: designerError } = await supabase
         .from("designer_items")
         .insert({
@@ -187,13 +187,13 @@ function JobDrawerContentComponent({
         throw new Error("Failed to create designer_items entry");
       }
 
-      console.log("✅ Designer items entry created:", designerData);
+      // console.log("✅ Designer items entry created:", designerData);
 
       // 3. Create logistics entry
-      console.log(
-        "🚚 Creating logistica_entregas entry for item:",
-        baseData.id,
-      );
+      // console.log(
+      //   "🚚 Creating logistica_entregas entry for item:",
+      //   baseData.id,
+      // );
       const { data: logisticaData, error: logisticaError } = await supabase
         .from("logistica_entregas")
         .insert({
@@ -218,7 +218,7 @@ function JobDrawerContentComponent({
         throw new Error("Failed to create logistica_entregas entry");
       }
 
-      console.log("✅ Logistica entry created:", logisticaData);
+      // console.log("✅ Logistica entry created:", logisticaData);
 
       // 4. Update local state - add real item and remove from pending
       setAllItems((prev) => [
@@ -321,7 +321,7 @@ function JobDrawerContentComponent({
       };
 
       // Debug log the data being sent
-      console.log("🔧 Updating item with data:", finalData);
+      // console.log("🔧 Updating item with data:", finalData);
 
       // Update existing item in database
       const { error } = await supabase
@@ -370,7 +370,7 @@ function JobDrawerContentComponent({
         console.warn("⚠️ Could not update logistics entry:", logisticsError);
       } else if (!updateResult || updateResult.length === 0) {
         // No logistics entry exists - create one for older items
-        console.log("📦 No logistics entry found, creating one...");
+        // console.log("📦 No logistics entry found, creating one...");
         const { error: createError } = await supabase
           .from("logistica_entregas")
           .insert({
@@ -386,10 +386,10 @@ function JobDrawerContentComponent({
         if (createError) {
           console.warn("⚠️ Could not create logistics entry:", createError);
         } else {
-          console.log("✅ Logistics entry created");
+          // console.log("✅ Logistics entry created");
         }
       } else {
-        console.log("✅ Logistics entry updated:", logisticsUpdate);
+        // console.log("✅ Logistics entry updated:", logisticsUpdate);
       }
 
       // Update local state (combine items_base and designer_items data)
@@ -632,12 +632,12 @@ function JobDrawerContentComponent({
             prev.map((i) =>
               i.id === it.id
                 ? {
-                    ...i,
-                    descricao: it.descricao ?? "",
-                    codigo: it.codigo ?? "",
-                    quantidade: it.quantidade ?? null,
-                    brindes: it.brindes ?? false,
-                  }
+                  ...i,
+                  descricao: it.descricao ?? "",
+                  codigo: it.codigo ?? "",
+                  quantidade: it.quantidade ?? null,
+                  brindes: it.brindes ?? false,
+                }
                 : i,
             ),
           );
@@ -673,14 +673,14 @@ function JobDrawerContentComponent({
   // Fetch logistics records for job items
   const fetchLogisticaRows = async () => {
     if (logisticaFetchedRef.current) {
-      console.log("⏭️ Skipping logistics fetch - already fetched for this job");
+      // console.log("⏭️ Skipping logistics fetch - already fetched for this job");
       return;
     }
     setLogisticaLoading(true);
-    console.log("🔍 Fetching logistics for job items:", jobItems);
+    // console.log("🔍 Fetching logistics for job items:", jobItems);
 
     if (jobItems.length === 0) {
-      console.log("📦 No job items, clearing logistics table");
+      // console.log("📦 No job items, clearing logistics table");
       setLogisticaRows([]);
       setLogisticaLoading(false);
       return;
@@ -693,12 +693,12 @@ function JobDrawerContentComponent({
 
     // Preserve multiple logistics rows per item_id to support split deliveries
 
-    console.log("🔍 jobItems breakdown:", {
-      total: jobItems.length,
-      real: realItems.length,
-      pending: pendingItemsArray.length,
-      pendingIds: pendingItemsArray.map((i) => i.id),
-    });
+    // console.log("🔍 jobItems breakdown:", {
+    //   total: jobItems.length,
+    //   real: realItems.length,
+    //   pending: pendingItemsArray.length,
+    //   pendingIds: pendingItemsArray.map((i) => i.id),
+    // });
     // 2. Fetch all logistics records for those items with folhas_obras join
     let logisticsData: any[] = [];
     if (itemIds.length > 0) {
@@ -725,21 +725,21 @@ function JobDrawerContentComponent({
         )
         .in("item_id", itemIds);
       if (!logisticsError && logistics) {
-        console.log("✅ Fetched logistics data:", logistics.length, "rows");
+        // console.log("✅ Fetched logistics data:", logistics.length, "rows");
         // Map Numero_do_ to numero_fo for consistency
         logisticsData = logistics.map((l: any) => ({
           ...l,
           items_base: l.items_base
             ? {
-                ...l.items_base,
-                folhas_obras: l.items_base.folhas_obras
-                  ? {
-                      ...l.items_base.folhas_obras,
-                      numero_fo: l.items_base.folhas_obras.Numero_do_,
-                      cliente: l.items_base.folhas_obras.Nome,
-                    }
-                  : null,
-              }
+              ...l.items_base,
+              folhas_obras: l.items_base.folhas_obras
+                ? {
+                  ...l.items_base.folhas_obras,
+                  numero_fo: l.items_base.folhas_obras.Numero_do_,
+                  cliente: l.items_base.folhas_obras.Nome,
+                }
+                : null,
+            }
             : null,
         }));
       } else if (logisticsError) {
@@ -753,13 +753,13 @@ function JobDrawerContentComponent({
     // and acceptItem (for manual additions), so we don't need to auto-create them here.
     // This prevents duplication issues.
 
-    console.log("📊 Final merged rows:", mergedRows.length);
-    console.log(
-      "📊 Breakdown: fetched=" +
-        logisticsData.length +
-        ", created=" +
-        (mergedRows.length - logisticsData.length),
-    );
+    // console.log("📊 Final merged rows:", mergedRows.length);
+    // console.log(
+    //   "📊 Breakdown: fetched=" +
+    //     logisticsData.length +
+    //     ", created=" +
+    //     (mergedRows.length - logisticsData.length),
+    // );
 
     // Backfill data_saida from PHC delivery date for rows that don't have it
     try {
@@ -771,15 +771,15 @@ function JobDrawerContentComponent({
       const rowsNeedingDate = mergedRows.filter(
         (r) => !r.data_saida && r.items_base?.folhas_obras?.Numero_do_,
       );
-      console.log("📊 Rows needing data_saida:", rowsNeedingDate.length);
-      console.log(
-        "📊 All rows data_saida status:",
-        mergedRows.map((r) => ({
-          id: r.id,
-          data_saida: r.data_saida,
-          fo: r.items_base?.folhas_obras?.Numero_do_,
-        })),
-      );
+      // console.log("📊 Rows needing data_saida:", rowsNeedingDate.length);
+      // console.log(
+      //   "📊 All rows data_saida status:",
+      //   mergedRows.map((r) => ({
+      //     id: r.id,
+      //     data_saida: r.data_saida,
+      //     fo: r.items_base?.folhas_obras?.Numero_do_,
+      //   })),
+      // );
 
       if (rowsNeedingDate.length > 0) {
         const foNumbers = Array.from(
@@ -789,12 +789,12 @@ function JobDrawerContentComponent({
               .filter((fo) => fo !== ""),
           ),
         );
-        console.log(
-          "🔄 Backfilling data_saida for",
-          rowsNeedingDate.length,
-          "rows, FO numbers:",
-          foNumbers,
-        );
+        // console.log(
+        //   "🔄 Backfilling data_saida for",
+        //   rowsNeedingDate.length,
+        //   "rows, FO numbers:",
+        //   foNumbers,
+        // );
 
         let phcDates: any[] | null = null;
         let phcErr: any = null;

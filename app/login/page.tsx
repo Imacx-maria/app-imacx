@@ -124,14 +124,14 @@ export default function LoginPage() {
         // Try to save credentials using Credential Management API
         await saveCredentials()
 
-        // The PermissionsProvider will automatically detect the auth state change
-        // via onAuthStateChange and fetch permissions
+        // IMPORTANT: Use window.location.href instead of router.push() to force a full page reload
+        // This ensures cookies are properly synced from localStorage before middleware runs
+        // Client-side navigation (router.push) doesn't trigger cookie sync, causing auth issues
         console.log('🔄 Redirecionando para dashboard...')
         
-        // Small delay to allow browser to detect form submission
-        setTimeout(() => {
-          router.push('/dashboard')
-        }, 100)
+        // Use full page reload to ensure session cookies are synced properly
+        // This fixes the issue where users had to refresh after login
+        window.location.href = '/dashboard'
       }
     } catch (err: any) {
       console.error('❌ Exception:', err)

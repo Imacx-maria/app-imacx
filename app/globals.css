@@ -441,15 +441,17 @@
         color: var(--muted-foreground) !important;
     }
 
-    .dark nav button:hover,
-    .dark nav button:hover *,
-    .dark nav a:hover,
-    .dark nav a:hover * {
+    .dark nav button:not(.bg-primary):hover,
+    .dark nav button:not(.bg-primary):hover *,
+    .dark nav a:not(.bg-primary):hover,
+    .dark nav a:not(.bg-primary):hover * {
         color: var(--accent-foreground) !important;
     }
 
     .dark nav .bg-primary,
-    .dark nav .bg-primary * {
+    .dark nav .bg-primary *,
+    .dark nav .bg-primary:hover,
+    .dark nav .bg-primary:hover * {
         color: var(--primary-foreground) !important;
     }
 

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Performance Data Export</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 { color: #333; margin-top: 0; }
+    button {
+      background: #0066cc;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 10px 10px 0;
+    }
+    button:hover { background: #0052a3; }
+    button.secondary {
+      background: #666;
+    }
+    button.secondary:hover {
+      background: #555;
+    }
+    button.danger {
+      background: #dc3545;
+    }
+    button.danger:hover {
+      background: #c82333;
+    }
+    pre {
+      background: #f8f8f8;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+      border: 1px solid #ddd;
+    }
+    .status {
+      padding: 10px;
+      margin: 15px 0;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+    .status.info { background: #e3f2fd; color: #1976d2; border: 1px solid #90caf9; }
+    .status.success { background: #e8f5e9; color: #388e3c; border: 1px solid #81c784; }
+    .status.warning { background: #fff3e0; color: #f57c00; border: 1px solid #ffb74d; }
+    .status.error { background: #ffebee; color: #d32f2f; border: 1px solid #e57373; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📊 Performance Data Export</h1>
+
+    <div class="status info">
+      <strong>Instructions:</strong><br>
+      1. Navigate through your app pages<br>
+      2. Come back to this page<br>
+      3. Click "Export Data" to see results
+    </div>
+
+    <div>
+      <button onclick="exportData()">📤 Export Data</button>
+      <button onclick="downloadData()" class="secondary">💾 Download JSON</button>
+      <button onclick="clearData()" class="danger">🗑️ Clear Data</button>
+    </div>
+
+    <div id="status"></div>
+    <pre id="output" style="display: none;"></pre>
+  </div>
+
+  <script>
+    const statusDiv = document.getElementById('status');
+    const outputPre = document.getElementById('output');
+
+    function showStatus(message, type = 'info') {
+      statusDiv.className = `status ${type}`;
+      statusDiv.innerHTML = message;
+      statusDiv.style.display = 'block';
+    }
+
+    function exportData() {
+      const data = localStorage.getItem('performanceAudits');
+
+      if (!data) {
+        showStatus('❌ No performance data found. Navigate through pages first.', 'warning');
+        outputPre.style.display = 'none';
+        return;
+      }
+
+      const audits = JSON.parse(data);
+
+      if (audits.length === 0) {
+        showStatus('❌ Performance data is empty', 'error');
+        outputPre.style.display = 'none';
+        return;
+      }
+
+      // Group by page
+      const byPage = audits.reduce((acc, metric) => {
+        if (!acc[metric.page]) {
+          acc[metric.page] = [];
+        }
+        acc[metric.page].push(metric);
+        return acc;
+      }, {});
+
+      // Calculate averages per page
+      const pageStats = Object.entries(byPage).map(([page, metrics]) => {
+        const avgDom = metrics.reduce((sum, m) => sum + m.domContentLoadedTime, 0) / metrics.length;
+        const avgLoad = metrics.reduce((sum, m) => sum + m.loadCompleteTime, 0) / metrics.length;
+        const avgResources = metrics.reduce((sum, m) => sum + m.resources.length, 0) / metrics.length;
+
+        return {
+          page,
+          measurements: metrics.length,
+          avgDomContentLoaded: Math.round(avgDom),
+          avgLoadComplete: Math.round(avgLoad),
+          avgResourceCount: Math.round(avgResources),
+        };
+      }).sort((a, b) => b.avgLoadComplete - a.avgLoadComplete);
+
+      const totalAvgDom = pageStats.reduce((sum, s) => sum + s.avgDomContentLoaded, 0) / pageStats.length;
+      const totalAvgLoad = pageStats.reduce((sum, s) => sum + s.avgLoadComplete, 0) / pageStats.length;
+
+      const report = `
+🐌 SLOWEST PAGES:
+${pageStats.slice(0, 10).map((s, i) =>
+  `${i + 1}. ${s.page}
+   - Load Time: ${s.avgLoadComplete}ms
+   - DOM: ${s.avgDomContentLoaded}ms
+   - Resources: ${s.avgResourceCount}`
+).join('\n\n')}
+
+📈 OVERALL STATS:
+- Pages Measured: ${Object.keys(byPage).length}
+- Total Measurements: ${audits.length}
+- Avg DOM Content Loaded: ${Math.round(totalAvgDom)}ms
+- Avg Load Complete: ${Math.round(totalAvgLoad)}ms
+- Fastest Page: ${pageStats[pageStats.length - 1]?.page} (${pageStats[pageStats.length - 1]?.avgLoadComplete}ms)
+- Slowest Page: ${pageStats[0]?.page} (${pageStats[0]?.avgLoadComplete}ms)
+      `.trim();
+
+      showStatus(`✅ Found ${audits.length} measurements across ${Object.keys(byPage).length} pages`, 'success');
+      outputPre.textContent = report;
+      outputPre.style.display = 'block';
+
+      // Store for download
+      window.exportedData = { pageStats, rawData: audits };
+    }
+
+    function downloadData() {
+      if (!window.exportedData) {
+        showStatus('❌ Export data first', 'error');
+        return;
+      }
+
+      const blob = new Blob([JSON.stringify(window.exportedData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `performance-audit-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showStatus('✅ Downloaded performance data', 'success');
+    }
+
+    function clearData() {
+      if (confirm('Are you sure you want to clear all performance data?')) {
+        localStorage.removeItem('performanceAudits');
+        window.exportedData = null;
+        showStatus('✅ Cleared all performance data', 'success');
+        outputPre.style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>

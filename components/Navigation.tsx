@@ -365,9 +365,6 @@ const NavigationInternal = () => {
   const filteredMenuItems = useMemo(() => {
     // If still loading, show Dashboard only to prevent blank sidebar
     if (permissionsLoading) {
-      console.log(
-        "🔄 [NAVIGATION] Permissions loading - showing dashboard only",
-      );
       return menuItems.filter((item) => item.pageId === "dashboard");
     }
 
@@ -389,10 +386,6 @@ const NavigationInternal = () => {
       return false;
     });
 
-    console.log(
-      "✅ [NAVIGATION] Filtered menu items:",
-      filtered.map((i) => i.title),
-    );
     return filtered;
   }, [canAccessPage, permissionsLoading]);
 
@@ -495,10 +488,9 @@ const NavigationInternal = () => {
                               <CollapsibleTrigger
                                 className={cn(
                                   "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                                  "hover:bg-accent hover:text-accent-foreground",
                                   hasActiveSubmenu(item.submenu)
-                                    ? "bg-primary text-primary-foreground"
-                                    : "text-muted-foreground",
+                                    ? "bg-primary text-primary-foreground hover:text-primary-foreground"
+                                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                                   "justify-center",
                                 )}
                               >
@@ -515,10 +507,9 @@ const NavigationInternal = () => {
                           <button
                             className={cn(
                               "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                              "hover:bg-accent hover:text-accent-foreground",
                               hasActiveSubmenu(item.submenu)
-                                ? "bg-primary text-primary-foreground"
-                                : "text-muted-foreground",
+                                ? "bg-primary text-primary-foreground hover:text-primary-foreground"
+                                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                             )}
                           >
                             {item.icon}
@@ -553,7 +544,7 @@ const NavigationInternal = () => {
                                 className={cn(
                                   "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
                                   isActive(subItem.href)
-                                    ? "bg-primary text-primary-foreground"
+                                    ? "bg-primary text-primary-foreground hover:text-primary-foreground"
                                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                                 )}
                               >
@@ -588,7 +579,7 @@ const NavigationInternal = () => {
                             className={cn(
                               "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                               isActive(item.href!)
-                                ? "bg-primary text-primary-foreground"
+                                ? "bg-primary text-primary-foreground hover:text-primary-foreground"
                                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                               "justify-center",
                             )}
@@ -616,7 +607,7 @@ const NavigationInternal = () => {
                       className={cn(
                         "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                         isActive(item.href!)
-                          ? "bg-primary text-primary-foreground"
+                          ? "bg-primary text-primary-foreground hover:text-primary-foreground"
                           : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                       )}
                     >

@@ -42,11 +42,12 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
                   width={120}
                   height={30}
                   priority
+                  style={{ width: 'auto', height: 'auto' }}
                 />
               </Link>
             )}
           </div>
-          
+
           {/* Page Content */}
           <div className="flex-1 p-6">
             <div className="max-w-[1600px] mx-auto">

@@ -17,13 +17,13 @@ const EXPECTED_PROJECT_URL = `https://${EXPECTED_PROJECT_ID}.supabase.co`
 function decodeBase64Url(segment: string): string {
   // Convert base64url to standard base64
   let base64 = segment.replace(/-/g, '+').replace(/_/g, '/')
-  
+
   // Add padding if needed (JWT segments omit = padding)
   const pad = base64.length % 4
   if (pad) {
     base64 += '='.repeat(4 - pad)
   }
-  
+
   // Decode based on environment
   if (typeof window !== 'undefined') {
     return atob(base64)
@@ -47,7 +47,7 @@ export const createBrowserClient = () => {
       console.error('🚨 SECURITY ALERT: Supabase project mismatch!')
       console.error('Expected project:', EXPECTED_PROJECT_ID)
       console.error('JWT contains:', payload.ref)
-      
+
       // Clear localStorage to prevent cross-project contamination
       if (typeof window !== 'undefined') {
         try {
@@ -60,11 +60,11 @@ export const createBrowserClient = () => {
           // Ignore localStorage access errors
         }
       }
-      
+
       throw new Error(`SECURITY: Supabase key is for wrong project! Expected ${EXPECTED_PROJECT_ID} but got ${payload.ref}`)
     }
-    
-    console.log('✅ Supabase client verified for project:', EXPECTED_PROJECT_ID)
+
+    // console.log('✅ Supabase client verified for project:', EXPECTED_PROJECT_ID)
   } catch (e) {
     if (e instanceof Error && e.message.includes('SECURITY')) throw e
     console.warn('Could not verify JWT:', e)

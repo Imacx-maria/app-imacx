@@ -52,13 +52,14 @@ export const EditButton = memo(EditButtonInternal);
  * View Button - Opens read-only drawer/view
  * Opens drawer where user can ONLY view information
  */
-const ViewButtonInternal: React.FC<ActionButtonProps> = ({
+const ViewButtonInternal = React.forwardRef<HTMLButtonElement, ActionButtonProps>(({
   onClick,
   disabled = false,
   title = "Ver detalhes",
   className = "",
-}) => (
+}, ref) => (
   <Button
+    ref={ref}
     size="icon"
     variant="default"
     onClick={onClick}
@@ -68,7 +69,8 @@ const ViewButtonInternal: React.FC<ActionButtonProps> = ({
   >
     <Eye className="h-4 w-4" />
   </Button>
-);
+));
+ViewButtonInternal.displayName = "ViewButtonInternal";
 
 export const ViewButton = memo(ViewButtonInternal);
 
