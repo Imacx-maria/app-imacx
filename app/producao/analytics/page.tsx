@@ -133,11 +133,16 @@ export default function ProductionAnalyticsPage() {
 
   // Transform complexity data for chart
   const complexityChartData = useMemo(() => {
-    // Define complexity order
+    // Define complexity order (project types)
     const complexityOrder: Record<string, number> = {
-      BAIXA: 1,
-      MÉDIA: 2,
-      ALTA: 3,
+      STANDARD: 1,
+      ESPECIAL: 2,
+      VINIL: 3,
+      PROTÓTIPO: 4,
+      "EXPOSITOR REPETIÇÃO": 5,
+      "EXPOSITOR NOVO": 6,
+      OFFSET: 7,
+      "SEM COMPLEXIDADE": 999,
     };
 
     return complexityData
@@ -152,11 +157,16 @@ export default function ProductionAnalyticsPage() {
 
   // Transform cycle time by complexity for chart
   const cycleTimeComplexityChartData = useMemo(() => {
-    // Define complexity order
+    // Define complexity order (project types)
     const complexityOrder: Record<string, number> = {
-      BAIXA: 1,
-      MÉDIA: 2,
-      ALTA: 3,
+      STANDARD: 1,
+      ESPECIAL: 2,
+      VINIL: 3,
+      PROTÓTIPO: 4,
+      "EXPOSITOR REPETIÇÃO": 5,
+      "EXPOSITOR NOVO": 6,
+      OFFSET: 7,
+      "SEM COMPLEXIDADE": 999,
     };
 
     return cycleTimeByComplexity
@@ -171,32 +181,27 @@ export default function ProductionAnalyticsPage() {
 
   // Transform value data for chart
   const valueChartData = useMemo(() => {
-    const valueBracketOrder: Record<string, number> = {
-      "0 - SEM VALOR": 0,
-      "0-1K": 1,
-      "1K-5K": 2,
-      "5K-10K": 3,
-      "10K-25K": 4,
-      "25K+": 5,
-    };
-
     return valueData
       .map((row) => ({
         bracket: row.value_bracket,
         "Nº Jobs": row.job_count,
         "Valor Total": row.total_value / 1000, // Convert to thousands
-        order: valueBracketOrder[row.value_bracket] || 999,
       }))
-      .sort((a, b) => a.order - b.order);
+      .sort((a, b) => b["Valor Total"] - a["Valor Total"]); // Sort by total value descending
   }, [valueData]);
 
   // Transform designer lead time data
   const designerLeadChartData = useMemo(() => {
-    // Define complexity order
+    // Define complexity order (project types)
     const complexityOrder: Record<string, number> = {
-      BAIXA: 1,
-      MÉDIA: 2,
-      ALTA: 3,
+      STANDARD: 1,
+      ESPECIAL: 2,
+      VINIL: 3,
+      PROTÓTIPO: 4,
+      "EXPOSITOR REPETIÇÃO": 5,
+      "EXPOSITOR NOVO": 6,
+      OFFSET: 7,
+      "SEM COMPLEXIDADE": 999,
     };
 
     return designerLeadData
@@ -204,7 +209,7 @@ export default function ProductionAnalyticsPage() {
         complexidade: row.grouping_key,
         "Dias até 1ª Maquete": row.avg_days_to_first_mockup,
         "Nº Jobs": row.job_count,
-        order: complexityOrder[row.grouping_key.toUpperCase()] || 999,
+        order: complexityOrder[row.grouping_key?.toUpperCase()?.trim()] || 999,
       }))
       .sort((a, b) => a.order - b.order);
   }, [designerLeadData]);

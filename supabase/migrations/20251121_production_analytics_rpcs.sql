@@ -28,8 +28,8 @@ BEGIN
       COALESCE(fo.data_in::DATE, fo.created_at::DATE) as entry_date,
       fo."Euro__tota" as job_value,
       COUNT(DISTINCT ib.id) as total_items,
-      COUNT(DISTINCT CASE WHEN le.concluido = true THEN le.item_id END) as completed_items,
-      MAX(le.data_concluido)::DATE as completion_date
+      COUNT(DISTINCT CASE WHEN le.data_saida IS NOT NULL THEN le.item_id END) as completed_items,
+      MAX(le.data_saida)::DATE as completion_date
     FROM folhas_obras fo
     LEFT JOIN items_base ib ON ib.folha_obra_id = fo.id
     LEFT JOIN logistica_entregas le ON le.item_id = ib.id
@@ -84,44 +84,53 @@ BEGIN
   IF group_by = 'time_range' THEN
     -- Group by predefined time ranges
     RETURN QUERY
-    WITH completed_jobs AS (
-      SELECT
-        fo.id,
+    WITH completed_items AS (
+      SELECT DISTINCT
+        ib.id as item_id,
         COALESCE(fo.data_in::DATE, fo.created_at::DATE) as entry_date,
-        MAX(le.data_concluido)::DATE as completion_date,
-        MAX(le.data_concluido)::DATE - COALESCE(fo.data_in::DATE, fo.created_at::DATE) as days_to_complete,
-        fo."Euro__tota"
+        le.data_saida::DATE as completion_date,
+        le.data_saida::DATE - COALESCE(fo.data_in::DATE, fo.created_at::DATE) as days_to_complete,
+        fo."Euro__tota" / NULLIF(COUNT(DISTINCT ib.id) OVER (PARTITION BY fo.id), 0) as item_value
       FROM folhas_obras fo
       INNER JOIN items_base ib ON ib.folha_obra_id = fo.id
       INNER JOIN logistica_entregas le ON le.item_id = ib.id
       WHERE COALESCE(fo.data_in::DATE, fo.created_at::DATE) >= start_date
         AND COALESCE(fo.data_in::DATE, fo.created_at::DATE) <= end_date
-        AND le.concluido = true
-      GROUP BY fo.id, fo.data_in, fo.created_at, fo."Euro__tota"
-      HAVING COUNT(DISTINCT ib.id) = COUNT(DISTINCT CASE WHEN le.concluido = true THEN le.item_id END)
+        AND le.data_saida IS NOT NULL
+    ),
+    grouped_data AS (
+      SELECT
+        CASE
+          WHEN days_to_complete <= 7 THEN '1-7 DIAS'
+          WHEN days_to_complete BETWEEN 8 AND 14 THEN '8-14 DIAS'
+          WHEN days_to_complete BETWEEN 15 AND 30 THEN '15-30 DIAS'
+          WHEN days_to_complete BETWEEN 31 AND 60 THEN '31-60 DIAS'
+          ELSE '60+ DIAS'
+        END as grouping_key,
+        ROUND(AVG(days_to_complete), 2)::NUMERIC as avg_days,
+        COUNT(*)::INTEGER as job_count,
+        MIN(days_to_complete)::INTEGER as min_days,
+        MAX(days_to_complete)::INTEGER as max_days,
+        SUM(item_value)::NUMERIC as total_value
+      FROM completed_items
+      WHERE days_to_complete IS NOT NULL
+      GROUP BY
+        CASE
+          WHEN days_to_complete <= 7 THEN '1-7 DIAS'
+          WHEN days_to_complete BETWEEN 8 AND 14 THEN '8-14 DIAS'
+          WHEN days_to_complete BETWEEN 15 AND 30 THEN '15-30 DIAS'
+          WHEN days_to_complete BETWEEN 31 AND 60 THEN '31-60 DIAS'
+          ELSE '60+ DIAS'
+        END
     )
     SELECT
-      CASE
-        WHEN days_to_complete <= 7 THEN '1-7 DIAS'
-        WHEN days_to_complete BETWEEN 8 AND 14 THEN '8-14 DIAS'
-        WHEN days_to_complete BETWEEN 15 AND 30 THEN '15-30 DIAS'
-        WHEN days_to_complete BETWEEN 31 AND 60 THEN '31-60 DIAS'
-        ELSE '60+ DIAS'
-      END as grouping_key,
-      ROUND(AVG(days_to_complete), 2)::NUMERIC,
-      COUNT(*)::INTEGER,
-      MIN(days_to_complete)::INTEGER,
-      MAX(days_to_complete)::INTEGER,
-      SUM("Euro__tota")::NUMERIC
-    FROM completed_jobs
-    GROUP BY
-      CASE
-        WHEN days_to_complete <= 7 THEN '1-7 DIAS'
-        WHEN days_to_complete BETWEEN 8 AND 14 THEN '8-14 DIAS'
-        WHEN days_to_complete BETWEEN 15 AND 30 THEN '15-30 DIAS'
-        WHEN days_to_complete BETWEEN 31 AND 60 THEN '31-60 DIAS'
-        ELSE '60+ DIAS'
-      END
+      grouping_key,
+      avg_days,
+      job_count,
+      min_days,
+      max_days,
+      total_value
+    FROM grouped_data
     ORDER BY
       CASE grouping_key
         WHEN '1-7 DIAS' THEN 1
@@ -139,8 +148,8 @@ BEGIN
         ib.id as item_id,
         COALESCE(UPPER(di.complexidade), 'SEM COMPLEXIDADE') as complexidade,
         COALESCE(fo.data_in::DATE, fo.created_at::DATE) as entry_date,
-        le.data_concluido::DATE as completion_date,
-        le.data_concluido::DATE - COALESCE(fo.data_in::DATE, fo.created_at::DATE) as days_to_complete,
+        le.data_saida::DATE as completion_date,
+        le.data_saida::DATE - COALESCE(fo.data_in::DATE, fo.created_at::DATE) as days_to_complete,
         fo."Euro__tota" as job_value
       FROM folhas_obras fo
       INNER JOIN items_base ib ON ib.folha_obra_id = fo.id
@@ -148,8 +157,7 @@ BEGIN
       INNER JOIN logistica_entregas le ON le.item_id = ib.id
       WHERE COALESCE(fo.data_in::DATE, fo.created_at::DATE) >= start_date
         AND COALESCE(fo.data_in::DATE, fo.created_at::DATE) <= end_date
-        AND le.concluido = true
-        AND le.data_concluido IS NOT NULL
+        AND le.data_saida IS NOT NULL
     )
     SELECT
       complexidade as grouping_key,
@@ -162,10 +170,14 @@ BEGIN
     GROUP BY complexidade
     ORDER BY
       CASE complexidade
-        WHEN 'BAIXA' THEN 1
-        WHEN 'MÉDIA' THEN 2
-        WHEN 'ALTA' THEN 3
-        ELSE 4
+        WHEN 'STANDARD' THEN 1
+        WHEN 'ESPECIAL' THEN 2
+        WHEN 'VINIL' THEN 3
+        WHEN 'PROTÓTIPO' THEN 4
+        WHEN 'EXPOSITOR REPETIÇÃO' THEN 5
+        WHEN 'EXPOSITOR NOVO' THEN 6
+        WHEN 'OFFSET' THEN 7
+        ELSE 999
       END;
 
   ELSIF group_by = 'value_bracket' THEN
@@ -270,10 +282,14 @@ BEGIN
   GROUP BY complexity
   ORDER BY
     CASE complexity
-      WHEN 'BAIXA' THEN 1
-      WHEN 'MÉDIA' THEN 2
-      WHEN 'ALTA' THEN 3
-      ELSE 4
+      WHEN 'STANDARD' THEN 1
+      WHEN 'ESPECIAL' THEN 2
+      WHEN 'VINIL' THEN 3
+      WHEN 'PROTÓTIPO' THEN 4
+      WHEN 'EXPOSITOR REPETIÇÃO' THEN 5
+      WHEN 'EXPOSITOR NOVO' THEN 6
+      WHEN 'OFFSET' THEN 7
+      ELSE 999
     END;
 END;
 $$ LANGUAGE plpgsql;
@@ -415,10 +431,14 @@ BEGIN
     GROUP BY complexity
     ORDER BY
       CASE complexity
-        WHEN 'BAIXA' THEN 1
-        WHEN 'MÉDIA' THEN 2
-        WHEN 'ALTA' THEN 3
-        ELSE 4
+        WHEN 'STANDARD' THEN 1
+        WHEN 'ESPECIAL' THEN 2
+        WHEN 'VINIL' THEN 3
+        WHEN 'PROTÓTIPO' THEN 4
+        WHEN 'EXPOSITOR REPETIÇÃO' THEN 5
+        WHEN 'EXPOSITOR NOVO' THEN 6
+        WHEN 'OFFSET' THEN 7
+        ELSE 999
       END;
 
   ELSIF group_by = 'value_bracket' THEN
