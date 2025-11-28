@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, memo } from "react";
+import { useState, useEffect, memo, useMemo } from "react";
 import { createBrowserClient } from "@/utils/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,7 +71,8 @@ function MaterialEditDrawerComponent({
   const [availableTipos, setAvailableTipos] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  const supabase = createBrowserClient();
+  // Memoize the supabase client to prevent infinite re-renders
+  const supabase = useMemo(() => createBrowserClient(), []);
 
   // Update editData when material prop changes
   useEffect(() => {

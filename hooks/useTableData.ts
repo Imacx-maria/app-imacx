@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createBrowserClient } from '@/utils/supabase'
 
 export interface OperatorOption {
@@ -18,7 +18,8 @@ export const useTableData = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const supabase = createBrowserClient()
+  // Memoize the supabase client to prevent infinite re-renders
+  const supabase = useMemo(() => createBrowserClient(), [])
 
   // Fetch operators with specific role names
   const fetchOperators = useCallback(async () => {

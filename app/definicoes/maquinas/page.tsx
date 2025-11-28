@@ -37,8 +37,11 @@ import {
   Edit,
   RotateCw,
   XSquare,
+  ArrowLeft,
+  ArrowRight,
 } from "lucide-react";
 import PermissionGuard from "@/components/PermissionGuard";
+import { useMemo } from "react";
 // Machine types for combobox
 const MACHINE_TYPES = [
   { value: "Impressao", label: "Impressão" },
@@ -98,7 +101,8 @@ export default function MaquinasPage() {
   const effectiveNameFilter =
     debouncedNameFilter.trim().length >= 3 ? debouncedNameFilter : "";
 
-  const supabase = createBrowserClient();
+  // Memoize the supabase client to prevent infinite re-renders
+  const supabase = useMemo(() => createBrowserClient(), []);
 
   // Convert to database-level filtering
   const fetchMaquinas = useCallback(
@@ -158,6 +162,23 @@ export default function MaquinasPage() {
 
   // Remove client-side filtering - now using database-level filtering
   const filteredMaquinas = maquinas;
+
+  // Pagination state
+  const ITEMS_PER_PAGE = 40;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [effectiveNameFilter, filteredMaquinas.length]);
+
+  // Paginated data
+  const totalPages = Math.ceil(filteredMaquinas.length / ITEMS_PER_PAGE);
+  const paginatedMaquinas = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return filteredMaquinas.slice(startIndex, endIndex);
+  }, [filteredMaquinas, currentPage]);
 
   // Add handler for inline add
   const handleAddNew = () => {
@@ -363,24 +384,24 @@ export default function MaquinasPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-background w-full">
+        <div className="bg-background w-full space-y-4">
           <div className="w-full">
-            <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+            <Table className="w-full table-fixed imx-table-compact">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sticky top-0 z-10 min-w-[300px] imx-border-b text-center uppercase">
+                  <TableHead className="min-w-[300px] imx-border-b text-left uppercase">
                     Nome da Máquina
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[120px] imx-border-b text-center uppercase">
+                  <TableHead className="w-[120px] imx-border-b text-left uppercase">
                     Tipo
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[80px] imx-border-b text-center uppercase">
+                  <TableHead className="w-[80px] imx-border-b text-center uppercase">
                     Ativa
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[150px] imx-border-b text-center uppercase">
+                  <TableHead className="w-[150px] imx-border-b text-center uppercase">
                     Valor/m²
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[140px] imx-border-b text-center uppercase">
+                  <TableHead className="w-[100px] imx-border-b text-center uppercase">
                     Ações
                   </TableHead>
                 </TableRow>
@@ -395,7 +416,7 @@ export default function MaquinasPage() {
                       <Loader2 className="text-muted-foreground mx-auto h-8 w-8 animate-spin" />
                     </TableCell>
                   </TableRow>
-                ) : filteredMaquinas.length === 0 && editingId !== "new" ? (
+                ) : paginatedMaquinas.length === 0 && editingId !== "new" ? (
                   <TableRow>
                     <TableCell
                       colSpan={5}
@@ -479,7 +500,7 @@ export default function MaquinasPage() {
                         </TableCell>
 
                         {/* Ações */}
-                        <TableCell className="flex justify-center gap-2">
+                        <TableCell className="w-[100px] flex justify-center gap-1">
                           {/* Save button */}
                           <TooltipProvider>
                             <Tooltip>
@@ -487,6 +508,7 @@ export default function MaquinasPage() {
                                 <Button
                                   variant="default"
                                   size="icon"
+                                  className="h-8 w-8"
                                   onClick={handleAddSave}
                                   disabled={
                                     submitting || !editData.nome_maquina.trim()
@@ -506,6 +528,7 @@ export default function MaquinasPage() {
                                 <Button
                                   variant="outline"
                                   size="icon"
+                                  className="h-8 w-8"
                                   onClick={handleEditCancel}
                                   disabled={submitting}
                                   aria-label="Cancelar"
@@ -519,9 +542,9 @@ export default function MaquinasPage() {
                         </TableCell>
                       </TableRow>
                     )}
-                    {filteredMaquinas.map((maquina) => (
+                    {paginatedMaquinas.map((maquina) => (
                       <TableRow key={maquina.id}>
-                        <TableCell className="font-medium uppercase">
+                        <TableCell className="text-left font-medium uppercase">
                           {editingId === maquina.id ? (
                             <Input
                               value={editData.nome_maquina}
@@ -540,7 +563,7 @@ export default function MaquinasPage() {
                             maquina.nome_maquina || "-"
                           )}
                         </TableCell>
-                        <TableCell className="uppercase">
+                        <TableCell className="w-[120px] text-left uppercase">
                           {editingId === maquina.id ? (
                             <Combobox
                               value={editData.tipo}
@@ -563,7 +586,7 @@ export default function MaquinasPage() {
                             "-"
                           )}
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="w-[80px] text-center">
                           {editingId === maquina.id ? (
                             <Checkbox
                               checked={editData.ativa}
@@ -579,7 +602,7 @@ export default function MaquinasPage() {
                             <Checkbox checked={maquina.ativa} disabled />
                           )}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="w-[150px] text-center">
                           {editingId === maquina.id ? (
                             <Input
                               value={editData.valor_m2}
@@ -589,7 +612,7 @@ export default function MaquinasPage() {
                                   valor_m2: e.target.value,
                                 }))
                               }
-                              className="h-10 text-right text-sm outline-0 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              className="h-10 text-center text-sm outline-0 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               type="number"
                               step="0.01"
                               min="0"
@@ -599,7 +622,7 @@ export default function MaquinasPage() {
                             formatCurrency(maquina.valor_m2)
                           )}
                         </TableCell>
-                        <TableCell className="flex justify-center gap-2">
+                        <TableCell className="w-[100px] flex justify-center gap-1">
                           {editingId === maquina.id ? (
                             <>
                               {/* Save button */}
@@ -609,6 +632,7 @@ export default function MaquinasPage() {
                                     <Button
                                       variant="default"
                                       size="icon"
+                                      className="h-8 w-8"
                                       onClick={() => handleEditSave(maquina.id)}
                                       disabled={
                                         submitting ||
@@ -629,6 +653,7 @@ export default function MaquinasPage() {
                                     <Button
                                       variant="outline"
                                       size="icon"
+                                      className="h-8 w-8"
                                       onClick={handleEditCancel}
                                       disabled={submitting}
                                       aria-label="Cancelar"
@@ -649,6 +674,7 @@ export default function MaquinasPage() {
                                     <Button
                                       variant="default"
                                       size="icon"
+                                      className="h-8 w-8"
                                       onClick={() => handleEdit(maquina)}
                                       aria-label="Editar"
                                       disabled={editingId !== null}
@@ -666,6 +692,7 @@ export default function MaquinasPage() {
                                     <Button
                                       variant="destructive"
                                       size="icon"
+                                      className="h-8 w-8"
                                       onClick={() => handleDelete(maquina.id)}
                                       aria-label="Eliminar"
                                       disabled={editingId !== null}
@@ -686,6 +713,35 @@ export default function MaquinasPage() {
               </TableBody>
             </Table>
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 text-sm imx-border-t">
+              <div className="text-muted-foreground">
+                Página {currentPage} de {totalPages} ({filteredMaquinas.length}{" "}
+                máquinas)
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setCurrentPage(Math.min(totalPages, currentPage + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Drawer for add/edit form - keeping structure but marking as unused */}

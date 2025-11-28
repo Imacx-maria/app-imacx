@@ -48,6 +48,8 @@ import {
   ArrowDown,
   XSquare,
   Copy,
+  ArrowLeft,
+  ArrowRight,
 } from "lucide-react";
 import PermissionGuard from "@/components/PermissionGuard";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -143,6 +145,10 @@ export default function MateriaisPage() {
   >([]);
   const [availableCores, setAvailableCores] = useState<string[]>([]);
   const [availableTipos, setAvailableTipos] = useState<string[]>([]);
+
+  // Pagination state
+  const ITEMS_PER_PAGE = 40;
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Debounced filter values for performance
   const debouncedTipoFilter = useDebounce(tipoFilter, 300);
@@ -270,6 +276,25 @@ export default function MateriaisPage() {
     corFilter,
     fetchMateriais,
   ]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    tipoFilter,
+    materialFilter,
+    caracteristicaFilter,
+    corFilter,
+    materiais.length,
+  ]);
+
+  // Paginated data
+  const totalPages = Math.ceil(materiais.length / ITEMS_PER_PAGE);
+  const paginatedMateriais = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return materiais.slice(startIndex, endIndex);
+  }, [materiais, currentPage]);
 
   useEffect(() => {
     const fetchFornecedores = async () => {
@@ -957,13 +982,13 @@ export default function MateriaisPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-background w-full">
+        <div className="bg-background w-full space-y-4">
           <div className="w-full">
-            <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+            <Table className="w-full table-fixed imx-table-compact">
               <TableHeader>
                 <TableRow>
                   <TableHead
-                    className="sticky top-0 z-10 cursor-pointer imx-border-b text-center uppercase"
+                    className="cursor-pointer imx-border-b text-left uppercase"
                     onClick={() => handleSort("referencia")}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -971,7 +996,7 @@ export default function MateriaisPage() {
                     </span>
                   </TableHead>
                   <TableHead
-                    className="sticky top-0 z-10 w-[250px] min-w-[250px] cursor-pointer imx-border-b text-center uppercase"
+                    className="w-[250px] min-w-[250px] cursor-pointer imx-border-b text-left uppercase"
                     onClick={() => handleSort("material")}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -979,7 +1004,7 @@ export default function MateriaisPage() {
                     </span>
                   </TableHead>
                   <TableHead
-                    className="sticky top-0 z-10 w-[250px] min-w-[250px] cursor-pointer imx-border-b text-center uppercase"
+                    className="w-[250px] min-w-[250px] cursor-pointer imx-border-b text-left uppercase"
                     onClick={() => handleSort("carateristica")}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -987,7 +1012,7 @@ export default function MateriaisPage() {
                     </span>
                   </TableHead>
                   <TableHead
-                    className="sticky top-0 z-10 cursor-pointer imx-border-b text-center uppercase"
+                    className="cursor-pointer imx-border-b text-left uppercase"
                     onClick={() => handleSort("cor")}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -995,28 +1020,30 @@ export default function MateriaisPage() {
                     </span>
                   </TableHead>
                   <TableHead
-                    className="sticky top-0 z-10 w-[100px] cursor-pointer imx-border-b text-right uppercase"
+                    className="w-[100px] cursor-pointer imx-border-b text-center uppercase"
                     onClick={() => handleSort("qt_palete")}
                   >
-                    <span className="inline-flex items-center gap-1">
+                    <span className="inline-flex items-center justify-center gap-1">
                       QT PAL {getSortIcon("qt_palete")}
                     </span>
                   </TableHead>
                   <TableHead
-                    className="sticky top-0 z-10 cursor-pointer imx-border-b text-right uppercase"
+                    className="w-[120px] cursor-pointer imx-border-b text-center uppercase"
                     onClick={() => handleSort("valor_m2")}
                   >
-                    <span className="inline-flex items-center gap-1">
+                    <span className="inline-flex items-center justify-center gap-1">
                       Valor/m² {getSortIcon("valor_m2")}
                     </span>
                   </TableHead>
                   <TableHead
-                    className="sticky top-0 z-10 w-[80px] cursor-pointer imx-border-b text-center uppercase"
+                    className="w-[60px] cursor-pointer imx-border-b text-center uppercase"
                     onClick={() => handleSort("ORC")}
                   >
-                    ORC {getSortIcon("ORC")}
+                    <span className="inline-flex items-center justify-center gap-1">
+                      ORC {getSortIcon("ORC")}
+                    </span>
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[90px] imx-border-b text-center uppercase">
+                  <TableHead className="w-[120px] imx-border-b text-center uppercase">
                     Ações
                   </TableHead>
                 </TableRow>
@@ -1160,7 +1187,7 @@ export default function MateriaisPage() {
                       <Loader2 className="text-muted-foreground mx-auto h-8 w-8 animate-spin" />
                     </TableCell>
                   </TableRow>
-                ) : materiais.length === 0 ? (
+                ) : paginatedMateriais.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={8}
@@ -1170,33 +1197,37 @@ export default function MateriaisPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  materiais.map((material) => (
+                  paginatedMateriais.map((material) => (
                     <TableRow key={material.id}>
-                      <TableCell>{material.referencia ?? "-"}</TableCell>
-                      <TableCell className="w-[250px]">
+                      <TableCell className="text-left">
+                        {material.referencia ?? "-"}
+                      </TableCell>
+                      <TableCell className="w-[250px] text-left">
                         {material.material
                           ? material.material.length > 25
                             ? material.material.slice(0, 25) + "..."
                             : material.material
                           : "-"}
                       </TableCell>
-                      <TableCell className="w-[250px]">
+                      <TableCell className="w-[250px] text-left">
                         {material.carateristica
                           ? material.carateristica.length > 25
                             ? material.carateristica.slice(0, 25) + "..."
                             : material.carateristica
                           : "-"}
                       </TableCell>
-                      <TableCell>{material.cor ?? "-"}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-left">
+                        {material.cor ?? "-"}
+                      </TableCell>
+                      <TableCell className="w-[100px] text-center">
                         {material.qt_palete ?? "-"}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="w-[120px] text-center">
                         {typeof material.valor_m2 === "number"
                           ? formatCurrency(material.valor_m2)
                           : "-"}
                       </TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="w-[60px] text-center">
                         <Checkbox
                           checked={!!material.ORC}
                           onCheckedChange={() =>
@@ -1206,13 +1237,14 @@ export default function MateriaisPage() {
                           disabled={!!orcLoading[material.id]}
                         />
                       </TableCell>
-                      <TableCell className="flex justify-center gap-2">
+                      <TableCell className="w-[120px] flex justify-center gap-1">
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
                                 variant="default"
                                 size="icon"
+                                className="h-8 w-8"
                                 onClick={() => handleEdit(material)}
                               >
                                 <Eye className="h-4 w-4" />
@@ -1227,6 +1259,7 @@ export default function MateriaisPage() {
                               <Button
                                 variant="default"
                                 size="icon"
+                                className="h-8 w-8"
                                 onClick={async () => {
                                   try {
                                     const {
@@ -1271,6 +1304,7 @@ export default function MateriaisPage() {
                               <Button
                                 variant="destructive"
                                 size="icon"
+                                className="h-8 w-8"
                                 onClick={() => handleDelete(material.id)}
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -1286,6 +1320,35 @@ export default function MateriaisPage() {
               </TableBody>
             </Table>
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 text-sm imx-border-t">
+              <div className="text-muted-foreground">
+                Página {currentPage} de {totalPages} ({materiais.length}{" "}
+                materiais)
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setCurrentPage(Math.min(totalPages, currentPage + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {editingMaterial && (

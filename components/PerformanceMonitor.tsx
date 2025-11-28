@@ -19,11 +19,25 @@ export function PerformanceMonitor() {
         const metrics = collectPerformanceMetrics(pathname)
         
         // Store metrics in localStorage for audit script to collect
-        const existingAudits = JSON.parse(
-          localStorage.getItem('performanceAudits') || '[]'
-        )
-        existingAudits.push(metrics)
-        localStorage.setItem('performanceAudits', JSON.stringify(existingAudits))
+        try {
+          const existingAudits = JSON.parse(
+            localStorage.getItem('performanceAudits') || '[]'
+          )
+          existingAudits.push(metrics)
+          
+          // Limit the number of stored audits to prevent quota issues
+          if (existingAudits.length > 50) {
+            existingAudits.shift() // Remove oldest
+          }
+          
+          localStorage.setItem('performanceAudits', JSON.stringify(existingAudits))
+        } catch (e) {
+          console.warn('Failed to save performance metrics:', e)
+          // If quota exceeded, clear storage
+          if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+            localStorage.removeItem('performanceAudits')
+          }
+        }
         
         // Also log to console in dev mode
         if (process.env.NODE_ENV === 'development') {

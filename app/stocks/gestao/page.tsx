@@ -7,6 +7,7 @@ import React, {
   useCallback,
   useRef,
 } from "react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { createBrowserClient } from "@/utils/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -208,6 +209,12 @@ export default function StocksPage() {
     [id: string]: string;
   }>({});
 
+  // Pagination state for each table
+  const ITEMS_PER_PAGE = 40;
+  const [entriesPage, setEntriesPage] = useState(1);
+  const [currentStocksPage, setCurrentStocksPage] = useState(1);
+  const [paletesPage, setPaletesPage] = useState(1);
+
   const [stockMinimoValueMap, setStockMinimoValueMap] = useState<{
     [id: string]: string;
   }>({});
@@ -276,7 +283,8 @@ export default function StocksPage() {
   const [etlMessage, setEtlMessage] = useState<string | null>(null);
   const [etlError, setEtlError] = useState<string | null>(null);
 
-  const supabase = createBrowserClient();
+  // Memoize the supabase client to prevent infinite re-renders
+  const supabase = useMemo(() => createBrowserClient(), []);
 
   // Trigger ETL sync
   const triggerEtlSync = useCallback(
@@ -982,6 +990,41 @@ export default function StocksPage() {
       ? String(aValue).localeCompare(String(bValue))
       : String(bValue).localeCompare(String(aValue));
   });
+
+  // Paginated data
+  const entriesTotalPages = Math.ceil(sortedStocks.length / ITEMS_PER_PAGE);
+  const paginatedEntries = useMemo(() => {
+    const startIndex = (entriesPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return sortedStocks.slice(startIndex, endIndex);
+  }, [sortedStocks, entriesPage]);
+
+  const currentStocksTotalPages = Math.ceil(sortedCurrentStocks.length / ITEMS_PER_PAGE);
+  const paginatedCurrentStocks = useMemo(() => {
+    const startIndex = (currentStocksPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return sortedCurrentStocks.slice(startIndex, endIndex);
+  }, [sortedCurrentStocks, currentStocksPage]);
+
+  const paletesTotalPages = Math.ceil(sortedPaletes.length / ITEMS_PER_PAGE);
+  const paginatedPaletes = useMemo(() => {
+    const startIndex = (paletesPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return sortedPaletes.slice(startIndex, endIndex);
+  }, [sortedPaletes, paletesPage]);
+
+  // Reset pagination when filters/tabs change
+  useEffect(() => {
+    setEntriesPage(1);
+  }, [sortedStocks.length, materialFilter, referenciaFilter, activeTab]);
+
+  useEffect(() => {
+    setCurrentStocksPage(1);
+  }, [sortedCurrentStocks.length, currentStockFilter, currentStockReferenciaFilter, activeTab]);
+
+  useEffect(() => {
+    setPaletesPage(1);
+  }, [sortedPaletes.length, paletesFilter, paletesReferenciaFilter, paletesDateFrom, paletesDateTo, paletesFornecedorFilter, paletesAuthorFilter, activeTab]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -3619,13 +3662,13 @@ export default function StocksPage() {
               )}
             </div>
 
-            <div className="w-full">
+            <div className="w-full space-y-4">
               <div className="w-full">
-                <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+                <Table className="w-full table-fixed imx-table-compact">
                   <TableHeader>
                     <TableRow>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
+                        className="w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("data")}
                       >
                         Data
@@ -3637,7 +3680,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
+                        className="w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("referencia")}
                       >
                         Referência
@@ -3649,7 +3692,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 cursor-pointer imx-border-b select-none"
+                        className="cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("material")}
                       >
                         Material
@@ -3661,7 +3704,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[150px] cursor-pointer imx-border-b select-none"
+                        className="w-[150px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("fornecedor")}
                       >
                         Fornecedor
@@ -3673,7 +3716,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
+                        className="w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("quantidade")}
                       >
                         Quantidade
@@ -3685,7 +3728,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[100px] cursor-pointer imx-border-b select-none"
+                        className="w-[100px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("vl_m2")}
                       >
                         VL_m2
@@ -3697,7 +3740,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
+                        className="w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("preco_unitario")}
                       >
                         Preço/Unidade
@@ -3709,7 +3752,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
+                        className="w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("valor_total")}
                       >
                         Valor Total
@@ -3721,7 +3764,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[100px] cursor-pointer imx-border-b select-none"
+                        className="w-[100px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("n_palet")}
                       >
                         Palete
@@ -3732,13 +3775,13 @@ export default function StocksPage() {
                             <ArrowDown className="ml-1 inline h-3 w-3" />
                           ))}
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[90px] imx-border-b text-center">
+                      <TableHead className="w-[90px] imx-border-b text-center">
                         Ações
                       </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedStocks.length === 0 ? (
+                    {paginatedEntries.length === 0 ? (
                       <TableRow>
                         <TableCell
                           colSpan={10}
@@ -3748,7 +3791,7 @@ export default function StocksPage() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      sortedStocks.map((stock) => {
+                      paginatedEntries.map((stock) => {
                         const isEditing = editingStock?.id === stock.id;
 
                         if (isEditing) {
@@ -4061,17 +4104,43 @@ export default function StocksPage() {
                   </TableBody>
                 </Table>
               </div>
+
+              {entriesTotalPages > 1 && (
+                <div className="flex items-center justify-between pt-4 text-sm imx-border-t">
+                  <div className="text-muted-foreground">
+                    Página {entriesPage} de {entriesTotalPages} ({sortedStocks.length} entradas)
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEntriesPage(Math.max(1, entriesPage - 1))}
+                      disabled={entriesPage === 1}
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEntriesPage(Math.min(entriesTotalPages, entriesPage + 1))}
+                      disabled={entriesPage === entriesTotalPages}
+                    >
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </TabsContent>
 
           <TabsContent value="current" className="space-y-4">
-            <div className="w-full">
+            <div className="w-full space-y-4">
               <div className="w-full">
-                <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+                <Table className="w-full table-fixed imx-table-compact">
                   <TableHeader>
                     <TableRow>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
+                        className="w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("referencia")}
                       >
                         Referência
@@ -4083,7 +4152,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 cursor-pointer imx-border-b select-none"
+                        className="cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("material")}
                       >
                         Material
@@ -4095,7 +4164,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[150px] cursor-pointer imx-border-b select-none"
+                        className="w-[150px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("total_recebido")}
                       >
                         Total Recebido
@@ -4107,7 +4176,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[150px] cursor-pointer imx-border-b select-none"
+                        className="w-[150px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("total_consumido")}
                       >
                         Total Consumido
@@ -4119,7 +4188,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
+                        className="w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("stock_minimo")}
                       >
                         Mín (Amarelo)
@@ -4131,7 +4200,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
+                        className="w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("stock_critico")}
                       >
                         Crítico (Vermelho)
@@ -4143,7 +4212,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
+                        className="w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("stock_correct")}
                       >
                         CORREÇÃO MENSAL
@@ -4155,7 +4224,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
+                        className="w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("stock_atual")}
                       >
                         STOCK FINAL
@@ -4166,13 +4235,13 @@ export default function StocksPage() {
                             <ArrowDown className="ml-1 inline h-3 w-3" />
                           ))}
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[60px] imx-border-b text-center">
+                      <TableHead className="w-[60px] imx-border-b text-center">
                         Status
                       </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedCurrentStocks.length === 0 ? (
+                    {paginatedCurrentStocks.length === 0 ? (
                       <TableRow>
                         <TableCell
                           colSpan={9}
@@ -4182,7 +4251,7 @@ export default function StocksPage() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      sortedCurrentStocks.map((stock) => (
+                      paginatedCurrentStocks.map((stock) => (
                         <TableRow key={stock.id} className="hover:bg-accent">
                           <TableCell>
                             {getReferenciaByMaterialId(stock.id)}
@@ -4294,6 +4363,32 @@ export default function StocksPage() {
                   </TableBody>
                 </Table>
               </div>
+
+              {currentStocksTotalPages > 1 && (
+                <div className="flex items-center justify-between pt-4 text-sm imx-border-t">
+                  <div className="text-muted-foreground">
+                    Página {currentStocksPage} de {currentStocksTotalPages} ({sortedCurrentStocks.length} materiais)
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentStocksPage(Math.max(1, currentStocksPage - 1))}
+                      disabled={currentStocksPage === 1}
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentStocksPage(Math.min(currentStocksTotalPages, currentStocksPage + 1))}
+                      disabled={currentStocksPage === currentStocksTotalPages}
+                    >
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </TabsContent>
 
@@ -4415,12 +4510,12 @@ export default function StocksPage() {
                   </div>
                 </div>
               )}
-              <div className="w-full">
-                <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+              <div className="w-full space-y-4">
+                <Table className="w-full table-fixed imx-table-compact">
                   <TableHeader>
                     <TableRow>
                       <TableHead
-                        className="sticky top-0 z-10 cursor-pointer imx-border-b select-none"
+                        className="cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortPaletes("no_palete")}
                       >
                         Nº Palete
@@ -4432,7 +4527,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 cursor-pointer imx-border-b select-none"
+                        className="cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortPaletes("fornecedor")}
                       >
                         Fornecedor
@@ -4444,7 +4539,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 cursor-pointer imx-border-b select-none"
+                        className="cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortPaletes("no_guia_forn")}
                       >
                         Nº Guia
@@ -4456,7 +4551,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 cursor-pointer imx-border-b select-none"
+                        className="cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortPaletes("ref_cartao")}
                       >
                         Ref. Cartão
@@ -4468,7 +4563,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[100px] cursor-pointer imx-border-b select-none"
+                        className="w-[100px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortPaletes("qt_palete")}
                       >
                         Qt. Palete
@@ -4480,7 +4575,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b select-none"
+                        className="w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortPaletes("data")}
                       >
                         Data
@@ -4492,7 +4587,7 @@ export default function StocksPage() {
                           ))}
                       </TableHead>
                       <TableHead
-                        className="sticky top-0 z-10 cursor-pointer imx-border-b select-none"
+                        className="cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortPaletes("author")}
                       >
                         Autor
@@ -4503,13 +4598,13 @@ export default function StocksPage() {
                             <ArrowDown className="ml-1 inline h-3 w-3" />
                           ))}
                       </TableHead>
-                      <TableHead className="sticky top-0 z-10 w-[100px] imx-border-b text-center">
+                      <TableHead className="w-[100px] imx-border-b text-center">
                         Ações
                       </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedPaletes.length === 0 ? (
+                    {paginatedPaletes.length === 0 ? (
                       <TableRow>
                         <TableCell
                           colSpan={8}
@@ -4519,7 +4614,7 @@ export default function StocksPage() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      sortedPaletes.map((palete) => (
+                      paginatedPaletes.map((palete) => (
                         <TableRow key={palete.id} className="hover:bg-accent">
                           <TableCell>
                             {editingPaleteId === palete.id ? (
@@ -4743,6 +4838,32 @@ export default function StocksPage() {
                     )}
                   </TableBody>
                 </Table>
+
+                {paletesTotalPages > 1 && (
+                  <div className="flex items-center justify-between pt-4 text-sm imx-border-t">
+                    <div className="text-muted-foreground">
+                      Página {paletesPage} de {paletesTotalPages} ({sortedPaletes.length} paletes)
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPaletesPage(Math.max(1, paletesPage - 1))}
+                        disabled={paletesPage === 1}
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPaletesPage(Math.min(paletesTotalPages, paletesPage + 1))}
+                        disabled={paletesPage === paletesTotalPages}
+                      >
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </TabsContent>

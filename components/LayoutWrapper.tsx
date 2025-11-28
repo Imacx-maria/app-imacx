@@ -1,61 +1,39 @@
-'use client'
+"use client";
 
-import { usePathname } from 'next/navigation'
-import { useTheme } from 'next-themes'
-import { useState, useEffect } from 'react'
-import Image from 'next/image'
-import Link from 'next/link'
-import { Navigation } from './Navigation'
+import { usePathname } from "next/navigation";
+import { Navigation } from "./Navigation";
+import { Header } from "./Header";
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
-  const hideNavigation = pathname === '/login'
-  const { theme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const pathname = usePathname();
+  const hideNavigation =
+    pathname === "/login" || pathname?.startsWith("/mobile");
 
   if (hideNavigation) {
     return (
       <div className="min-h-screen bg-background">
-        <main className="bg-background">
-          {children}
-        </main>
+        <main className="bg-background">{children}</main>
       </div>
-    )
+    );
   }
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Navigation />
-      <main className="flex-1 bg-background overflow-auto">
+      {/* Sidebar - hidden on mobile (< md) */}
+      <div className="hidden md:block">
+        <Navigation />
+      </div>
+      <main className="flex-1 bg-background overflow-auto w-full">
         <div className="flex flex-col h-full">
-          {/* Top Bar with Logo */}
-          <div className="flex justify-end items-center px-6 py-4">
-            {mounted && (
-              <Link href="/dashboard" className="cursor-pointer hover:opacity-80 transition-opacity">
-                <Image
-                  src={theme === 'dark' ? '/imacx_neg.svg' : '/imacx_pos.svg'}
-                  alt="IMACX Logo"
-                  width={120}
-                  height={30}
-                  priority
-                  style={{ width: 'auto', height: 'auto' }}
-                />
-              </Link>
-            )}
-          </div>
+          {/* Header - always visible (has logo + search) */}
+          <Header />
 
           {/* Page Content */}
-          <div className="flex-1 p-6">
-            <div className="max-w-[1600px] mx-auto">
-              {children}
-            </div>
+          <div className="flex-1 p-4 md:p-6">
+            <div className="max-w-[1600px] mx-auto">{children}</div>
           </div>
         </div>
       </main>
     </div>
-  )
+  );
 }

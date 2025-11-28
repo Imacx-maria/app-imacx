@@ -850,7 +850,7 @@ function DesignerItemCardComponent({
                       Histórico
                     </div>
                     <div className="mt-2">
-                      <Table className="w-full">
+                      <Table className="w-full imx-table-compact">
                         <TableBody>
                           {item.data_in && (
                             <TableRow className="imx-border-b  hover:bg-accent">
@@ -957,7 +957,7 @@ function DesignerItemCardComponent({
                         Duração
                       </div>
                       <div className="mt-2">
-                        <Table className="w-full">
+                        <Table className="w-full imx-table-compact">
                           <TableBody>
                             <TableRow className="imx-border-b  hover:bg-accent">
                               <TableCell className="py-2 px-2 sm:px-3 text-xs font-medium text-left">
@@ -989,7 +989,7 @@ function DesignerItemCardComponent({
                         Lead Time Final
                       </div>
                       <div className="mt-2">
-                        <Table className="w-full">
+                        <Table className="w-full imx-table-compact">
                           <TableBody>
                             {(() => {
                               const lastApprovalDate = findLastApprovalDate(item)

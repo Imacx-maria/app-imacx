@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, ArrowLeft, ArrowRight } from "lucide-react";
 import { useMaterialsCascading } from "@/hooks/useMaterialsCascading";
 import { useTableData } from "@/hooks/useTableData";
 import { useCoresImpressao } from "@/hooks/useCoresImpressao";
@@ -71,12 +71,29 @@ export default function PlanosTable({
     error: coresError,
   } = useCoresImpressao();
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 40;
+
   // Debug log for cores options
   useEffect(() => {
     console.log("🎨 [PlanosTable] Cores options updated:", coresOptions);
     console.log("🎨 [PlanosTable] Cores loading:", coresLoading);
     console.log("🎨 [PlanosTable] Cores error:", coresError);
   }, [coresOptions, coresLoading, coresError]);
+
+  // Reset to page 1 when planos change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [planos.length]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(planos.length / ITEMS_PER_PAGE);
+  const paginatedPlanos = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return planos.slice(startIndex, endIndex);
+  }, [planos, currentPage]);
 
   // Convert machines to combobox format (value = UUID, label = name)
   const machineOptions = machines.map((m) => ({
@@ -323,7 +340,7 @@ export default function PlanosTable({
       </div>
 
       <div className="rounded-md imx-border">
-        <Table>
+        <Table className="w-full table-fixed imx-table-compact">
           <TableHeader>
             <TableRow>
               <TableHead className="w-[150px]">Nome</TableHead>
@@ -349,7 +366,7 @@ export default function PlanosTable({
               </TableRow>
             )}
 
-            {planos.map((plano) => (
+            {paginatedPlanos.map((plano) => (
               <TableRow key={plano.id}>
                 <TableCell>
                   <Input
@@ -490,6 +507,32 @@ export default function PlanosTable({
           </TableBody>
         </Table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4 text-sm imx-border-t">
+          <div className="text-muted-foreground">
+            Página {currentPage} de {totalPages} ({planos.length} planos)
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+            >
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

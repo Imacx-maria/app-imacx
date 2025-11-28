@@ -1,5 +1,13 @@
 const DISALLOWED_PREFIX = "border";
 
+// Allowed border classes from design system
+const ALLOWED_BORDER_CLASSES = [
+  "border-default",
+  "border-collapse",
+  "border-separate",
+  "border-spacing-0",
+];
+
 /**
  * Normalize a Tailwind token by stripping modifiers/important flags.
  */
@@ -28,6 +36,10 @@ function hasForbiddenClass(value) {
   for (const originalToken of tokens) {
     const normalized = normalizeToken(originalToken);
     if (!normalized || normalized.startsWith("imx-")) {
+      continue;
+    }
+    // Allow design-system approved border classes
+    if (ALLOWED_BORDER_CLASSES.includes(normalized)) {
       continue;
     }
     if (normalized.startsWith(DISALLOWED_PREFIX)) {

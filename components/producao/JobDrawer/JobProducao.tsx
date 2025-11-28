@@ -164,7 +164,7 @@ function JobProducaoComponent({
   return (
     <div className="mt-6">
       {/* Header & toolbar */}
-      <div className="mb-6">
+      <div className="mb-6 flex items-start justify-between">
         <div className="p-0">
           <h2 className="text-lg font-semibold">
             {job.concluido ? "Trabalho" : "Novo Trabalho"} (FO: {job.numero_fo})
@@ -173,10 +173,6 @@ function JobProducaoComponent({
             Detalhes Produção Folha de Obra
           </p>
         </div>
-      </div>
-
-      {/* Add Item Button */}
-      <div className="mb-4 flex justify-end">
         <Button variant="default" size="sm" onClick={onAddItem}>
           <Plus className="mr-2 h-4 w-4" />
           Adicionar Item

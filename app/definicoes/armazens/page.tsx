@@ -28,9 +28,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { Plus, Eye, Trash2, X, Loader2, Edit, RotateCw, XSquare } from 'lucide-react'
+import { Plus, Eye, Trash2, X, Loader2, Edit, RotateCw, XSquare, ArrowLeft, ArrowRight } from 'lucide-react'
 import PermissionGuard from '@/components/PermissionGuard'
 import { useDebounce } from '@/hooks/useDebounce'
+import { useMemo } from 'react'
 
 interface Armazem {
   id: string
@@ -62,7 +63,8 @@ export default function ArmazensPage() {
   // Effective filter - only activate with 3+ characters
   const effectiveNameFilter = debouncedNameFilter.trim().length >= 3 ? debouncedNameFilter : ''
 
-  const supabase = createBrowserClient()
+  // Memoize the supabase client to prevent infinite re-renders
+  const supabase = useMemo(() => createBrowserClient(), [])
 
   // Convert to database-level filtering
   const fetchArmazens = useCallback(
@@ -108,6 +110,23 @@ export default function ArmazensPage() {
 
   // Remove client-side filtering - now using database-level filtering
   const filteredArmazens = armazens
+
+  // Pagination state
+  const ITEMS_PER_PAGE = 40
+  const [currentPage, setCurrentPage] = useState(1)
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [effectiveNameFilter, filteredArmazens.length])
+
+  // Paginated data
+  const totalPages = Math.ceil(filteredArmazens.length / ITEMS_PER_PAGE)
+  const paginatedArmazens = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+    const endIndex = startIndex + ITEMS_PER_PAGE
+    return filteredArmazens.slice(startIndex, endIndex)
+  }, [filteredArmazens, currentPage])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -280,24 +299,24 @@ export default function ArmazensPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-background w-full">
+        <div className="bg-background w-full space-y-4">
           <div className="w-full">
-            <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+            <Table className="w-full table-fixed imx-table-compact">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sticky top-0 z-10 w-[120px] imx-border-b text-center uppercase">
+                  <TableHead className="w-[120px] imx-border-b text-center uppercase">
                     Número PHC
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 min-w-[200px] imx-border-b text-center uppercase">
+                  <TableHead className="min-w-[200px] imx-border-b text-center uppercase">
                     Nome do Armazém
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 min-w-[250px] imx-border-b text-center uppercase">
+                  <TableHead className="min-w-[250px] imx-border-b text-center uppercase">
                     Morada
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[120px] imx-border-b text-center uppercase">
+                  <TableHead className="w-[120px] imx-border-b text-center uppercase">
                     Código Postal
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[90px] imx-border-b text-center uppercase">
+                  <TableHead className="w-[90px] imx-border-b text-center uppercase">
                     Ações
                   </TableHead>
                 </TableRow>
@@ -312,7 +331,7 @@ export default function ArmazensPage() {
                       <Loader2 className="text-muted-foreground mx-auto h-8 w-8 animate-spin" />
                     </TableCell>
                   </TableRow>
-                ) : filteredArmazens.length === 0 ? (
+                ) : paginatedArmazens.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={5}
@@ -322,7 +341,7 @@ export default function ArmazensPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredArmazens.map((armazem) => (
+                  paginatedArmazens.map((armazem) => (
                     <TableRow
                       key={armazem.id}
                       className="hover:bg-accent transition-colors"
@@ -377,6 +396,32 @@ export default function ArmazensPage() {
               </TableBody>
             </Table>
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 text-sm imx-border-t">
+              <div className="text-muted-foreground">
+                Página {currentPage} de {totalPages} ({filteredArmazens.length} armazéns)
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Drawer for add/edit form */}

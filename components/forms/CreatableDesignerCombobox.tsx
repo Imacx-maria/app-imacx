@@ -118,7 +118,7 @@ export default function CreatableDesignerCombobox({
           ) : (
             <>
               <SelectItem value="__unselect__">
-                <span className="text-muted-foreground italic">Designer</span>
+                <span className="text-orange-500 italic">Designer</span>
               </SelectItem>
               {designers.map((designer) => (
                 <SelectItem key={designer.id} value={designer.id}>

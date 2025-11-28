@@ -25,7 +25,8 @@ export const useMaterialsCascading = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const supabase = createBrowserClient()
+  // Memoize the supabase client to prevent infinite re-renders
+  const supabase = useMemo(() => createBrowserClient(), [])
 
   // Fetch all materials data
   const fetchMaterials = useCallback(async () => {

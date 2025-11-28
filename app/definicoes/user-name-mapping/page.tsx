@@ -29,9 +29,12 @@ import {
   ArrowUp,
   ArrowDown,
   XSquare,
+  ArrowLeft,
+  ArrowRight,
 } from 'lucide-react'
 import PermissionGuard from '@/components/PermissionGuard'
 import { useDebounce } from '@/hooks/useDebounce'
+import { useMemo } from 'react'
 
 interface UserNameMapping {
   id: string
@@ -74,7 +77,8 @@ export default function UserNameMappingPage() {
   // Effective filter - only activate with 3+ characters
   const effectiveNameFilter = debouncedNameFilter.trim().length >= 3 ? debouncedNameFilter : ''
 
-  const supabase = createBrowserClient()
+  // Memoize the supabase client to prevent infinite re-renders
+  const supabase = useMemo(() => createBrowserClient(), [])
 
   // Sorting handler
   const handleSort = (column: keyof UserNameMapping) => {
@@ -135,6 +139,23 @@ export default function UserNameMappingPage() {
       fetchUserMappings({ nameFilter: effectiveNameFilter })
     }
   }, [sortColumn, sortDirection, effectiveNameFilter, fetchUserMappings])
+
+  // Pagination state
+  const ITEMS_PER_PAGE = 40
+  const [currentPage, setCurrentPage] = useState(1)
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [effectiveNameFilter, userMappings.length])
+
+  // Paginated data
+  const totalPages = Math.ceil(userMappings.length / ITEMS_PER_PAGE)
+  const paginatedUserMappings = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+    const endIndex = startIndex + ITEMS_PER_PAGE
+    return userMappings.slice(startIndex, endIndex)
+  }, [userMappings, currentPage])
 
   const handleDelete = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir este mapeamento?')) return
@@ -360,14 +381,14 @@ export default function UserNameMappingPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-background w-full">
+        <div className="bg-background w-full space-y-4">
           <div className="w-full">
-            <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+            <Table className="w-full table-fixed imx-table-compact">
               <TableHeader>
                 <TableRow>
                   <TableHead
                     onClick={() => handleSort('initials')}
-                    className="sticky top-0 z-10 w-[100px] cursor-pointer imx-border-b text-center uppercase select-none"
+                    className="w-[100px] cursor-pointer imx-border-b text-center uppercase select-none"
                   >
                     Iniciais
                     {sortColumn === 'initials' &&
@@ -379,7 +400,7 @@ export default function UserNameMappingPage() {
                   </TableHead>
                   <TableHead
                     onClick={() => handleSort('full_name')}
-                    className="sticky top-0 z-10 min-w-[200px] cursor-pointer imx-border-b text-center uppercase select-none"
+                    className="min-w-[200px] cursor-pointer imx-border-b text-center uppercase select-none"
                   >
                     Nome Completo
                     {sortColumn === 'full_name' &&
@@ -391,7 +412,7 @@ export default function UserNameMappingPage() {
                   </TableHead>
                   <TableHead
                     onClick={() => handleSort('short_name')}
-                    className="sticky top-0 z-10 min-w-[150px] cursor-pointer imx-border-b text-center uppercase select-none"
+                    className="min-w-[150px] cursor-pointer imx-border-b text-center uppercase select-none"
                   >
                     Nome Curto
                     {sortColumn === 'short_name' &&
@@ -403,7 +424,7 @@ export default function UserNameMappingPage() {
                   </TableHead>
                   <TableHead
                     onClick={() => handleSort('standardized_name')}
-                    className="sticky top-0 z-10 min-w-[200px] cursor-pointer imx-border-b text-center uppercase select-none"
+                    className="min-w-[200px] cursor-pointer imx-border-b text-center uppercase select-none"
                   >
                     Nome Padronizado
                     {sortColumn === 'standardized_name' &&
@@ -415,7 +436,7 @@ export default function UserNameMappingPage() {
                   </TableHead>
                   <TableHead
                     onClick={() => handleSort('department')}
-                    className="sticky top-0 z-10 min-w-[150px] cursor-pointer imx-border-b text-center uppercase select-none"
+                    className="min-w-[150px] cursor-pointer imx-border-b text-center uppercase select-none"
                   >
                     Departamento
                     {sortColumn === 'department' &&
@@ -427,7 +448,7 @@ export default function UserNameMappingPage() {
                   </TableHead>
                   <TableHead
                     onClick={() => handleSort('active')}
-                    className="sticky top-0 z-10 w-[80px] cursor-pointer imx-border-b text-center uppercase select-none"
+                    className="w-[80px] cursor-pointer imx-border-b text-center uppercase select-none"
                   >
                     Ativo
                     {sortColumn === 'active' &&
@@ -439,7 +460,7 @@ export default function UserNameMappingPage() {
                   </TableHead>
                   <TableHead
                     onClick={() => handleSort('sales')}
-                    className="sticky top-0 z-10 w-[80px] cursor-pointer imx-border-b text-center uppercase select-none"
+                    className="w-[80px] cursor-pointer imx-border-b text-center uppercase select-none"
                   >
                     Vendas
                     {sortColumn === 'sales' &&
@@ -449,7 +470,7 @@ export default function UserNameMappingPage() {
                         <ArrowDown className="ml-1 inline h-3 w-3" />
                       ))}
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[100px] imx-border-b text-center uppercase">
+                  <TableHead className="w-[100px] imx-border-b text-center uppercase">
                     Ações
                   </TableHead>
                 </TableRow>
@@ -464,7 +485,7 @@ export default function UserNameMappingPage() {
                       <Loader2 className="text-muted-foreground mx-auto h-8 w-8 animate-spin" />
                     </TableCell>
                   </TableRow>
-                ) : userMappings.length === 0 && editingId !== 'new' ? (
+                ) : paginatedUserMappings.length === 0 && editingId !== 'new' ? (
                   <TableRow>
                     <TableCell
                       colSpan={8}
@@ -612,7 +633,7 @@ export default function UserNameMappingPage() {
                         </TableCell>
                       </TableRow>
                     )}
-                    {userMappings.map((userMapping) => (
+                    {paginatedUserMappings.map((userMapping) => (
                       <TableRow key={userMapping.id}>
                         <TableCell className="uppercase">
                           {editingId === userMapping.id ? (
@@ -828,6 +849,32 @@ export default function UserNameMappingPage() {
               </TableBody>
             </Table>
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 text-sm imx-border-t">
+              <div className="text-muted-foreground">
+                Página {currentPage} de {totalPages} ({userMappings.length} mapeamentos)
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </PermissionGuard>

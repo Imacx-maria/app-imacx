@@ -1,5 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap");
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,6 +5,44 @@
 /* ============================================
    UNIVERSAL RULES - CSS VARIABLES ONLY
    ============================================ */
+
+/* Local font faces */
+@font-face {
+    font-family: "Atkinson Hyperlegible";
+    src:
+        url("/fonts/atkinson-hyperlegible-v12-latin-regular.woff2")
+            format("woff2"),
+        url("/fonts/AtkinsonHyperlegible-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Atkinson Hyperlegible";
+    src:
+        url("/fonts/atkinson-hyperlegible-v12-latin-700.woff2") format("woff2"),
+        url("/fonts/AtkinsonHyperlegible-Bold.ttf") format("truetype");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Atkinson Hyperlegible";
+    src: url("/fonts/AtkinsonHyperlegible-Italic.ttf") format("truetype");
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Atkinson Hyperlegible";
+    src: url("/fonts/AtkinsonHyperlegible-BoldItalic.ttf") format("truetype");
+    font-weight: 700;
+    font-style: italic;
+    font-display: swap;
+}
 
 @layer base {
     /* Font family - universal */
@@ -21,6 +57,14 @@
     /* ============================================
        BORDER SYSTEM
        ============================================ */
+
+    /* Design system standard border class */
+    .border-default {
+        border-width: var(--border-width);
+        border-color: var(--border);
+        border-style: solid;
+    }
+
     .imx-border {
         border-style: solid !important;
         border-color: var(--border) !important;
@@ -116,6 +160,13 @@
     /* No rounded corners anywhere */
     * {
         border-radius: 0 !important;
+    }
+
+    /* Remove all outlines - design system rule */
+    *,
+    *:focus,
+    *:focus-visible {
+        outline: none !important;
     }
 
     /* ============================================
@@ -723,10 +774,10 @@ input:-webkit-autofill:focus {
     --rdp-accent-color: var(--orange);
     --rdp-accent-background-color: var(--orange);
     --rdp-accent-foreground-color: oklch(0% 0 0);
-    --rdp-background-color: var(--background);
+    --rdp-background-color: transparent;
     --rdp-outline: 0;
     --rdp-outline-selected: 0;
-    background-color: var(--background) !important;
+    background-color: transparent !important;
     color: var(--foreground) !important;
     border: none !important;
     font-size: 14px;
@@ -835,6 +886,23 @@ input:-webkit-autofill:focus {
     color: var(--foreground) !important;
 }
 
+/* Selected day button should stay yellow on hover/focus/active */
+.rdp-day_selected .rdp-day_button,
+.rdp-day_selected .rdp-day_button:hover,
+.rdp-day_selected .rdp-day_button:focus,
+.rdp-day_selected .rdp-day_button:active,
+.rdp-day[data-selected="true"] .rdp-day_button,
+.rdp-day[data-selected="true"] .rdp-day_button:hover,
+.rdp-day[data-selected="true"] .rdp-day_button:focus,
+.rdp-day[data-selected="true"] .rdp-day_button:active,
+.rdp .rdp-selected .rdp-day_button,
+.rdp .rdp-selected .rdp-day_button:hover,
+.rdp .rdp-selected .rdp-day_button:focus,
+.rdp .rdp-selected .rdp-day_button:active {
+    background-color: var(--primary) !important;
+    color: var(--primary-foreground) !important;
+}
+
 .rdp-weekend:not(.rdp-day_selected):not([data-selected="true"]),
 .rdp-day_weekend:not(.rdp-day_selected):not([data-selected="true"]),
 [data-weekend="true"]:not([data-selected="true"]) {
@@ -848,14 +916,9 @@ input:-webkit-autofill:focus {
 .rdp-day[data-selected="true"]:hover,
 .rdp .rdp-selected,
 .rdp .rdp-selected:hover {
-    background-color: var(--orange) !important;
-    color: oklch(0% 0 0) !important;
+    background-color: var(--primary) !important;
+    color: var(--primary-foreground) !important;
     border: none !important;
-}
-
-.rdp-day_selected .rdp-day_button,
-.rdp .rdp-selected .rdp-day_button {
-    color: oklch(0% 0 0) !important;
 }
 
 .rdp-holiday:not(.rdp-day_selected):not([data-selected="true"]),
@@ -959,6 +1022,81 @@ input:-webkit-autofill:focus {
 }
 
 /* ============================================
+   GLOBAL TEXT SIZE - 0.8rem except headings
+   ============================================ */
+
+body,
+p,
+span,
+div,
+td,
+th,
+li,
+a,
+label,
+input,
+textarea,
+select,
+button {
+    font-size: 0.8rem !important;
+}
+
+/* Headings keep their own sizes */
+h1 {
+    font-size: 2rem !important;
+}
+
+h2 {
+    font-size: 1.5rem !important;
+}
+
+h3 {
+    font-size: 1.25rem !important;
+}
+
+/* Metric card large values - exempt from global 0.8rem */
+.metric-value {
+    font-size: 2.25rem !important;
+    line-height: 1.1 !important;
+}
+
+@media (min-width: 1024px) {
+    .metric-value {
+        font-size: 2.5rem !important;
+    }
+}
+
+@media (min-width: 1280px) {
+    .metric-value {
+        font-size: 2.75rem !important;
+    }
+}
+
+/* ============================================
+   TABLE COLUMN WIDTHS - Fixed widths for specific columns
+   ============================================ */
+
+/* FO, ORC, GUIA columns - 7 characters width with center alignment */
+.col-fo,
+.col-orc,
+.col-guia {
+    width: 5rem !important;
+    min-width: 5rem !important;
+    max-width: 5rem !important;
+    text-align: center !important;
+}
+
+/* Checkbox columns (P, C, A, SB) - minimal width for checkbox only */
+.col-checkbox {
+    width: 2rem !important;
+    min-width: 2rem !important;
+    max-width: 2rem !important;
+    text-align: center !important;
+    padding-left: 0.25rem !important;
+    padding-right: 0.25rem !important;
+}
+
+/* ============================================
    IMACX TABLE AND LAYOUT UTILITIES
    ============================================ */
 
@@ -971,8 +1109,21 @@ input:-webkit-autofill:focus {
 
 .imx-table-compact td,
 .imx-table-compact th {
-    /* px-3 py-2 */
+    /* px-3 py-2 - compact padding */
     padding: 0.5rem 0.75rem !important;
+}
+
+.imx-table-compact th {
+    /* Override default h-12 height for compact tables */
+    height: auto !important;
+    min-height: auto !important;
+    /* Ensure vertical alignment */
+    vertical-align: middle !important;
+}
+
+.imx-table-compact td {
+    /* Ensure vertical alignment matches headers */
+    vertical-align: middle !important;
 }
 
 /* Standard row hover behavior */
@@ -1101,7 +1252,7 @@ th:has([role="checkbox"]) {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    background: var(--card);
+    background: transparent;
 }
 
 .imacx-table thead {

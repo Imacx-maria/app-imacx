@@ -16,6 +16,13 @@ interface PermissionsContextType {
   canAccessPage: (page: string) => boolean;
 }
 
+type InitialPermissions = {
+  roles: RoleId[];
+  pagePermissions: PermissionId[];
+  actionPermissions: PermissionId[];
+  userId?: string | null;
+};
+
 const PermissionsContext = createContext<PermissionsContextType>({
   roles: [],
   pagePermissions: [],
@@ -49,24 +56,56 @@ const CACHE_DURATION = 30000; // 30 seconds cache
 
 export function PermissionsProvider({
   children,
+  initialPermissions,
 }: {
   children: React.ReactNode;
+  initialPermissions?: InitialPermissions;
 }) {
-  const [roles, setRoles] = useState<RoleId[]>([]);
-  const [pagePermissions, setPagePermissions] = useState<PermissionId[]>([]);
-  const [actionPermissions, setActionPermissions] = useState<PermissionId[]>(
-    [],
+  const hasInitial = Boolean(initialPermissions);
+
+  const [roles, setRoles] = useState<RoleId[]>(
+    initialPermissions?.roles ?? [],
   );
-  const [loading, setLoading] = useState(true);
+  const [pagePermissions, setPagePermissions] = useState<PermissionId[]>(
+    initialPermissions?.pagePermissions ?? [],
+  );
+  const [actionPermissions, setActionPermissions] = useState<PermissionId[]>(
+    initialPermissions?.actionPermissions ?? [],
+  );
+  const [loading, setLoading] = useState(!hasInitial);
 
   useEffect(() => {
     const supabase = createBrowserClient();
     const abortController = new AbortController();
     let isSubscribed = true;
 
-    const fetchPermissions = async () => {
+    // Seed cache from server-hydrated permissions to avoid a first client fetch
+    if (hasInitial && initialPermissions) {
+      permissionsCache = {
+        data: {
+          roles: initialPermissions.roles,
+          pagePermissions: initialPermissions.pagePermissions,
+          actionPermissions: initialPermissions.actionPermissions,
+        },
+        timestamp: Date.now(),
+        userId: initialPermissions.userId ?? null,
+      };
+    }
+
+    const fetchPermissions = async (reason: "init" | "auth-change" = "init") => {
       // Don't fetch if component is unmounting or navigating away
       if (!isSubscribed || abortController.signal.aborted) return;
+
+      // If we were hydrated with initial permissions, skip the first fetch
+      if (
+        reason === "init" &&
+        hasInitial &&
+        permissionsCache.data &&
+        permissionsCache.timestamp
+      ) {
+        setLoading(false);
+        return;
+      }
 
       // Check if there's a session first to avoid unnecessary requests
       const {
@@ -207,7 +246,7 @@ export function PermissionsProvider({
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(() => {
-      fetchPermissions();
+      fetchPermissions("auth-change");
     });
 
     return () => {
@@ -215,7 +254,7 @@ export function PermissionsProvider({
       abortController.abort();
       subscription.unsubscribe();
     };
-  }, []);
+  }, [hasInitial, initialPermissions]);
 
   const hasRole = (role: RoleId) => roles.includes(role);
   const hasAnyRole = (rs: RoleId[]) => rs.some((r) => roles.includes(r));

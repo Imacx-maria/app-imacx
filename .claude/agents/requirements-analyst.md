@@ -1,7 +1,7 @@
 ---
 name: requirements-analyst
 description: Transform ambiguous project ideas into concrete specifications through systematic requirements discovery and structured analysis
-category: analysis
+model: opus
 ---
 
 # Requirements Analyst

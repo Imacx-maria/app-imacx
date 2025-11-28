@@ -204,11 +204,10 @@ const NavigationInternal = () => {
   const { theme, setTheme } = useTheme();
   const { canAccessPage, loading: permissionsLoading } = usePermissions();
   const [mounted, setMounted] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false); // Always start expanded on SSR
+  const [isCollapsed, setIsCollapsed] = useState(true); // Start collapsed by default
   const [openSubmenus, setOpenSubmenus] = useState<string[]>([]);
   const [user, setUser] = useState<any>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [wasManuallyCollapsed, setWasManuallyCollapsed] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -247,7 +246,6 @@ const NavigationInternal = () => {
       if (container && target && !container.contains(target)) {
         setIsCollapsed(true);
         setOpenSubmenus([]);
-        setWasManuallyCollapsed(true);
       }
     };
 
@@ -259,32 +257,23 @@ const NavigationInternal = () => {
     };
   }, [isCollapsed]);
 
-  // Close drawer on mouse leave
+  // Close drawer on mouse leave - always close when mouse exits
   useEffect(() => {
     const container = navRef.current;
     if (!container) return;
 
     const handleMouseLeave = () => {
-      // Only auto-close if it wasn't manually toggled (via collapse button)
-      if (!wasManuallyCollapsed) {
-        setIsCollapsed(true);
-        setOpenSubmenus([]);
-      }
-    };
-
-    const handleMouseEnter = () => {
-      // Reset flag when entering the sidebar
-      setWasManuallyCollapsed(false);
+      // Always close when mouse leaves
+      setIsCollapsed(true);
+      setOpenSubmenus([]);
     };
 
     container.addEventListener("mouseleave", handleMouseLeave);
-    container.addEventListener("mouseenter", handleMouseEnter);
 
     return () => {
       container.removeEventListener("mouseleave", handleMouseLeave);
-      container.removeEventListener("mouseenter", handleMouseEnter);
     };
-  }, [wasManuallyCollapsed]);
+  }, []);
 
   const toggleSubmenu = (title: string) => {
     setOpenSubmenus(
@@ -390,10 +379,16 @@ const NavigationInternal = () => {
   }, [canAccessPage, permissionsLoading]);
 
   // Prevent hydration mismatch by not rendering until mounted
+  // Show a minimal skeleton that matches the collapsed sidebar width
   if (!mounted) {
     return (
-      <div className="flex h-screen w-64 flex-col imx-border-r  bg-background">
-        <div className="p-4">Loading...</div>
+      <div
+        className="flex h-screen w-16 flex-col imx-border-r bg-background flex-shrink-0"
+        style={{ minWidth: "64px", maxWidth: "64px" }}
+      >
+        <div className="flex h-16 items-center justify-center">
+          <SidebarSpinner />
+        </div>
       </div>
     );
   }

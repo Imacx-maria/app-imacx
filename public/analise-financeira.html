@@ -5,17 +5,38 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Análise Financeira - Relatório YTD</title>
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap"
-            rel="stylesheet"
+            rel="preload"
+            href="/fonts/Geist[wght].woff2"
+            as="font"
+            type="font/woff2"
+            crossorigin
         />
         <link
-            href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&display=swap"
-            rel="stylesheet"
+            rel="preload"
+            href="/fonts/GeistMono[wght].woff2"
+            as="font"
+            type="font/woff2"
+            crossorigin
         />
         <style>
+            /* Local Geist font faces */
+            @font-face {
+                font-family: "Geist";
+                src: url("/fonts/Geist[wght].woff2") format("woff2");
+                font-weight: 100 900;
+                font-style: normal;
+                font-display: swap;
+            }
+
+            @font-face {
+                font-family: "Geist Mono";
+                src: url("/fonts/GeistMono[wght].woff2") format("woff2");
+                font-weight: 100 900;
+                font-style: normal;
+                font-display: swap;
+            }
+
             /* ============================================
            JOCRIL DESIGN TOKENS
            ============================================ */

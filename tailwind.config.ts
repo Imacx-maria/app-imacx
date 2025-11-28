@@ -18,8 +18,8 @@ const config: Config = {
       },
       colors: {
         border: "var(--border)",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
+        input: "var(--input)",
+        ring: "var(--ring)",
         background: "var(--background)",
         foreground: "var(--foreground)",
         main: "var(--main)",

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createBrowserClient } from '@/utils/supabase'
 
 export interface StockInfo {
@@ -15,7 +15,8 @@ export const useStockValidation = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const supabase = createBrowserClient()
+  // Memoize the supabase client to prevent infinite re-renders
+  const supabase = useMemo(() => createBrowserClient(), [])
 
   // Get stock information for a specific material
   const getStockInfo = useCallback(async (materialId: string): Promise<StockInfo | null> => {

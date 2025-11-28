@@ -2,6 +2,57 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+🚨 0. Git & Repository Rules (ABSOLUTELY NON-NEGOTIABLE)
+
+**READ THIS FIRST. EVERY TIME. NO EXCEPTIONS.**
+
+⛔ **PROHIBITED ACTIONS - NEVER DO THESE:**
+
+1. **NEVER run ANY git command** except `git status` and `git diff`
+   - ❌ NO: `git checkout`, `git switch`, `git branch`, `git merge`
+   - ❌ NO: `git push`, `git pull`, `git fetch`, `git clone`
+   - ❌ NO: `git commit`, `git add`, `git reset`, `git revert`
+   - ❌ NO: `git stash`, `git cherry-pick`, `git rebase`
+   - âœ… YES: `git status`, `git diff` (read-only only)
+
+2. **NEVER fetch or pull code from GitHub/remote**
+   - If code is missing or wrong, STOP and explain the problem
+   - User will manually restore if needed
+   - Do NOT "helpfully" pull backups
+
+3. **NEVER modify, overwrite, or regenerate CLAUDE.md**
+   - This file controls your behavior
+   - Treat it as read-only system configuration
+   - If you think it needs changes, describe them and STOP
+
+4. **NEVER assume branch or working directory**
+   - Check `git status` output at conversation start
+   - If working in worktree (e.g., `~/.claude-worktrees/...`), stay there
+   - If uncertain, ASK before any file operations
+
+🔴 **IF YOU MAKE A MISTAKE:**
+- ❌ DO NOT pull from GitHub
+- ❌ DO NOT change branches to "fix" it
+- ❌ DO NOT restore backups
+- âœ… STOP immediately
+- âœ… Explain what went wrong
+- âœ… Wait for user instruction
+
+🔴 **IF YOU THINK A GIT ACTION WOULD HELP:**
+- STOP
+- Describe the EXACT command you recommend
+- Explain WHY you think it's needed
+- Wait for explicit "yes, do it" approval
+- If unsure whether you have approval → you DON'T
+
+⚖️ **CONFLICT RESOLUTION:**
+If any other instruction conflicts with these rules:
+👉 **THESE RULES WIN. ALWAYS.**
+
+No "but the user seemed to want...", no "I was trying to help", no "I thought it was implied".
+
+**When in doubt: STOP and ASK.**
+
 🎨 1. Styling & Design System (Single Rule)
 
 All UI styling must follow the official design system:

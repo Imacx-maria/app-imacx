@@ -70,7 +70,10 @@
       "Bash(npx @anthropic-ai/claude-code skill install frontend-design)",
       "Bash(npx @anthropic-ai/claude-code skill install:*)",
       "Bash(npx @anthropic-ai/claude-code login)",
-      "Bash(npx @anthropic-ai/claude-code skill list:*)"
+      "Bash(npx @anthropic-ai/claude-code skill list:*)",
+      "Bash(if exist \"C:\\Users\\maria\\.claude-worktrees\\imacx-clean\\thirsty-babbage\\utils\" echo \"Directory exists\")",
+      "Bash(if exist .next rd /s /q .next)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

@@ -91,7 +91,8 @@ export default function StockAnalyticsCharts({
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('rigidos')
 
-  const supabase = createBrowserClient()
+  // Memoize the supabase client to prevent infinite re-renders
+  const supabase = useMemo(() => createBrowserClient(), [])
 
   const fetchStockEntries = useCallback(async () => {
     setLoading(true)

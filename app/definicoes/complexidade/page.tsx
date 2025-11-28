@@ -19,9 +19,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Plus, Trash2, X, Loader2, Edit, RotateCw } from "lucide-react";
+import { Plus, Trash2, X, Loader2, Edit, RotateCw, ArrowLeft, ArrowRight } from "lucide-react";
 import PermissionGuard from "@/components/PermissionGuard";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useMemo } from "react";
 
 interface Complexidade {
   id: string;
@@ -49,7 +50,8 @@ export default function ComplexidadePage() {
     return () => clearTimeout(timer);
   }, [grauFilter]);
 
-  const supabase = createBrowserClient();
+  // Memoize the supabase client to prevent infinite re-renders
+  const supabase = useMemo(() => createBrowserClient(), []);
 
   // Convert to database-level filtering
   const fetchComplexidades = useCallback(
@@ -88,7 +90,24 @@ export default function ComplexidadePage() {
   }, [debouncedGrauFilter, fetchComplexidades]);
 
   // Remove client-side filtering - now using database-level filtering
-  const filteredComplexidades = complexidades;
+  const filteredComplexidades = complexidades
+
+  // Pagination state
+  const ITEMS_PER_PAGE = 40
+  const [currentPage, setCurrentPage] = useState(1)
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [debouncedGrauFilter, filteredComplexidades.length])
+
+  // Paginated data
+  const totalPages = Math.ceil(filteredComplexidades.length / ITEMS_PER_PAGE)
+  const paginatedComplexidades = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+    const endIndex = startIndex + ITEMS_PER_PAGE
+    return filteredComplexidades.slice(startIndex, endIndex)
+  }, [filteredComplexidades, currentPage]);
 
   const handleAddNew = async () => {
     const newGrau = prompt("Digite o novo grau de complexidade:");
@@ -236,15 +255,15 @@ export default function ComplexidadePage() {
         </div>
 
         {/* Table */}
-        <div className="bg-background w-full">
+        <div className="bg-background w-full space-y-4">
           <div className="w-full">
-            <Table className="w-full [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2">
+            <Table className="w-full table-fixed imx-table-compact">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sticky top-0 z-10 imx-border-b text-center uppercase">
+                  <TableHead className="imx-border-b text-center uppercase">
                     Grau de Complexidade
                   </TableHead>
-                  <TableHead className="sticky top-0 z-10 w-[140px] imx-border-b text-center uppercase">
+                  <TableHead className="w-[140px] imx-border-b text-center uppercase">
                     Ações
                   </TableHead>
                 </TableRow>
@@ -256,7 +275,7 @@ export default function ComplexidadePage() {
                       <Loader2 className="text-muted-foreground mx-auto h-8 w-8 animate-spin" />
                     </TableCell>
                   </TableRow>
-                ) : filteredComplexidades.length === 0 ? (
+                ) : paginatedComplexidades.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={2}
@@ -266,7 +285,7 @@ export default function ComplexidadePage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredComplexidades.map((complexidade) => (
+                  paginatedComplexidades.map((complexidade) => (
                     <TableRow key={complexidade.id}>
                       <TableCell className="font-medium">
                         {editingId === complexidade.id ? (
@@ -361,6 +380,32 @@ export default function ComplexidadePage() {
               </TableBody>
             </Table>
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 text-sm imx-border-t">
+              <div className="text-muted-foreground">
+                Página {currentPage} de {totalPages} ({filteredComplexidades.length} níveis)
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </PermissionGuard>

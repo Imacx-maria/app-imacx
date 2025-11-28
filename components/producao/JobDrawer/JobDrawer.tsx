@@ -98,7 +98,9 @@ function JobDrawerContentComponent({
       alert(`Valor atualizado com sucesso para FO ${job.numero_fo}!`);
     } catch (error) {
       console.error("❌ Error refreshing PHC VALOR:", error);
-      alert("Erro ao atualizar o valor do PHC. Verifique a consola para detalhes.");
+      alert(
+        "Erro ao atualizar o valor do PHC. Verifique a consola para detalhes.",
+      );
     } finally {
       setRefreshingValor(false);
     }
@@ -632,12 +634,12 @@ function JobDrawerContentComponent({
             prev.map((i) =>
               i.id === it.id
                 ? {
-                  ...i,
-                  descricao: it.descricao ?? "",
-                  codigo: it.codigo ?? "",
-                  quantidade: it.quantidade ?? null,
-                  brindes: it.brindes ?? false,
-                }
+                    ...i,
+                    descricao: it.descricao ?? "",
+                    codigo: it.codigo ?? "",
+                    quantidade: it.quantidade ?? null,
+                    brindes: it.brindes ?? false,
+                  }
                 : i,
             ),
           );
@@ -731,15 +733,15 @@ function JobDrawerContentComponent({
           ...l,
           items_base: l.items_base
             ? {
-              ...l.items_base,
-              folhas_obras: l.items_base.folhas_obras
-                ? {
-                  ...l.items_base.folhas_obras,
-                  numero_fo: l.items_base.folhas_obras.Numero_do_,
-                  cliente: l.items_base.folhas_obras.Nome,
-                }
-                : null,
-            }
+                ...l.items_base,
+                folhas_obras: l.items_base.folhas_obras
+                  ? {
+                      ...l.items_base.folhas_obras,
+                      numero_fo: l.items_base.folhas_obras.Numero_do_,
+                      cliente: l.items_base.folhas_obras.Nome,
+                    }
+                  : null,
+              }
             : null,
         }));
       } else if (logisticsError) {
@@ -947,9 +949,7 @@ function JobDrawerContentComponent({
     onDuplicateItem: duplicateItem,
     onDeleteItem: async (itemId: string) => {
       if (isNewItem(itemId)) {
-        setAllItems((prev) =>
-          prev.filter((item) => item.id !== itemId),
-        );
+        setAllItems((prev) => prev.filter((item) => item.id !== itemId));
       } else {
         try {
           const { error: deleteError } = await supabase
@@ -962,9 +962,7 @@ function JobDrawerContentComponent({
           }
 
           console.log(`✅ Item eliminado com sucesso (CASCADE)`);
-          setAllItems((prev) =>
-            prev.filter((item) => item.id !== itemId),
-          );
+          setAllItems((prev) => prev.filter((item) => item.id !== itemId));
         } catch (error) {
           console.error("Error deleting item:", error);
           alert("Erro ao eliminar o item. Tente novamente.");
@@ -1043,9 +1041,24 @@ function JobDrawerContentComponent({
       for (const row of logisticaRows) {
         if (row.id !== sourceRowId) {
           await Promise.all([
-            updateLogisticaField(row.id, "local_recolha", deliveryInfo.local_recolha, null),
-            updateLogisticaField(row.id, "local_entrega", deliveryInfo.local_entrega, null),
-            updateLogisticaField(row.id, "transportadora", deliveryInfo.transportadora, null),
+            updateLogisticaField(
+              row.id,
+              "local_recolha",
+              deliveryInfo.local_recolha,
+              null,
+            ),
+            updateLogisticaField(
+              row.id,
+              "local_entrega",
+              deliveryInfo.local_entrega,
+              null,
+            ),
+            updateLogisticaField(
+              row.id,
+              "transportadora",
+              deliveryInfo.transportadora,
+              null,
+            ),
           ]);
         }
       }
@@ -1089,7 +1102,9 @@ function JobDrawerContentComponent({
     onClienteChange: async (row: any, value: string) => {
       await updateLogisticaField(row.id, "cliente", value || null, null);
       setLogisticaRows((prevRows) =>
-        prevRows.map((r) => (r.id === row.id ? { ...r, cliente: value || null } : r)),
+        prevRows.map((r) =>
+          r.id === row.id ? { ...r, cliente: value || null } : r,
+        ),
       );
     },
     onItemSave: async (row: any, value: string) => {
@@ -1107,7 +1122,9 @@ function JobDrawerContentComponent({
     onDataConcluidoSave: async (row: any, value: string) => {
       await updateLogisticaField(row.id, "data_concluido", value || null, null);
       setLogisticaRows((prevRows) =>
-        prevRows.map((r) => (r.id === row.id ? { ...r, data_concluido: value || null } : r)),
+        prevRows.map((r) =>
+          r.id === row.id ? { ...r, data_concluido: value || null } : r,
+        ),
       );
     },
     onSaiuSave: async (row: any, value: boolean) => {
@@ -1119,7 +1136,9 @@ function JobDrawerContentComponent({
     onGuiaSave: async (row: any, value: string) => {
       await updateLogisticaField(row.id, "guia", value || null, null);
       setLogisticaRows((prevRows) =>
-        prevRows.map((r) => (r.id === row.id ? { ...r, guia: value || null } : r)),
+        prevRows.map((r) =>
+          r.id === row.id ? { ...r, guia: value || null } : r,
+        ),
       );
     },
     onBrindesSave: async (row: any, value: boolean) => {
@@ -1130,63 +1149,153 @@ function JobDrawerContentComponent({
     },
     onRecolhaChange: async (rowId: string, value: string) => {
       // value is the warehouse ID, find the warehouse name from logisticaArmazens
-      const warehouse = logisticaArmazens.find((a) => String(a.value) === String(value));
+      const warehouse = logisticaArmazens.find(
+        (a) => String(a.value) === String(value),
+      );
       const warehouseName = warehouse?.label || "";
 
       // Update BOTH the ID and the name fields
-      await updateLogisticaField(rowId, "id_local_recolha", value || null, null);
-      await updateLogisticaField(rowId, "local_recolha", warehouseName || null, null);
+      await updateLogisticaField(
+        rowId,
+        "id_local_recolha",
+        value || null,
+        null,
+      );
+      await updateLogisticaField(
+        rowId,
+        "local_recolha",
+        warehouseName || null,
+        null,
+      );
 
       setLogisticaRows((prevRows) =>
-        prevRows.map((r) => (r.id === rowId ? { ...r, id_local_recolha: value || null, local_recolha: warehouseName || null } : r)),
+        prevRows.map((r) =>
+          r.id === rowId
+            ? {
+                ...r,
+                id_local_recolha: value || null,
+                local_recolha: warehouseName || null,
+              }
+            : r,
+        ),
       );
     },
     onEntregaChange: async (rowId: string, value: string) => {
       // value is the warehouse ID, find the warehouse name from logisticaArmazens
-      const warehouse = logisticaArmazens.find((a) => String(a.value) === String(value));
+      const warehouse = logisticaArmazens.find(
+        (a) => String(a.value) === String(value),
+      );
       const warehouseName = warehouse?.label || "";
 
       // Update BOTH the ID and the name fields
-      await updateLogisticaField(rowId, "id_local_entrega", value || null, null);
-      await updateLogisticaField(rowId, "local_entrega", warehouseName || null, null);
+      await updateLogisticaField(
+        rowId,
+        "id_local_entrega",
+        value || null,
+        null,
+      );
+      await updateLogisticaField(
+        rowId,
+        "local_entrega",
+        warehouseName || null,
+        null,
+      );
 
       setLogisticaRows((prevRows) =>
-        prevRows.map((r) => (r.id === rowId ? { ...r, id_local_entrega: value || null, local_entrega: warehouseName || null } : r)),
+        prevRows.map((r) =>
+          r.id === rowId
+            ? {
+                ...r,
+                id_local_entrega: value || null,
+                local_entrega: warehouseName || null,
+              }
+            : r,
+        ),
       );
     },
     onTransportadoraChange: async (row: any, value: string) => {
       await updateLogisticaField(row.id, "transportadora", value || null, null);
       setLogisticaRows((prevRows) =>
-        prevRows.map((r) => (r.id === row.id ? { ...r, transportadora: value || null } : r)),
+        prevRows.map((r) =>
+          r.id === row.id ? { ...r, transportadora: value || null } : r,
+        ),
       );
     },
     onQuantidadeSave: async (row: any, value: number | null) => {
       await updateLogisticaField(row.id, "quantidade", value, null);
       setLogisticaRows((prevRows) =>
-        prevRows.map((r) => (r.id === row.id ? { ...r, quantidade: value } : r)),
+        prevRows.map((r) =>
+          r.id === row.id ? { ...r, quantidade: value } : r,
+        ),
       );
     },
     onDuplicateRow: async (row: any) => {
       try {
+        // Get quantity - fallback to items_base if logistica quantity is NULL
+        let quantidade = row.quantidade;
+        if (quantidade === null || quantidade === undefined) {
+          // Try to get quantity from items_base
+          const itemQty = row.items_base?.quantidade;
+          if (itemQty !== null && itemQty !== undefined) {
+            quantidade = itemQty;
+          }
+        }
+
         const { data: newRow, error } = await supabase
           .from("logistica_entregas")
           .insert({
             item_id: row.item_id,
             descricao: row.descricao,
-            quantidade: row.quantidade,
+            quantidade: quantidade,
             cliente: row.cliente,
             local_recolha: row.local_recolha,
             local_entrega: row.local_entrega,
             transportadora: row.transportadora,
             data: new Date().toISOString().split("T")[0],
             is_entrega: row.is_entrega,
+            id_local_recolha: row.id_local_recolha,
+            id_local_entrega: row.id_local_entrega,
           })
-          .select("*")
+          .select(
+            `
+            *,
+            items_base (
+              id,
+              descricao,
+              codigo,
+              quantidade,
+              brindes,
+              folha_obra_id,
+              folhas_obras (
+                id,
+                numero_orc,
+                Numero_do_,
+                Nome
+              )
+            )
+          `,
+          )
           .single();
 
         if (error) throw error;
         if (newRow) {
-          setLogisticaRows((prev) => [...prev, newRow]);
+          // Map the nested data for consistency
+          const mappedRow = {
+            ...newRow,
+            items_base: newRow.items_base
+              ? {
+                  ...newRow.items_base,
+                  folhas_obras: newRow.items_base.folhas_obras
+                    ? {
+                        ...newRow.items_base.folhas_obras,
+                        numero_fo: newRow.items_base.folhas_obras.Numero_do_,
+                        cliente: newRow.items_base.folhas_obras.Nome,
+                      }
+                    : null,
+                }
+              : null,
+          };
+          setLogisticaRows((prev) => [...prev, mappedRow]);
         }
       } catch (error) {
         console.error("Error duplicating row:", error);
@@ -1229,9 +1338,7 @@ function JobDrawerContentComponent({
     onDeleteRow: async (rowId: string) => {
       if (rowId) {
         await deleteLogisticaRow(rowId, new Date());
-        setLogisticaRows((prevRows) =>
-          prevRows.filter((r) => r.id !== rowId),
-        );
+        setLogisticaRows((prevRows) => prevRows.filter((r) => r.id !== rowId));
       }
     },
     onArmazensUpdate: () => {

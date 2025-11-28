@@ -357,3 +357,173 @@ export type ProducaoTab = "em_curso" | "concluidos" | "pendentes";
  * Sort direction
  */
 export type SortDirection = "asc" | "desc";
+
+// ============================================================================
+// NEW PRODUCTION OPERATIONS SYSTEM - Phase 2
+// ============================================================================
+
+export type PlanType = "impressao" | "corte";
+export type ProcessType = "impressao_corte" | "so_corte";
+export type PlanOrigin = "designer" | "operador";
+
+export interface ProductionItem {
+  id: string;
+  fo_id: number;
+  fo_numero: string;
+  codigo: string;
+  descricao: string;
+  quantidade_total: number;
+  notas?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductionPlan {
+  id: string;
+  item_id: string;
+  nome: string;
+  tipo: PlanType;
+  processo: ProcessType;
+  origem: PlanOrigin;
+  quantidade_chapas: number;
+  maquina_prevista?: string;
+  material_tipo?: string;
+  material_espessura?: string;
+  material_acabamento?: string;
+  cores?: string;
+  plano_impressao_id?: string;
+  notas?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductionExecution {
+  id: string;
+  plano_id: string;
+  data_hora: string;
+  operador_id?: string;
+  operador_nome?: string;
+  maquina: string;
+  quantidade_executada: number;
+  notas?: string;
+  created_at: string;
+}
+
+export interface ExecutionMaterial {
+  id: string;
+  execution_id: string;
+  palette_id?: string;
+  material_tipo: string;
+  material_espessura?: string;
+  material_acabamento?: string;
+  material_referencia?: string;
+  quantidade_placas: number;
+  is_placa_individual: boolean;
+  created_at: string;
+}
+
+export interface MaterialSummary {
+  material_impresso_total: number;
+  material_nao_impresso_total: number;
+  material_total: number;
+  detalhe_por_material: {
+    impresso: MaterialDetail[];
+    nao_impresso: MaterialDetail[];
+  };
+}
+
+export interface MaterialDetail {
+  tipo: string;
+  espessura?: string;
+  quantidade: number;
+}
+
+export interface PlanExecutionSummary {
+  quantidade_definida: number;
+  quantidade_executada: number;
+  quantidade_falta: number;
+  percentagem_completo: number;
+  execucoes: ExecutionSummaryItem[];
+}
+
+export interface ExecutionSummaryItem {
+  id: string;
+  data_hora: string;
+  operador_nome?: string;
+  maquina: string;
+  quantidade: number;
+  notas?: string;
+}
+
+export interface ItemFullDetails {
+  item: ProductionItem;
+  material_summary: MaterialSummary;
+  planos_impressao: PlanWithSummary[];
+  planos_corte_impressao: CuttingPlanWithSummary[];
+  planos_so_corte: PlanWithSummary[];
+}
+
+export interface PlanWithSummary extends ProductionPlan {
+  execution_summary: PlanExecutionSummary;
+}
+
+export interface CuttingPlanWithSummary extends ProductionPlan {
+  material_herdado: {
+    tipo: string;
+    espessura?: string;
+  };
+  execution_summary: PlanExecutionSummary;
+}
+
+// API Input types
+export interface CreateProductionItemInput {
+  fo_id: number;
+  fo_numero: string;
+  codigo: string;
+  descricao: string;
+  quantidade_total: number;
+  notas?: string;
+}
+
+export interface CreateProductionPlanInput {
+  item_id: string;
+  nome: string;
+  tipo: PlanType;
+  processo: ProcessType;
+  origem: PlanOrigin;
+  quantidade_chapas: number;
+  maquina_prevista?: string;
+  material_tipo?: string;
+  material_espessura?: string;
+  material_acabamento?: string;
+  cores?: string;
+  plano_impressao_id?: string;
+  notas?: string;
+}
+
+export interface UpdateProductionPlanInput {
+  quantidade_chapas?: number;
+  maquina_prevista?: string;
+  material_tipo?: string;
+  material_espessura?: string;
+  notas?: string;
+}
+
+export interface CreateExecutionInput {
+  plano_id: string;
+  data_hora: string;
+  operador_id?: string;
+  operador_nome: string;
+  maquina: string;
+  quantidade_executada: number;
+  notas?: string;
+  material?: {
+    palette_id?: string;
+    material_tipo: string;
+    material_espessura?: string;
+    material_acabamento?: string;
+    material_referencia?: string;
+    quantidade_placas: number;
+    is_placa_individual: boolean;
+  };
+}

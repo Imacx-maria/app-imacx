@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createBrowserClient } from '@/utils/supabase'
 
 export const useOperations = () => {
@@ -7,7 +7,8 @@ export const useOperations = () => {
   const [error, setError] = useState<string | null>(null)
   const [filters, setFilters] = useState<any>({})
 
-  const supabase = createBrowserClient()
+  // Memoize the supabase client to prevent infinite re-renders
+  const supabase = useMemo(() => createBrowserClient(), [])
 
   // Fetch operations with all related data
   const fetchOperations = useCallback(async () => {

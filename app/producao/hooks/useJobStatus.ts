@@ -1,5 +1,5 @@
-import { useCallback } from 'react'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { useCallback } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Job Status Hook
@@ -19,149 +19,120 @@ import type { SupabaseClient } from '@supabase/supabase-js'
  */
 export function useJobStatus(
   supabase: SupabaseClient,
-  setJobsSaiuStatus: React.Dispatch<React.SetStateAction<Record<string, boolean>>>,
-  setJobsCompletionStatus: React.Dispatch<
-    React.SetStateAction<Record<string, { completed: boolean; percentage: number }>>
+  setJobsSaiuStatus: React.Dispatch<
+    React.SetStateAction<Record<string, boolean>>
   >,
-  setJobTotalValues: React.Dispatch<React.SetStateAction<Record<string, number>>>,
+  setJobsCompletionStatus: React.Dispatch<
+    React.SetStateAction<
+      Record<string, { completed: boolean; percentage: number }>
+    >
+  >,
+  setJobTotalValues: React.Dispatch<
+    React.SetStateAction<Record<string, number>>
+  >,
 ) {
   /**
-   * Fetch saiu (shipped) status for jobs
+   * Fetch both saiu and completion status for jobs in a single query
    *
-   * Checks if ALL items for each job have saiu=true in logistics entries.
-   * A job is considered "saiu" only when every single item has been shipped.
+   * CONSOLIDATED: Previously this was two separate functions making duplicate
+   * queries to items_base and logistica_entregas. Now fetches once and computes both.
    *
-   * @param jobIds - Array of job IDs to check
-   */
-  const fetchJobsSaiuStatus = useCallback(
-    async (jobIds: string[]) => {
-      if (jobIds.length === 0) return
-
-      try {
-        // First get all items for these jobs
-        const { data: itemsData, error: itemsError } = await supabase
-          .from('items_base')
-          .select('id, folha_obra_id')
-          .in('folha_obra_id', jobIds)
-
-        if (itemsError) throw itemsError
-
-        if (itemsData && itemsData.length > 0) {
-          const itemIds = itemsData.map((item) => item.id)
-
-          // Get logistics entries for these items
-          const { data: logisticsData, error: logisticsError } = await supabase
-            .from('logistica_entregas')
-            .select('item_id, saiu')
-            .in('item_id', itemIds)
-
-          if (logisticsError) throw logisticsError
-
-          // Calculate saiu status for each job
-          const jobSaiuStatus: Record<string, boolean> = {}
-
-          jobIds.forEach((jobId) => {
-            const jobItems = itemsData.filter(
-              (item) => item.folha_obra_id === jobId,
-            )
-
-            if (jobItems.length === 0) {
-              jobSaiuStatus[jobId] = false
-              return
-            }
-
-            // Check if all items have logistics entries with saiu=true
-            const allItemsSaiu = jobItems.every((item) => {
-              const logisticsEntry = logisticsData?.find(
-                (l) => l.item_id === item.id,
-              )
-              return logisticsEntry && logisticsEntry.saiu === true
-            })
-
-            jobSaiuStatus[jobId] = allItemsSaiu
-          })
-
-          setJobsSaiuStatus(jobSaiuStatus)
-        }
-      } catch (error) {
-        console.error('Error fetching jobs saiu status:', error)
-      }
-    },
-    [supabase, setJobsSaiuStatus],
-  )
-
-  /**
-   * Fetch completion status for jobs
-   *
-   * Calculates the percentage of items completed for each job based on
-   * logistics entries with concluido=true. Also determines if job is fully completed.
+   * - Saiu: Checks if ALL items for each job have saiu=true
+   * - Completion: Calculates percentage of items with concluido=true
    *
    * @param jobIds - Array of job IDs to check
    */
-  const fetchJobsCompletionStatus = useCallback(
+  const fetchJobsLogisticsStatus = useCallback(
     async (jobIds: string[]) => {
-      if (jobIds.length === 0) return
+      if (jobIds.length === 0) return;
 
       try {
-        // First get all items for these jobs
+        // Single query for items
         const { data: itemsData, error: itemsError } = await supabase
-          .from('items_base')
-          .select('id, folha_obra_id')
-          .in('folha_obra_id', jobIds)
+          .from("items_base")
+          .select("id, folha_obra_id")
+          .in("folha_obra_id", jobIds);
 
-        if (itemsError) throw itemsError
+        if (itemsError) throw itemsError;
 
         if (itemsData && itemsData.length > 0) {
-          const itemIds = itemsData.map((item) => item.id)
+          const itemIds = itemsData.map((item) => item.id);
 
-          // Get logistics entries for these items
+          // Single query for logistics - fetch both saiu AND concluido
           const { data: logisticsData, error: logisticsError } = await supabase
-            .from('logistica_entregas')
-            .select('item_id, concluido')
-            .in('item_id', itemIds)
+            .from("logistica_entregas")
+            .select("item_id, saiu, concluido")
+            .in("item_id", itemIds);
 
-          if (logisticsError) throw logisticsError
+          if (logisticsError) throw logisticsError;
 
-          // Calculate completion status for each job
+          // Calculate BOTH statuses from the same data
+          const jobSaiuStatus: Record<string, boolean> = {};
           const jobCompletionStatus: Record<
             string,
             { completed: boolean; percentage: number }
-          > = {}
+          > = {};
 
           jobIds.forEach((jobId) => {
             const jobItems = itemsData.filter(
               (item) => item.folha_obra_id === jobId,
-            )
+            );
 
             if (jobItems.length === 0) {
-              jobCompletionStatus[jobId] = { completed: false, percentage: 0 }
-              return
+              jobSaiuStatus[jobId] = false;
+              jobCompletionStatus[jobId] = { completed: false, percentage: 0 };
+              return;
             }
 
-            // Calculate completion percentage based on logistics entries with concluido=true
+            // Calculate saiu status - all items must have saiu=true
+            const allItemsSaiu = jobItems.every((item) => {
+              const logisticsEntry = logisticsData?.find(
+                (l) => l.item_id === item.id,
+              );
+              return logisticsEntry && logisticsEntry.saiu === true;
+            });
+            jobSaiuStatus[jobId] = allItemsSaiu;
+
+            // Calculate completion percentage
             const completedItems = jobItems.filter((item) => {
               const logisticsEntry = logisticsData?.find(
                 (l) => l.item_id === item.id,
-              )
-              return logisticsEntry && logisticsEntry.concluido === true
-            })
+              );
+              return logisticsEntry && logisticsEntry.concluido === true;
+            });
 
             const percentage = Math.round(
               (completedItems.length / jobItems.length) * 100,
-            )
-            const allCompleted = completedItems.length === jobItems.length
+            );
+            const allCompleted = completedItems.length === jobItems.length;
 
-            jobCompletionStatus[jobId] = { completed: allCompleted, percentage }
-          })
+            jobCompletionStatus[jobId] = {
+              completed: allCompleted,
+              percentage,
+            };
+          });
 
-          setJobsCompletionStatus(jobCompletionStatus)
+          // Update both states
+          setJobsSaiuStatus(jobSaiuStatus);
+          setJobsCompletionStatus(jobCompletionStatus);
         }
       } catch (error) {
-        console.error('Error fetching jobs completion status:', error)
+        console.error("Error fetching jobs logistics status:", error);
       }
     },
-    [supabase, setJobsCompletionStatus],
-  )
+    [supabase, setJobsSaiuStatus, setJobsCompletionStatus],
+  );
+
+  // Legacy wrappers for backwards compatibility (call consolidated function)
+  const fetchJobsSaiuStatus = useCallback(
+    async (jobIds: string[]) => fetchJobsLogisticsStatus(jobIds),
+    [fetchJobsLogisticsStatus],
+  );
+
+  const fetchJobsCompletionStatus = useCallback(async (jobIds: string[]) => {
+    // No-op: Already handled by fetchJobsLogisticsStatus
+    // Kept for API compatibility if called separately
+  }, []);
 
   /**
    * Fetch total values for jobs from PHC business system
@@ -173,75 +144,78 @@ export function useJobStatus(
    */
   const fetchJobTotalValues = useCallback(
     async (jobIds: string[]) => {
-      if (jobIds.length === 0) return
+      if (jobIds.length === 0) return;
 
       try {
         // Get all jobs with their FO numbers and existing PHC values
         const { data: jobsData, error: jobsError } = await supabase
-          .from('folhas_obras')
-          .select('id, Numero_do_, Euro__tota')
-          .in('id', jobIds)
-          .not('Numero_do_', 'is', null)
+          .from("folhas_obras")
+          .select("id, Numero_do_, Euro__tota")
+          .in("id", jobIds)
+          .not("Numero_do_", "is", null);
 
-        if (jobsError) throw jobsError
+        if (jobsError) throw jobsError;
 
         // Extract FO numbers
-        const foNumbers = jobsData
-          ?.map((job) => String(job.Numero_do_))
-          .filter((fo) => fo && fo !== 'null' && fo !== 'undefined') || []
+        const foNumbers =
+          jobsData
+            ?.map((job) => String(job.Numero_do_))
+            .filter((fo) => fo && fo !== "null" && fo !== "undefined") || [];
 
         if (foNumbers.length === 0) {
-          setJobTotalValues({})
-          return
+          setJobTotalValues({});
+          return;
         }
 
         // Fetch values from PHC BO table
         const { data: boData, error: boError } = await supabase
-          .schema('phc')
-          .from('bo')
-          .select('document_number, total_value')
-          .eq('document_type', 'Folha de Obra')
-          .in('document_number', foNumbers)
+          .schema("phc")
+          .from("bo")
+          .select("document_number, total_value")
+          .eq("document_type", "Folha de Obra")
+          .in("document_number", foNumbers);
 
-        if (boError) throw boError
+        if (boError) throw boError;
 
         // Create a map of FO number -> total_value
-        const foValueMap: Record<string, number> = {}
+        const foValueMap: Record<string, number> = {};
         boData?.forEach((row) => {
-          foValueMap[String(row.document_number)] = Number(row.total_value) || 0
-        })
+          foValueMap[String(row.document_number)] =
+            Number(row.total_value) || 0;
+        });
 
         // Create a map of job ID -> total_value
         // Priority: Use PHC cache first (always fresh), then Euro__tota only if manually refreshed (> 0)
-        const jobValuesMap: Record<string, number> = {}
+        const jobValuesMap: Record<string, number> = {};
         jobsData?.forEach((job: any) => {
-          const phcCacheValue = foValueMap[String(job.Numero_do_)] || 0
-          const euroTotaValue = job.Euro__tota || 0
-          let finalValue = 0
+          const phcCacheValue = foValueMap[String(job.Numero_do_)] || 0;
+          const euroTotaValue = job.Euro__tota || 0;
+          let finalValue = 0;
 
           // Prefer PHC cache if available, otherwise use Euro__tota if it was manually refreshed
           if (phcCacheValue > 0) {
-            finalValue = phcCacheValue
+            finalValue = phcCacheValue;
           } else if (euroTotaValue > 0) {
-            finalValue = euroTotaValue
+            finalValue = euroTotaValue;
           }
 
-          jobValuesMap[job.id] = finalValue
-        })
+          jobValuesMap[job.id] = finalValue;
+        });
 
         // CRITICAL: Merge with existing values instead of replacing the entire state
         // This prevents wiping out values for other jobs when refreshing a single job
-        setJobTotalValues(prev => ({ ...prev, ...jobValuesMap }))
+        setJobTotalValues((prev) => ({ ...prev, ...jobValuesMap }));
       } catch (error) {
-        console.error('Error fetching job total values:', error)
+        console.error("Error fetching job total values:", error);
       }
     },
     [supabase, setJobTotalValues],
-  )
+  );
 
   return {
     fetchJobsSaiuStatus,
     fetchJobsCompletionStatus,
+    fetchJobsLogisticsStatus, // Consolidated function - use this instead of calling both separately
     fetchJobTotalValues,
-  }
+  };
 }

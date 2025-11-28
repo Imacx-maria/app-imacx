@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@/utils/supabase";
-import { createAdminClient } from "@/utils/supabaseAdmin";
+import type { PermissionId, RoleId } from "@/types/permissions";
+import {
+  setPermissionsCookie,
+  clearPermissionsCookie,
+} from "@/utils/permissionsCookie";
 
 export const dynamic = "force-dynamic";
 
@@ -31,17 +35,25 @@ export async function GET() {
 
     if (authError) {
       console.error("[API /permissions/me] Auth error:", authError.message);
+      try {
+        clearPermissionsCookie();
+      } catch (err) {
+        console.warn("[API /permissions/me] Clear permissions cookie failed:", err);
+      }
       return NextResponse.json({ message: "auth-error" }, { status: 500 });
     }
 
     if (!user) {
+      try {
+        clearPermissionsCookie();
+      } catch (err) {
+        console.warn("[API /permissions/me] Clear permissions cookie failed:", err);
+      }
       return NextResponse.json({ message: "no-session" }, { status: 401 });
     }
 
-    const adminClient = createAdminClient();
-
     // OPTIMIZED: Single query with join to get profile + role data
-    const { data: profile, error: profileError } = await adminClient
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("role_id, roles!inner(page_permissions)")
       .eq("user_id", user.id)
@@ -52,6 +64,11 @@ export async function GET() {
         "[API /permissions/me] Profile lookup failed:",
         profileError,
       );
+      try {
+        clearPermissionsCookie();
+      } catch (err) {
+        console.warn("[API /permissions/me] Clear permissions cookie failed:", err);
+      }
       return NextResponse.json({ message: "missing-profile" }, { status: 403 });
     }
 
@@ -62,12 +79,18 @@ export async function GET() {
         "[API /permissions/me] Profile found but role_id missing for user",
         user.id,
       );
-      return json({
+      const response = json({
         roles: [],
         pagePermissions: ["page:dashboard"],
         actionPermissions: [],
         reason: "missing-role",
       });
+      try {
+        clearPermissionsCookie();
+      } catch (err) {
+        console.warn("[API /permissions/me] Clear permissions cookie failed:", err);
+      }
+      return response;
     }
 
     // Extract page permissions from joined role data
@@ -81,21 +104,52 @@ export async function GET() {
         "[API /permissions/me] Role has no page permissions configured",
         roleId,
       );
-      return json({
+      const response = json({
         roles: [roleId],
         pagePermissions: ["page:dashboard"],
         actionPermissions: [],
         reason: "empty-permissions",
       });
+      try {
+        clearPermissionsCookie();
+      } catch (err) {
+        console.warn("[API /permissions/me] Clear permissions cookie failed:", err);
+      }
+      return response;
     }
 
-    return json({
-      roles: [roleId],
-      pagePermissions: pagePermissions.map((p) => `page:${p}`),
-      actionPermissions: [],
-    });
+    const typedRoles = [roleId] as RoleId[];
+    const typedPagePermissions = pagePermissions.map(
+      (p) => `page:${p}` as PermissionId
+    );
+    const typedActionPermissions: PermissionId[] = [];
+
+    const result = {
+      roles: typedRoles,
+      pagePermissions: typedPagePermissions,
+      actionPermissions: typedActionPermissions,
+    };
+
+    // Set signed cookie to avoid future DB hits within TTL
+    try {
+      setPermissionsCookie({
+        roles: typedRoles,
+        pagePermissions: typedPagePermissions,
+        actionPermissions: typedActionPermissions,
+        userId: user.id,
+      });
+    } catch (err) {
+      console.warn("[API /permissions/me] Set permissions cookie failed:", err);
+    }
+
+    return json(result);
   } catch (error) {
     console.error("[API /permissions/me] Unexpected exception:", error);
+    try {
+      clearPermissionsCookie();
+    } catch (err) {
+      console.warn("[API /permissions/me] Clear permissions cookie failed:", err);
+    }
     return NextResponse.json({ message: "unexpected-error" }, { status: 500 });
   }
 }

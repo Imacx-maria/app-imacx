@@ -27,6 +27,8 @@ import CreatableTransportadoraCombobox, {
 } from "@/components/forms/CreatableTransportadoraCombobox";
 
 interface AddDeliveryDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
   armazens: ArmazemOption[];
   transportadoras: TransportadoraOption[];
@@ -68,13 +70,14 @@ interface DeliveryFormData {
 }
 
 const AddDeliveryDialogInternal = ({
+  open,
+  onOpenChange,
   onSuccess,
   armazens,
   transportadoras,
   onArmazensUpdate,
   onTransportadorasUpdate,
 }: AddDeliveryDialogProps) => {
-  const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<DeliveryFormData>({});
   const [loadingPhc, setLoadingPhc] = useState(false);
@@ -227,7 +230,7 @@ const AddDeliveryDialogInternal = ({
 
       // Reset form and close dialog
       setFormData({});
-      setOpen(false);
+      onOpenChange(false);
       onSuccess?.();
     } catch (error) {
       console.error("Error creating delivery:", error);
@@ -238,12 +241,7 @@ const AddDeliveryDialogInternal = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="default" size="icon">
-          <Plus className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nova Entrega</DialogTitle>
@@ -565,7 +563,7 @@ const AddDeliveryDialogInternal = ({
         <DialogFooter>
           <Button
             variant="outline"
-            onClick={() => setOpen(false)}
+            onClick={() => onOpenChange(false)}
             disabled={saving}
           >
             Cancelar

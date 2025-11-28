@@ -12,13 +12,15 @@ interface Holiday {
 interface FullYearCalendarProps {
   holidays?: Holiday[]
   year?: number
-  onSelect?: (date: Date) => void
+  selectedDate?: Date
+  onDateSelect?: (date: Date | undefined) => void
 }
 
 const FullYearCalendarInternal: React.FC<FullYearCalendarProps> = ({
   holidays = [],
   year = new Date().getFullYear(),
-  onSelect,
+  selectedDate,
+  onDateSelect,
 }) => {
   useAccessibilityFixes()
 
@@ -50,7 +52,9 @@ const FullYearCalendarInternal: React.FC<FullYearCalendarProps> = ({
             month={monthDate}
             holidays={holidays}
             showOutsideDays={false}
-            onDayClick={onSelect}
+            mode="single"
+            selected={selectedDate}
+            onSelect={onDateSelect}
             classNames={{
               month_caption: 'text-lg font-semibold uppercase text-center mb-2',
             }}

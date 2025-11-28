@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Edit2,
@@ -9,6 +9,8 @@ import {
   ArrowUpDown,
   Wrench,
   AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
 } from "lucide-react";
 import { EditButton, DeleteButton } from "@/components/custom/ActionButtons";
 import {
@@ -68,6 +70,10 @@ export default function UsersList({
   >(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
+  // Pagination state
+  const ITEMS_PER_PAGE = 40
+  const [currentPage, setCurrentPage] = useState(1)
+
   const roleNameById = useMemo(() => {
     return roles.reduce<Record<string, string>>((acc, role) => {
       acc[role.id] = role.name;
@@ -120,6 +126,19 @@ export default function UsersList({
     });
   }, [users, sortBy, sortOrder, roleNameById]);
 
+  // Reset pagination when users change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [users.length])
+
+  // Paginated data
+  const totalPages = Math.ceil(sortedUsers.length / ITEMS_PER_PAGE)
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+    const endIndex = startIndex + ITEMS_PER_PAGE
+    return sortedUsers.slice(startIndex, endIndex)
+  }, [sortedUsers, currentPage])
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await onRefresh();
@@ -170,10 +189,10 @@ export default function UsersList({
 
   return (
     <>
-      <div className="bg-background w-full">
+      <div className="bg-background w-full space-y-4">
         <div className="w-full overflow-x-auto">
-          <Table className="w-full imx-table-compact">
-            <TableHeader className="sticky top-0 z-10 imx-border-b text-center uppercase">
+          <Table className="w-full table-fixed imx-table-compact">
+            <TableHeader className="imx-border-b text-center uppercase">
               <TableRow>
                 <TableHead
                   className="text-center cursor-pointer hover:bg-accent transition-colors select-none"
@@ -202,7 +221,7 @@ export default function UsersList({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedUsers.map((user) => (
+              {paginatedUsers.map((user) => (
                 <TableRow
                   key={user.id || user.auth_user_id}
                   className="imx-row-hover"
@@ -292,6 +311,32 @@ export default function UsersList({
             </TableBody>
           </Table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-4 text-sm imx-border-t">
+            <div className="text-muted-foreground">
+              Página {currentPage} de {totalPages} ({sortedUsers.length} utilizadores)
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+              >
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex justify-end">
