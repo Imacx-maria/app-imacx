@@ -49,79 +49,31 @@ const JobTableRowComponent = ({
   const pct = jobsCompletionStatus[job.id]?.percentage || 0;
 
   // Memoized handler for ORC input blur
+  // Note: ORC duplicates are allowed, only FO duplicates are blocked
   const handleOrcBlur = useCallback(
     async (e: React.FocusEvent<HTMLInputElement>) => {
       const inputValue = e.target.value.trim();
       const value = inputValue === "" ? null : inputValue;
 
-      // Skip validation for empty values
-      if (!inputValue) {
-        if (!job.id.startsWith("temp-")) {
-          await supabase
-            .from("folhas_obras")
-            .update({ numero_orc: value })
-            .eq("id", job.id);
+      // For temp jobs with a value, create from ORC
+      if (job.id.startsWith("temp-") && inputValue) {
+        try {
+          await prefillAndInsertFromOrc(inputValue, job.id);
+        } catch (error) {
+          console.error("Error creating job from ORC:", error);
         }
         return;
       }
 
-      // Check for duplicates
-      const existingJob = await checkOrcDuplicate(inputValue, job.id);
-
-      if (existingJob) {
-        setDuplicateDialog({
-          isOpen: true,
-          type: "orc",
-          value: inputValue,
-          existingJob,
-          currentJobId: job.id,
-          originalValue: job.numero_orc,
-          onConfirm: async () => {
-            if (job.id.startsWith("temp-")) {
-              try {
-                await prefillAndInsertFromOrc(inputValue, job.id);
-              } catch (error) {
-                console.error("Error creating job from ORC:", error);
-              }
-            } else {
-              await supabase
-                .from("folhas_obras")
-                .update({ numero_orc: inputValue })
-                .eq("id", job.id);
-            }
-            setDuplicateDialog({
-              isOpen: false,
-              type: "orc",
-              value: "",
-              currentJobId: "",
-            });
-          },
-          onCancel: () => {
-            onJobUpdate(job.id, { numero_orc: job.numero_orc });
-            setDuplicateDialog({
-              isOpen: false,
-              type: "orc",
-              value: "",
-              currentJobId: "",
-            });
-          },
-        });
-      } else {
-        if (job.id.startsWith("temp-")) {
-          try {
-            await prefillAndInsertFromOrc(inputValue, job.id);
-          } catch (error) {
-            console.error("Error creating job from ORC:", error);
-          }
-        } else {
-          await supabase
-            .from("folhas_obras")
-            .update({ numero_orc: inputValue })
-            .eq("id", job.id);
-        }
+      // For existing jobs, just update the value (no duplicate check)
+      if (!job.id.startsWith("temp-")) {
+        await supabase
+          .from("folhas_obras")
+          .update({ numero_orc: value })
+          .eq("id", job.id);
       }
     },
-    [job.id, job.numero_orc, checkOrcDuplicate, prefillAndInsertFromOrc, setDuplicateDialog, onJobUpdate, supabase]
+    [job.id, prefillAndInsertFromOrc, supabase],
   );
 
   // Memoized handler for FO input blur
@@ -218,7 +170,15 @@ const JobTableRowComponent = ({
         }
       }
     },
-    [job.id, job.numero_fo, checkFoDuplicate, prefillAndInsertFromFo, setDuplicateDialog, onJobUpdate, supabase]
+    [
+      job.id,
+      job.numero_fo,
+      checkFoDuplicate,
+      prefillAndInsertFromFo,
+      setDuplicateDialog,
+      onJobUpdate,
+      supabase,
+    ],
   );
 
   // Memoized handler for cliente change
@@ -231,7 +191,9 @@ const JobTableRowComponent = ({
       });
 
       if (!job.id.startsWith("temp-")) {
-        const selectedCustomerId = selected ? parseInt(selected.value, 10) : null;
+        const selectedCustomerId = selected
+          ? parseInt(selected.value, 10)
+          : null;
         await supabase
           .from("folhas_obras")
           .update({
@@ -241,7 +203,7 @@ const JobTableRowComponent = ({
           .eq("id", job.id);
       }
     },
-    [job.id, clientes, onJobUpdate, supabase]
+    [job.id, clientes, onJobUpdate, supabase],
   );
 
   // Memoized handler for campaign name blur
@@ -255,7 +217,7 @@ const JobTableRowComponent = ({
           .eq("id", job.id);
       }
     },
-    [job.id, supabase]
+    [job.id, supabase],
   );
 
   // Memoized handler for notes save
@@ -267,7 +229,7 @@ const JobTableRowComponent = ({
         .eq("id", job.id);
       onJobUpdate(job.id, { notas: newNotas });
     },
-    [job.id, onJobUpdate, supabase]
+    [job.id, onJobUpdate, supabase],
   );
 
   // Memoized handler for priority toggle
@@ -301,14 +263,14 @@ const JobTableRowComponent = ({
         }
       }
     },
-    [job.id, job.pendente, onJobUpdate, supabase]
+    [job.id, job.pendente, onJobUpdate, supabase],
   );
 
   // Memoized handler for delete
   const handleDelete = useCallback(async () => {
     if (
       !confirm(
-        `Tem certeza que deseja eliminar a Folha de Obra ${job.numero_fo}? Esta ação irá eliminar todos os itens e dados logísticos associados.`
+        `Tem certeza que deseja eliminar a Folha de Obra ${job.numero_fo}? Esta ação irá eliminar todos os itens e dados logísticos associados.`,
       )
     ) {
       return;
@@ -537,29 +499,32 @@ const JobTableRowComponent = ({
 /**
  * Memoized JobTableRow - only re-renders when relevant props change
  */
-export const JobTableRow = memo(JobTableRowComponent, (prevProps, nextProps) => {
-  // Custom comparison for better performance
-  // Only re-render if these specific values change
-  return (
-    prevProps.job.id === nextProps.job.id &&
-    prevProps.job.numero_orc === nextProps.job.numero_orc &&
-    prevProps.job.numero_fo === nextProps.job.numero_fo &&
-    prevProps.job.nome_campanha === nextProps.job.nome_campanha &&
-    prevProps.job.cliente === nextProps.job.cliente &&
-    prevProps.job.id_cliente === nextProps.job.id_cliente &&
-    prevProps.job.notas === nextProps.job.notas &&
-    prevProps.job.prioridade === nextProps.job.prioridade &&
-    prevProps.job.pendente === nextProps.job.pendente &&
-    prevProps.job.data_in === nextProps.job.data_in &&
-    prevProps.job.euro_tota === nextProps.job.euro_tota &&
-    prevProps.jobsCompletionStatus[prevProps.job.id]?.percentage ===
-      nextProps.jobsCompletionStatus[nextProps.job.id]?.percentage &&
-    prevProps.jobTotalValues[prevProps.job.id] ===
-      nextProps.jobTotalValues[nextProps.job.id] &&
-    prevProps.variant === nextProps.variant &&
-    prevProps.loading.clientes === nextProps.loading.clientes &&
-    prevProps.clientes.length === nextProps.clientes.length
-  );
-});
+export const JobTableRow = memo(
+  JobTableRowComponent,
+  (prevProps, nextProps) => {
+    // Custom comparison for better performance
+    // Only re-render if these specific values change
+    return (
+      prevProps.job.id === nextProps.job.id &&
+      prevProps.job.numero_orc === nextProps.job.numero_orc &&
+      prevProps.job.numero_fo === nextProps.job.numero_fo &&
+      prevProps.job.nome_campanha === nextProps.job.nome_campanha &&
+      prevProps.job.cliente === nextProps.job.cliente &&
+      prevProps.job.id_cliente === nextProps.job.id_cliente &&
+      prevProps.job.notas === nextProps.job.notas &&
+      prevProps.job.prioridade === nextProps.job.prioridade &&
+      prevProps.job.pendente === nextProps.job.pendente &&
+      prevProps.job.data_in === nextProps.job.data_in &&
+      prevProps.job.euro_tota === nextProps.job.euro_tota &&
+      prevProps.jobsCompletionStatus[prevProps.job.id]?.percentage ===
+        nextProps.jobsCompletionStatus[nextProps.job.id]?.percentage &&
+      prevProps.jobTotalValues[prevProps.job.id] ===
+        nextProps.jobTotalValues[nextProps.job.id] &&
+      prevProps.variant === nextProps.variant &&
+      prevProps.loading.clientes === nextProps.loading.clientes &&
+      prevProps.clientes.length === nextProps.clientes.length
+    );
+  },
+);
 
 JobTableRow.displayName = "JobTableRow";
