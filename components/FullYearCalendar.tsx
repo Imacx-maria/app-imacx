@@ -45,7 +45,7 @@ const FullYearCalendarInternal: React.FC<FullYearCalendarProps> = ({
       {months.map((monthDate) => (
         <div
           key={`${monthDate.getFullYear()}-${monthDate.getMonth()}`}
-          className="rounded-none p-2 flex justify-center flex-shrink-0 w-full md:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1.333rem)]"
+          className="rounded-none p-2 flex justify-center flex-shrink-0 w-full md:w-[calc((100%-2rem)/2)] lg:w-[calc((100%-2rem)/3)]"
           data-no-aria-hidden="true"
         >
           <Calendar

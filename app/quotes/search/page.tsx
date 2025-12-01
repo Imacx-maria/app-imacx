@@ -5,15 +5,11 @@ import {
   Search,
   FileText,
   Loader2,
-  Sparkles,
-  Zap,
-  AlertTriangle,
-  TrendingUp,
-  Lightbulb,
   ChevronDown,
   ChevronUp,
   ArrowUpDown,
   Brain,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,44 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-type SearchMode = "standard" | "ai-simple" | "ai-guess" | "ai-semantic";
-
-// Available AI models for testing - ordered by speed (fastest first)
-const AI_MODELS = [
-  // FASTEST MODELS (optimized for speed)
-  {
-    id: "google/gemini-2.5-flash-lite",
-    name: "Gemini 2.5 Flash Lite",
-    cost: "$0.10/$0.40 per 1M",
-  },
-  {
-    id: "google/gemini-2.5-flash",
-    name: "Gemini 2.5 Flash",
-    cost: "$0.15/$0.60 per 1M",
-  },
-  {
-    id: "meta-llama/llama-3.3-70b-instruct",
-    name: "Llama 3.3 70B",
-    cost: "$0.10/$0.25 per 1M",
-  },
-  {
-    id: "meta-llama/llama-3.1-8b-instruct",
-    name: "Llama 3.1 8B (Fast)",
-    cost: "$0.02/$0.05 per 1M",
-  },
-  // BALANCED MODELS (good quality + reasonable speed)
-  {
-    id: "qwen/qwen3-235b-a22b-instruct",
-    name: "Qwen3 235B",
-    cost: "$0.20/$0.60 per 1M",
-  },
-  // QUALITY MODELS (slower but higher quality)
-  {
-    id: "anthropic/claude-3.5-sonnet",
-    name: "Claude 3.5 Sonnet",
-    cost: "$3/$15 per 1M",
-  },
-] as const;
+type SearchMode = "standard" | "ai-semantic";
 
 interface QtyLine {
   qty: number;
@@ -82,69 +41,16 @@ interface SearchResult {
   similarity: number;
 }
 
-interface AIAnalysis {
-  priceEstimate: {
-    min: number;
-    max: number;
-    typical: number;
-    currency: string;
-    confidence: "high" | "medium" | "low";
-    perUnit?: {
-      min: number;
-      max: number;
-      typicalQty: number;
-    };
-  };
-  reasoning: string;
-  keyFactors?: string[];
-  recommendations?: string[];
-  warnings?: string[];
-  filteredOutReasons?: string[];
-}
-
-interface AIResponse {
-  success: boolean;
-  query: string;
-  mode: string;
-  analysis: AIAnalysis;
-  similarQuotes: SearchResult[];
-  totalCandidates?: number;
-  filteredCount?: number;
-  usage?: { prompt_tokens: number; completion_tokens: number };
-  searchTime: number;
-  model?: string;
-}
-
-interface PriceEstimate {
-  qty: number;
-  unit_price: number;
-  total_price: number;
-  confidence: "alta" | "media" | "baixa";
-}
-
-interface EstimateData {
-  produto: string;
-  estimativas: PriceEstimate[];
-  matches_found: number;
-  date_range: string;
-  assumptions: string[];
-  notes?: string;
-}
-
-interface EstimateResponse {
-  success: boolean;
-  query: string;
-  estimate: EstimateData;
-  similarQuotes: SearchResult[];
-  usage?: { prompt_tokens: number; completion_tokens: number };
-  model: string;
-  searchTime: number;
-}
-
 interface SemanticPriceStats {
   min: number;
   max: number;
   typical: number;
+  count: number;
+}
+
+interface QtyBandAverage {
+  label: string;
+  avgUnitPrice: number;
   count: number;
 }
 
@@ -161,32 +67,22 @@ interface SemanticResponse {
 export default function QuoteSearchPage() {
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<SearchMode>("standard");
-  const [selectedModel, setSelectedModel] = useState<string>(AI_MODELS[0].id);
   const [results, setResults] = useState<SearchResult[]>([]);
-  const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [expandedQuote, setExpandedQuote] = useState<string | null>(null);
   const [searchTime, setSearchTime] = useState<number>(0);
-  const [apiUsage, setApiUsage] = useState<{
-    prompt_tokens: number;
-    completion_tokens: number;
-  } | null>(null);
-  const [filterStats, setFilterStats] = useState<{
-    totalCandidates: number;
-    filteredCount: number;
-  } | null>(null);
-  const [usedModel, setUsedModel] = useState<string | null>(null);
-  const [showExcluded, setShowExcluded] = useState(false);
   const [sortField, setSortField] = useState<string>("document_date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const [estimateData, setEstimateData] = useState<EstimateData | null>(null);
-  const [showSimilarQuotes, setShowSimilarQuotes] = useState(false);
   const [semanticPriceStats, setSemanticPriceStats] =
     useState<SemanticPriceStats | null>(null);
   const [semanticLimit, setSemanticLimit] = useState<number>(30);
   const [semanticThreshold, setSemanticThreshold] = useState<number>(0.5);
+  const [priceFilterMin, setPriceFilterMin] = useState<number | null>(null);
+  const [priceFilterMax, setPriceFilterMax] = useState<number | null>(null);
+  const [dateFilterStart, setDateFilterStart] = useState<string | null>(null);
+  const [dateFilterEnd, setDateFilterEnd] = useState<string | null>(null);
 
   // Extract quantity from query (e.g., "crowner extensível quantidade 100" -> { product: "crowner extensível", qty: 100 })
   const parseQueryForQuantity = (
@@ -224,21 +120,14 @@ export default function QuoteSearchPage() {
     setIsLoading(true);
     setError(null);
     setHasSearched(true);
-    setAiAnalysis(null);
-    setApiUsage(null);
-    setFilterStats(null);
-    setUsedModel(null);
-    setEstimateData(null);
-    setShowSimilarQuotes(false);
     setSemanticPriceStats(null);
+    setPriceFilterMin(null);
+    setPriceFilterMax(null);
+    setDateFilterStart(null);
+    setDateFilterEnd(null);
 
-    // Parse query to extract quantity (for AI Guess) and clean product terms
-    const { product: cleanProduct, qty: extractedQty } = parseQueryForQuantity(
-      query.trim(),
-    );
-
-    // For standard and AI simple, use clean product without quantity
-    const searchQuery = mode === "ai-guess" ? query.trim() : cleanProduct;
+    // Parse query to extract clean product terms
+    const { product: cleanProduct } = parseQueryForQuantity(query.trim());
 
     try {
       if (mode === "standard") {
@@ -246,7 +135,7 @@ export default function QuoteSearchPage() {
         const response = await fetch("/api/quotes/search", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: searchQuery, limit: 100 }),
+          body: JSON.stringify({ query: cleanProduct, limit: 100 }),
         });
 
         if (!response.ok) throw new Error("Erro na pesquisa");
@@ -254,60 +143,6 @@ export default function QuoteSearchPage() {
         const data = await response.json();
         setResults(data.results);
         setSearchTime(0);
-      } else if (mode === "ai-simple") {
-        // AI simple search - use cleaned query without quantity
-        const response = await fetch("/api/quotes/advisor", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query: searchQuery,
-            mode: "simple",
-            model: selectedModel,
-          }),
-        });
-
-        if (!response.ok) throw new Error("Erro na analise AI");
-
-        const data: AIResponse = await response.json();
-        setResults(data.similarQuotes);
-        setAiAnalysis(data.analysis);
-        setSearchTime(data.searchTime);
-        setApiUsage(data.usage || null);
-        setUsedModel(data.model || selectedModel);
-        if (data.totalCandidates && data.filteredCount !== undefined) {
-          setFilterStats({
-            totalCandidates: data.totalCandidates,
-            filteredCount: data.filteredCount,
-          });
-        }
-      } else if (mode === "ai-guess") {
-        // AI GUESS - Price estimation
-        const response = await fetch("/api/quotes/estimate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query: query.trim(),
-            model: selectedModel,
-          }),
-        });
-
-        if (!response.ok) throw new Error("Erro na estimativa AI");
-
-        const data: EstimateResponse = await response.json();
-
-        if (!data.success) {
-          setError(
-            data.estimate?.notes || "Nenhum orçamento similar encontrado",
-          );
-          setResults([]);
-          return;
-        }
-
-        setEstimateData(data.estimate);
-        setResults(data.similarQuotes || []);
-        setSearchTime(data.searchTime);
-        setApiUsage(data.usage || null);
-        setUsedModel(data.model || selectedModel);
       } else if (mode === "ai-semantic") {
         // AI SEMANTIC - Vector embedding search
         const safeLimit = Math.max(
@@ -387,38 +222,55 @@ export default function QuoteSearchPage() {
     setExpandedQuote(expandedQuote === docNum ? null : docNum);
   };
 
-  const getConfidenceColor = (confidence: string) => {
-    switch (confidence) {
-      case "high":
-        return "text-green-600 bg-green-100";
-      case "medium":
-        return "text-yellow-600 bg-yellow-100";
-      case "low":
-        return "text-red-600 bg-red-100";
-      default:
-        return "text-muted-foreground bg-accent";
-    }
-  };
-
-  const getConfidenceLabel = (confidence: string) => {
-    switch (confidence) {
-      case "high":
-        return "ALTA";
-      case "medium":
-        return "MEDIA";
-      case "low":
-        return "BAIXA";
-      default:
-        return confidence;
-    }
-  };
-
   // Get primary qty line for display in results table
   const getPrimaryQtyLine = (qtyLines: QtyLine[]) => {
     if (!qtyLines || qtyLines.length === 0) return null;
     // Return the first line with qty > 0
     return qtyLines.find((l) => l.qty > 0) || qtyLines[0];
   };
+
+  // Calculate average unit prices by quantity bands
+  const calculateQtyBandAverages = (
+    searchResults: SearchResult[],
+  ): QtyBandAverage[] => {
+    const bands = [
+      { label: "QTD < 50", min: 0, max: 50 },
+      { label: "QTD 51-150", min: 51, max: 150 },
+      { label: "QTD 151-300", min: 151, max: 300 },
+      { label: "TODOS", min: 0, max: Infinity },
+    ];
+
+    return bands.map((band) => {
+      const matchingLines: number[] = [];
+
+      searchResults.forEach((result) => {
+        const primaryLine = getPrimaryQtyLine(result.qty_lines);
+        if (primaryLine && primaryLine.unit_price > 0) {
+          const qty = primaryLine.qty;
+          if (band.label === "TODOS" || (qty >= band.min && qty <= band.max)) {
+            matchingLines.push(primaryLine.unit_price);
+          }
+        }
+      });
+
+      const avgUnitPrice =
+        matchingLines.length > 0
+          ? matchingLines.reduce((sum, price) => sum + price, 0) /
+            matchingLines.length
+          : 0;
+
+      return {
+        label: band.label,
+        avgUnitPrice,
+        count: matchingLines.length,
+      };
+    });
+  };
+
+  const qtyBandAverages =
+    results.length > 0 && mode === "ai-semantic"
+      ? calculateQtyBandAverages(results)
+      : [];
 
   // Handle sorting
   const handleSort = (field: string) => {
@@ -459,6 +311,10 @@ export default function QuoteSearchPage() {
         valA = a.keyword_matches || 0;
         valB = b.keyword_matches || 0;
         break;
+      case "similarity":
+        valA = a.similarity || 0;
+        valB = b.similarity || 0;
+        break;
       default:
         return 0;
     }
@@ -468,6 +324,45 @@ export default function QuoteSearchPage() {
     }
     return valA < valB ? 1 : -1;
   });
+
+  // Filter results by unit price and date
+  const filteredResults = sortedResults.filter((result) => {
+    const primaryLine = getPrimaryQtyLine(result.qty_lines);
+    const unitPrice = primaryLine?.unit_price || 0;
+
+    // Price filter
+    if (priceFilterMin !== null && unitPrice < priceFilterMin) return false;
+    if (priceFilterMax !== null && unitPrice > priceFilterMax) return false;
+
+    // Date filter
+    if (dateFilterStart || dateFilterEnd) {
+      const resultDate = new Date(result.document_date);
+      if (dateFilterStart) {
+        const startDate = new Date(dateFilterStart);
+        if (resultDate < startDate) return false;
+      }
+      if (dateFilterEnd) {
+        const endDate = new Date(dateFilterEnd);
+        endDate.setHours(23, 59, 59, 999); // Include the entire end day
+        if (resultDate > endDate) return false;
+      }
+    }
+
+    return true;
+  });
+
+  const hasActiveFilters =
+    priceFilterMin !== null ||
+    priceFilterMax !== null ||
+    dateFilterStart !== null ||
+    dateFilterEnd !== null;
+
+  const clearAllFilters = () => {
+    setPriceFilterMin(null);
+    setPriceFilterMax(null);
+    setDateFilterStart(null);
+    setDateFilterEnd(null);
+  };
 
   // Sortable header component
   const SortableHeader = ({
@@ -520,24 +415,6 @@ export default function QuoteSearchPage() {
           STANDARD
         </Button>
         <Button
-          variant={mode === "ai-simple" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setMode("ai-simple")}
-          className="gap-2"
-        >
-          <Zap className="h-4 w-4" />
-          AI SIMPLES
-        </Button>
-        <Button
-          variant={mode === "ai-guess" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setMode("ai-guess")}
-          className="gap-2"
-        >
-          <TrendingUp className="h-4 w-4" />
-          AI GUESS
-        </Button>
-        <Button
           variant={mode === "ai-semantic" ? "default" : "outline"}
           size="sm"
           onClick={() => setMode("ai-semantic")}
@@ -548,30 +425,9 @@ export default function QuoteSearchPage() {
         </Button>
       </div>
 
-      {/* Model Selector (only for AI modes that use OpenRouter) */}
-      {(mode === "ai-simple" || mode === "ai-guess") && (
-        <div className="mb-4 flex items-center gap-3">
-          <span className="text-xs text-muted-foreground">MODELO:</span>
-          <select
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            className="text-xs bg-background imx-border px-2 py-1 rounded"
-          >
-            {AI_MODELS.map((model) => (
-              <option key={model.id} value={model.id}>
-                {model.name} ({model.cost})
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
       {/* Mode Description */}
       <div className="mb-4 text-xs text-muted-foreground">
         {mode === "standard" && "Pesquisa por palavras-chave (gratuito)"}
-        {mode === "ai-simple" && "Pesquisa com filtro AI (remove irrelevantes)"}
-        {mode === "ai-guess" &&
-          "Estimativa de precos por quantidade (1, 30, 50, 100, 250, 350+ un)"}
         {mode === "ai-semantic" &&
           "Pesquisa por significado - descreva o que precisa em linguagem natural"}
       </div>
@@ -593,24 +449,14 @@ export default function QuoteSearchPage() {
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
             ) : mode === "standard" ? (
               <Search className="h-4 w-4 mr-2" />
-            ) : mode === "ai-guess" ? (
-              <TrendingUp className="h-4 w-4 mr-2" />
-            ) : mode === "ai-semantic" ? (
-              <Brain className="h-4 w-4 mr-2" />
             ) : (
-              <Sparkles className="h-4 w-4 mr-2" />
+              <Brain className="h-4 w-4 mr-2" />
             )}
             {isLoading
-              ? mode === "ai-guess"
-                ? "A ESTIMAR..."
-                : mode === "ai-simple"
-                  ? "AI A ANALISAR..."
-                  : mode === "ai-semantic"
-                    ? "A PROCURAR..."
-                    : "A PESQUISAR..."
-              : mode === "ai-guess"
-                ? "ESTIMAR PRECO"
-                : "PESQUISAR"}
+              ? mode === "ai-semantic"
+                ? "A PROCURAR..."
+                : "A PESQUISAR..."
+              : "PESQUISAR"}
           </Button>
         </div>
 
@@ -664,185 +510,6 @@ export default function QuoteSearchPage() {
         </div>
       )}
 
-      {/* AI GUESS Results Card */}
-      {hasSearched && !isLoading && estimateData && mode === "ai-guess" && (
-        <div className="mb-6 imx-border bg-card">
-          <div className="p-4 imx-border-b bg-primary/10">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              <span className="font-medium">ESTIMATIVA DE PRECO</span>
-            </div>
-          </div>
-
-          <div className="p-4">
-            {/* Product interpretation */}
-            <div className="mb-4 p-3 bg-accent">
-              <span className="text-xs text-muted-foreground">PRODUTO:</span>
-              <p className="font-medium">{estimateData.produto}</p>
-            </div>
-
-            {/* Price table */}
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-24">QUANTIDADE</TableHead>
-                  <TableHead className="w-32 text-right">PRECO UNIT.</TableHead>
-                  <TableHead className="w-32 text-right">PRECO TOTAL</TableHead>
-                  <TableHead className="w-24 text-center">CONFIANCA</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {estimateData.estimativas.map((est) => (
-                  <TableRow key={est.qty}>
-                    <TableCell className="font-medium">
-                      {est.qty === 350 ? "350+" : est.qty} un
-                    </TableCell>
-                    <TableCell className="text-right">
-                      ~{formatCurrency(est.unit_price)}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {est.qty === 350 && est.confidence === "baixa"
-                        ? "Consultar"
-                        : `~${formatCurrency(est.total_price)}`}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs ${
-                          est.confidence === "alta"
-                            ? "bg-green-100 text-green-700"
-                            : est.confidence === "media"
-                              ? "bg-yellow-100 text-yellow-700"
-                              : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {est.confidence === "alta"
-                          ? "Alta"
-                          : est.confidence === "media"
-                            ? "Media"
-                            : "Baixa"}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-
-            {/* Assumptions */}
-            {estimateData.assumptions &&
-              estimateData.assumptions.length > 0 && (
-                <div className="mt-4 p-3 bg-accent/50 text-xs">
-                  <span className="font-medium">MATERIAIS ASSUMIDOS: </span>
-                  <span className="text-muted-foreground">
-                    {estimateData.assumptions.join(", ")}
-                  </span>
-                </div>
-              )}
-
-            {/* Notes */}
-            {estimateData.notes && (
-              <div className="mt-3 text-xs text-muted-foreground">
-                <span className="font-medium">NOTAS: </span>
-                {estimateData.notes}
-              </div>
-            )}
-
-            {/* Source info */}
-            <div className="mt-4 pt-3 imx-border-t text-xs text-muted-foreground">
-              Baseado em: {estimateData.matches_found} orcamentos similares (
-              {estimateData.date_range})
-            </div>
-
-            {/* Toggle similar quotes */}
-            {results.length > 0 && (
-              <div className="mt-4">
-                <button
-                  className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"
-                  onClick={() => setShowSimilarQuotes(!showSimilarQuotes)}
-                >
-                  {showSimilarQuotes ? (
-                    <ChevronUp className="h-4 w-4" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4" />
-                  )}
-                  {showSimilarQuotes ? "OCULTAR" : "VER"} ORCAMENTOS SIMILARES (
-                  {results.length})
-                </button>
-
-                {showSimilarQuotes && (
-                  <div className="mt-3">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-20">ORC #</TableHead>
-                          <TableHead className="w-24">DATA</TableHead>
-                          <TableHead className="w-24 text-right">QTD</TableHead>
-                          <TableHead className="w-28 text-right">
-                            PRECO/UN
-                          </TableHead>
-                          <TableHead>DESCRICAO</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {results.map((result) => {
-                          const primaryLine = getPrimaryQtyLine(
-                            result.qty_lines,
-                          );
-                          return (
-                            <TableRow key={result.document_number}>
-                              <TableCell className="font-medium">
-                                {result.document_number}
-                              </TableCell>
-                              <TableCell>
-                                {formatDate(result.document_date)}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {primaryLine
-                                  ? formatNumber(primaryLine.qty)
-                                  : "-"}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {primaryLine && primaryLine.unit_price
-                                  ? formatCurrency(primaryLine.unit_price)
-                                  : "-"}
-                              </TableCell>
-                              <TableCell className="max-w-xs truncate text-sm text-muted-foreground">
-                                {result.description_preview?.substring(0, 60) ||
-                                  "-"}
-                                ...
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* API Stats */}
-          {(searchTime > 0 || apiUsage || usedModel) && (
-            <div className="px-4 py-2 imx-border-t bg-accent/30 text-xs text-muted-foreground flex flex-wrap gap-4">
-              {usedModel && (
-                <span className="font-medium">
-                  Modelo:{" "}
-                  {AI_MODELS.find((m) => m.id === usedModel)?.name || usedModel}
-                </span>
-              )}
-              {searchTime > 0 && <span>Tempo: {searchTime}ms</span>}
-              {apiUsage && (
-                <span>
-                  Tokens: {apiUsage.prompt_tokens} +{" "}
-                  {apiUsage.completion_tokens} ={" "}
-                  {apiUsage.prompt_tokens + apiUsage.completion_tokens}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* AI SEMANTIC Results Card */}
       {hasSearched &&
         !isLoading &&
@@ -889,35 +556,25 @@ export default function QuoteSearchPage() {
               </div>
 
               <div className="text-xs text-muted-foreground mb-2">
-                Ancoras em torno do preco tipico
+                PRECO UNITARIO MEDIO POR FAIXA DE QUANTIDADE
               </div>
               <div className="flex flex-wrap gap-2 mb-4">
-                {[
-                  {
-                    label: "TIPICO -50",
-                    value: semanticPriceStats.typical - 50,
-                  },
-                  {
-                    label: "TIPICO -150",
-                    value: semanticPriceStats.typical - 150,
-                  },
-                  {
-                    label: "TIPICO -300",
-                    value: semanticPriceStats.typical - 300,
-                  },
-                  {
-                    label: "TIPICO +300",
-                    value: semanticPriceStats.typical + 300,
-                  },
-                ].map((band) => (
+                {qtyBandAverages.map((band) => (
                   <span
                     key={band.label}
-                    className="inline-flex items-center gap-2 px-2 py-1 imx-border bg-accent/40"
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 imx-border ${band.label === "TODOS" ? "bg-primary/20" : "bg-accent/40"}`}
                   >
-                    <span className="text-muted-foreground">{band.label}</span>
-                    <span className="font-medium">
-                      {formatCurrency(Math.max(0, band.value))}
+                    <span className="text-muted-foreground text-xs">
+                      {band.label}
                     </span>
+                    <span className="font-medium">
+                      {band.count > 0 ? formatCurrency(band.avgUnitPrice) : "-"}
+                    </span>
+                    {band.count > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        ({band.count})
+                      </span>
+                    )}
                   </span>
                 ))}
               </div>
@@ -925,6 +582,98 @@ export default function QuoteSearchPage() {
               <div className="text-xs text-muted-foreground">
                 Baseado em {semanticPriceStats.count} produtos principais dos
                 orcamentos encontrados
+              </div>
+
+              {/* Filters */}
+              <div className="mt-4 pt-4 imx-border-t">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    FILTROS
+                  </span>
+                  {hasActiveFilters && (
+                    <button
+                      className="text-xs text-muted-foreground hover:text-foreground underline"
+                      onClick={clearAllFilters}
+                    >
+                      Limpar todos
+                    </button>
+                  )}
+                </div>
+
+                {/* Price Filter */}
+                <div className="mb-3">
+                  <div className="text-xs text-muted-foreground mb-2">
+                    PRECO UNITARIO
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground">MIN:</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        placeholder="0"
+                        value={priceFilterMin ?? ""}
+                        onChange={(e) =>
+                          setPriceFilterMin(
+                            e.target.value ? Number(e.target.value) : null,
+                          )
+                        }
+                        className="w-24 bg-background imx-border px-2 py-1"
+                      />
+                      <span className="text-muted-foreground">€</span>
+                    </label>
+                    <label className="flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground">MAX:</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        placeholder="∞"
+                        value={priceFilterMax ?? ""}
+                        onChange={(e) =>
+                          setPriceFilterMax(
+                            e.target.value ? Number(e.target.value) : null,
+                          )
+                        }
+                        className="w-24 bg-background imx-border px-2 py-1"
+                      />
+                      <span className="text-muted-foreground">€</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Date Filter */}
+                <div>
+                  <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    DATA DO ORCAMENTO
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground">DE:</span>
+                      <input
+                        type="date"
+                        value={dateFilterStart ?? ""}
+                        onChange={(e) =>
+                          setDateFilterStart(e.target.value || null)
+                        }
+                        className="bg-background imx-border px-2 py-1"
+                      />
+                    </label>
+                    <label className="flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground">ATE:</span>
+                      <input
+                        type="date"
+                        value={dateFilterEnd ?? ""}
+                        onChange={(e) =>
+                          setDateFilterEnd(e.target.value || null)
+                        }
+                        className="bg-background imx-border px-2 py-1"
+                      />
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -940,207 +689,23 @@ export default function QuoteSearchPage() {
           </div>
         )}
 
-      {/* AI Analysis Card */}
-      {hasSearched && !isLoading && aiAnalysis && (
-        <div className="mb-6 imx-border bg-card">
-          <div className="p-4 imx-border-b bg-primary/10">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              <span className="font-medium">ANALISE AI</span>
-              <span
-                className={`ml-auto px-2 py-0.5 text-xs ${getConfidenceColor(aiAnalysis.priceEstimate.confidence)}`}
-              >
-                CONFIANCA{" "}
-                {getConfidenceLabel(aiAnalysis.priceEstimate.confidence)}
-              </span>
-            </div>
-          </div>
-
-          <div className="p-4">
-            {/* Price Estimate */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div className="p-4 bg-accent">
-                <div className="text-xs text-muted-foreground mb-1">
-                  PRECO MINIMO
-                </div>
-                <div className="text-xl font-medium">
-                  {formatCurrency(aiAnalysis.priceEstimate.min)}
-                </div>
-              </div>
-              <div className="p-4 bg-primary/20">
-                <div className="text-xs text-muted-foreground mb-1">
-                  PRECO TIPICO
-                </div>
-                <div className="text-2xl font-medium">
-                  {formatCurrency(aiAnalysis.priceEstimate.typical)}
-                </div>
-              </div>
-              <div className="p-4 bg-accent">
-                <div className="text-xs text-muted-foreground mb-1">
-                  PRECO MAXIMO
-                </div>
-                <div className="text-xl font-medium">
-                  {formatCurrency(aiAnalysis.priceEstimate.max)}
-                </div>
-              </div>
-            </div>
-
-            {/* Per Unit (if available) */}
-            {aiAnalysis.priceEstimate.perUnit && (
-              <div className="mb-4 p-3 bg-accent/50 text-sm">
-                <span className="font-medium">PRECO POR UNIDADE:</span>{" "}
-                {formatCurrency(aiAnalysis.priceEstimate.perUnit.min)} -{" "}
-                {formatCurrency(aiAnalysis.priceEstimate.perUnit.max)}
-                {aiAnalysis.priceEstimate.perUnit.typicalQty > 0 && (
-                  <span className="text-muted-foreground">
-                    {" "}
-                    (para ~
-                    {formatNumber(
-                      aiAnalysis.priceEstimate.perUnit.typicalQty,
-                    )}{" "}
-                    unidades)
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* Reasoning */}
-            <div className="mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">RACIOCINIO</span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {aiAnalysis.reasoning}
-              </p>
-            </div>
-
-            {/* Key Factors (extended mode) */}
-            {aiAnalysis.keyFactors && aiAnalysis.keyFactors.length > 0 && (
-              <div className="mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Lightbulb className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">FATORES CHAVE</span>
-                </div>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  {aiAnalysis.keyFactors.map((factor, idx) => (
-                    <li key={idx} className="flex items-start gap-2">
-                      <span className="text-primary">•</span>
-                      {factor}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Recommendations (extended mode) */}
-            {aiAnalysis.recommendations &&
-              aiAnalysis.recommendations.length > 0 && (
-                <div className="mb-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">RECOMENDACOES</span>
-                  </div>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    {aiAnalysis.recommendations.map((rec, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <span className="text-green-600">✓</span>
-                        {rec}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-            {/* Warnings (if any) */}
-            {aiAnalysis.warnings && aiAnalysis.warnings.length > 0 && (
-              <div className="p-3 bg-yellow-50 imx-border">
-                <div className="flex items-center gap-2 mb-2">
-                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                  <span className="text-sm font-medium text-yellow-800">
-                    ALERTAS
-                  </span>
-                </div>
-                <ul className="text-sm text-yellow-700 space-y-1">
-                  {aiAnalysis.warnings.map((warning, idx) => (
-                    <li key={idx}>{warning}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Filtered Out Quotes - Collapsible */}
-            {aiAnalysis.filteredOutReasons &&
-              aiAnalysis.filteredOutReasons.length > 0 && (
-                <div className="bg-accent/50 imx-border">
-                  <button
-                    className="w-full p-3 flex items-center gap-2 hover:bg-accent/70 transition-colors"
-                    onClick={() => setShowExcluded(!showExcluded)}
-                  >
-                    {showExcluded ? (
-                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">
-                      EXCLUIDOS PELA AI ({aiAnalysis.filteredOutReasons.length})
-                    </span>
-                  </button>
-                  {showExcluded && (
-                    <ul className="px-3 pb-3 text-xs text-muted-foreground space-y-1">
-                      {aiAnalysis.filteredOutReasons.map((reason, idx) => (
-                        <li key={idx} className="flex items-start gap-2">
-                          <span className="text-destructive">✗</span>
-                          {reason}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-          </div>
-
-          {/* API Stats */}
-          {(searchTime > 0 || apiUsage || usedModel) && (
-            <div className="px-4 py-2 imx-border-t bg-accent/30 text-xs text-muted-foreground flex flex-wrap gap-4">
-              {usedModel && (
-                <span className="font-medium">
-                  Modelo:{" "}
-                  {AI_MODELS.find((m) => m.id === usedModel)?.name || usedModel}
-                </span>
-              )}
-              {searchTime > 0 && <span>Tempo: {searchTime}ms</span>}
-              {apiUsage && (
-                <span>
-                  Tokens: {apiUsage.prompt_tokens} input +{" "}
-                  {apiUsage.completion_tokens} output ={" "}
-                  {apiUsage.prompt_tokens + apiUsage.completion_tokens} total
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Results */}
       {hasSearched &&
         !isLoading &&
-        (mode === "standard" ||
-          mode === "ai-simple" ||
-          mode === "ai-semantic") && (
+        (mode === "standard" || mode === "ai-semantic") && (
           <div className="imx-border">
             <div className="p-4 imx-border-b bg-accent">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">
-                  {results.length} ORCAMENTOS{" "}
+                  {filteredResults.length} ORCAMENTOS{" "}
                   {mode === "standard" ? "ENCONTRADOS" : "RELEVANTES"}
-                  {filterStats && mode !== "standard" && (
-                    <span className="text-muted-foreground font-normal">
-                      {" "}
-                      (de {filterStats.totalCandidates} candidatos)
-                    </span>
-                  )}
+                  {hasActiveFilters &&
+                    filteredResults.length !== results.length && (
+                      <span className="text-muted-foreground font-normal">
+                        {" "}
+                        (filtrado de {results.length})
+                      </span>
+                    )}
                 </span>
                 {results.length > 0 && (
                   <span className="text-xs text-muted-foreground">
@@ -1186,15 +751,18 @@ export default function QuoteSearchPage() {
                       </SortableHeader>
                     )}
                     {mode === "ai-semantic" && (
-                      <TableHead className="w-20 text-center">
+                      <SortableHeader
+                        field="similarity"
+                        className="w-20 text-center"
+                      >
                         SIMILAR
-                      </TableHead>
+                      </SortableHeader>
                     )}
                     <TableHead>DESCRICAO</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedResults.map((result) => {
+                  {filteredResults.map((result) => {
                     const primaryLine = getPrimaryQtyLine(result.qty_lines);
                     return (
                       <React.Fragment key={result.document_number}>
@@ -1268,7 +836,7 @@ export default function QuoteSearchPage() {
                                   </div>
                                 )}
 
-                                {/* Price Lines */}
+                                {/* Price Lines - show all lines, display "-" for zero values */}
                                 {result.qty_lines &&
                                   result.qty_lines.length > 0 && (
                                     <div>
@@ -1295,17 +863,22 @@ export default function QuoteSearchPage() {
                                           {result.qty_lines.map((line, idx) => (
                                             <TableRow key={idx}>
                                               <TableCell className="font-medium">
-                                                {formatNumber(line.qty)}
+                                                {line.qty > 0
+                                                  ? formatNumber(line.qty)
+                                                  : "-"}
                                               </TableCell>
                                               <TableCell className="text-right">
-                                                {line.unit_price
+                                                {line.unit_price &&
+                                                line.unit_price > 0
                                                   ? formatCurrency(
                                                       line.unit_price,
                                                     )
                                                   : "-"}
                                               </TableCell>
                                               <TableCell className="text-right font-medium">
-                                                {formatCurrency(line.total)}
+                                                {line.total > 0
+                                                  ? formatCurrency(line.total)
+                                                  : "-"}
                                               </TableCell>
                                               <TableCell className="text-sm text-muted-foreground truncate max-w-xs">
                                                 {line.description}

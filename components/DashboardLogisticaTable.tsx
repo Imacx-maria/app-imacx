@@ -1491,7 +1491,7 @@ const DashboardLogisticaTableInternal: React.FC<
                       handleConcluidoUpdate={handleConcluidoUpdate}
                       handleSaiuUpdate={handleSaiuUpdate}
                       parseDateFromYYYYMMDD={parseDateFromYYYYMMDD}
-                      isMobile={isMobileOrTablet}
+                      isMobile={isMobile}
                       isSmallDesktop={isSmallDesktop}
                     />
                   ))
@@ -1564,8 +1564,8 @@ const DashboardLogisticaTableInternal: React.FC<
                       Guia
                     </TableHead>
                   )}
-                  {/* Cliente - hidden on mobile and tablet */}
-                  {!isMobileOrTablet && (
+                  {/* Cliente - hidden on mobile, tablet, and small desktop (1025-1270px) */}
+                  {!isMobileOrTablet && !isSmallDesktop && (
                     <TableHead
                       onClick={() => toggleSort("cliente")}
                       className="sticky top-0 z-10 cursor-pointer imx-border-b text-center font-bold uppercase select-none"
@@ -1663,7 +1663,7 @@ const DashboardLogisticaTableInternal: React.FC<
                       handleConcluidoUpdate={handleConcluidoUpdate}
                       handleSaiuUpdate={handleSaiuUpdate}
                       parseDateFromYYYYMMDD={parseDateFromYYYYMMDD}
-                      isMobile={isMobileOrTablet}
+                      isMobile={isMobile}
                       isSmallDesktop={isSmallDesktop}
                     />
                   ))

@@ -64,7 +64,7 @@ export function useIsMobileOrTablet(): boolean {
 }
 
 /**
- * Returns true if the screen is in the small desktop range (1025px - 1270px)
+ * Returns true if the screen is in the small desktop range (1024px - 1270px)
  * In this range, we hide some columns like Item and Cliente
  */
 export function useIsSmallDesktop(): boolean {
@@ -79,7 +79,7 @@ export function useIsSmallDesktop(): boolean {
     // Check initial value
     const checkSmallDesktop = () => {
       const width = window.innerWidth;
-      setIsSmallDesktop(width >= 1025 && width < 1271);
+      setIsSmallDesktop(width >= DESKTOP_BREAKPOINT && width < 1271);
     };
 
     // Set initial value after mount

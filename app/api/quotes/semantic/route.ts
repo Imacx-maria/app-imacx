@@ -41,7 +41,8 @@ async function getEmbedding(text: string): Promise<number[]> {
     headers: {
       Authorization: `Bearer ${openRouterApiKey}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "https://imacx.pt",
+      "HTTP-Referer":
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
       "X-Title": "IMACX Quote Search",
     },
     body: JSON.stringify({

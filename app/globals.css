@@ -596,6 +596,8 @@
     --calendar-holiday-bg: oklch(
         0.86 0.02 98.5
     ); /* darker than weekend/input */
+    /* Progress bar background - slightly darker than secondary for visibility */
+    --progress-bg: oklch(0.88 0.02 95);
 
     /* Chart Colors - Material Types */
     --chart-cartao: oklch(0.87 0.1 95); /* Soft pastel yellow */
@@ -648,6 +650,8 @@
     --secondary: oklch(0.26 0 0 / 87.46%);
     --secondary-foreground: oklch(0.85 0 0);
     --muted: oklch(0.24 0 0 / 87.46%);
+    /* Progress bar background - slightly darker than secondary for visibility */
+    --progress-bg: oklch(0.24 0 0 / 87.46%);
     --muted-foreground: oklch(0.65 0 0);
     --accent: oklch(0.4 0 0);
     --accent-foreground: oklch(0.85 0 0);
