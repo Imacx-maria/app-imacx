@@ -339,15 +339,15 @@ export default function PlanosTable({
         </AddButton>
       </div>
 
-      <div className="rounded-md imx-border">
+      <div>
         <Table className="w-full table-fixed imx-table-compact">
           <TableHeader>
             <TableRow>
               <TableHead className="w-[150px]">Nome</TableHead>
-              <TableHead className="w-[100px]">Tipo Op</TableHead>
+              <TableHead className="w-[130px]">Tipo Op</TableHead>
               <TableHead className="w-[180px]">Máquina</TableHead>
               <TableHead className="w-[425px]">Material</TableHead>
-              <TableHead className="w-[140px]">Cores</TableHead>
+              <TableHead className="w-[100px]">Cores</TableHead>
               <TableHead className="w-[80px]">Qtd</TableHead>
               <TableHead>Notas</TableHead>
               <TableHead className="w-[100px]">Ações</TableHead>
@@ -444,7 +444,7 @@ export default function PlanosTable({
                       handleUpdateField(plano.id!, "cores", value, false);
                     }}
                     placeholder="Cores"
-                    className="w-[140px]"
+                    className="w-[90px]"
                   />
                 </TableCell>
                 <TableCell>
@@ -525,7 +525,9 @@ export default function PlanosTable({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              onClick={() =>
+                setCurrentPage(Math.min(totalPages, currentPage + 1))
+              }
               disabled={currentPage === totalPages}
             >
               <ArrowRight className="h-4 w-4" />

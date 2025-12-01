@@ -37,7 +37,7 @@ export function NewExecutionForm({
   loading = false,
 }: NewExecutionFormProps) {
   const supabase = useMemo(() => createBrowserClient(), []);
-  
+
   // Data from database
   const [machines, setMachines] = useState<MachineOption[]>([]);
   const [operators, setOperators] = useState<OperatorOption[]>([]);
@@ -64,14 +64,17 @@ export function NewExecutionForm({
         if (machinesError) {
           console.error("Error fetching machines:", machinesError);
         } else if (machinesData) {
-          setMachines(machinesData.map(m => ({
-            value: m.id,
-            label: m.nome_maquina,
-          })));
+          setMachines(
+            machinesData.map((m) => ({
+              value: m.id,
+              label: m.nome_maquina,
+            })),
+          );
         }
 
         // Determine which role to use based on operation type
-        const roleId = operationType === "Corte" ? ROLE_IDS.corte : ROLE_IDS.impressao;
+        const roleId =
+          operationType === "Corte" ? ROLE_IDS.corte : ROLE_IDS.impressao;
 
         // Fetch operators with specific role
         const { data: operatorsData, error: operatorsError } = await supabase
@@ -83,10 +86,12 @@ export function NewExecutionForm({
         if (operatorsError) {
           console.error("Error fetching operators:", operatorsError);
         } else if (operatorsData) {
-          setOperators(operatorsData.map(o => ({
-            value: o.id,
-            label: o.first_name,
-          })));
+          setOperators(
+            operatorsData.map((o) => ({
+              value: o.id,
+              label: o.first_name,
+            })),
+          );
         }
       } catch (err) {
         console.error("Error fetching data:", err);
@@ -100,7 +105,7 @@ export function NewExecutionForm({
 
   // Get selected operator name
   const selectedOperatorName = useMemo(() => {
-    const op = operators.find(o => o.value === operadorId);
+    const op = operators.find((o) => o.value === operadorId);
     return op?.label || "";
   }, [operators, operadorId]);
 
@@ -127,7 +132,9 @@ export function NewExecutionForm({
       <Card className="imx-border p-4">
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin" />
-          <span className="ml-2 text-sm text-muted-foreground">A carregar dados...</span>
+          <span className="ml-2 text-sm text-muted-foreground">
+            A carregar dados...
+          </span>
         </div>
       </Card>
     );
@@ -140,32 +147,32 @@ export function NewExecutionForm({
       </h4>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-4 gap-4">
-          <div className="space-y-2">
+        <div className="flex items-end gap-4">
+          <div className="space-y-2 w-40 flex-shrink-0">
             <Label>Máquina *</Label>
             <Combobox
               value={maquinaId}
               onChange={setMaquinaId}
               options={machines}
-              placeholder="Selecionar máquina"
+              placeholder="Selecionar..."
               emptyMessage="Nenhuma máquina encontrada"
               className="w-full"
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 w-40 flex-shrink-0">
             <Label>Operador *</Label>
             <Combobox
               value={operadorId}
               onChange={setOperadorId}
               options={operators}
-              placeholder="Selecionar operador"
+              placeholder="Selecionar..."
               emptyMessage="Nenhum operador encontrado"
               className="w-full"
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 w-20 flex-shrink-0">
             <Label htmlFor="quantidade">Quantidade *</Label>
             <Input
               id="quantidade"
@@ -174,21 +181,18 @@ export function NewExecutionForm({
               max={quantidadeDisponivel}
               value={quantidade}
               onChange={(e) => setQuantidade(parseInt(e.target.value) || 0)}
+              className="w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
-            {quantidadeDisponivel !== undefined && (
-              <p className="text-xs text-muted-foreground">
-                Restam: {quantidadeDisponivel}
-              </p>
-            )}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 flex-1 min-w-0">
             <Label htmlFor="notas">Notas</Label>
             <Input
               id="notas"
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
               placeholder="Observações"
+              className="w-full"
             />
           </div>
         </div>
@@ -197,7 +201,11 @@ export function NewExecutionForm({
           <Button type="button" variant="outline" onClick={onCancel} size="sm">
             Cancelar
           </Button>
-          <Button type="submit" disabled={loading || !maquinaId || !operadorId} size="sm">
+          <Button
+            type="submit"
+            disabled={loading || !maquinaId || !operadorId}
+            size="sm"
+          >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Registar
           </Button>

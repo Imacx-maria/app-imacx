@@ -1568,10 +1568,7 @@ export default function ProducaoPage({
 
         {/* Calendar Section */}
         <div>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-2xl font-bold">
-              Calendário - Filtrar por Data de Saída
-            </h2>
+          <div className="mb-4 flex items-center justify-end">
             {selectedDate && (
               <Button
                 variant="outline"

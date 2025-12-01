@@ -129,12 +129,13 @@ const Combobox: React.FC<ComboboxProps> = ({
             </Button>
           </PopoverTrigger>
           <PopoverContent
-            className="imx-border max-h-[300px] w-full overflow-hidden p-0"
+            className="imx-border max-h-[300px] overflow-hidden p-0"
             align="start"
             side="bottom"
             sideOffset={4}
             avoidCollisions={true}
             collisionPadding={8}
+            style={{ width: "var(--radix-popover-trigger-width)" }}
           >
             <Command>
               <CommandInput
