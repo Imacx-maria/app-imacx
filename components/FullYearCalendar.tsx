@@ -39,13 +39,13 @@ const FullYearCalendarInternal: React.FC<FullYearCalendarProps> = ({
   return (
     <div
       ref={calendarContainerRef}
-      className="grid grid-cols-1 md:grid-cols-3 gap-8"
+      className="flex flex-wrap justify-center gap-8"
       data-no-aria-hidden="true"
     >
       {months.map((monthDate) => (
         <div
           key={`${monthDate.getFullYear()}-${monthDate.getMonth()}`}
-          className="rounded-none p-2 flex justify-center"
+          className="rounded-none p-2 flex justify-center flex-shrink-0 w-full md:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1.333rem)]"
           data-no-aria-hidden="true"
         >
           <Calendar

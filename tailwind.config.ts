@@ -11,7 +11,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Atkinson Hyperlegible', 'system-ui', 'sans-serif'],
+        sans: ['Geist Mono', 'monospace'],
+        mono: ['Geist Mono', 'monospace'],
       },
       fontSize: {
         tiny: '0.625rem', // 10px

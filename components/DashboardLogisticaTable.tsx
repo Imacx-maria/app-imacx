@@ -32,7 +32,7 @@ import CreatableTransportadoraCombobox, {
 import NotasPopover from "@/components/custom/NotasPopover";
 import TransportePopover from "@/components/custom/TransportePopover";
 import { DashboardTableRow } from "@/components/dashboard/DashboardTableRow";
-import { useIsMobile } from "@/hooks/useIsMobile";
+import { useIsMobile, useIsMobileOrTablet, useIsSmallDesktop } from "@/hooks/useIsMobile";
 
 // Debug logging helper
 const debugLog = (label: string, data: any) => console.log(label, data);
@@ -164,6 +164,8 @@ const DashboardLogisticaTableInternal: React.FC<
   onClientesUpdate,
 }) => {
   const isMobile = useIsMobile();
+  const isMobileOrTablet = useIsMobileOrTablet();
+  const isSmallDesktop = useIsSmallDesktop();
   const [records, setRecords] = useState<DashboardLogisticaRecord[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>(initialClientes || []);
   const [transportadoras, setTransportadoras] = useState<Transportadora[]>(
@@ -1130,8 +1132,8 @@ const DashboardLogisticaTableInternal: React.FC<
     <div className="w-full">
       {/* Filter Bar */}
       <div className="mb-4 flex items-center gap-2 flex-wrap">
-        {/* FO filter - hidden on mobile */}
-        {!isMobile && (
+        {/* FO filter - hidden on mobile and tablet */}
+        {!isMobileOrTablet && (
           <FilterInput
             value={filters.numeroFo}
             onChange={(value) => {
@@ -1142,7 +1144,7 @@ const DashboardLogisticaTableInternal: React.FC<
             placeholder="FO"
             minChars={3}
             debounceMs={300}
-            className="w-[90px] rounded-none"
+            className="w-[90px] min-w-[90px] rounded-none flex-shrink-0"
           />
         )}
         {/* ORC filter - always visible */}
@@ -1156,10 +1158,10 @@ const DashboardLogisticaTableInternal: React.FC<
           placeholder="ORC"
           minChars={3}
           debounceMs={300}
-          className="w-[90px] rounded-none flex-1 md:flex-none"
+          className="w-[90px] min-w-[90px] rounded-none flex-1 md:flex-none"
         />
-        {/* Other filters - hidden on mobile */}
-        {!isMobile && (
+        {/* Other filters - hidden on mobile and tablet */}
+        {!isMobileOrTablet && (
           <>
             <FilterInput
               value={filters.guia}
@@ -1171,7 +1173,7 @@ const DashboardLogisticaTableInternal: React.FC<
               placeholder="Guia"
               minChars={3}
               debounceMs={300}
-              className="w-[90px] rounded-none"
+              className="w-[90px] min-w-[90px] rounded-none"
             />
             <FilterInput
               value={filters.cliente}
@@ -1181,7 +1183,7 @@ const DashboardLogisticaTableInternal: React.FC<
               placeholder="Cliente"
               minChars={3}
               debounceMs={300}
-              className="w-[200px] rounded-none"
+              className="w-[200px] min-w-[200px] rounded-none"
             />
             <FilterInput
               value={filters.nomeCampanha}
@@ -1191,7 +1193,7 @@ const DashboardLogisticaTableInternal: React.FC<
               placeholder="Nome Campanha"
               minChars={3}
               debounceMs={300}
-              className="flex-1 rounded-none"
+              className="flex-1 min-w-[200px] rounded-none"
             />
             <FilterInput
               value={filters.item}
@@ -1201,13 +1203,13 @@ const DashboardLogisticaTableInternal: React.FC<
               placeholder="Item"
               minChars={3}
               debounceMs={300}
-              className="flex-1 rounded-none"
+              className="flex-1 min-w-[200px] rounded-none"
             />
           </>
         )}
 
-        {/* Date filter buttons - hidden on mobile */}
-        {!isMobile && (
+        {/* Date filter buttons - hidden on mobile and tablet */}
+        {!isMobileOrTablet && (
           <div className="flex items-center gap-1 imx-border-l pl-2">
             <Button
               variant={dateFilter === "all" ? "default" : "outline"}
@@ -1313,8 +1315,8 @@ const DashboardLogisticaTableInternal: React.FC<
                         <ArrowDown className="ml-1 inline h-3 w-3" />
                       ))}
                   </TableHead>
-                  {/* Guia - hidden on mobile */}
-                  {!isMobile && (
+                  {/* Guia - hidden on mobile and tablet */}
+                  {!isMobileOrTablet && (
                     <TableHead
                       onClick={() => toggleSort("guia")}
                       className="sticky top-0 z-10 w-[90px] cursor-pointer imx-border-b text-center font-bold uppercase select-none"
@@ -1328,8 +1330,8 @@ const DashboardLogisticaTableInternal: React.FC<
                         ))}
                     </TableHead>
                   )}
-                  {/* Cliente - hidden on mobile */}
-                  {!isMobile && (
+                  {/* Cliente - hidden on mobile, tablet, and small desktop (1025-1270px) */}
+                  {!isMobileOrTablet && !isSmallDesktop && (
                     <TableHead
                       onClick={() => toggleSort("cliente")}
                       className="sticky top-0 z-10 cursor-pointer imx-border-b text-center font-bold uppercase select-none"
@@ -1343,8 +1345,8 @@ const DashboardLogisticaTableInternal: React.FC<
                         ))}
                     </TableHead>
                   )}
-                  {/* Nome Campanha - hidden on mobile */}
-                  {!isMobile && (
+                  {/* Nome Campanha - hidden on mobile and tablet */}
+                  {!isMobileOrTablet && (
                     <TableHead
                       onClick={() => toggleSort("nome_campanha")}
                       className="sticky top-0 z-10 cursor-pointer imx-border-b text-center font-bold uppercase select-none"
@@ -1358,8 +1360,8 @@ const DashboardLogisticaTableInternal: React.FC<
                         ))}
                     </TableHead>
                   )}
-                  {/* Item - hidden on mobile */}
-                  {!isMobile && (
+                  {/* Item - hidden on mobile, tablet, and small desktop (1025-1270px) */}
+                  {!isMobileOrTablet && !isSmallDesktop && (
                     <TableHead
                       onClick={() => toggleSort("item")}
                       className="sticky top-0 z-10 cursor-pointer imx-border-b text-center font-bold uppercase select-none"
@@ -1388,8 +1390,8 @@ const DashboardLogisticaTableInternal: React.FC<
                         ))}
                     </span>
                   </TableHead>
-                  {/* Trans. - hidden on mobile */}
-                  {!isMobile && (
+                  {/* Trans. - hidden on mobile and tablet */}
+                  {!isMobileOrTablet && (
                     <TableHead className="sticky top-0 z-10 w-[100px] imx-border-b text-center font-bold uppercase align-middle">
                       Trans.
                     </TableHead>
@@ -1407,8 +1409,8 @@ const DashboardLogisticaTableInternal: React.FC<
                         <ArrowDown className="ml-1 inline h-3 w-3" />
                       ))}
                   </TableHead>
-                  {/* Concluído - hidden on mobile */}
-                  {!isMobile && (
+                  {/* Concluído - hidden on mobile and tablet */}
+                  {!isMobileOrTablet && (
                     <TableHead
                       onClick={() => toggleSort("concluido")}
                       className="sticky top-0 z-10 w-12 cursor-pointer imx-border-b text-center font-bold uppercase select-none"
@@ -1431,8 +1433,8 @@ const DashboardLogisticaTableInternal: React.FC<
                       </TooltipProvider>
                     </TableHead>
                   )}
-                  {/* Saiu - hidden on mobile */}
-                  {!isMobile && (
+                  {/* Saiu - hidden on mobile and tablet */}
+                  {!isMobileOrTablet && (
                     <TableHead
                       onClick={() => toggleSort("saiu")}
                       className="sticky top-0 z-10 w-12 cursor-pointer imx-border-b text-center font-bold uppercase select-none"
@@ -1489,7 +1491,8 @@ const DashboardLogisticaTableInternal: React.FC<
                       handleConcluidoUpdate={handleConcluidoUpdate}
                       handleSaiuUpdate={handleSaiuUpdate}
                       parseDateFromYYYYMMDD={parseDateFromYYYYMMDD}
-                      isMobile={isMobile}
+                      isMobile={isMobileOrTablet}
+                      isSmallDesktop={isSmallDesktop}
                     />
                   ))
                 )}
@@ -1552,8 +1555,8 @@ const DashboardLogisticaTableInternal: React.FC<
                   >
                     ORC
                   </TableHead>
-                  {/* Guia - hidden on mobile */}
-                  {!isMobile && (
+                  {/* Guia - hidden on mobile and tablet */}
+                  {!isMobileOrTablet && (
                     <TableHead
                       onClick={() => toggleSort("guia")}
                       className="sticky top-0 z-10 w-[90px] cursor-pointer imx-border-b text-center font-bold uppercase select-none"
@@ -1561,8 +1564,8 @@ const DashboardLogisticaTableInternal: React.FC<
                       Guia
                     </TableHead>
                   )}
-                  {/* Cliente - hidden on mobile */}
-                  {!isMobile && (
+                  {/* Cliente - hidden on mobile and tablet */}
+                  {!isMobileOrTablet && (
                     <TableHead
                       onClick={() => toggleSort("cliente")}
                       className="sticky top-0 z-10 cursor-pointer imx-border-b text-center font-bold uppercase select-none"
@@ -1570,8 +1573,8 @@ const DashboardLogisticaTableInternal: React.FC<
                       Cliente
                     </TableHead>
                   )}
-                  {/* Nome Campanha - hidden on mobile */}
-                  {!isMobile && (
+                  {/* Nome Campanha - hidden on mobile and tablet */}
+                  {!isMobileOrTablet && (
                     <TableHead
                       onClick={() => toggleSort("nome_campanha")}
                       className="sticky top-0 z-10 cursor-pointer imx-border-b text-center font-bold uppercase select-none"
@@ -1579,8 +1582,8 @@ const DashboardLogisticaTableInternal: React.FC<
                       Nome Campanha
                     </TableHead>
                   )}
-                  {/* Item - hidden on mobile */}
-                  {!isMobile && (
+                  {/* Item - hidden on mobile and tablet */}
+                  {!isMobileOrTablet && (
                     <TableHead
                       onClick={() => toggleSort("item")}
                       className="sticky top-0 z-10 cursor-pointer imx-border-b text-center font-bold uppercase select-none"
@@ -1608,8 +1611,8 @@ const DashboardLogisticaTableInternal: React.FC<
                   >
                     Data Saída
                   </TableHead>
-                  {/* Concluído - hidden on mobile */}
-                  {!isMobile && (
+                  {/* Concluído - hidden on mobile and tablet */}
+                  {!isMobileOrTablet && (
                     <TableHead
                       onClick={() => toggleSort("concluido")}
                       className="sticky top-0 z-10 w-12 cursor-pointer imx-border-b text-center font-bold uppercase select-none"
@@ -1617,8 +1620,8 @@ const DashboardLogisticaTableInternal: React.FC<
                       C
                     </TableHead>
                   )}
-                  {/* Saiu - hidden on mobile */}
-                  {!isMobile && (
+                  {/* Saiu - hidden on mobile and tablet */}
+                  {!isMobileOrTablet && (
                     <TableHead
                       onClick={() => toggleSort("saiu")}
                       className="sticky top-0 z-10 w-12 cursor-pointer imx-border-b text-center font-bold uppercase select-none"
@@ -1660,7 +1663,8 @@ const DashboardLogisticaTableInternal: React.FC<
                       handleConcluidoUpdate={handleConcluidoUpdate}
                       handleSaiuUpdate={handleSaiuUpdate}
                       parseDateFromYYYYMMDD={parseDateFromYYYYMMDD}
-                      isMobile={isMobile}
+                      isMobile={isMobileOrTablet}
+                      isSmallDesktop={isSmallDesktop}
                     />
                   ))
                 )}

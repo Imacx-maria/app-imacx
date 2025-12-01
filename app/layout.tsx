@@ -121,14 +121,7 @@ export default async function RootLayout({
         />
         <link
           rel="preload"
-          href="/fonts/atkinson-hyperlegible-v12-latin-regular.woff2"
-          as="font"
-          type="font/woff2"
-          crossOrigin="anonymous"
-        />
-        <link
-          rel="preload"
-          href="/fonts/atkinson-hyperlegible-v12-latin-700.woff2"
+          href="/fonts/GeistMono%5Bwght%5D.woff2"
           as="font"
           type="font/woff2"
           crossOrigin="anonymous"

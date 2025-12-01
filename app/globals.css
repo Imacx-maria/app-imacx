@@ -8,46 +8,17 @@
 
 /* Local font faces */
 @font-face {
-    font-family: "Atkinson Hyperlegible";
-    src:
-        url("/fonts/atkinson-hyperlegible-v12-latin-regular.woff2")
-            format("woff2"),
-        url("/fonts/AtkinsonHyperlegible-Regular.ttf") format("truetype");
-    font-weight: 400;
+    font-family: "Geist Mono";
+    src: url("/fonts/GeistMono%5Bwght%5D.woff2") format("woff2");
+    font-weight: 100 900;
     font-style: normal;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Atkinson Hyperlegible";
-    src:
-        url("/fonts/atkinson-hyperlegible-v12-latin-700.woff2") format("woff2"),
-        url("/fonts/AtkinsonHyperlegible-Bold.ttf") format("truetype");
-    font-weight: 700;
-    font-style: normal;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Atkinson Hyperlegible";
-    src: url("/fonts/AtkinsonHyperlegible-Italic.ttf") format("truetype");
-    font-weight: 400;
-    font-style: italic;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Atkinson Hyperlegible";
-    src: url("/fonts/AtkinsonHyperlegible-BoldItalic.ttf") format("truetype");
-    font-weight: 700;
-    font-style: italic;
     font-display: swap;
 }
 
 @layer base {
     /* Font family - universal */
     * {
-        font-family: "Atkinson Hyperlegible", sans-serif !important;
+        font-family: "Geist Mono", monospace !important;
     }
 
     body {
@@ -258,11 +229,11 @@
     }
 
     /* ============================================
-     TABLE ROW HOVER - SAME BACKGROUND AS INPUTS
+     TABLE ROW HOVER - DARKER THAN BACKGROUND (FERIADOS COLOR)
      ============================================ */
 
     tr:hover {
-        background-color: var(--input) !important;
+        background-color: var(--calendar-holiday-bg) !important;
     }
 
     /* ============================================
@@ -584,7 +555,7 @@
    ============================================ */
 
 :root {
-    --background: oklch(0.94 0.01 95.04);
+    --background: oklch(0.90 0.01 95.04 / 1); /* Original: 0.94 - reduced for less eye strain while staying light */
     --foreground: oklch(0% 0 0);
     --main: oklch(84.08% 0.1725 84.2);
     --border: oklch(0% 0 0);
@@ -1135,8 +1106,8 @@ h3 {
 }
 
 .imx-row-hover:hover {
-    /* tailwind bg-accent */
-    background-color: var(--accent) !important;
+    /* Use Feriados color for darker hover */
+    background-color: var(--calendar-holiday-bg) !important;
 }
 
 /* Ensure text color on custom hover matches accent behavior */
@@ -1277,7 +1248,7 @@ th:has([role="checkbox"]) {
 }
 
 .imacx-table tbody tr:hover {
-    background: var(--accent);
+    background: var(--calendar-holiday-bg);
 }
 
 .imacx-table td {

@@ -48,6 +48,7 @@ export interface DashboardTableRowProps {
   handleSaiuUpdate: (record: DashboardLogisticaRecord, value: boolean) => void;
   parseDateFromYYYYMMDD: (dateString: string) => Date;
   isMobile?: boolean;
+  isSmallDesktop?: boolean;
 }
 
 const MAX_CLIENT_NAME_LENGTH = 28;
@@ -71,6 +72,7 @@ function DashboardTableRowInternal({
   handleSaiuUpdate,
   parseDateFromYYYYMMDD,
   isMobile = false,
+  isSmallDesktop = false,
 }: DashboardTableRowProps) {
   const recordId = `${record.item_id}-${record.logistica_id || "no-logistics"}`;
   const currentEditValues = editValues[recordId] || {};
@@ -118,14 +120,14 @@ function DashboardTableRowInternal({
         </TableCell>
       )}
 
-      {/* Cliente - hidden on mobile */}
-      {!isMobile && <TableCell>{displayClientName}</TableCell>}
+      {/* Cliente - hidden on mobile and small desktop (1025-1270px) */}
+      {!isMobile && !isSmallDesktop && <TableCell>{displayClientName}</TableCell>}
 
-      {/* Nome Campanha - hidden on mobile */}
-      {!isMobile && <TableCell>{record.nome_campanha || "-"}</TableCell>}
+      {/* Nome Campanha - hidden on mobile and small desktop (1025-1270px) */}
+      {!isMobile && !isSmallDesktop && <TableCell>{record.nome_campanha || "-"}</TableCell>}
 
-      {/* Item - hidden on mobile */}
-      {!isMobile && <TableCell>{record.item_descricao || "-"}</TableCell>}
+      {/* Item - hidden on mobile and small desktop (1025-1270px) */}
+      {!isMobile && !isSmallDesktop && <TableCell>{record.item_descricao || "-"}</TableCell>}
 
       {/* Quantidade - always visible */}
       <TableCell className="w-[60px] text-center align-middle">

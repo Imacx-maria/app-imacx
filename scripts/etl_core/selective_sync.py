@@ -191,7 +191,7 @@ TABLE_CONFIGS = {
             "design": "TEXT",  # PHC: design - Line description
             "qtt": "NUMERIC",  # PHC: qtt - Quantity
             "ettdeb": "NUMERIC",  # PHC: ettdeb - Total line value in Euro
-            "pu": "NUMERIC",  # PHC: pu - Unit price
+            "edebito": "NUMERIC",  # PHC: edebito - Euro unit price (NOT pu which is old Escudo!)
             "ref": "TEXT",  # PHC: ref - Item reference
             "ccusto": "TEXT",  # PHC: ccusto - Cost center (BR-Brindes or ID-Impressão Digital)
         },
@@ -201,7 +201,7 @@ TABLE_CONFIGS = {
             "design": "description",  # Clearer: design → description
             "qtt": "quantity",  # Clearer: qtt → quantity
             "ettdeb": "line_total",  # Clearer: ettdeb → line_total
-            "pu": "unit_price",  # Clearer: pu → unit_price
+            "edebito": "unit_price",  # edebito = Euro: Venda (correct unit price)
             "ref": "item_reference",  # Clearer: ref → item_reference
             "ccusto": "cost_center",  # Clearer: ccusto → cost_center
         },

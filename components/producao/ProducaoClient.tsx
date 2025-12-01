@@ -149,7 +149,7 @@ import type {
   SortDirection,
 } from "@/types/producao";
 import { useDebounce } from "@/hooks/useDebounce";
-import { useIsMobile } from "@/hooks/useIsMobile";
+import { useIsMobileOrTablet } from "@/hooks/useIsMobile";
 import { MobileDateDrawer } from "@/components/producao/MobileDateDrawer";
 import {
   parseDateFromYYYYMMDD,
@@ -269,7 +269,7 @@ export default function ProducaoPage({
   const [holidays, setHolidays] = useState<Holiday[]>(initialHolidays);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [isMobileDateDrawerOpen, setIsMobileDateDrawerOpen] = useState(false);
-  const isMobile = useIsMobile();
+  const isMobile = useIsMobileOrTablet(); // Use tablet breakpoint (1024px) to hide columns on smaller screens
   // Ref to access latest clientes in fetchJobs without creating dependency
   const clientesRef = useRef<ClienteOption[]>([]);
   // Ref to track if initial load has happened
@@ -1600,8 +1600,8 @@ export default function ProducaoPage({
         {!isMobile && (
           <>
             {/* Filter bar - positioned above tabs */}
-            <div className="flex items-center gap-2">
-              <div className="relative w-28">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative w-28 min-w-[112px]">
                 <FilterInput
                   placeholder="FO"
                   className="h-10"
@@ -1610,7 +1610,7 @@ export default function ProducaoPage({
                   onFilterChange={setEffectiveFoF}
                 />
               </div>
-              <div className="relative w-28">
+              <div className="relative w-28 min-w-[112px]">
                 <FilterInput
                   placeholder="ORC"
                   className="h-10"
@@ -1619,7 +1619,7 @@ export default function ProducaoPage({
                   onFilterChange={setEffectiveOrcF}
                 />
               </div>
-              <div className="relative flex-1">
+              <div className="relative flex-1 min-w-[200px]">
                 <FilterInput
                   placeholder="Nome Campanha"
                   className="h-10"
@@ -1628,7 +1628,7 @@ export default function ProducaoPage({
                   onFilterChange={setEffectiveCampF}
                 />
               </div>
-              <div className="relative flex-1">
+              <div className="relative flex-1 min-w-[200px]">
                 <FilterInput
                   placeholder="Item"
                   className="h-10"
@@ -1637,7 +1637,7 @@ export default function ProducaoPage({
                   onFilterChange={setEffectiveItemF}
                 />
               </div>
-              <div className="relative w-40">
+              <div className="relative w-40 min-w-[160px]">
                 <FilterInput
                   placeholder="Código"
                   className="h-10"
@@ -1646,7 +1646,7 @@ export default function ProducaoPage({
                   onFilterChange={setEffectiveCodeF}
                 />
               </div>
-              <div className="relative flex-1">
+              <div className="relative flex-1 min-w-[200px]">
                 <FilterInput
                   placeholder="Cliente"
                   className="h-10"
@@ -2478,18 +2478,21 @@ export default function ProducaoPage({
                                     <ArrowDown className="ml-1 inline h-3 w-3" />
                                   ))}
                               </TableHead>
-                              <TableHead
-                                onClick={() => toggleSort("cliente")}
-                                className=" sticky top-0 z-10 w-[200px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
-                              >
-                                Cliente{" "}
-                                {sortCol === "cliente" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
-                              </TableHead>
+                              {/* Cliente - hidden on mobile */}
+                              {!isMobile && (
+                                <TableHead
+                                  onClick={() => toggleSort("cliente")}
+                                  className=" sticky top-0 z-10 w-[200px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
+                                >
+                                  Cliente{" "}
+                                  {sortCol === "cliente" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="ml-1 inline h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="ml-1 inline h-3 w-3" />
+                                    ))}
+                                </TableHead>
+                              )}
                               <TableHead
                                 onClick={() => toggleSort("nome_campanha")}
                                 className=" sticky top-0 z-10 flex-1 cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
@@ -2502,30 +2505,36 @@ export default function ProducaoPage({
                                     <ArrowDown className="ml-1 inline h-3 w-3" />
                                   ))}
                               </TableHead>
-                              <TableHead
-                                onClick={() => toggleSort("notas")}
-                                className=" sticky top-0 z-10 w-[50px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
-                              >
-                                Nota{" "}
-                                {sortCol === "notas" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
-                              </TableHead>
-                              <TableHead
-                                onClick={() => toggleSort("prioridade")}
-                                className=" sticky top-0 z-10 w-[210px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
-                              >
-                                Status{" "}
-                                {sortCol === "prioridade" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
-                              </TableHead>
+                              {/* Nota - hidden on mobile */}
+                              {!isMobile && (
+                                <TableHead
+                                  onClick={() => toggleSort("notas")}
+                                  className=" sticky top-0 z-10 w-[50px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
+                                >
+                                  Nota{" "}
+                                  {sortCol === "notas" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="ml-1 inline h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="ml-1 inline h-3 w-3" />
+                                    ))}
+                                </TableHead>
+                              )}
+                              {/* Status - hidden on mobile */}
+                              {!isMobile && (
+                                <TableHead
+                                  onClick={() => toggleSort("prioridade")}
+                                  className=" sticky top-0 z-10 w-[210px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
+                                >
+                                  Status{" "}
+                                  {sortCol === "prioridade" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="ml-1 inline h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="ml-1 inline h-3 w-3" />
+                                    ))}
+                                </TableHead>
+                              )}
 
                               <TableHead
                                 onClick={() => toggleSort("total_value")}
@@ -2627,9 +2636,16 @@ export default function ProducaoPage({
                                   </Tooltip>
                                 </TooltipProvider>
                               </TableHead>
-                              <TableHead className=" sticky top-0 z-10 w-[100px] imx-border-b bg-primary text-center  text-primary-foreground uppercase">
-                                Ações
-                              </TableHead>
+                              {/* Actions - Delete button hidden on mobile */}
+                              {!isMobile ? (
+                                <TableHead className=" sticky top-0 z-10 w-[100px] imx-border-b bg-primary text-center  text-primary-foreground uppercase">
+                                  Ações
+                                </TableHead>
+                              ) : (
+                                <TableHead className=" sticky top-0 z-10 w-[50px] imx-border-b bg-primary text-center  text-primary-foreground uppercase">
+                                  Ações
+                                </TableHead>
+                              )}
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -2654,6 +2670,7 @@ export default function ProducaoPage({
                                     designerItemsByJobId.get(job.id) || []
                                   }
                                   operacoes={operacoesByJobId.get(job.id) || []}
+                                  isMobile={isMobile}
                                   onOrcChange={handleOrcChange}
                                   onOrcBlur={handleOrcBlur}
                                   onFoChange={handleFoChange}
@@ -2758,18 +2775,21 @@ export default function ProducaoPage({
                                     <ArrowDown className="ml-1 inline h-3 w-3" />
                                   ))}
                               </TableHead>
-                              <TableHead
-                                onClick={() => toggleSort("cliente")}
-                                className=" sticky top-0 z-10 w-[200px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
-                              >
-                                Cliente{" "}
-                                {sortCol === "cliente" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
-                              </TableHead>
+                              {/* Cliente - hidden on mobile */}
+                              {!isMobile && (
+                                <TableHead
+                                  onClick={() => toggleSort("cliente")}
+                                  className=" sticky top-0 z-10 w-[200px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
+                                >
+                                  Cliente{" "}
+                                  {sortCol === "cliente" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="ml-1 inline h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="ml-1 inline h-3 w-3" />
+                                    ))}
+                                </TableHead>
+                              )}
                               <TableHead
                                 onClick={() => toggleSort("nome_campanha")}
                                 className=" sticky top-0 z-10 flex-1 cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
@@ -2782,30 +2802,36 @@ export default function ProducaoPage({
                                     <ArrowDown className="ml-1 inline h-3 w-3" />
                                   ))}
                               </TableHead>
-                              <TableHead
-                                onClick={() => toggleSort("notas")}
-                                className=" sticky top-0 z-10 w-[50px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
-                              >
-                                Nota{" "}
-                                {sortCol === "notas" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
-                              </TableHead>
-                              <TableHead
-                                onClick={() => toggleSort("prioridade")}
-                                className=" sticky top-0 z-10 w-[210px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
-                              >
-                                Status{" "}
-                                {sortCol === "prioridade" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
-                              </TableHead>
+                              {/* Nota - hidden on mobile */}
+                              {!isMobile && (
+                                <TableHead
+                                  onClick={() => toggleSort("notas")}
+                                  className=" sticky top-0 z-10 w-[50px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
+                                >
+                                  Nota{" "}
+                                  {sortCol === "notas" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="ml-1 inline h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="ml-1 inline h-3 w-3" />
+                                    ))}
+                                </TableHead>
+                              )}
+                              {/* Status - hidden on mobile */}
+                              {!isMobile && (
+                                <TableHead
+                                  onClick={() => toggleSort("prioridade")}
+                                  className=" sticky top-0 z-10 w-[210px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
+                                >
+                                  Status{" "}
+                                  {sortCol === "prioridade" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="ml-1 inline h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="ml-1 inline h-3 w-3" />
+                                    ))}
+                                </TableHead>
+                              )}
                               <TableHead className=" sticky top-0 z-10 w-[36px] imx-border-b bg-primary p-0 text-center text-primary-foreground uppercase select-none">
                                 <TooltipProvider>
                                   <Tooltip>
@@ -2835,6 +2861,7 @@ export default function ProducaoPage({
                                   jobItems={jobItems}
                                   designerItems={[]}
                                   operacoes={[]}
+                                  isMobile={isMobile}
                                   onOrcChange={handleOrcChange}
                                   onOrcBlur={handleOrcBlur}
                                   onFoChange={handleFoChange}
@@ -2939,18 +2966,21 @@ export default function ProducaoPage({
                                     <ArrowDown className="ml-1 inline h-3 w-3" />
                                   ))}
                               </TableHead>
-                              <TableHead
-                                onClick={() => toggleSort("cliente")}
-                                className=" sticky top-0 z-10 w-[200px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
-                              >
-                                Cliente{" "}
-                                {sortCol === "cliente" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
-                              </TableHead>
+                              {/* Cliente - hidden on mobile */}
+                              {!isMobile && (
+                                <TableHead
+                                  onClick={() => toggleSort("cliente")}
+                                  className=" sticky top-0 z-10 w-[200px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
+                                >
+                                  Cliente{" "}
+                                  {sortCol === "cliente" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="ml-1 inline h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="ml-1 inline h-3 w-3" />
+                                    ))}
+                                </TableHead>
+                              )}
                               <TableHead
                                 onClick={() => toggleSort("nome_campanha")}
                                 className=" sticky top-0 z-10 flex-1 cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
@@ -2963,30 +2993,36 @@ export default function ProducaoPage({
                                     <ArrowDown className="ml-1 inline h-3 w-3" />
                                   ))}
                               </TableHead>
-                              <TableHead
-                                onClick={() => toggleSort("notas")}
-                                className=" sticky top-0 z-10 w-[50px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
-                              >
-                                Nota{" "}
-                                {sortCol === "notas" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
-                              </TableHead>
-                              <TableHead
-                                onClick={() => toggleSort("prioridade")}
-                                className=" sticky top-0 z-10 w-[210px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
-                              >
-                                Status{" "}
-                                {sortCol === "prioridade" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
-                              </TableHead>
+                              {/* Nota - hidden on mobile */}
+                              {!isMobile && (
+                                <TableHead
+                                  onClick={() => toggleSort("notas")}
+                                  className=" sticky top-0 z-10 w-[50px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
+                                >
+                                  Nota{" "}
+                                  {sortCol === "notas" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="ml-1 inline h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="ml-1 inline h-3 w-3" />
+                                    ))}
+                                </TableHead>
+                              )}
+                              {/* Status - hidden on mobile */}
+                              {!isMobile && (
+                                <TableHead
+                                  onClick={() => toggleSort("prioridade")}
+                                  className=" sticky top-0 z-10 w-[210px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
+                                >
+                                  Status{" "}
+                                  {sortCol === "prioridade" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="ml-1 inline h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="ml-1 inline h-3 w-3" />
+                                    ))}
+                                </TableHead>
+                              )}
 
                               <TableHead
                                 onClick={() => toggleSort("total_value")}
@@ -3088,9 +3124,16 @@ export default function ProducaoPage({
                                   </Tooltip>
                                 </TooltipProvider>
                               </TableHead>
-                              <TableHead className=" sticky top-0 z-10 w-[100px] imx-border-b bg-primary text-center  text-primary-foreground uppercase">
-                                Ações
-                              </TableHead>
+                              {/* Actions - Delete button hidden on mobile */}
+                              {!isMobile ? (
+                                <TableHead className=" sticky top-0 z-10 w-[100px] imx-border-b bg-primary text-center  text-primary-foreground uppercase">
+                                  Ações
+                                </TableHead>
+                              ) : (
+                                <TableHead className=" sticky top-0 z-10 w-[50px] imx-border-b bg-primary text-center  text-primary-foreground uppercase">
+                                  Ações
+                                </TableHead>
+                              )}
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -3115,6 +3158,7 @@ export default function ProducaoPage({
                                     designerItemsByJobId.get(job.id) || []
                                   }
                                   operacoes={operacoesByJobId.get(job.id) || []}
+                                  isMobile={isMobile}
                                   onOrcChange={handleOrcChange}
                                   onOrcBlur={handleOrcBlur}
                                   onFoChange={handleFoChange}

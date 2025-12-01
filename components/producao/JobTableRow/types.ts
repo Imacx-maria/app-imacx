@@ -21,6 +21,8 @@ export interface JobTableRowProps {
   designerItems: any[];
   /** Operacoes for getCColor */
   operacoes: any[];
+  /** Whether the screen is mobile */
+  isMobile?: boolean;
 
   // Callbacks for ORC field
   onOrcChange: (jobId: string, value: string | null) => void;

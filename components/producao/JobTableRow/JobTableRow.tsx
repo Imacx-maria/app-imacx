@@ -54,6 +54,7 @@ function JobTableRowInternal({
   jobItems,
   designerItems,
   operacoes,
+  isMobile = false,
   onOrcChange,
   onOrcBlur,
   onFoChange,
@@ -111,21 +112,23 @@ function JobTableRowInternal({
         />
       </TableCell>
 
-      {/* Cliente Combobox */}
-      <TableCell className="w-[200px]">
-        <CreatableClienteCombobox
-          value={job.id_cliente || ""}
-          onChange={(selectedId: string) => onClienteChange(job, selectedId)}
-          options={clientes}
-          onOptionsUpdate={(newClientes: ClienteOption[]) =>
-            onClientesUpdate(newClientes)
-          }
-          placeholder="Cliente"
-          disabled={loading.clientes}
-          loading={loading.clientes}
-          displayLabel={job.cliente || undefined}
-        />
-      </TableCell>
+      {/* Cliente Combobox - hidden on mobile */}
+      {!isMobile && (
+        <TableCell className="w-[200px]">
+          <CreatableClienteCombobox
+            value={job.id_cliente || ""}
+            onChange={(selectedId: string) => onClienteChange(job, selectedId)}
+            options={clientes}
+            onOptionsUpdate={(newClientes: ClienteOption[]) =>
+              onClientesUpdate(newClientes)
+            }
+            placeholder="Cliente"
+            disabled={loading.clientes}
+            loading={loading.clientes}
+            displayLabel={job.cliente || undefined}
+          />
+        </TableCell>
+      )}
 
       {/* Campanha Input */}
       <TableCell className="flex-1">
@@ -138,37 +141,41 @@ function JobTableRowInternal({
         />
       </TableCell>
 
-      {/* Notas Popover */}
-      <TableCell className="w-[50px] text-center">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div>
-                <SimpleNotasPopover
-                  value={job.notas ?? ""}
-                  onSave={(newNotas) => onNotasSave(job, newNotas)}
-                  placeholder="Adicionar notas..."
-                  label="Notas"
-                  buttonSize="icon"
-                  className="mx-auto aspect-square"
-                  disabled={false}
-                />
-              </div>
-            </TooltipTrigger>
-            {job.notas && job.notas.trim() !== "" && (
-              <TooltipContent>{job.notas}</TooltipContent>
-            )}
-          </Tooltip>
-        </TooltipProvider>
-      </TableCell>
+      {/* Notas Popover - hidden on mobile */}
+      {!isMobile && (
+        <TableCell className="w-[50px] text-center">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div>
+                  <SimpleNotasPopover
+                    value={job.notas ?? ""}
+                    onSave={(newNotas) => onNotasSave(job, newNotas)}
+                    placeholder="Adicionar notas..."
+                    label="Notas"
+                    buttonSize="icon"
+                    className="mx-auto aspect-square"
+                    disabled={false}
+                  />
+                </div>
+              </TooltipTrigger>
+              {job.notas && job.notas.trim() !== "" && (
+                <TooltipContent>{job.notas}</TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+        </TableCell>
+      )}
 
-      {/* Progress Bar */}
-      <TableCell className="w-[210px]">
-        <div className="flex w-full items-center gap-2">
-          <Progress value={pct} className="w-full" />
-          <span className="w-10 text-right font-mono text-xs">{pct}%</span>
-        </div>
-      </TableCell>
+      {/* Progress Bar - hidden on mobile */}
+      {!isMobile && (
+        <TableCell className="w-[210px]">
+          <div className="flex w-full items-center gap-2">
+            <Progress value={pct} className="w-full" />
+            <span className="w-10 text-right font-mono text-xs">{pct}%</span>
+          </div>
+        </TableCell>
+      )}
 
       {/* em_curso variant: Total Value, P/A/C dots, Pendente, Actions */}
       {isEmCurso && (
@@ -249,7 +256,7 @@ function JobTableRowInternal({
           </TableCell>
 
           {/* View/Delete Actions */}
-          <TableCell className="w-[100px] p-0 pr-2">
+          <TableCell className={isMobile ? "w-[50px] p-0 pr-2" : "w-[100px] p-0 pr-2"}>
             <div className="flex justify-center gap-2">
               <TooltipProvider>
                 <Tooltip>
@@ -262,20 +269,23 @@ function JobTableRowInternal({
                   <TooltipContent>Items</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="icon"
-                      variant="destructive"
-                      onClick={() => onDeleteClick?.(job)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Eliminar</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {/* Delete button - hidden on mobile */}
+              {!isMobile && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="destructive"
+                        onClick={() => onDeleteClick?.(job)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Eliminar</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
           </TableCell>
         </>

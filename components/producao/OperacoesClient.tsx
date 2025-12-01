@@ -828,16 +828,16 @@ export default function OperacoesClient({
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <Input
           placeholder="Filtrar FO"
-          className="h-10 w-40"
+          className="h-10 w-40 min-w-[160px]"
           value={foFilter}
           onChange={(e) => setFoFilter(e.target.value)}
         />
         <Input
           placeholder="Filtrar Item"
-          className="h-10 flex-1"
+          className="h-10 flex-1 min-w-[200px]"
           value={itemFilter}
           onChange={(e) => setItemFilter(e.target.value)}
         />

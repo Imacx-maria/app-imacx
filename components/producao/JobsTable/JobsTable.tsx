@@ -16,6 +16,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ArrowUp, ArrowDown } from "lucide-react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { JobTableRow } from "./JobTableRow";
 import type { JobsTableProps } from "./types";
 import type { Job, SortableJobKey } from "@/types/producao";
@@ -49,6 +50,8 @@ export function JobsTable({
   setDuplicateDialog,
   supabase,
 }: JobsTableProps) {
+  const isMobile = useIsMobile();
+  
   // Memoized job update handler
   const handleJobUpdate = useCallback(
     (jobId: string, updates: Partial<Job>) => {
@@ -227,9 +230,18 @@ export function JobsTable({
                     tooltip="Stand By"
                     className="w-[40px] text-center"
                   />
-                  <TableHead className="sticky top-0 z-10 w-[100px] imx-border-b bg-primary text-center text-primary-foreground uppercase">
-                    Ações
-                  </TableHead>
+                  {/* Actions header - Delete button hidden on mobile */}
+                  {!isMobile && (
+                    <TableHead className="sticky top-0 z-10 w-[100px] imx-border-b bg-primary text-center text-primary-foreground uppercase">
+                      Ações
+                    </TableHead>
+                  )}
+                  {/* Mobile: Only show View button */}
+                  {isMobile && (
+                    <TableHead className="sticky top-0 z-10 w-[50px] imx-border-b bg-primary text-center text-primary-foreground uppercase">
+                      Ações
+                    </TableHead>
+                  )}
                 </>
               )}
             </TableRow>
@@ -247,6 +259,7 @@ export function JobsTable({
                 jobTotalValues={jobTotalValues}
                 loading={loading}
                 variant={variant}
+                isMobile={isMobile}
                 onJobUpdate={handleJobUpdate}
                 onJobDelete={handleJobDelete}
                 onOpenDrawer={onOpenDrawer}
