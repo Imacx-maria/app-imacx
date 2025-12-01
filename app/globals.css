@@ -236,6 +236,18 @@
         background-color: var(--calendar-holiday-bg) !important;
     }
 
+    /* Dark mode: black text on hover */
+    .dark tr:hover,
+    .dark tr:hover * {
+        color: black !important;
+    }
+
+    /* Exclude specifications container from black text on hover */
+    .dark tr:hover .specifications-container,
+    .dark tr:hover .specifications-container * {
+        color: var(--foreground) !important;
+    }
+
     /* ============================================
      TABLE & CELL BORDERS - GLOBAL
      Use subtle theme border color for all table dividers

@@ -820,15 +820,16 @@ export default function QuoteSearchPage() {
                               <div className="p-4">
                                 {/* Description Preview */}
                                 {result.description_preview && (
-                                  <div className="mb-4">
+                                  <div className="mb-4 specifications-container">
                                     <h4 className="text-xs font-medium mb-2 text-muted-foreground">
                                       ESPECIFICACOES
                                     </h4>
-                                    <div className="text-xs bg-background p-3 imx-border max-h-48 overflow-y-auto">
+                                    <div className="text-xs text-foreground bg-background p-3 imx-border max-h-48 overflow-y-auto whitespace-pre-wrap">
                                       {result.description_preview
+                                        .replace(/\\n/g, "\n")
                                         .split("\n")
                                         .map((line, idx) => (
-                                          <div key={idx} className="py-0.5">
+                                          <div key={idx} className="py-0.5 text-foreground">
                                             {line || <span>&nbsp;</span>}
                                           </div>
                                         ))}
@@ -861,7 +862,10 @@ export default function QuoteSearchPage() {
                                         </TableHeader>
                                         <TableBody>
                                           {result.qty_lines.map((line, idx) => (
-                                            <TableRow key={idx}>
+                                            <TableRow
+                                              key={idx}
+                                              className="hover:bg-transparent"
+                                            >
                                               <TableCell className="font-medium">
                                                 {line.qty > 0
                                                   ? formatNumber(line.qty)
