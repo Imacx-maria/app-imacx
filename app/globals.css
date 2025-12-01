@@ -236,13 +236,29 @@
         background-color: var(--calendar-holiday-bg) !important;
     }
 
-    /* Dark mode: black text on hover */
-    .dark tr:hover,
-    .dark tr:hover * {
+    /* Dark mode: black text on hover - ONLY for direct table cell text */
+    /* Exclude all elements with their own backgrounds (like inputs, progress bars, badges, etc.) */
+    .dark tr:hover > td {
         color: black !important;
     }
 
-    /* Exclude specifications container from black text on hover */
+    /* Exclude elements with backgrounds from black text */
+    .dark tr:hover input,
+    .dark tr:hover textarea,
+    .dark tr:hover [class*="bg-"],
+    .dark tr:hover [class*="bg-background"],
+    .dark tr:hover [class*="bg-muted"],
+    .dark tr:hover [class*="bg-accent"],
+    .dark tr:hover [class*="bg-primary"],
+    .dark tr:hover [class*="bg-secondary"],
+    .dark tr:hover [class*="bg-success"],
+    .dark tr:hover [class*="bg-warning"],
+    .dark tr:hover [class*="bg-destructive"],
+    .dark tr:hover [role="progressbar"],
+    .dark tr:hover [class*="Progress"],
+    .dark tr:hover button,
+    .dark tr:hover [role="button"],
+    .dark tr:hover [role="checkbox"],
     .dark tr:hover .specifications-container,
     .dark tr:hover .specifications-container * {
         color: var(--foreground) !important;

@@ -269,7 +269,7 @@ export default function ProducaoPage({
   const [holidays, setHolidays] = useState<Holiday[]>(initialHolidays);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [isMobileDateDrawerOpen, setIsMobileDateDrawerOpen] = useState(false);
-  const isMobile = useIsMobileOrTablet(); // Use tablet breakpoint (1024px) to hide columns on smaller screens
+  const isMobileOrTablet = useIsMobileOrTablet(); // Use tablet breakpoint (1024px) to hide columns on smaller screens
   // Ref to access latest clientes in fetchJobs without creating dependency
   const clientesRef = useRef<ClienteOption[]>([]);
   // Ref to track if initial load has happened
@@ -1586,7 +1586,7 @@ export default function ProducaoPage({
             onDateSelect={(date) => {
               setSelectedDate(date);
               // On mobile, open the drawer when a date is selected
-              if (isMobile && date) {
+              if (isMobileOrTablet && date) {
                 setIsMobileDateDrawerOpen(true);
               }
             }}
@@ -1597,7 +1597,7 @@ export default function ProducaoPage({
         {error && <ErrorMessage message={error} onRetry={retryFetch} />}
 
         {/* Filter bar and tabs - hidden on mobile */}
-        {!isMobile && (
+        {!isMobileOrTablet && (
           <>
             {/* Filter bar - positioned above tabs */}
             <div className="flex items-center gap-2 flex-wrap">
@@ -2479,7 +2479,7 @@ export default function ProducaoPage({
                                   ))}
                               </TableHead>
                               {/* Cliente - hidden on mobile */}
-                              {!isMobile && (
+                              {!isMobileOrTablet && (
                                 <TableHead
                                   onClick={() => toggleSort("cliente")}
                                   className=" sticky top-0 z-10 w-[200px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
@@ -2506,7 +2506,7 @@ export default function ProducaoPage({
                                   ))}
                               </TableHead>
                               {/* Nota - hidden on mobile */}
-                              {!isMobile && (
+                              {!isMobileOrTablet && (
                                 <TableHead
                                   onClick={() => toggleSort("notas")}
                                   className=" sticky top-0 z-10 w-[50px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
@@ -2521,7 +2521,7 @@ export default function ProducaoPage({
                                 </TableHead>
                               )}
                               {/* Status - hidden on mobile */}
-                              {!isMobile && (
+                              {!isMobileOrTablet && (
                                 <TableHead
                                   onClick={() => toggleSort("prioridade")}
                                   className=" sticky top-0 z-10 w-[210px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
@@ -2637,7 +2637,7 @@ export default function ProducaoPage({
                                 </TooltipProvider>
                               </TableHead>
                               {/* Actions - Delete button hidden on mobile */}
-                              {!isMobile ? (
+                              {!isMobileOrTablet ? (
                                 <TableHead className=" sticky top-0 z-10 w-[100px] imx-border-b bg-primary text-center  text-primary-foreground uppercase">
                                   Ações
                                 </TableHead>
@@ -2670,7 +2670,7 @@ export default function ProducaoPage({
                                     designerItemsByJobId.get(job.id) || []
                                   }
                                   operacoes={operacoesByJobId.get(job.id) || []}
-                                  isMobile={isMobile}
+                                  isMobile={isMobileOrTablet}
                                   onOrcChange={handleOrcChange}
                                   onOrcBlur={handleOrcBlur}
                                   onFoChange={handleFoChange}
@@ -2776,7 +2776,7 @@ export default function ProducaoPage({
                                   ))}
                               </TableHead>
                               {/* Cliente - hidden on mobile */}
-                              {!isMobile && (
+                              {!isMobileOrTablet && (
                                 <TableHead
                                   onClick={() => toggleSort("cliente")}
                                   className=" sticky top-0 z-10 w-[200px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
@@ -2803,7 +2803,7 @@ export default function ProducaoPage({
                                   ))}
                               </TableHead>
                               {/* Nota - hidden on mobile */}
-                              {!isMobile && (
+                              {!isMobileOrTablet && (
                                 <TableHead
                                   onClick={() => toggleSort("notas")}
                                   className=" sticky top-0 z-10 w-[50px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
@@ -2818,7 +2818,7 @@ export default function ProducaoPage({
                                 </TableHead>
                               )}
                               {/* Status - hidden on mobile */}
-                              {!isMobile && (
+                              {!isMobileOrTablet && (
                                 <TableHead
                                   onClick={() => toggleSort("prioridade")}
                                   className=" sticky top-0 z-10 w-[210px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
@@ -2861,7 +2861,7 @@ export default function ProducaoPage({
                                   jobItems={jobItems}
                                   designerItems={[]}
                                   operacoes={[]}
-                                  isMobile={isMobile}
+                                  isMobile={isMobileOrTablet}
                                   onOrcChange={handleOrcChange}
                                   onOrcBlur={handleOrcBlur}
                                   onFoChange={handleFoChange}
@@ -2967,7 +2967,7 @@ export default function ProducaoPage({
                                   ))}
                               </TableHead>
                               {/* Cliente - hidden on mobile */}
-                              {!isMobile && (
+                              {!isMobileOrTablet && (
                                 <TableHead
                                   onClick={() => toggleSort("cliente")}
                                   className=" sticky top-0 z-10 w-[200px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
@@ -2994,7 +2994,7 @@ export default function ProducaoPage({
                                   ))}
                               </TableHead>
                               {/* Nota - hidden on mobile */}
-                              {!isMobile && (
+                              {!isMobileOrTablet && (
                                 <TableHead
                                   onClick={() => toggleSort("notas")}
                                   className=" sticky top-0 z-10 w-[50px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
@@ -3009,7 +3009,7 @@ export default function ProducaoPage({
                                 </TableHead>
                               )}
                               {/* Status - hidden on mobile */}
-                              {!isMobile && (
+                              {!isMobileOrTablet && (
                                 <TableHead
                                   onClick={() => toggleSort("prioridade")}
                                   className=" sticky top-0 z-10 w-[210px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
@@ -3125,7 +3125,7 @@ export default function ProducaoPage({
                                 </TooltipProvider>
                               </TableHead>
                               {/* Actions - Delete button hidden on mobile */}
-                              {!isMobile ? (
+                              {!isMobileOrTablet ? (
                                 <TableHead className=" sticky top-0 z-10 w-[100px] imx-border-b bg-primary text-center  text-primary-foreground uppercase">
                                   Ações
                                 </TableHead>
@@ -3158,7 +3158,7 @@ export default function ProducaoPage({
                                     designerItemsByJobId.get(job.id) || []
                                   }
                                   operacoes={operacoesByJobId.get(job.id) || []}
-                                  isMobile={isMobile}
+                                  isMobile={isMobileOrTablet}
                                   onOrcChange={handleOrcChange}
                                   onOrcBlur={handleOrcBlur}
                                   onFoChange={handleFoChange}
