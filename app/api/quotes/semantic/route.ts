@@ -116,39 +116,40 @@ export async function POST(request: NextRequest) {
     const results: SearchResult[] = searchResults || [];
 
     // Step 3: Calculate price statistics from results
+    // Use the PRIMARY line shown in the table (first line with qty > 0), not highest price
     let priceStats = null;
     if (results.length > 0) {
       const unitPrices: number[] = [];
 
       results.forEach((r) => {
         if (r.qty_lines && r.qty_lines.length > 0) {
-          // Get main line (highest unit price)
-          const validLines = r.qty_lines.filter(
-            (line) =>
-              line.unit_price &&
-              line.unit_price > 0 &&
-              line.qty &&
-              line.qty > 0,
-          );
-          if (validLines.length > 0) {
-            validLines.sort(
-              (a, b) => (b.unit_price || 0) - (a.unit_price || 0),
-            );
-            unitPrices.push(validLines[0].unit_price);
+          // Get PRIMARY line - the first line with qty > 0 (same as UI displays)
+          const primaryLine =
+            r.qty_lines.find((line) => line.qty && line.qty > 0) ||
+            r.qty_lines[0];
+
+          if (
+            primaryLine &&
+            primaryLine.unit_price &&
+            primaryLine.unit_price > 0
+          ) {
+            unitPrices.push(primaryLine.unit_price);
           }
         }
       });
 
-      // Filter outliers
+      // Filter outliers (prices between 1€ and 5000€)
       const filteredPrices = unitPrices.filter((p) => p >= 1 && p <= 5000);
 
       if (filteredPrices.length > 0) {
-        const avg =
-          filteredPrices.reduce((a, b) => a + b, 0) / filteredPrices.length;
+        // Sort for median calculation
+        const sorted = [...filteredPrices].sort((a, b) => a - b);
+        const median = sorted[Math.floor(sorted.length / 2)];
+
         priceStats = {
           min: Math.min(...filteredPrices),
           max: Math.max(...filteredPrices),
-          typical: Math.round(avg * 100) / 100,
+          typical: Math.round(median * 100) / 100, // Use median instead of average
           count: filteredPrices.length,
         };
       }

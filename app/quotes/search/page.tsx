@@ -77,12 +77,50 @@ export default function QuoteSearchPage() {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [semanticPriceStats, setSemanticPriceStats] =
     useState<SemanticPriceStats | null>(null);
+  const [standardPriceStats, setStandardPriceStats] =
+    useState<SemanticPriceStats | null>(null);
   const [semanticLimit, setSemanticLimit] = useState<number>(30);
-  const [semanticThreshold, setSemanticThreshold] = useState<number>(0.5);
+  const [semanticThreshold, setSemanticThreshold] = useState<number>(0.55);
   const [priceFilterMin, setPriceFilterMin] = useState<number | null>(null);
   const [priceFilterMax, setPriceFilterMax] = useState<number | null>(null);
   const [dateFilterStart, setDateFilterStart] = useState<string | null>(null);
   const [dateFilterEnd, setDateFilterEnd] = useState<string | null>(null);
+
+  // Calculate price statistics from results (same logic as API)
+  const calculatePriceStats = (
+    searchResults: SearchResult[],
+  ): SemanticPriceStats | null => {
+    if (searchResults.length === 0) return null;
+
+    const unitPrices: number[] = [];
+    searchResults.forEach((r) => {
+      if (r.qty_lines && r.qty_lines.length > 0) {
+        const primaryLine =
+          r.qty_lines.find((line) => line.qty && line.qty > 0) ||
+          r.qty_lines[0];
+        if (
+          primaryLine &&
+          primaryLine.unit_price &&
+          primaryLine.unit_price > 0
+        ) {
+          unitPrices.push(primaryLine.unit_price);
+        }
+      }
+    });
+
+    const filteredPrices = unitPrices.filter((p) => p >= 1 && p <= 5000);
+    if (filteredPrices.length === 0) return null;
+
+    const sorted = [...filteredPrices].sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+
+    return {
+      min: Math.min(...filteredPrices),
+      max: Math.max(...filteredPrices),
+      typical: Math.round(median * 100) / 100,
+      count: filteredPrices.length,
+    };
+  };
 
   // Extract quantity from query (e.g., "crowner extensível quantidade 100" -> { product: "crowner extensível", qty: 100 })
   const parseQueryForQuantity = (
@@ -121,6 +159,7 @@ export default function QuoteSearchPage() {
     setError(null);
     setHasSearched(true);
     setSemanticPriceStats(null);
+    setStandardPriceStats(null);
     setPriceFilterMin(null);
     setPriceFilterMax(null);
     setDateFilterStart(null);
@@ -142,6 +181,7 @@ export default function QuoteSearchPage() {
 
         const data = await response.json();
         setResults(data.results);
+        setStandardPriceStats(calculatePriceStats(data.results));
         setSearchTime(0);
       } else if (mode === "ai-semantic") {
         // AI SEMANTIC - Vector embedding search
@@ -510,6 +550,151 @@ export default function QuoteSearchPage() {
         </div>
       )}
 
+      {/* STANDARD Results Card with Filters */}
+      {hasSearched &&
+        !isLoading &&
+        mode === "standard" &&
+        standardPriceStats && (
+          <div className="mb-6 imx-border bg-card">
+            <div className="p-4 imx-border-b bg-accent/50">
+              <div className="flex items-center gap-2">
+                <Search className="h-5 w-5 text-primary" />
+                <span className="font-medium">PESQUISA STANDARD</span>
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {results.length} resultados encontrados
+                </span>
+              </div>
+            </div>
+
+            <div className="p-4">
+              {/* Price Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div className="p-4 bg-accent">
+                  <div className="text-xs text-muted-foreground mb-1">
+                    PRECO MINIMO
+                  </div>
+                  <div className="text-xl font-medium">
+                    {formatCurrency(standardPriceStats.min)}
+                  </div>
+                </div>
+                <div className="p-4 bg-primary/30">
+                  <div className="text-xs text-muted-foreground mb-1">
+                    PRECO TIPICO
+                  </div>
+                  <div className="text-2xl font-medium">
+                    {formatCurrency(standardPriceStats.typical)}
+                  </div>
+                </div>
+                <div className="p-4 bg-accent">
+                  <div className="text-xs text-muted-foreground mb-1">
+                    PRECO MAXIMO
+                  </div>
+                  <div className="text-xl font-medium">
+                    {formatCurrency(standardPriceStats.max)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-xs text-muted-foreground mb-4">
+                Baseado em {standardPriceStats.count} produtos principais dos
+                orcamentos encontrados
+              </div>
+
+              {/* Filters */}
+              <div className="pt-4 imx-border-t">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    FILTROS
+                  </span>
+                  {hasActiveFilters && (
+                    <button
+                      className="text-xs text-muted-foreground hover:text-foreground underline"
+                      onClick={clearAllFilters}
+                    >
+                      Limpar todos
+                    </button>
+                  )}
+                </div>
+
+                {/* Price Filter */}
+                <div className="mb-3">
+                  <div className="text-xs text-muted-foreground mb-2">
+                    PRECO UNITARIO
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground">MIN:</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        placeholder="0"
+                        value={priceFilterMin ?? ""}
+                        onChange={(e) =>
+                          setPriceFilterMin(
+                            e.target.value ? Number(e.target.value) : null,
+                          )
+                        }
+                        className="w-24 bg-background imx-border px-2 py-1"
+                      />
+                      <span className="text-muted-foreground">€</span>
+                    </label>
+                    <label className="flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground">MAX:</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        placeholder="∞"
+                        value={priceFilterMax ?? ""}
+                        onChange={(e) =>
+                          setPriceFilterMax(
+                            e.target.value ? Number(e.target.value) : null,
+                          )
+                        }
+                        className="w-24 bg-background imx-border px-2 py-1"
+                      />
+                      <span className="text-muted-foreground">€</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Date Filter */}
+                <div>
+                  <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    DATA DO ORCAMENTO
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground">DE:</span>
+                      <input
+                        type="date"
+                        value={dateFilterStart ?? ""}
+                        onChange={(e) =>
+                          setDateFilterStart(e.target.value || null)
+                        }
+                        className="bg-background imx-border px-2 py-1"
+                      />
+                    </label>
+                    <label className="flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground">ATE:</span>
+                      <input
+                        type="date"
+                        value={dateFilterEnd ?? ""}
+                        onChange={(e) =>
+                          setDateFilterEnd(e.target.value || null)
+                        }
+                        className="bg-background imx-border px-2 py-1"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       {/* AI SEMANTIC Results Card */}
       {hasSearched &&
         !isLoading &&
@@ -829,7 +1014,10 @@ export default function QuoteSearchPage() {
                                         .replace(/\\n/g, "\n")
                                         .split("\n")
                                         .map((line, idx) => (
-                                          <div key={idx} className="py-0.5 text-foreground">
+                                          <div
+                                            key={idx}
+                                            className="py-0.5 text-foreground"
+                                          >
                                             {line || <span>&nbsp;</span>}
                                           </div>
                                         ))}
