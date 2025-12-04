@@ -391,84 +391,98 @@ export default function UserNameMappingPage() {
                     className="w-[100px] cursor-pointer imx-border-b text-center uppercase select-none"
                   >
                     Iniciais
-                    {sortColumn === 'initials' &&
-                      (sortDirection === 'asc' ? (
-                        <ArrowUp className="ml-1 inline h-3 w-3" />
-                      ) : (
-                        <ArrowDown className="ml-1 inline h-3 w-3" />
-                      ))}
+                    <span className="inline-block w-3 h-3 ml-1">
+                      {sortColumn === 'initials' &&
+                        (sortDirection === 'asc' ? (
+                          <ArrowUp className="h-3 w-3" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3" />
+                        ))}
+                    </span>
                   </TableHead>
                   <TableHead
                     onClick={() => handleSort('full_name')}
                     className="min-w-[200px] cursor-pointer imx-border-b text-center uppercase select-none"
                   >
                     Nome Completo
-                    {sortColumn === 'full_name' &&
-                      (sortDirection === 'asc' ? (
-                        <ArrowUp className="ml-1 inline h-3 w-3" />
-                      ) : (
-                        <ArrowDown className="ml-1 inline h-3 w-3" />
-                      ))}
+                    <span className="inline-block w-3 h-3 ml-1">
+                      {sortColumn === 'full_name' &&
+                        (sortDirection === 'asc' ? (
+                          <ArrowUp className="h-3 w-3" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3" />
+                        ))}
+                    </span>
                   </TableHead>
                   <TableHead
                     onClick={() => handleSort('short_name')}
                     className="min-w-[150px] cursor-pointer imx-border-b text-center uppercase select-none"
                   >
                     Nome Curto
-                    {sortColumn === 'short_name' &&
-                      (sortDirection === 'asc' ? (
-                        <ArrowUp className="ml-1 inline h-3 w-3" />
-                      ) : (
-                        <ArrowDown className="ml-1 inline h-3 w-3" />
-                      ))}
+                    <span className="inline-block w-3 h-3 ml-1">
+                      {sortColumn === 'short_name' &&
+                        (sortDirection === 'asc' ? (
+                          <ArrowUp className="h-3 w-3" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3" />
+                        ))}
+                    </span>
                   </TableHead>
                   <TableHead
                     onClick={() => handleSort('standardized_name')}
                     className="min-w-[200px] cursor-pointer imx-border-b text-center uppercase select-none"
                   >
                     Nome Padronizado
-                    {sortColumn === 'standardized_name' &&
-                      (sortDirection === 'asc' ? (
-                        <ArrowUp className="ml-1 inline h-3 w-3" />
-                      ) : (
-                        <ArrowDown className="ml-1 inline h-3 w-3" />
-                      ))}
+                    <span className="inline-block w-3 h-3 ml-1">
+                      {sortColumn === 'standardized_name' &&
+                        (sortDirection === 'asc' ? (
+                          <ArrowUp className="h-3 w-3" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3" />
+                        ))}
+                    </span>
                   </TableHead>
                   <TableHead
                     onClick={() => handleSort('department')}
                     className="min-w-[150px] cursor-pointer imx-border-b text-center uppercase select-none"
                   >
                     Departamento
-                    {sortColumn === 'department' &&
-                      (sortDirection === 'asc' ? (
-                        <ArrowUp className="ml-1 inline h-3 w-3" />
-                      ) : (
-                        <ArrowDown className="ml-1 inline h-3 w-3" />
-                      ))}
+                    <span className="inline-block w-3 h-3 ml-1">
+                      {sortColumn === 'department' &&
+                        (sortDirection === 'asc' ? (
+                          <ArrowUp className="h-3 w-3" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3" />
+                        ))}
+                    </span>
                   </TableHead>
                   <TableHead
                     onClick={() => handleSort('active')}
                     className="w-[80px] cursor-pointer imx-border-b text-center uppercase select-none"
                   >
                     Ativo
-                    {sortColumn === 'active' &&
-                      (sortDirection === 'asc' ? (
-                        <ArrowUp className="ml-1 inline h-3 w-3" />
-                      ) : (
-                        <ArrowDown className="ml-1 inline h-3 w-3" />
-                      ))}
+                    <span className="inline-block w-3 h-3 ml-1">
+                      {sortColumn === 'active' &&
+                        (sortDirection === 'asc' ? (
+                          <ArrowUp className="h-3 w-3" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3" />
+                        ))}
+                    </span>
                   </TableHead>
                   <TableHead
                     onClick={() => handleSort('sales')}
                     className="w-[80px] cursor-pointer imx-border-b text-center uppercase select-none"
                   >
                     Vendas
-                    {sortColumn === 'sales' &&
-                      (sortDirection === 'asc' ? (
-                        <ArrowUp className="ml-1 inline h-3 w-3" />
-                      ) : (
-                        <ArrowDown className="ml-1 inline h-3 w-3" />
-                      ))}
+                    <span className="inline-block w-3 h-3 ml-1">
+                      {sortColumn === 'sales' &&
+                        (sortDirection === 'asc' ? (
+                          <ArrowUp className="h-3 w-3" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3" />
+                        ))}
+                    </span>
                   </TableHead>
                   <TableHead className="w-[100px] imx-border-b text-center uppercase">
                     Ações

@@ -142,16 +142,25 @@ def get_quotes_needing_embeddings_fallback(
     - phc.temp_quotes_bo: document_id (PK), document_number
     - phc.temp_quotes_bi: document_id (FK), description
     """
-    # First get existing embeddings
-    existing = (
-        supabase.table("quote_embeddings")
-        .select("document_number, description")
-        .execute()
-    )
-
+    # First get ALL existing embeddings (paginate to avoid 1000 row limit)
     existing_set = set()
-    for row in existing.data or []:
-        existing_set.add((row["document_number"], row["description"]))
+    page_size = 1000
+    offset = 0
+
+    while True:
+        existing = (
+            supabase.table("quote_embeddings")
+            .select("document_number, description")
+            .range(offset, offset + page_size - 1)
+            .execute()
+        )
+        if not existing.data:
+            break
+        for row in existing.data:
+            existing_set.add((row["document_number"], row["description"]))
+        if len(existing.data) < page_size:
+            break
+        offset += page_size
 
     # Paginate through BI lines to find ones without embeddings.
     # This avoids stopping early if the first chunk is already embedded.
@@ -287,10 +296,35 @@ def main():
         print(f"\nDetails: {e}")
         sys.exit(1)
 
+    # Get total counts for progress tracking
+    existing_count = (
+        supabase.table("quote_embeddings")
+        .select("*", count="exact", head=True)
+        .execute()
+        .count
+        or 0
+    )
+    total_quotes = (
+        supabase.schema("phc")
+        .from_("temp_quotes_bi")
+        .select("*", count="exact", head=True)
+        .execute()
+        .count
+        or 0
+    )
+
+    print(
+        f"\nProgress: {existing_count:,} / {total_quotes:,} ({(existing_count / total_quotes * 100):.1f}%) already embedded"
+    )
+    remaining = total_quotes - existing_count
+    est_mins = (remaining // BATCH_SIZE * 3) // 60
+    print(f"Remaining: ~{remaining:,} quotes (~{est_mins} mins)")
+
     # Process in batches
     total_processed = 0
     total_success = 0
     batch_num = 0
+    start_count = existing_count
 
     while True:
         batch_num += 1
@@ -315,9 +349,11 @@ def main():
 
         total_processed += len(quotes)
         total_success += success
+        current_total = start_count + total_success
+        pct = (current_total / total_quotes * 100) if total_quotes > 0 else 0
 
         print(
-            f"Success: {success}/{len(quotes)} | Total: {total_success}/{total_processed}"
+            f"Success: {success}/{len(quotes)} | Overall: {current_total:,}/{total_quotes:,} ({pct:.1f}%)"
         )
 
         # Rate limiting - be nice to OpenAI API

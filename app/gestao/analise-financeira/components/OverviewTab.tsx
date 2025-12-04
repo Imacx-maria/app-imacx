@@ -85,7 +85,9 @@ export function OverviewTab({
   }, [sortedCompanyConversao.length, activeTab]);
 
   // Paginated data for Top Customers
-  const topCustomersTotalPages = Math.ceil(sortedTopCustomers.length / ITEMS_PER_PAGE);
+  const topCustomersTotalPages = Math.ceil(
+    sortedTopCustomers.length / ITEMS_PER_PAGE,
+  );
   const paginatedTopCustomers = useMemo(() => {
     const startIndex = (topCustomersPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
@@ -93,7 +95,9 @@ export function OverviewTab({
   }, [sortedTopCustomers, topCustomersPage]);
 
   // Paginated data for Company Conversão
-  const conversaoTotalPages = Math.ceil(sortedCompanyConversao.length / ITEMS_PER_PAGE);
+  const conversaoTotalPages = Math.ceil(
+    sortedCompanyConversao.length / ITEMS_PER_PAGE,
+  );
   const paginatedCompanyConversao = useMemo(() => {
     const startIndex = (conversaoPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
@@ -103,7 +107,7 @@ export function OverviewTab({
   const renderSortIcon = (
     column: string,
     currentColumn: string,
-    direction: "asc" | "desc"
+    direction: "asc" | "desc",
   ) => {
     if (currentColumn !== column) return null;
     return direction === "asc" ? (
@@ -201,8 +205,8 @@ export function OverviewTab({
                   const stroke = isMostRecent
                     ? "var(--foreground)"
                     : index === 1
-                    ? "var(--primary)"
-                    : "var(--orange)";
+                      ? "var(--primary)"
+                      : "var(--orange)";
                   return (
                     <Line
                       key={year}
@@ -256,7 +260,7 @@ export function OverviewTab({
                       {renderSortIcon(
                         "customerName",
                         topSortColumn,
-                        topSortDirection
+                        topSortDirection,
                       )}
                     </TableHead>
                     <TableHead
@@ -267,7 +271,7 @@ export function OverviewTab({
                       {renderSortIcon(
                         "salesperson",
                         topSortColumn,
-                        topSortDirection
+                        topSortDirection,
                       )}
                     </TableHead>
                     <TableHead
@@ -278,7 +282,7 @@ export function OverviewTab({
                       {renderSortIcon(
                         "invoiceCount",
                         topSortColumn,
-                        topSortDirection
+                        topSortDirection,
                       )}
                     </TableHead>
                     <TableHead
@@ -289,7 +293,7 @@ export function OverviewTab({
                       {renderSortIcon(
                         "netRevenue",
                         topSortColumn,
-                        topSortDirection
+                        topSortDirection,
                       )}
                     </TableHead>
                     {activeTab === "ytd" && (
@@ -306,7 +310,7 @@ export function OverviewTab({
                       {renderSortIcon(
                         "revenueSharePct",
                         topSortColumn,
-                        topSortDirection
+                        topSortDirection,
                       )}
                     </TableHead>
                     <TableHead
@@ -319,7 +323,7 @@ export function OverviewTab({
                       {renderSortIcon(
                         "lastInvoice",
                         topSortColumn,
-                        topSortDirection
+                        topSortDirection,
                       )}
                     </TableHead>
                   </TableRow>
@@ -340,10 +344,10 @@ export function OverviewTab({
                       deltaPct == null
                         ? ""
                         : deltaPct > 0
-                        ? "text-success"
-                        : deltaPct < 0
-                        ? "text-destructive"
-                        : "";
+                          ? "text-success"
+                          : deltaPct < 0
+                            ? "text-destructive"
+                            : "";
 
                     return (
                       <TableRow key={customer.customerId}>
@@ -369,7 +373,7 @@ export function OverviewTab({
                           <TableCell className={`text-right ${deltaClass}`}>
                             {deltaPct != null
                               ? `${deltaPct > 0 ? "+" : ""}${deltaPct.toFixed(
-                                  1
+                                  1,
                                 )}%`
                               : "-"}
                           </TableCell>
@@ -390,13 +394,16 @@ export function OverviewTab({
             {topCustomersTotalPages > 1 && (
               <div className="flex items-center justify-between pt-4 text-sm imx-border-t">
                 <div className="text-muted-foreground">
-                  Página {topCustomersPage} de {topCustomersTotalPages} ({sortedTopCustomers.length} clientes)
+                  Página {topCustomersPage} de {topCustomersTotalPages} (
+                  {sortedTopCustomers.length} clientes)
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setTopCustomersPage(Math.max(1, topCustomersPage - 1))}
+                    onClick={() =>
+                      setTopCustomersPage(Math.max(1, topCustomersPage - 1))
+                    }
                     disabled={topCustomersPage === 1}
                   >
                     <ArrowLeft className="h-4 w-4" />
@@ -404,7 +411,11 @@ export function OverviewTab({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setTopCustomersPage(Math.min(topCustomersTotalPages, topCustomersPage + 1))}
+                    onClick={() =>
+                      setTopCustomersPage(
+                        Math.min(topCustomersTotalPages, topCustomersPage + 1),
+                      )
+                    }
                     disabled={topCustomersPage === topCustomersTotalPages}
                   >
                     <ArrowRight className="h-4 w-4" />
@@ -445,7 +456,7 @@ export function OverviewTab({
                       {renderSortIcon(
                         "escalao",
                         companyConvSortColumn,
-                        companyConvSortDirection
+                        companyConvSortDirection,
                       )}
                     </TableHead>
                     <TableHead
@@ -456,7 +467,7 @@ export function OverviewTab({
                       {renderSortIcon(
                         "total_orcamentos",
                         companyConvSortColumn,
-                        companyConvSortDirection
+                        companyConvSortDirection,
                       )}
                     </TableHead>
                     <TableHead
@@ -467,7 +478,7 @@ export function OverviewTab({
                       {renderSortIcon(
                         "total_faturas",
                         companyConvSortColumn,
-                        companyConvSortDirection
+                        companyConvSortDirection,
                       )}
                     </TableHead>
                     <TableHead
@@ -480,7 +491,7 @@ export function OverviewTab({
                       {renderSortIcon(
                         "taxa_conversao_pct",
                         companyConvSortColumn,
-                        companyConvSortDirection
+                        companyConvSortDirection,
                       )}
                     </TableHead>
                     <TableHead className="text-right">% Peso</TableHead>
@@ -526,8 +537,8 @@ export function OverviewTab({
                               row.taxa_conversao_pct >= 30
                                 ? "text-green-600 dark:text-green-400 font-medium"
                                 : row.taxa_conversao_pct >= 15
-                                ? "text-yellow-600 dark:text-yellow-400 font-medium"
-                                : "text-red-600 dark:text-red-400 font-medium"
+                                  ? "text-yellow-600 dark:text-yellow-400 font-medium"
+                                  : "text-red-600 dark:text-red-400 font-medium"
                             }
                           >
                             {row.taxa_conversao_pct}%
@@ -563,13 +574,13 @@ export function OverviewTab({
                               .taxa_conversao_pct >= 30
                               ? "text-green-600 dark:text-green-400"
                               : companyConversaoTotals.totalRow
-                                  .taxa_conversao_pct >= 15
-                              ? "text-yellow-600 dark:text-yellow-400"
-                              : "text-red-600 dark:text-red-400"
+                                    .taxa_conversao_pct >= 15
+                                ? "text-yellow-600 dark:text-yellow-400"
+                                : "text-red-600 dark:text-red-400"
                           }
                         >
                           {companyConversaoTotals.totalRow.taxa_conversao_pct.toFixed(
-                            1
+                            1,
                           )}
                           %
                         </span>
@@ -579,12 +590,12 @@ export function OverviewTab({
                       </TableCell>
                       <TableCell className="text-right font-semibold">
                         {formatCurrency(
-                          companyConversaoTotals.totalRow.avg_valor_orcado
+                          companyConversaoTotals.totalRow.avg_valor_orcado,
                         )}
                       </TableCell>
                       <TableCell className="text-right font-semibold">
                         {formatCurrency(
-                          companyConversaoTotals.totalRow.avg_valor_faturado
+                          companyConversaoTotals.totalRow.avg_valor_faturado,
                         )}
                       </TableCell>
                     </TableRow>
@@ -594,31 +605,40 @@ export function OverviewTab({
             </div>
           ) : null}
 
-          {companyConversao && companyConversao.length > 0 && conversaoTotalPages > 1 && (
-            <div className="flex items-center justify-between pt-4 text-sm imx-border-t">
-              <div className="text-muted-foreground">
-                Página {conversaoPage} de {conversaoTotalPages} ({sortedCompanyConversao.length} escalões)
+          {companyConversao &&
+            companyConversao.length > 0 &&
+            conversaoTotalPages > 1 && (
+              <div className="flex items-center justify-between pt-4 text-sm imx-border-t">
+                <div className="text-muted-foreground">
+                  Página {conversaoPage} de {conversaoTotalPages} (
+                  {sortedCompanyConversao.length} escalões)
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setConversaoPage(Math.max(1, conversaoPage - 1))
+                    }
+                    disabled={conversaoPage === 1}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setConversaoPage(
+                        Math.min(conversaoTotalPages, conversaoPage + 1),
+                      )
+                    }
+                    disabled={conversaoPage === conversaoTotalPages}
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setConversaoPage(Math.max(1, conversaoPage - 1))}
-                  disabled={conversaoPage === 1}
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setConversaoPage(Math.min(conversaoTotalPages, conversaoPage + 1))}
-                  disabled={conversaoPage === conversaoTotalPages}
-                >
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
+            )}
 
           {(!companyConversao || companyConversao.length === 0) && (
             <div className="text-center py-8 text-muted-foreground">

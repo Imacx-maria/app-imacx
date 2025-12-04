@@ -38,12 +38,14 @@ function SortableTableHeaderComponent<T extends string>({
       onClick={() => onSort(column)}
     >
       {label}
-      {isActive &&
-        (currentDirection === "asc" ? (
-          <ArrowUp className="ml-1 inline h-3 w-3" />
-        ) : (
-          <ArrowDown className="ml-1 inline h-3 w-3" />
-        ))}
+      <span className="inline-block w-3 h-3 ml-1">
+        {isActive &&
+          (currentDirection === "asc" ? (
+            <ArrowUp className="h-3 w-3" />
+          ) : (
+            <ArrowDown className="h-3 w-3" />
+          ))}
+      </span>
     </TableHead>
   );
 }

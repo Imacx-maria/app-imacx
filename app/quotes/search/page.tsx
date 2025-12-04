@@ -67,24 +67,36 @@ interface SemanticResponse {
 export default function QuoteSearchPage() {
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<SearchMode>("standard");
-  const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasSearched, setHasSearched] = useState(false);
   const [expandedQuote, setExpandedQuote] = useState<string | null>(null);
-  const [searchTime, setSearchTime] = useState<number>(0);
   const [sortField, setSortField] = useState<string>("document_date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const [semanticPriceStats, setSemanticPriceStats] =
-    useState<SemanticPriceStats | null>(null);
-  const [standardPriceStats, setStandardPriceStats] =
-    useState<SemanticPriceStats | null>(null);
   const [semanticLimit, setSemanticLimit] = useState<number>(30);
   const [semanticThreshold, setSemanticThreshold] = useState<number>(0.55);
   const [priceFilterMin, setPriceFilterMin] = useState<number | null>(null);
   const [priceFilterMax, setPriceFilterMax] = useState<number | null>(null);
   const [dateFilterStart, setDateFilterStart] = useState<string | null>(null);
   const [dateFilterEnd, setDateFilterEnd] = useState<string | null>(null);
+
+  // Store results per mode so switching back preserves them
+  const [standardResults, setStandardResults] = useState<SearchResult[]>([]);
+  const [semanticResults, setSemanticResults] = useState<SearchResult[]>([]);
+  const [standardPriceStats, setStandardPriceStats] =
+    useState<SemanticPriceStats | null>(null);
+  const [semanticPriceStats, setSemanticPriceStats] =
+    useState<SemanticPriceStats | null>(null);
+  const [standardSearchTime, setStandardSearchTime] = useState<number>(0);
+  const [semanticSearchTime, setSemanticSearchTime] = useState<number>(0);
+  const [hasSearchedStandard, setHasSearchedStandard] = useState(false);
+  const [hasSearchedSemantic, setHasSearchedSemantic] = useState(false);
+
+  // Computed values based on current mode
+  const results = mode === "standard" ? standardResults : semanticResults;
+  const hasSearched =
+    mode === "standard" ? hasSearchedStandard : hasSearchedSemantic;
+  const searchTime =
+    mode === "standard" ? standardSearchTime : semanticSearchTime;
 
   // Calculate price statistics from results (same logic as API)
   const calculatePriceStats = (
@@ -157,9 +169,6 @@ export default function QuoteSearchPage() {
 
     setIsLoading(true);
     setError(null);
-    setHasSearched(true);
-    setSemanticPriceStats(null);
-    setStandardPriceStats(null);
     setPriceFilterMin(null);
     setPriceFilterMax(null);
     setDateFilterStart(null);
@@ -180,9 +189,10 @@ export default function QuoteSearchPage() {
         if (!response.ok) throw new Error("Erro na pesquisa");
 
         const data = await response.json();
-        setResults(data.results);
+        setStandardResults(data.results);
         setStandardPriceStats(calculatePriceStats(data.results));
-        setSearchTime(0);
+        setStandardSearchTime(0);
+        setHasSearchedStandard(true);
       } else if (mode === "ai-semantic") {
         // AI SEMANTIC - Vector embedding search
         const safeLimit = Math.max(
@@ -217,13 +227,15 @@ export default function QuoteSearchPage() {
 
         if (!data.success) {
           setError("Nenhum orcamento similar encontrado");
-          setResults([]);
+          setSemanticResults([]);
+          setHasSearchedSemantic(true);
           return;
         }
 
-        setResults(data.results || []);
+        setSemanticResults(data.results || []);
         setSemanticPriceStats(data.priceStats);
-        setSearchTime(data.searchTime);
+        setSemanticSearchTime(data.searchTime);
+        setHasSearchedSemantic(true);
       }
     } catch (err) {
       setError("Erro ao pesquisar. Tente novamente.");
@@ -415,20 +427,22 @@ export default function QuoteSearchPage() {
     className?: string;
   }) => (
     <TableHead
-      className={`cursor-pointer hover:bg-accent/50 select-none ${className}`}
+      className={`cursor-pointer  select-none ${className}`}
       onClick={() => handleSort(field)}
     >
       <div className="flex items-center gap-1">
         {children}
-        {sortField === field ? (
-          sortDirection === "asc" ? (
-            <ChevronUp className="h-3 w-3" />
+        <span className="inline-block w-3 h-3">
+          {sortField === field ? (
+            sortDirection === "asc" ? (
+              <ChevronUp className="h-3 w-3" />
+            ) : (
+              <ChevronDown className="h-3 w-3" />
+            )
           ) : (
-            <ChevronDown className="h-3 w-3" />
-          )
-        ) : (
-          <ArrowUpDown className="h-3 w-3 opacity-30" />
-        )}
+            <ArrowUpDown className="h-3 w-3 opacity-30" />
+          )}
+        </span>
       </div>
     </TableHead>
   );
@@ -952,7 +966,7 @@ export default function QuoteSearchPage() {
                     return (
                       <React.Fragment key={result.document_number}>
                         <TableRow
-                          className="cursor-pointer hover:bg-accent/50"
+                          className="cursor-pointer "
                           onClick={() => toggleExpand(result.document_number)}
                         >
                           <TableCell className="font-medium">
@@ -971,8 +985,11 @@ export default function QuoteSearchPage() {
                           </TableCell>
                           {mode === "standard" && (
                             <TableCell className="text-center">
-                              <span className="inline-flex items-center justify-center w-6 h-6 bg-primary text-primary-foreground text-xs">
-                                {result.keyword_matches}
+                              <span
+                                className="inline-flex items-center justify-center min-w-[24px] h-6 px-1 bg-primary text-xs font-medium"
+                                style={{ color: "#000" }}
+                              >
+                                {result.keyword_matches ?? 0}
                               </span>
                             </TableCell>
                           )}

@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -30,6 +32,14 @@ import type {
   CostCenterTopCustomersResponse,
 } from "@/types/financial-analysis";
 
+interface CostCenterMultiYearData {
+  years: number[];
+  months: string[];
+  series: { year: number; points: { month: string; revenue: number }[] }[];
+  costCenters: string[];
+  selectedCostCenter: string | null;
+}
+
 interface CostCenterTabProps {
   costCenterPerformance: CostCenterPerformanceResponse | null;
   costCenterSales: any;
@@ -47,6 +57,10 @@ interface CostCenterTabProps {
   ccTopSortColumn: string;
   ccTopSortDirection: "asc" | "desc";
   sortedCostCenterTopCustomers: any[];
+  // Multi-year line chart props
+  costCenterMultiYear: CostCenterMultiYearData | null;
+  onCostCenterChartChange: (costCenter: string) => void;
+  selectedCostCenterChartFilter: string;
 }
 
 export function CostCenterTab({
@@ -66,6 +80,9 @@ export function CostCenterTab({
   ccTopSortColumn,
   ccTopSortDirection,
   sortedCostCenterTopCustomers,
+  costCenterMultiYear,
+  onCostCenterChartChange,
+  selectedCostCenterChartFilter,
 }: CostCenterTabProps) {
   // Pagination state for Sales table
   const [salesPage, setSalesPage] = useState(1);
@@ -83,7 +100,9 @@ export function CostCenterTab({
   }, [sortedCostCenterTopCustomers.length, selectedCostCenter]);
 
   // Paginated data for Sales
-  const salesTotalPages = Math.ceil(sortedCostCenterSales.length / ITEMS_PER_PAGE);
+  const salesTotalPages = Math.ceil(
+    sortedCostCenterSales.length / ITEMS_PER_PAGE,
+  );
   const paginatedSales = useMemo(() => {
     const startIndex = (salesPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
@@ -91,7 +110,9 @@ export function CostCenterTab({
   }, [sortedCostCenterSales, salesPage]);
 
   // Paginated data for Top Customers
-  const topCustomersTotalPages = Math.ceil(sortedCostCenterTopCustomers.length / ITEMS_PER_PAGE);
+  const topCustomersTotalPages = Math.ceil(
+    sortedCostCenterTopCustomers.length / ITEMS_PER_PAGE,
+  );
   const paginatedTopCustomers = useMemo(() => {
     const startIndex = (topCustomersPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
@@ -101,7 +122,7 @@ export function CostCenterTab({
   const renderSortIcon = (
     column: string,
     currentColumn: string,
-    direction: "asc" | "desc"
+    direction: "asc" | "desc",
   ) => {
     if (currentColumn !== column) return null;
     return direction === "asc" ? (
@@ -113,6 +134,106 @@ export function CostCenterTab({
 
   return (
     <div className="space-y-6">
+      {/* VENDAS por Centro de Custo - 3-year Line Chart */}
+      {costCenterMultiYear && costCenterMultiYear.series.length > 0 && (
+        <Card className="p-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <h2 className="text-xl text-foreground">
+                Vendas Mensais por Centro de Custo (YTD)
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {costCenterMultiYear.costCenters.map((cc) => (
+                  <Button
+                    key={cc}
+                    variant={
+                      selectedCostCenterChartFilter === cc
+                        ? "default"
+                        : "outline"
+                    }
+                    size="sm"
+                    onClick={() => onCostCenterChartChange(cc)}
+                  >
+                    {cc
+                      .replace("ID-Impressão Digital", "Digital")
+                      .replace("IO-Impressão OFFSET", "OFFSET")
+                      .replace("BR-Brindes", "Brindes")}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart
+                data={(() => {
+                  // Transform data for the chart
+                  const chartData: Record<string, string | number>[] = [];
+                  const [y0, y1, y2] = costCenterMultiYear.years;
+
+                  // Build data from months
+                  const now = new Date();
+                  const currentMonthIndex = now.getMonth();
+
+                  for (let m = 0; m <= currentMonthIndex; m++) {
+                    const monthLabel = new Date(y0, m, 1)
+                      .toLocaleDateString("pt-PT", { month: "short" })
+                      .toUpperCase();
+
+                    const findRevenue = (
+                      year: number,
+                      monthIdx: number,
+                    ): number => {
+                      const series = costCenterMultiYear.series.find(
+                        (s) => s.year === year,
+                      );
+                      if (!series) return 0;
+                      const targetMonth = `${year}-${String(monthIdx + 1).padStart(2, "0")}`;
+                      const point = series.points.find(
+                        (p) => p.month === targetMonth,
+                      );
+                      return point?.revenue || 0;
+                    };
+
+                    chartData.push({
+                      month: monthLabel,
+                      [`Vendas_${y0}`]: findRevenue(y0, m),
+                      [`Vendas_${y1}`]: findRevenue(y1, m),
+                      [`Vendas_${y2}`]: findRevenue(y2, m),
+                    });
+                  }
+                  return chartData;
+                })()}
+                margin={{ top: 10, right: 30, bottom: 20, left: 40 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                <Legend />
+                {costCenterMultiYear.years.map((year, index) => {
+                  const key = `Vendas_${year}`;
+                  const stroke =
+                    index === 0
+                      ? "var(--foreground)"
+                      : index === 1
+                        ? "var(--primary)"
+                        : "var(--orange)";
+                  return (
+                    <Line
+                      key={year}
+                      type="monotone"
+                      dataKey={key}
+                      stroke={stroke}
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  );
+                })}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      )}
+
       {/* Cost Center Performance Chart - 3 Year Comparison */}
       {costCenterPerformance && costCenterPerformance.costCenters && (
         <Card className="p-6">
@@ -170,8 +291,8 @@ export function CostCenterTab({
                   {formatCurrency(
                     costCenterPerformance.costCenters.reduce(
                       (sum, cc) => sum + cc.currentYear,
-                      0
-                    )
+                      0,
+                    ),
                   )}
                 </p>
               </div>
@@ -183,8 +304,8 @@ export function CostCenterTab({
                   {formatCurrency(
                     costCenterPerformance.costCenters.reduce(
                       (sum, cc) => sum + cc.previousYear,
-                      0
-                    )
+                      0,
+                    ),
                   )}
                 </p>
               </div>
@@ -196,8 +317,8 @@ export function CostCenterTab({
                   {formatCurrency(
                     costCenterPerformance.costCenters.reduce(
                       (sum, cc) => sum + cc.twoYearsAgo,
-                      0
-                    )
+                      0,
+                    ),
                   )}
                 </p>
               </div>
@@ -237,14 +358,14 @@ export function CostCenterTab({
                         cc.yoyChangePct !== null && cc.yoyChangePct > 0
                           ? "text-success"
                           : cc.yoyChangePct !== null && cc.yoyChangePct < 0
-                          ? "text-destructive"
-                          : ""
+                            ? "text-destructive"
+                            : ""
                       }
                     >
                       <span className="text-muted-foreground">Var YoY: </span>
                       {cc.yoyChangePct !== null
                         ? `${cc.yoyChangePct > 0 ? "+" : ""}${cc.yoyChangePct.toFixed(
-                            1
+                            1,
                           )}%`
                         : "N/A"}
                     </div>
@@ -277,7 +398,7 @@ export function CostCenterTab({
                       {renderSortIcon(
                         "centro_custo",
                         salesSortColumn,
-                        salesSortDirection
+                        salesSortDirection,
                       )}
                     </TableHead>
                     <TableHead
@@ -288,7 +409,7 @@ export function CostCenterTab({
                       {renderSortIcon(
                         "vendas",
                         salesSortColumn,
-                        salesSortDirection
+                        salesSortDirection,
                       )}
                     </TableHead>
                     <TableHead
@@ -299,7 +420,7 @@ export function CostCenterTab({
                       {renderSortIcon(
                         "var_pct",
                         salesSortColumn,
-                        salesSortDirection
+                        salesSortDirection,
                       )}
                     </TableHead>
                     <TableHead
@@ -310,7 +431,7 @@ export function CostCenterTab({
                       {renderSortIcon(
                         "num_faturas",
                         salesSortColumn,
-                        salesSortDirection
+                        salesSortDirection,
                       )}
                     </TableHead>
                     <TableHead
@@ -321,7 +442,7 @@ export function CostCenterTab({
                       {renderSortIcon(
                         "num_clientes",
                         salesSortColumn,
-                        salesSortDirection
+                        salesSortDirection,
                       )}
                     </TableHead>
                     <TableHead
@@ -332,7 +453,7 @@ export function CostCenterTab({
                       {renderSortIcon(
                         "ticket_medio",
                         salesSortColumn,
-                        salesSortDirection
+                        salesSortDirection,
                       )}
                     </TableHead>
                     <TableHead
@@ -343,7 +464,7 @@ export function CostCenterTab({
                       {renderSortIcon(
                         "compras",
                         salesSortColumn,
-                        salesSortDirection
+                        salesSortDirection,
                       )}
                     </TableHead>
                     <TableHead
@@ -354,7 +475,7 @@ export function CostCenterTab({
                       {renderSortIcon(
                         "margem",
                         salesSortColumn,
-                        salesSortDirection
+                        salesSortDirection,
                       )}
                     </TableHead>
                     <TableHead
@@ -365,7 +486,7 @@ export function CostCenterTab({
                       {renderSortIcon(
                         "margem_pct",
                         salesSortColumn,
-                        salesSortDirection
+                        salesSortDirection,
                       )}
                     </TableHead>
                   </TableRow>
@@ -376,8 +497,8 @@ export function CostCenterTab({
                       cc.var_pct === null || cc.var_pct === 0
                         ? ""
                         : cc.var_pct > 0
-                        ? "text-success"
-                        : "text-destructive";
+                          ? "text-success"
+                          : "text-destructive";
 
                     const margem = cc.vendas - (cc.compras || 0);
                     const margemPct =
@@ -386,8 +507,8 @@ export function CostCenterTab({
                       margemPct >= 50
                         ? "text-success"
                         : margemPct >= 30
-                        ? ""
-                        : "text-warning";
+                          ? ""
+                          : "text-warning";
 
                     return (
                       <TableRow key={cc.centro_custo}>
@@ -400,11 +521,11 @@ export function CostCenterTab({
                         <TableCell className={`text-right ${changeClass}`}>
                           {cc.var_pct !== null && cc.var_pct !== 0
                             ? `${cc.var_pct > 0 ? "+" : ""}${cc.var_pct.toFixed(
-                                1
+                                1,
                               )}%`
                             : activeTab === "mtd"
-                            ? "-"
-                            : "0.0%"}
+                              ? "-"
+                              : "0.0%"}
                         </TableCell>
                         <TableCell className="text-right">
                           {formatNumber(cc.num_faturas)}
@@ -434,7 +555,8 @@ export function CostCenterTab({
             {salesTotalPages > 1 && (
               <div className="flex items-center justify-between pt-4 text-sm imx-border-t">
                 <div className="text-muted-foreground">
-                  Página {salesPage} de {salesTotalPages} ({sortedCostCenterSales.length} centros de custo)
+                  Página {salesPage} de {salesTotalPages} (
+                  {sortedCostCenterSales.length} centros de custo)
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -448,7 +570,9 @@ export function CostCenterTab({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setSalesPage(Math.min(salesTotalPages, salesPage + 1))}
+                    onClick={() =>
+                      setSalesPage(Math.min(salesTotalPages, salesPage + 1))
+                    }
                     disabled={salesPage === salesTotalPages}
                   >
                     <ArrowRight className="h-4 w-4" />
@@ -466,8 +590,8 @@ export function CostCenterTab({
                   {formatCurrency(
                     costCenterSales.costCenters.reduce(
                       (sum: number, cc: any) => sum + cc.vendas,
-                      0
-                    )
+                      0,
+                    ),
                   )}
                 </p>
               </div>
@@ -479,8 +603,8 @@ export function CostCenterTab({
                   {formatCurrency(
                     costCenterSales.costCenters.reduce(
                       (sum: number, cc: any) => sum + (cc.compras || 0),
-                      0
-                    )
+                      0,
+                    ),
                   )}
                 </p>
               </div>
@@ -493,8 +617,8 @@ export function CostCenterTab({
                     costCenterSales.costCenters.reduce(
                       (sum: number, cc: any) =>
                         sum + (cc.vendas - (cc.compras || 0)),
-                      0
-                    )
+                      0,
+                    ),
                   )}
                 </p>
               </div>
@@ -504,11 +628,11 @@ export function CostCenterTab({
                   {(() => {
                     const totalVendas = costCenterSales.costCenters.reduce(
                       (sum: number, cc: any) => sum + cc.vendas,
-                      0
+                      0,
                     );
                     const totalCompras = costCenterSales.costCenters.reduce(
                       (sum: number, cc: any) => sum + (cc.compras || 0),
-                      0
+                      0,
                     );
                     const avgMargemPct =
                       totalVendas > 0
@@ -524,8 +648,8 @@ export function CostCenterTab({
                   {formatNumber(
                     costCenterSales.costCenters.reduce(
                       (sum: number, cc: any) => sum + cc.num_faturas,
-                      0
-                    )
+                      0,
+                    ),
                   )}
                 </p>
               </div>
@@ -582,7 +706,7 @@ export function CostCenterTab({
                     </p>
                     <p className="text-lg font-normal">
                       {formatCurrency(
-                        selectedCostCenterBlock.summary.totalRevenue
+                        selectedCostCenterBlock.summary.totalRevenue,
                       )}
                     </p>
                   </div>
@@ -592,7 +716,7 @@ export function CostCenterTab({
                     </p>
                     <p className="text-lg font-normal">
                       {formatNumber(
-                        selectedCostCenterBlock.summary.totalCustomers
+                        selectedCostCenterBlock.summary.totalCustomers,
                       )}
                     </p>
                   </div>
@@ -600,7 +724,7 @@ export function CostCenterTab({
                     <p className="text-muted-foreground">Nº Faturas (YTD)</p>
                     <p className="text-lg font-normal">
                       {formatNumber(
-                        selectedCostCenterBlock.summary.totalInvoices
+                        selectedCostCenterBlock.summary.totalInvoices,
                       )}
                     </p>
                   </div>
@@ -614,10 +738,11 @@ export function CostCenterTab({
                           className="w-12 cursor-pointer select-none"
                           onClick={() => handleCcTopSort("rank")}
                         >
-                          #{renderSortIcon(
+                          #
+                          {renderSortIcon(
                             "rank",
                             ccTopSortColumn,
-                            ccTopSortDirection
+                            ccTopSortDirection,
                           )}
                         </TableHead>
                         <TableHead
@@ -628,7 +753,7 @@ export function CostCenterTab({
                           {renderSortIcon(
                             "customerName",
                             ccTopSortColumn,
-                            ccTopSortDirection
+                            ccTopSortDirection,
                           )}
                         </TableHead>
                         <TableHead
@@ -639,7 +764,7 @@ export function CostCenterTab({
                           {renderSortIcon(
                             "salesperson",
                             ccTopSortColumn,
-                            ccTopSortDirection
+                            ccTopSortDirection,
                           )}
                         </TableHead>
                         <TableHead
@@ -650,7 +775,7 @@ export function CostCenterTab({
                           {renderSortIcon(
                             "invoiceCount",
                             ccTopSortColumn,
-                            ccTopSortDirection
+                            ccTopSortDirection,
                           )}
                         </TableHead>
                         <TableHead
@@ -661,7 +786,7 @@ export function CostCenterTab({
                           {renderSortIcon(
                             "quoteCount",
                             ccTopSortColumn,
-                            ccTopSortDirection
+                            ccTopSortDirection,
                           )}
                         </TableHead>
                         <TableHead
@@ -672,7 +797,7 @@ export function CostCenterTab({
                           {renderSortIcon(
                             "conversionRate",
                             ccTopSortColumn,
-                            ccTopSortDirection
+                            ccTopSortDirection,
                           )}
                         </TableHead>
                         <TableHead
@@ -683,7 +808,7 @@ export function CostCenterTab({
                           {renderSortIcon(
                             "netRevenue",
                             ccTopSortColumn,
-                            ccTopSortDirection
+                            ccTopSortDirection,
                           )}
                         </TableHead>
                         <TableHead
@@ -694,7 +819,7 @@ export function CostCenterTab({
                           {renderSortIcon(
                             "revenueSharePct",
                             ccTopSortColumn,
-                            ccTopSortDirection
+                            ccTopSortDirection,
                           )}
                         </TableHead>
                         <TableHead
@@ -705,7 +830,7 @@ export function CostCenterTab({
                           {renderSortIcon(
                             "lastInvoice",
                             ccTopSortColumn,
-                            ccTopSortDirection
+                            ccTopSortDirection,
                           )}
                         </TableHead>
                       </TableRow>
@@ -768,13 +893,16 @@ export function CostCenterTab({
                 {topCustomersTotalPages > 1 && (
                   <div className="flex items-center justify-between pt-4 text-sm imx-border-t">
                     <div className="text-muted-foreground">
-                      Página {topCustomersPage} de {topCustomersTotalPages} ({sortedCostCenterTopCustomers.length} clientes)
+                      Página {topCustomersPage} de {topCustomersTotalPages} (
+                      {sortedCostCenterTopCustomers.length} clientes)
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setTopCustomersPage(Math.max(1, topCustomersPage - 1))}
+                        onClick={() =>
+                          setTopCustomersPage(Math.max(1, topCustomersPage - 1))
+                        }
                         disabled={topCustomersPage === 1}
                       >
                         <ArrowLeft className="h-4 w-4" />
@@ -782,7 +910,14 @@ export function CostCenterTab({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setTopCustomersPage(Math.min(topCustomersTotalPages, topCustomersPage + 1))}
+                        onClick={() =>
+                          setTopCustomersPage(
+                            Math.min(
+                              topCustomersTotalPages,
+                              topCustomersPage + 1,
+                            ),
+                          )
+                        }
                         disabled={topCustomersPage === topCustomersTotalPages}
                       >
                         <ArrowRight className="h-4 w-4" />

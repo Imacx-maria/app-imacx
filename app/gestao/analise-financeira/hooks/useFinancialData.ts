@@ -8,12 +8,72 @@ import {
   CostCenterTopCustomersResponse,
 } from "@/types/financial-analysis";
 
+// LocalStorage cache key and expiry (24 hours)
+const CACHE_KEY = "financial-analysis-cache";
+const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+interface CachedData {
+  timestamp: number;
+  kpiData: KPIDashboardData | null;
+  monthlyRevenue: MonthlyRevenueResponse | null;
+  topCustomers: {
+    mtd: TopCustomersResponse | null;
+    ytd: TopCustomersResponse | null;
+  };
+  multiYearRevenue: MultiYearRevenueResponse | null;
+  costCenterPerformance: {
+    mtd: CostCenterPerformanceResponse | null;
+    ytd: CostCenterPerformanceResponse | null;
+  };
+  costCenterSales: { mtd: any; ytd: any };
+  costCenterTopCustomers: {
+    mtd: CostCenterTopCustomersResponse | null;
+    ytd: CostCenterTopCustomersResponse | null;
+  };
+  companyConversao: { mtd: any[]; ytd: any[] };
+  departmentKpi: { [dept: string]: { mtd: any; ytd: any } };
+  departmentAnalise: { mtd: any; ytd: any };
+  departmentPipeline: { [dept: string]: { mtd: any; ytd: any } };
+  costCenterMultiYear: any;
+}
+
+function loadFromLocalStorage(): CachedData | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+    const parsed = JSON.parse(cached) as CachedData;
+    // Check if cache is expired
+    if (Date.now() - parsed.timestamp > CACHE_EXPIRY_MS) {
+      localStorage.removeItem(CACHE_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveToLocalStorage(data: CachedData): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.warn("Failed to save to localStorage:", e);
+  }
+}
+
 export function useFinancialData() {
+  // Cache ref - will be populated after mount
+  const cachedData = useRef<CachedData | null>(null);
+  const hasHydrated = useRef(false);
+
+  // Always start with loading=true for SSR consistency
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Data states
+  // Data states - all start empty, will be populated from cache after mount
   const [kpiData, setKpiData] = useState<KPIDashboardData | null>(null);
   const [monthlyRevenue, setMonthlyRevenue] =
     useState<MonthlyRevenueResponse | null>(null);
@@ -44,6 +104,11 @@ export function useFinancialData() {
     null,
   );
 
+  // Cost Center Multi-Year Revenue Chart data
+  const [costCenterMultiYear, setCostCenterMultiYear] = useState<any>(null);
+  const [selectedCostCenterFilter, setSelectedCostCenterFilter] =
+    useState<string>("ID-Impressão Digital");
+
   // Cache
   const dataCache = useRef<{
     [key: string]: {
@@ -51,6 +116,115 @@ export function useFinancialData() {
       data: any;
     };
   }>({});
+
+  // Load from localStorage after mount (client-side only)
+  useEffect(() => {
+    if (hasHydrated.current) return;
+    hasHydrated.current = true;
+
+    const cached = loadFromLocalStorage();
+    if (cached) {
+      console.log("📦 [Cache] Loading data from localStorage");
+      cachedData.current = cached;
+
+      // Populate all state from cache
+      setKpiData(cached.kpiData);
+      setMonthlyRevenue(cached.monthlyRevenue);
+      setTopCustomers(cached.topCustomers?.mtd || null);
+      setMultiYearRevenue(cached.multiYearRevenue);
+      setCostCenterPerformance(cached.costCenterPerformance?.mtd || null);
+      setCostCenterSales(cached.costCenterSales?.mtd || null);
+      setCostCenterTopCustomers(cached.costCenterTopCustomers?.mtd || null);
+      setCompanyConversao(cached.companyConversao?.mtd || []);
+      setDepartmentKpiData(cached.departmentKpi?.Brindes?.mtd || null);
+      setDepartmentOrcamentos(cached.departmentAnalise?.mtd?.orcamentos || []);
+      setDepartmentFaturas(cached.departmentAnalise?.mtd?.faturas || []);
+      setDepartmentConversao(cached.departmentAnalise?.mtd?.conversao || []);
+      setDepartmentClientes(cached.departmentAnalise?.mtd?.clientes || []);
+      setPipelineData(cached.departmentPipeline?.Brindes?.mtd || null);
+      setCostCenterMultiYear(cached.costCenterMultiYear);
+
+      // Also populate the memory cache for tab switching
+      dataCache.current = {
+        kpi: { timestamp: cached.timestamp, data: cached.kpiData },
+        monthlyRevenue: {
+          timestamp: cached.timestamp,
+          data: cached.monthlyRevenue,
+        },
+        topCustomers: {
+          timestamp: cached.timestamp,
+          data: cached.topCustomers,
+        },
+        multiYearRevenue: {
+          timestamp: cached.timestamp,
+          data: cached.multiYearRevenue,
+        },
+        companyConversao: {
+          timestamp: cached.timestamp,
+          data: cached.companyConversao,
+        },
+        costCenterPerformance: {
+          timestamp: cached.timestamp,
+          data: cached.costCenterPerformance,
+        },
+        costCenterSales: {
+          timestamp: cached.timestamp,
+          data: cached.costCenterSales,
+        },
+        costCenterTopCustomers: {
+          timestamp: cached.timestamp,
+          data: cached.costCenterTopCustomers,
+        },
+        departmentKpi: {
+          timestamp: cached.timestamp,
+          data: cached.departmentKpi,
+        },
+        departmentAnalise: {
+          timestamp: cached.timestamp,
+          data: cached.departmentAnalise,
+        },
+        departmentPipeline: {
+          timestamp: cached.timestamp,
+          data: cached.departmentPipeline,
+        },
+      };
+
+      if (cached.costCenterTopCustomers?.mtd?.costCenters?.[0]) {
+        setInitialCostCenter(
+          cached.costCenterTopCustomers.mtd.costCenters[0].costCenter,
+        );
+      }
+
+      setLoading(false);
+    }
+  }, []);
+
+  // Fetch cost center multi-year revenue data
+  const fetchCostCenterMultiYear = useCallback(async (costCenter: string) => {
+    try {
+      const response = await fetch(
+        `/api/financial-analysis/cost-center-multi-year-revenue?costCenter=${encodeURIComponent(costCenter)}`,
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setCostCenterMultiYear(data);
+        return data;
+      }
+      return null;
+    } catch (err) {
+      console.error("Error fetching cost center multi-year revenue:", err);
+      return null;
+    }
+  }, []);
+
+  // Handle cost center filter change
+  const handleCostCenterFilterChange = useCallback(
+    async (costCenter: string) => {
+      setSelectedCostCenterFilter(costCenter);
+      await fetchCostCenterMultiYear(costCenter);
+    },
+    [fetchCostCenterMultiYear],
+  );
 
   const fetchAllDepartmentsKpi = useCallback(async (period: "mtd" | "ytd") => {
     const departments = ["Brindes", "Digital", "IMACX"];
@@ -88,7 +262,14 @@ export function useFinancialData() {
     }
   }, []);
 
-  const fetchAllInitialData = useCallback(async () => {
+  const fetchAllInitialData = useCallback(async (forceRefresh = false) => {
+    // If we have cached data and not forcing refresh, skip fetching
+    if (!forceRefresh && cachedData.current) {
+      console.log("📦 [Cache] Using cached data, skipping API calls");
+      setLoading(false);
+      return;
+    }
+
     console.log("🔄 [Initial Load] Fetching ALL tab data in parallel...");
     setLoading(true);
     setError(null);
@@ -246,7 +427,56 @@ export function useFinancialData() {
       setDepartmentClientes(analiseYtdData?.clientes || []);
       setPipelineData(brindesPipeYtdData);
 
-      console.log("✅ [Initial Load] All data fetched successfully!");
+      // Fetch cost center multi-year data with default filter
+      let ccMultiYearData = null;
+      try {
+        const ccMultiYearResp = await fetch(
+          `/api/financial-analysis/cost-center-multi-year-revenue?costCenter=${encodeURIComponent("ID-Impressão Digital")}`,
+        );
+        if (ccMultiYearResp.ok) {
+          ccMultiYearData = await ccMultiYearResp.json();
+          setCostCenterMultiYear(ccMultiYearData);
+          console.log(
+            "✅ [Initial Load] Cost center multi-year data loaded:",
+            ccMultiYearData?.series?.length,
+            "series",
+          );
+        }
+      } catch (ccErr) {
+        console.error("Error fetching cost center multi-year:", ccErr);
+      }
+
+      // Save to localStorage for instant loading next time
+      const cacheToSave: CachedData = {
+        timestamp: Date.now(),
+        kpiData: kpiDataRes,
+        monthlyRevenue: monthlyRevData,
+        topCustomers: { mtd: topMtdData, ytd: topYtdData },
+        multiYearRevenue: multiYearData,
+        costCenterPerformance: { mtd: ccPerfMtdData, ytd: ccPerfYtdData },
+        costCenterSales: { mtd: ccSalesMtdData, ytd: ccSalesYtdData },
+        costCenterTopCustomers: { mtd: ccTopMtdData, ytd: ccTopYtdData },
+        companyConversao: {
+          mtd: convMtdData?.conversao || [],
+          ytd: convYtdData?.conversao || [],
+        },
+        departmentKpi: {
+          Brindes: { mtd: brindesKpiMtdData, ytd: brindesKpiYtdData },
+          Digital: { mtd: digitalKpiMtdData, ytd: digitalKpiYtdData },
+          IMACX: { mtd: imacxKpiMtdData, ytd: imacxKpiYtdData },
+        },
+        departmentAnalise: { mtd: analiseMtdData, ytd: analiseYtdData },
+        departmentPipeline: {
+          Brindes: { mtd: brindesPipeMtdData, ytd: brindesPipeYtdData },
+          Digital: { mtd: digitalPipeMtdData, ytd: digitalPipeYtdData },
+          IMACX: { mtd: imacxPipeMtdData, ytd: imacxPipeYtdData },
+        },
+        costCenterMultiYear: ccMultiYearData,
+      };
+      saveToLocalStorage(cacheToSave);
+      cachedData.current = cacheToSave;
+
+      console.log("✅ [Initial Load] All data fetched and cached!");
     } catch (err) {
       console.error("❌ [Initial Load] Error:", err);
       setError(err instanceof Error ? err.message : "Failed to load data");
@@ -308,7 +538,12 @@ export function useFinancialData() {
       setIsRefreshing(true);
       try {
         console.log("🗑️ [Refresh] Clearing cache and refreshing data...");
+        // Clear both memory and localStorage cache
         dataCache.current = {};
+        cachedData.current = null;
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(CACHE_KEY);
+        }
 
         const resp = await fetch("/api/etl/incremental", {
           method: "POST",
@@ -324,7 +559,8 @@ export function useFinancialData() {
           throw new Error(message);
         }
 
-        await fetchAllInitialData();
+        // Force refresh - ignore cache
+        await fetchAllInitialData(true);
         syncStateFromCache(activeTab, selectedDepartment);
       } catch (err) {
         console.error("Erro ao executar atualizacao rapida do PHC:", err);
@@ -421,5 +657,9 @@ export function useFinancialData() {
     syncStateFromCache,
     handleFastRefresh,
     handleDismissOrcamento,
+    // Cost Center Multi-Year Chart
+    costCenterMultiYear,
+    selectedCostCenterFilter,
+    handleCostCenterFilterChange,
   };
 }

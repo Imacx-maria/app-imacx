@@ -897,48 +897,56 @@ export default function OperacoesClient({
                       className="sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b uppercase select-none"
                     >
                       FO{" "}
-                      {sortCol === "numero_fo" &&
-                        (sortDir === "asc" ? (
-                          <ArrowUp className="ml-1 inline h-3 w-3" />
-                        ) : (
-                          <ArrowDown className="ml-1 inline h-3 w-3" />
-                        ))}
+                      <span className="inline-block w-3 h-3 ml-1">
+                        {sortCol === "numero_fo" &&
+                          (sortDir === "asc" ? (
+                            <ArrowUp className="h-3 w-3" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3" />
+                          ))}
+                      </span>
                     </TableHead>
                     <TableHead
                       onClick={() => toggleSort("nome_campanha")}
                       className="sticky top-0 z-10 cursor-pointer imx-border-b uppercase select-none"
                     >
                       Campanha{" "}
-                      {sortCol === "nome_campanha" &&
-                        (sortDir === "asc" ? (
-                          <ArrowUp className="ml-1 inline h-3 w-3" />
-                        ) : (
-                          <ArrowDown className="ml-1 inline h-3 w-3" />
-                        ))}
+                      <span className="inline-block w-3 h-3 ml-1">
+                        {sortCol === "nome_campanha" &&
+                          (sortDir === "asc" ? (
+                            <ArrowUp className="h-3 w-3" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3" />
+                          ))}
+                      </span>
                     </TableHead>
                     <TableHead
                       onClick={() => toggleSort("descricao")}
                       className="sticky top-0 z-10 cursor-pointer imx-border-b uppercase select-none"
                     >
                       Item{" "}
-                      {sortCol === "descricao" &&
-                        (sortDir === "asc" ? (
-                          <ArrowUp className="ml-1 inline h-3 w-3" />
-                        ) : (
-                          <ArrowDown className="ml-1 inline h-3 w-3" />
-                        ))}
+                      <span className="inline-block w-3 h-3 ml-1">
+                        {sortCol === "descricao" &&
+                          (sortDir === "asc" ? (
+                            <ArrowUp className="h-3 w-3" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3" />
+                          ))}
+                      </span>
                     </TableHead>
                     <TableHead
                       onClick={() => toggleSort("quantidade")}
                       className="sticky top-0 z-10 w-[100px] cursor-pointer imx-border-b text-right uppercase select-none"
                     >
                       Quantidade{" "}
-                      {sortCol === "quantidade" &&
-                        (sortDir === "asc" ? (
-                          <ArrowUp className="ml-1 inline h-3 w-3" />
-                        ) : (
-                          <ArrowDown className="ml-1 inline h-3 w-3" />
-                        ))}
+                      <span className="inline-block w-3 h-3 ml-1">
+                        {sortCol === "quantidade" &&
+                          (sortDir === "asc" ? (
+                            <ArrowUp className="h-3 w-3" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3" />
+                          ))}
+                      </span>
                     </TableHead>
                     <TableHead
                       onClick={() => toggleSort("prioridade")}
@@ -949,12 +957,14 @@ export default function OperacoesClient({
                           <TooltipTrigger asChild>
                             <span>
                               P{" "}
-                              {sortCol === "prioridade" &&
-                                (sortDir === "asc" ? (
-                                  <ArrowUp className="ml-1 inline h-3 w-3" />
-                                ) : (
-                                  <ArrowDown className="ml-1 inline h-3 w-3" />
-                                ))}
+                              <span className="inline-block w-3 h-3 ml-1">
+                                {sortCol === "prioridade" &&
+                                  (sortDir === "asc" ? (
+                                    <ArrowUp className="h-3 w-3" />
+                                  ) : (
+                                    <ArrowDown className="h-3 w-3" />
+                                  ))}
+                              </span>
                             </span>
                           </TooltipTrigger>
                           <TooltipContent>Prioridade</TooltipContent>

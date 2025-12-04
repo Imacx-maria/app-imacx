@@ -94,7 +94,7 @@ export function ImacxSortableTable({
                     column.align === "right" && "text-right",
                     column.align === "center" && "text-center",
                     isSortable &&
-                      "cursor-pointer select-none hover:bg-accent/70",
+                      "cursor-pointer select-none",
                   )}
                   onClick={() => isSortable && handleSort(column.key)}
                 >
@@ -106,13 +106,16 @@ export function ImacxSortableTable({
                     )}
                   >
                     {column.header}
-                    {isSortable &&
-                      isActive &&
-                      (sortDirection === "asc" ? (
-                        <ArrowUp className="h-3 w-3" />
-                      ) : (
-                        <ArrowDown className="h-3 w-3" />
-                      ))}
+                    {isSortable && (
+                      <span className="inline-block w-3 h-3 ml-1">
+                        {isActive &&
+                          (sortDirection === "asc" ? (
+                            <ArrowUp className="h-3 w-3" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3" />
+                          ))}
+                      </span>
+                    )}
                   </div>
                 </th>
               );

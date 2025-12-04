@@ -144,6 +144,10 @@ export default function AnaliseFinanceiraPage() {
     syncStateFromCache,
     handleFastRefresh,
     handleDismissOrcamento,
+    // Cost Center Multi-Year Chart
+    costCenterMultiYear,
+    selectedCostCenterFilter,
+    handleCostCenterFilterChange,
   } = useFinancialData();
 
   // Initial data fetch
@@ -982,6 +986,9 @@ export default function AnaliseFinanceiraPage() {
           ccTopSortColumn={ccTopSortColumn}
           ccTopSortDirection={ccTopSortDirection}
           sortedCostCenterTopCustomers={sortedCostCenterTopCustomers}
+          costCenterMultiYear={costCenterMultiYear}
+          onCostCenterChartChange={handleCostCenterFilterChange}
+          selectedCostCenterChartFilter={selectedCostCenterFilter}
         />
       )}
 

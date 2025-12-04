@@ -229,17 +229,26 @@
     }
 
     /* ============================================
-     TABLE ROW HOVER - DARKER THAN BACKGROUND (FERIADOS COLOR)
+     TABLE ROW HOVER - DARKER THAN BACKGROUND (USES ACCENT COLOR)
      ============================================ */
 
-    tr:hover {
-        background-color: var(--calendar-holiday-bg) !important;
+    tr:hover,
+    .imacx-table tbody tr:hover,
+    .imx-row-hover:hover {
+        background-color: var(--accent) !important;
+    }
+    
+    /* Dark mode: ensure accent color is used for hover */
+    .dark tr:hover,
+    .dark .imacx-table tbody tr:hover,
+    .dark .imx-row-hover:hover {
+        background-color: var(--accent) !important;
     }
 
-    /* Dark mode: black text on hover - ONLY for direct table cell text */
+    /* Dark mode: light text on hover - ONLY for direct table cell text */
     /* Exclude all elements with their own backgrounds (like inputs, progress bars, badges, etc.) */
     .dark tr:hover > td {
-        color: black !important;
+        color: var(--accent-foreground) !important;
     }
 
     /* Exclude elements with backgrounds from black text */
@@ -338,6 +347,10 @@
     th {
         background-color: var(--primary) !important;
         color: var(--primary-foreground) !important;
+        height: 2.5rem !important; /* Fixed height to prevent changes when sort indicator appears/disappears */
+        min-height: 2.5rem !important;
+        max-height: 2.5rem !important; /* Prevent height expansion */
+        position: relative; /* For consistent spacing of sort indicators */
     }
 
     /* ============================================
@@ -426,17 +439,46 @@
      DARK MODE OVERRIDES
      ============================================ */
 
-    /* Dark mode: accent hover (dark gray) needs light text */
+    /* Dark mode: accent hover (subtle dark gray) uses light text */
     .dark .hover\:bg-accent:hover,
     .dark .hover\:bg-accent:hover * {
         color: var(--accent-foreground) !important;
     }
 
-    /* Dark mode: yellow/primary still gets black text */
+    /* Dark mode: yellow/primary always gets black text */
     .dark .bg-primary,
     .dark .bg-primary *,
     .dark .hover\:bg-primary:hover,
     .dark .hover\:bg-primary:hover * {
+        color: var(--primary-foreground) !important;
+    }
+
+    /* Table headers with yellow background always have black text, even on hover */
+    th.bg-primary,
+    th.bg-primary *,
+    th.bg-primary:hover,
+    th.bg-primary:hover *,
+    .dark th.bg-primary,
+    .dark th.bg-primary *,
+    .dark th.bg-primary:hover,
+    .dark th.bg-primary:hover *,
+    /* Override any hover text color rules for yellow headers */
+    .dark .hover\:bg-accent:hover th.bg-primary,
+    .dark .hover\:bg-accent:hover th.bg-primary *,
+    .dark th.bg-primary.hover\:bg-accent:hover,
+    .dark th.bg-primary.hover\:bg-accent:hover * {
+        color: oklch(0% 0 0) !important;
+    }
+
+    /* Prevent hover color/opacity changes on table headers */
+    th:hover,
+    th.bg-primary:hover,
+    th.cursor-pointer:hover,
+    .dark th:hover,
+    .dark th.bg-primary:hover,
+    .dark th.cursor-pointer:hover {
+        background-color: var(--primary) !important;
+        opacity: 1 !important;
         color: var(--primary-foreground) !important;
     }
 
@@ -678,14 +720,14 @@
     --secondary: oklch(0.26 0 0 / 87.46%);
     --secondary-foreground: oklch(0.85 0 0);
     --muted: oklch(0.24 0 0 / 87.46%);
-    /* Progress bar background - slightly darker than secondary for visibility */
-    --progress-bg: oklch(0.24 0 0 / 87.46%);
+    /* Progress bar background - slightly lighter than background for visibility in dark mode */
+    --progress-bg: oklch(0.32 0 0);
     --muted-foreground: oklch(0.65 0 0);
-    --accent: oklch(0.4 0 0);
+    --accent: oklch(0.26 0 0);
     --accent-foreground: oklch(0.85 0 0);
     --destructive: oklch(0.63 0.23 25);
     --destructive-foreground: oklch(0% 0 0);
-    --input: oklch(0.34 0 0);
+    --input: oklch(0.28 0 0);
     --ring: oklch(0.85 0 0);
     --section-bg: transparent; /* Section background color (dark mode) */
     --success: 0.7 0.12 145;
@@ -1117,9 +1159,9 @@ h3 {
 }
 
 .imx-table-compact th {
-    /* Override default h-12 height for compact tables */
-    height: auto !important;
-    min-height: auto !important;
+    /* Fixed height to prevent changes when sort indicator appears/disappears */
+    height: 2.5rem !important; /* h-10 equivalent - fixed height prevents shrinking */
+    min-height: 2.5rem !important;
     /* Ensure vertical alignment */
     vertical-align: middle !important;
 }
@@ -1138,8 +1180,8 @@ h3 {
 }
 
 .imx-row-hover:hover {
-    /* Use Feriados color for darker hover */
-    background-color: var(--calendar-holiday-bg) !important;
+    /* Use accent color for subtle hover */
+    background-color: var(--accent) !important;
 }
 
 /* Ensure text color on custom hover matches accent behavior */
@@ -1280,7 +1322,7 @@ th:has([role="checkbox"]) {
 }
 
 .imacx-table tbody tr:hover {
-    background: var(--calendar-holiday-bg);
+    background: var(--accent) !important;
 }
 
 .imacx-table td {

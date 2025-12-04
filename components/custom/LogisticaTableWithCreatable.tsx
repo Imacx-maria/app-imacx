@@ -595,23 +595,23 @@ export const LogisticaTableWithCreatable: React.FC<
                   </Tooltip>
                 </TooltipProvider>
 
-                {sortColumn === col.field && col.field !== "acoes" && (
-                  <span
-                    className={
-                      col.field === "source_selection" ||
-                      col.field === "tipo" ||
-                      col.field === "notas"
-                        ? "ml-1"
-                        : ""
-                    }
-                  >
-                    {sortDirection === "asc" ? (
+                <span
+                  className={`inline-block w-3 h-3 ${
+                    col.field === "source_selection" ||
+                    col.field === "tipo" ||
+                    col.field === "notas"
+                      ? "ml-1"
+                      : ""
+                  }`}
+                >
+                  {sortColumn === col.field && col.field !== "acoes" && (
+                    sortDirection === "asc" ? (
                       <ArrowUp size={14} />
                     ) : (
                       <ArrowDown size={14} />
-                    )}
-                  </span>
-                )}
+                    )
+                  )}
+                </span>
               </div>
             </TableHead>
           ))}

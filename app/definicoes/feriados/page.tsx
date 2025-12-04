@@ -298,24 +298,28 @@ export default function FeriadosPage() {
                     onClick={() => handleSort("holiday_date")}
                   >
                     Data
-                    {sortColumn === "holiday_date" &&
-                      (sortDirection === "asc" ? (
-                        <ArrowUp className="ml-1 inline h-3 w-3" />
-                      ) : (
-                        <ArrowDown className="ml-1 inline h-3 w-3" />
-                      ))}
+                    <span className="inline-block w-3 h-3 ml-1">
+                      {sortColumn === "holiday_date" &&
+                        (sortDirection === "asc" ? (
+                          <ArrowUp className="h-3 w-3" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3" />
+                        ))}
+                    </span>
                   </TableHead>
                   <TableHead
                     className="cursor-pointer imx-border-b text-center uppercase select-none"
                     onClick={() => handleSort("description")}
                   >
                     Descrição
-                    {sortColumn === "description" &&
-                      (sortDirection === "asc" ? (
-                        <ArrowUp className="ml-1 inline h-3 w-3" />
-                      ) : (
-                        <ArrowDown className="ml-1 inline h-3 w-3" />
-                      ))}
+                    <span className="inline-block w-3 h-3 ml-1">
+                      {sortColumn === "description" &&
+                        (sortDirection === "asc" ? (
+                          <ArrowUp className="h-3 w-3" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3" />
+                        ))}
+                    </span>
                   </TableHead>
                   <TableHead className="w-[90px] imx-border-b text-center uppercase">
                     Ações

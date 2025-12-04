@@ -381,11 +381,16 @@ export default function MateriaisPage() {
   };
 
   const getSortIcon = (column: string) => {
-    if (sortColumn !== column) return null;
-    return sortDirection === "asc" ? (
-      <ArrowUp className="ml-1 h-4 w-4" />
-    ) : (
-      <ArrowDown className="ml-1 h-4 w-4" />
+    return (
+      <span className="inline-block w-4 h-4 ml-1">
+        {sortColumn === column ? (
+          sortDirection === "asc" ? (
+            <ArrowUp className="h-4 w-4" />
+          ) : (
+            <ArrowDown className="h-4 w-4" />
+          )
+        ) : null}
+      </span>
     );
   };
 

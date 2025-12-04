@@ -3672,108 +3672,126 @@ export default function StocksPage() {
                         onClick={() => handleSortEntries("data")}
                       >
                         Data
-                        {sortColumnEntries === "data" &&
-                          (sortDirectionEntries === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnEntries === "data" &&
+                            (sortDirectionEntries === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead
                         className="w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("referencia")}
                       >
                         Referência
-                        {sortColumnEntries === "referencia" &&
-                          (sortDirectionEntries === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnEntries === "referencia" &&
+                            (sortDirectionEntries === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead
                         className="cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("material")}
                       >
                         Material
-                        {sortColumnEntries === "material" &&
-                          (sortDirectionEntries === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnEntries === "material" &&
+                            (sortDirectionEntries === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead
                         className="w-[150px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("fornecedor")}
                       >
                         Fornecedor
-                        {sortColumnEntries === "fornecedor" &&
-                          (sortDirectionEntries === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnEntries === "fornecedor" &&
+                            (sortDirectionEntries === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead
                         className="w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("quantidade")}
                       >
                         Quantidade
-                        {sortColumnEntries === "quantidade" &&
-                          (sortDirectionEntries === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnEntries === "quantidade" &&
+                            (sortDirectionEntries === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead
                         className="w-[100px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("vl_m2")}
                       >
                         VL_m2
-                        {sortColumnEntries === "vl_m2" &&
-                          (sortDirectionEntries === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnEntries === "vl_m2" &&
+                            (sortDirectionEntries === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead
                         className="w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("preco_unitario")}
                       >
                         Preço/Unidade
-                        {sortColumnEntries === "preco_unitario" &&
-                          (sortDirectionEntries === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnEntries === "preco_unitario" &&
+                            (sortDirectionEntries === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead
                         className="w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("valor_total")}
                       >
                         Valor Total
-                        {sortColumnEntries === "valor_total" &&
-                          (sortDirectionEntries === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnEntries === "valor_total" &&
+                            (sortDirectionEntries === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead
                         className="w-[100px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortEntries("n_palet")}
                       >
                         Palete
-                        {sortColumnEntries === "n_palet" &&
-                          (sortDirectionEntries === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnEntries === "n_palet" &&
+                            (sortDirectionEntries === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead className="w-[90px] imx-border-b text-center">
                         Ações
@@ -4144,96 +4162,112 @@ export default function StocksPage() {
                         onClick={() => handleSortCurrent("referencia")}
                       >
                         Referência
-                        {sortColumnCurrent === "referencia" &&
-                          (sortDirectionCurrent === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnCurrent === "referencia" &&
+                            (sortDirectionCurrent === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead
                         className="cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("material")}
                       >
                         Material
-                        {sortColumnCurrent === "material" &&
-                          (sortDirectionCurrent === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnCurrent === "material" &&
+                            (sortDirectionCurrent === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead
                         className="w-[150px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("total_recebido")}
                       >
                         Total Recebido
-                        {sortColumnCurrent === "total_recebido" &&
-                          (sortDirectionCurrent === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnCurrent === "total_recebido" &&
+                            (sortDirectionCurrent === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead
                         className="w-[150px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("total_consumido")}
                       >
                         Total Consumido
-                        {sortColumnCurrent === "total_consumido" &&
-                          (sortDirectionCurrent === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnCurrent === "total_consumido" &&
+                            (sortDirectionCurrent === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead
                         className="w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("stock_minimo")}
                       >
                         Mín (Amarelo)
-                        {sortColumnCurrent === "stock_minimo" &&
-                          (sortDirectionCurrent === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnCurrent === "stock_minimo" &&
+                            (sortDirectionCurrent === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead
                         className="w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("stock_critico")}
                       >
                         Crítico (Vermelho)
-                        {sortColumnCurrent === "stock_critico" &&
-                          (sortDirectionCurrent === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnCurrent === "stock_critico" &&
+                            (sortDirectionCurrent === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead
                         className="w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("stock_correct")}
                       >
                         CORREÇÃO MENSAL
-                        {sortColumnCurrent === "stock_correct" &&
-                          (sortDirectionCurrent === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnCurrent === "stock_correct" &&
+                            (sortDirectionCurrent === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead
                         className="w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortCurrent("stock_atual")}
                       >
                         STOCK FINAL
-                        {sortColumnCurrent === "stock_atual" &&
-                          (sortDirectionCurrent === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnCurrent === "stock_atual" &&
+                            (sortDirectionCurrent === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead className="w-[60px] imx-border-b text-center">
                         Status
@@ -4519,84 +4553,98 @@ export default function StocksPage() {
                         onClick={() => handleSortPaletes("no_palete")}
                       >
                         Nº Palete
-                        {sortColumnPaletes === "no_palete" &&
-                          (sortDirectionPaletes === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnPaletes === "no_palete" &&
+                            (sortDirectionPaletes === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead
                         className="cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortPaletes("fornecedor")}
                       >
                         Fornecedor
-                        {sortColumnPaletes === "fornecedor" &&
-                          (sortDirectionPaletes === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnPaletes === "fornecedor" &&
+                            (sortDirectionPaletes === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead
                         className="cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortPaletes("no_guia_forn")}
                       >
                         Nº Guia
-                        {sortColumnPaletes === "no_guia_forn" &&
-                          (sortDirectionPaletes === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnPaletes === "no_guia_forn" &&
+                            (sortDirectionPaletes === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead
                         className="cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortPaletes("ref_cartao")}
                       >
                         Ref. Cartão
-                        {sortColumnPaletes === "ref_cartao" &&
-                          (sortDirectionPaletes === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnPaletes === "ref_cartao" &&
+                            (sortDirectionPaletes === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead
                         className="w-[100px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortPaletes("qt_palete")}
                       >
                         Qt. Palete
-                        {sortColumnPaletes === "qt_palete" &&
-                          (sortDirectionPaletes === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnPaletes === "qt_palete" &&
+                            (sortDirectionPaletes === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead
                         className="w-[120px] cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortPaletes("data")}
                       >
                         Data
-                        {sortColumnPaletes === "data" &&
-                          (sortDirectionPaletes === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnPaletes === "data" &&
+                            (sortDirectionPaletes === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead
                         className="cursor-pointer imx-border-b select-none"
                         onClick={() => handleSortPaletes("author")}
                       >
                         Autor
-                        {sortColumnPaletes === "author" &&
-                          (sortDirectionPaletes === "asc" ? (
-                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                          ))}
+                        <span className="inline-block w-3 h-3 ml-1">
+                          {sortColumnPaletes === "author" &&
+                            (sortDirectionPaletes === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            ))}
+                        </span>
                       </TableHead>
                       <TableHead className="w-[100px] imx-border-b text-center">
                         Ações

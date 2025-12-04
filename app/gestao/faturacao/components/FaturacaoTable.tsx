@@ -40,7 +40,7 @@ export function FaturacaoTable({
   // Helper to render sort indicator
   const renderSortIndicator = (column: string) => {
     const sortConfig = sortConfigs.find((config) => config.column === column);
-    if (!sortConfig) return null;
+    if (!sortConfig) return <span className="inline-block w-3 h-3" />;
 
     const sortIndex = sortConfigs.findIndex(
       (config) => config.column === column
@@ -48,7 +48,7 @@ export function FaturacaoTable({
     const showOrder = sortConfigs.length > 1;
 
     return (
-      <div className="flex items-center gap-0.5">
+      <span className="inline-flex items-center gap-0.5 w-auto min-w-[12px]">
         {sortConfig.direction === "asc" ? (
           <ArrowUp className="h-3 w-3" />
         ) : (
@@ -57,7 +57,7 @@ export function FaturacaoTable({
         {showOrder && (
           <span className="text-[10px] font-bold">{sortIndex + 1}</span>
         )}
-      </div>
+      </span>
     );
   };
 
@@ -77,7 +77,7 @@ export function FaturacaoTable({
         <TableHeader>
           <TableRow className="imx-border-b ">
             <TableHead
-              className="w-20 text-center cursor-pointer bg-primary text-primary-foreground font-bold uppercase hover:opacity-80"
+              className="w-20 text-center cursor-pointer bg-primary text-primary-foreground font-bold uppercase"
               onClick={(e) => onSort("numero_fo", e.shiftKey)}
             >
               <div className="flex items-center justify-center gap-1">
@@ -86,7 +86,7 @@ export function FaturacaoTable({
               </div>
             </TableHead>
             <TableHead
-              className="w-20 text-center cursor-pointer bg-primary text-primary-foreground font-bold uppercase hover:opacity-80"
+              className="w-20 text-center cursor-pointer bg-primary text-primary-foreground font-bold uppercase"
               onClick={(e) => onSort("numero_orc", e.shiftKey)}
             >
               <div className="flex items-center justify-center gap-1">
@@ -95,7 +95,7 @@ export function FaturacaoTable({
               </div>
             </TableHead>
             <TableHead
-              className="w-[200px] cursor-pointer bg-primary text-primary-foreground font-bold uppercase hover:opacity-80"
+              className="w-[200px] cursor-pointer bg-primary text-primary-foreground font-bold uppercase"
               onClick={(e) => onSort("cliente", e.shiftKey)}
             >
               <div className="flex items-center gap-1">
@@ -104,7 +104,7 @@ export function FaturacaoTable({
               </div>
             </TableHead>
             <TableHead
-              className="cursor-pointer bg-primary text-primary-foreground font-bold uppercase hover:opacity-80"
+              className="cursor-pointer bg-primary text-primary-foreground font-bold uppercase"
               onClick={(e) => onSort("nome_campanha", e.shiftKey)}
             >
               <div className="flex items-center gap-1">
@@ -113,7 +113,7 @@ export function FaturacaoTable({
               </div>
             </TableHead>
             <TableHead
-              className="cursor-pointer bg-primary text-primary-foreground font-bold uppercase hover:opacity-80"
+              className="cursor-pointer bg-primary text-primary-foreground font-bold uppercase"
               onClick={(e) => onSort("descricao", e.shiftKey)}
             >
               <div className="flex items-center gap-1">
@@ -122,7 +122,7 @@ export function FaturacaoTable({
               </div>
             </TableHead>
             <TableHead
-              className="w-[130px] cursor-pointer bg-primary text-primary-foreground font-bold uppercase hover:opacity-80"
+              className="w-[130px] cursor-pointer bg-primary text-primary-foreground font-bold uppercase"
               onClick={(e) => onSort("created_at", e.shiftKey)}
             >
               <div className="flex items-center gap-1">
@@ -131,7 +131,7 @@ export function FaturacaoTable({
               </div>
             </TableHead>
             <TableHead
-              className="w-[130px] cursor-pointer bg-primary text-primary-foreground font-bold uppercase hover:opacity-80"
+              className="w-[130px] cursor-pointer bg-primary text-primary-foreground font-bold uppercase"
               onClick={(e) => onSort("data_saida", e.shiftKey)}
             >
               <div className="flex items-center gap-1">
@@ -140,7 +140,7 @@ export function FaturacaoTable({
               </div>
             </TableHead>
             <TableHead
-              className="w-[80px] cursor-pointer bg-primary text-primary-foreground font-bold uppercase text-center hover:opacity-80"
+              className="w-[80px] cursor-pointer bg-primary text-primary-foreground font-bold uppercase text-center"
               onClick={(e) => onSort("dias", e.shiftKey)}
             >
               <div className="flex items-center justify-center gap-1">
@@ -149,7 +149,7 @@ export function FaturacaoTable({
               </div>
             </TableHead>
             <TableHead
-              className="w-10 cursor-pointer bg-primary text-primary-foreground font-bold uppercase text-center hover:opacity-80"
+              className="w-10 cursor-pointer bg-primary text-primary-foreground font-bold uppercase text-center"
               onClick={(e) => onSort("concluido", e.shiftKey)}
             >
               <TooltipProvider>

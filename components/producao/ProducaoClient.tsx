@@ -2447,36 +2447,42 @@ export default function ProducaoPage({
                                 className=" sticky top-0 z-10 w-[90px] cursor-pointer overflow-hidden imx-border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
                               >
                                 Data{" "}
-                                {sortCol === "created_at" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
+                                <span className="inline-block w-3 h-3 ml-1">
+                                  {sortCol === "created_at" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="h-3 w-3" />
+                                    ))}
+                                </span>
                               </TableHead>
                               <TableHead
                                 onClick={() => toggleSort("numero_orc")}
                                 className=" sticky top-0 z-10 w-[90px] max-w-[90px] cursor-pointer overflow-hidden imx-border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
                               >
                                 ORC{" "}
-                                {sortCol === "numero_orc" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
+                                <span className="inline-block w-3 h-3 ml-1">
+                                  {sortCol === "numero_orc" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="h-3 w-3" />
+                                    ))}
+                                </span>
                               </TableHead>
                               <TableHead
                                 onClick={() => toggleSort("numero_fo")}
                                 className=" sticky top-0 z-10 w-[90px] max-w-[90px] cursor-pointer overflow-hidden imx-border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
                               >
                                 FO{" "}
-                                {sortCol === "numero_fo" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
+                                <span className="inline-block w-3 h-3 ml-1">
+                                  {sortCol === "numero_fo" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="h-3 w-3" />
+                                    ))}
+                                </span>
                               </TableHead>
                               {/* Cliente - hidden on mobile */}
                               {!isMobileOrTablet && (
@@ -2485,12 +2491,14 @@ export default function ProducaoPage({
                                   className=" sticky top-0 z-10 w-[200px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                                 >
                                   Cliente{" "}
-                                  {sortCol === "cliente" &&
-                                    (sortDir === "asc" ? (
-                                      <ArrowUp className="ml-1 inline h-3 w-3" />
-                                    ) : (
-                                      <ArrowDown className="ml-1 inline h-3 w-3" />
-                                    ))}
+                                  <span className="inline-block w-3 h-3 ml-1">
+                                    {sortCol === "cliente" &&
+                                      (sortDir === "asc" ? (
+                                        <ArrowUp className="h-3 w-3" />
+                                      ) : (
+                                        <ArrowDown className="h-3 w-3" />
+                                      ))}
+                                  </span>
                                 </TableHead>
                               )}
                               <TableHead
@@ -2498,12 +2506,14 @@ export default function ProducaoPage({
                                 className=" sticky top-0 z-10 flex-1 cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                               >
                                 Nome Campanha{" "}
-                                {sortCol === "nome_campanha" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
+                                <span className="inline-block w-3 h-3 ml-1">
+                                  {sortCol === "nome_campanha" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="h-3 w-3" />
+                                    ))}
+                                </span>
                               </TableHead>
                               {/* Nota - hidden on mobile */}
                               {!isMobileOrTablet && (
@@ -2512,12 +2522,14 @@ export default function ProducaoPage({
                                   className=" sticky top-0 z-10 w-[50px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                                 >
                                   Nota{" "}
-                                  {sortCol === "notas" &&
-                                    (sortDir === "asc" ? (
-                                      <ArrowUp className="ml-1 inline h-3 w-3" />
-                                    ) : (
-                                      <ArrowDown className="ml-1 inline h-3 w-3" />
-                                    ))}
+                                  <span className="inline-block w-3 h-3 ml-1">
+                                    {sortCol === "notas" &&
+                                      (sortDir === "asc" ? (
+                                        <ArrowUp className="h-3 w-3" />
+                                      ) : (
+                                        <ArrowDown className="h-3 w-3" />
+                                      ))}
+                                  </span>
                                 </TableHead>
                               )}
                               {/* Status - hidden on mobile */}
@@ -2527,12 +2539,14 @@ export default function ProducaoPage({
                                   className=" sticky top-0 z-10 w-[210px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                                 >
                                   Status{" "}
-                                  {sortCol === "prioridade" &&
-                                    (sortDir === "asc" ? (
-                                      <ArrowUp className="ml-1 inline h-3 w-3" />
-                                    ) : (
-                                      <ArrowDown className="ml-1 inline h-3 w-3" />
-                                    ))}
+                                  <span className="inline-block w-3 h-3 ml-1">
+                                    {sortCol === "prioridade" &&
+                                      (sortDir === "asc" ? (
+                                        <ArrowUp className="h-3 w-3" />
+                                      ) : (
+                                        <ArrowDown className="h-3 w-3" />
+                                      ))}
+                                  </span>
                                 </TableHead>
                               )}
 
@@ -2541,12 +2555,14 @@ export default function ProducaoPage({
                                 className=" sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b bg-primary text-right text-primary-foreground uppercase select-none"
                               >
                                 Valor{" "}
-                                {sortCol === "total_value" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
+                                <span className="inline-block w-3 h-3 ml-1">
+                                  {sortCol === "total_value" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="h-3 w-3" />
+                                    ))}
+                                </span>
                               </TableHead>
 
                               <TableHead
@@ -2558,12 +2574,14 @@ export default function ProducaoPage({
                                     <TooltipTrigger asChild>
                                       <span>
                                         P{" "}
-                                        {sortCol === "prioridade" &&
-                                          (sortDir === "asc" ? (
-                                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                                          ) : (
-                                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                                          ))}
+                                        <span className="inline-block w-3 h-3 ml-1">
+                                          {sortCol === "prioridade" &&
+                                            (sortDir === "asc" ? (
+                                              <ArrowUp className="h-3 w-3" />
+                                            ) : (
+                                              <ArrowDown className="h-3 w-3" />
+                                            ))}
+                                        </span>
                                       </span>
                                     </TooltipTrigger>
                                     <TooltipContent>Prioridade</TooltipContent>
@@ -2579,12 +2597,14 @@ export default function ProducaoPage({
                                     <TooltipTrigger asChild>
                                       <span>
                                         A{" "}
-                                        {sortCol === "artwork" &&
-                                          (sortDir === "asc" ? (
-                                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                                          ) : (
-                                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                                          ))}
+                                        <span className="inline-block w-3 h-3 ml-1">
+                                          {sortCol === "artwork" &&
+                                            (sortDir === "asc" ? (
+                                              <ArrowUp className="h-3 w-3" />
+                                            ) : (
+                                              <ArrowDown className="h-3 w-3" />
+                                            ))}
+                                        </span>
                                       </span>
                                     </TooltipTrigger>
                                     <TooltipContent>
@@ -2602,12 +2622,14 @@ export default function ProducaoPage({
                                     <TooltipTrigger asChild>
                                       <span>
                                         C{" "}
-                                        {sortCol === "corte" &&
-                                          (sortDir === "asc" ? (
-                                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                                          ) : (
-                                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                                          ))}
+                                        <span className="inline-block w-3 h-3 ml-1">
+                                          {sortCol === "corte" &&
+                                            (sortDir === "asc" ? (
+                                              <ArrowUp className="h-3 w-3" />
+                                            ) : (
+                                              <ArrowDown className="h-3 w-3" />
+                                            ))}
+                                        </span>
                                       </span>
                                     </TooltipTrigger>
                                     <TooltipContent>Corte</TooltipContent>
@@ -2624,12 +2646,14 @@ export default function ProducaoPage({
                                     <TooltipTrigger asChild>
                                       <span>
                                         SB{" "}
-                                        {sortCol === "pendente" &&
-                                          (sortDir === "asc" ? (
-                                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                                          ) : (
-                                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                                          ))}
+                                        <span className="inline-block w-3 h-3 ml-1">
+                                          {sortCol === "pendente" &&
+                                            (sortDir === "asc" ? (
+                                              <ArrowUp className="h-3 w-3" />
+                                            ) : (
+                                              <ArrowDown className="h-3 w-3" />
+                                            ))}
+                                        </span>
                                       </span>
                                     </TooltipTrigger>
                                     <TooltipContent>Stand By</TooltipContent>
@@ -2744,36 +2768,42 @@ export default function ProducaoPage({
                                 className=" sticky top-0 z-10 w-[90px] cursor-pointer overflow-hidden imx-border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
                               >
                                 Data{" "}
-                                {sortCol === "created_at" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
+                                <span className="inline-block w-3 h-3 ml-1">
+                                  {sortCol === "created_at" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="h-3 w-3" />
+                                    ))}
+                                </span>
                               </TableHead>
                               <TableHead
                                 onClick={() => toggleSort("numero_orc")}
                                 className=" sticky top-0 z-10 w-[90px] max-w-[90px] cursor-pointer overflow-hidden imx-border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
                               >
                                 ORC{" "}
-                                {sortCol === "numero_orc" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
+                                <span className="inline-block w-3 h-3 ml-1">
+                                  {sortCol === "numero_orc" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="h-3 w-3" />
+                                    ))}
+                                </span>
                               </TableHead>
                               <TableHead
                                 onClick={() => toggleSort("numero_fo")}
                                 className=" sticky top-0 z-10 w-[90px] max-w-[90px] cursor-pointer overflow-hidden imx-border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
                               >
                                 FO{" "}
-                                {sortCol === "numero_fo" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
+                                <span className="inline-block w-3 h-3 ml-1">
+                                  {sortCol === "numero_fo" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="h-3 w-3" />
+                                    ))}
+                                </span>
                               </TableHead>
                               {/* Cliente - hidden on mobile */}
                               {!isMobileOrTablet && (
@@ -2782,12 +2812,14 @@ export default function ProducaoPage({
                                   className=" sticky top-0 z-10 w-[200px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                                 >
                                   Cliente{" "}
-                                  {sortCol === "cliente" &&
-                                    (sortDir === "asc" ? (
-                                      <ArrowUp className="ml-1 inline h-3 w-3" />
-                                    ) : (
-                                      <ArrowDown className="ml-1 inline h-3 w-3" />
-                                    ))}
+                                  <span className="inline-block w-3 h-3 ml-1">
+                                    {sortCol === "cliente" &&
+                                      (sortDir === "asc" ? (
+                                        <ArrowUp className="h-3 w-3" />
+                                      ) : (
+                                        <ArrowDown className="h-3 w-3" />
+                                      ))}
+                                  </span>
                                 </TableHead>
                               )}
                               <TableHead
@@ -2795,12 +2827,14 @@ export default function ProducaoPage({
                                 className=" sticky top-0 z-10 flex-1 cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                               >
                                 Nome Campanha{" "}
-                                {sortCol === "nome_campanha" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
+                                <span className="inline-block w-3 h-3 ml-1">
+                                  {sortCol === "nome_campanha" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="h-3 w-3" />
+                                    ))}
+                                </span>
                               </TableHead>
                               {/* Nota - hidden on mobile */}
                               {!isMobileOrTablet && (
@@ -2809,12 +2843,14 @@ export default function ProducaoPage({
                                   className=" sticky top-0 z-10 w-[50px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                                 >
                                   Nota{" "}
-                                  {sortCol === "notas" &&
-                                    (sortDir === "asc" ? (
-                                      <ArrowUp className="ml-1 inline h-3 w-3" />
-                                    ) : (
-                                      <ArrowDown className="ml-1 inline h-3 w-3" />
-                                    ))}
+                                  <span className="inline-block w-3 h-3 ml-1">
+                                    {sortCol === "notas" &&
+                                      (sortDir === "asc" ? (
+                                        <ArrowUp className="h-3 w-3" />
+                                      ) : (
+                                        <ArrowDown className="h-3 w-3" />
+                                      ))}
+                                  </span>
                                 </TableHead>
                               )}
                               {/* Status - hidden on mobile */}
@@ -2824,12 +2860,14 @@ export default function ProducaoPage({
                                   className=" sticky top-0 z-10 w-[210px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                                 >
                                   Status{" "}
-                                  {sortCol === "prioridade" &&
-                                    (sortDir === "asc" ? (
-                                      <ArrowUp className="ml-1 inline h-3 w-3" />
-                                    ) : (
-                                      <ArrowDown className="ml-1 inline h-3 w-3" />
-                                    ))}
+                                  <span className="inline-block w-3 h-3 ml-1">
+                                    {sortCol === "prioridade" &&
+                                      (sortDir === "asc" ? (
+                                        <ArrowUp className="h-3 w-3" />
+                                      ) : (
+                                        <ArrowDown className="h-3 w-3" />
+                                      ))}
+                                  </span>
                                 </TableHead>
                               )}
                               <TableHead className=" sticky top-0 z-10 w-[36px] imx-border-b bg-primary p-0 text-center text-primary-foreground uppercase select-none">
@@ -2935,36 +2973,42 @@ export default function ProducaoPage({
                                 className=" sticky top-0 z-10 w-[90px] cursor-pointer overflow-hidden imx-border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
                               >
                                 Data{" "}
-                                {sortCol === "created_at" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
+                                <span className="inline-block w-3 h-3 ml-1">
+                                  {sortCol === "created_at" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="h-3 w-3" />
+                                    ))}
+                                </span>
                               </TableHead>
                               <TableHead
                                 onClick={() => toggleSort("numero_orc")}
                                 className=" sticky top-0 z-10 w-[90px] max-w-[90px] cursor-pointer overflow-hidden imx-border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
                               >
                                 ORC{" "}
-                                {sortCol === "numero_orc" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
+                                <span className="inline-block w-3 h-3 ml-1">
+                                  {sortCol === "numero_orc" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="h-3 w-3" />
+                                    ))}
+                                </span>
                               </TableHead>
                               <TableHead
                                 onClick={() => toggleSort("numero_fo")}
                                 className=" sticky top-0 z-10 w-[90px] max-w-[90px] cursor-pointer overflow-hidden imx-border-b bg-primary text-center  text-ellipsis whitespace-nowrap text-primary-foreground uppercase select-none"
                               >
                                 FO{" "}
-                                {sortCol === "numero_fo" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
+                                <span className="inline-block w-3 h-3 ml-1">
+                                  {sortCol === "numero_fo" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="h-3 w-3" />
+                                    ))}
+                                </span>
                               </TableHead>
                               {/* Cliente - hidden on mobile */}
                               {!isMobileOrTablet && (
@@ -2973,12 +3017,14 @@ export default function ProducaoPage({
                                   className=" sticky top-0 z-10 w-[200px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                                 >
                                   Cliente{" "}
-                                  {sortCol === "cliente" &&
-                                    (sortDir === "asc" ? (
-                                      <ArrowUp className="ml-1 inline h-3 w-3" />
-                                    ) : (
-                                      <ArrowDown className="ml-1 inline h-3 w-3" />
-                                    ))}
+                                  <span className="inline-block w-3 h-3 ml-1">
+                                    {sortCol === "cliente" &&
+                                      (sortDir === "asc" ? (
+                                        <ArrowUp className="h-3 w-3" />
+                                      ) : (
+                                        <ArrowDown className="h-3 w-3" />
+                                      ))}
+                                  </span>
                                 </TableHead>
                               )}
                               <TableHead
@@ -2986,12 +3032,14 @@ export default function ProducaoPage({
                                 className=" sticky top-0 z-10 flex-1 cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                               >
                                 Nome Campanha{" "}
-                                {sortCol === "nome_campanha" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
+                                <span className="inline-block w-3 h-3 ml-1">
+                                  {sortCol === "nome_campanha" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="h-3 w-3" />
+                                    ))}
+                                </span>
                               </TableHead>
                               {/* Nota - hidden on mobile */}
                               {!isMobileOrTablet && (
@@ -3000,12 +3048,14 @@ export default function ProducaoPage({
                                   className=" sticky top-0 z-10 w-[50px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                                 >
                                   Nota{" "}
-                                  {sortCol === "notas" &&
-                                    (sortDir === "asc" ? (
-                                      <ArrowUp className="ml-1 inline h-3 w-3" />
-                                    ) : (
-                                      <ArrowDown className="ml-1 inline h-3 w-3" />
-                                    ))}
+                                  <span className="inline-block w-3 h-3 ml-1">
+                                    {sortCol === "notas" &&
+                                      (sortDir === "asc" ? (
+                                        <ArrowUp className="h-3 w-3" />
+                                      ) : (
+                                        <ArrowDown className="h-3 w-3" />
+                                      ))}
+                                  </span>
                                 </TableHead>
                               )}
                               {/* Status - hidden on mobile */}
@@ -3015,12 +3065,14 @@ export default function ProducaoPage({
                                   className=" sticky top-0 z-10 w-[210px] cursor-pointer imx-border-b bg-primary  text-primary-foreground uppercase select-none"
                                 >
                                   Status{" "}
-                                  {sortCol === "prioridade" &&
-                                    (sortDir === "asc" ? (
-                                      <ArrowUp className="ml-1 inline h-3 w-3" />
-                                    ) : (
-                                      <ArrowDown className="ml-1 inline h-3 w-3" />
-                                    ))}
+                                  <span className="inline-block w-3 h-3 ml-1">
+                                    {sortCol === "prioridade" &&
+                                      (sortDir === "asc" ? (
+                                        <ArrowUp className="h-3 w-3" />
+                                      ) : (
+                                        <ArrowDown className="h-3 w-3" />
+                                      ))}
+                                  </span>
                                 </TableHead>
                               )}
 
@@ -3029,12 +3081,14 @@ export default function ProducaoPage({
                                 className=" sticky top-0 z-10 w-[120px] cursor-pointer imx-border-b bg-primary text-right text-primary-foreground uppercase select-none"
                               >
                                 Valor{" "}
-                                {sortCol === "total_value" &&
-                                  (sortDir === "asc" ? (
-                                    <ArrowUp className="ml-1 inline h-3 w-3" />
-                                  ) : (
-                                    <ArrowDown className="ml-1 inline h-3 w-3" />
-                                  ))}
+                                <span className="inline-block w-3 h-3 ml-1">
+                                  {sortCol === "total_value" &&
+                                    (sortDir === "asc" ? (
+                                      <ArrowUp className="h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="h-3 w-3" />
+                                    ))}
+                                </span>
                               </TableHead>
 
                               <TableHead
@@ -3046,12 +3100,14 @@ export default function ProducaoPage({
                                     <TooltipTrigger asChild>
                                       <span>
                                         P{" "}
-                                        {sortCol === "prioridade" &&
-                                          (sortDir === "asc" ? (
-                                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                                          ) : (
-                                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                                          ))}
+                                        <span className="inline-block w-3 h-3 ml-1">
+                                          {sortCol === "prioridade" &&
+                                            (sortDir === "asc" ? (
+                                              <ArrowUp className="h-3 w-3" />
+                                            ) : (
+                                              <ArrowDown className="h-3 w-3" />
+                                            ))}
+                                        </span>
                                       </span>
                                     </TooltipTrigger>
                                     <TooltipContent>Prioridade</TooltipContent>
@@ -3067,12 +3123,14 @@ export default function ProducaoPage({
                                     <TooltipTrigger asChild>
                                       <span>
                                         A{" "}
-                                        {sortCol === "artwork" &&
-                                          (sortDir === "asc" ? (
-                                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                                          ) : (
-                                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                                          ))}
+                                        <span className="inline-block w-3 h-3 ml-1">
+                                          {sortCol === "artwork" &&
+                                            (sortDir === "asc" ? (
+                                              <ArrowUp className="h-3 w-3" />
+                                            ) : (
+                                              <ArrowDown className="h-3 w-3" />
+                                            ))}
+                                        </span>
                                       </span>
                                     </TooltipTrigger>
                                     <TooltipContent>
@@ -3090,12 +3148,14 @@ export default function ProducaoPage({
                                     <TooltipTrigger asChild>
                                       <span>
                                         C{" "}
-                                        {sortCol === "corte" &&
-                                          (sortDir === "asc" ? (
-                                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                                          ) : (
-                                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                                          ))}
+                                        <span className="inline-block w-3 h-3 ml-1">
+                                          {sortCol === "corte" &&
+                                            (sortDir === "asc" ? (
+                                              <ArrowUp className="h-3 w-3" />
+                                            ) : (
+                                              <ArrowDown className="h-3 w-3" />
+                                            ))}
+                                        </span>
                                       </span>
                                     </TooltipTrigger>
                                     <TooltipContent>Corte</TooltipContent>
@@ -3112,12 +3172,14 @@ export default function ProducaoPage({
                                     <TooltipTrigger asChild>
                                       <span>
                                         SB{" "}
-                                        {sortCol === "pendente" &&
-                                          (sortDir === "asc" ? (
-                                            <ArrowUp className="ml-1 inline h-3 w-3" />
-                                          ) : (
-                                            <ArrowDown className="ml-1 inline h-3 w-3" />
-                                          ))}
+                                        <span className="inline-block w-3 h-3 ml-1">
+                                          {sortCol === "pendente" &&
+                                            (sortDir === "asc" ? (
+                                              <ArrowUp className="h-3 w-3" />
+                                            ) : (
+                                              <ArrowDown className="h-3 w-3" />
+                                            ))}
+                                        </span>
                                       </span>
                                     </TooltipTrigger>
                                     <TooltipContent>Stand By</TooltipContent>
