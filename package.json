@@ -67,5 +67,6 @@
     "overrides": {
       "eslint-plugin-react": "7.33.2"
     }
-  }
+  },
+  "packageManager": "pnpm@10.4.1"
 }
