@@ -1,148 +1,186 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from 'react'
-import Image from 'next/image'
-import { createBrowserClient } from '@/utils/supabase'
-import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Eye, EyeOff } from 'lucide-react'
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import { createBrowserClient } from "@/utils/supabase";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Eye, EyeOff } from "lucide-react";
 
 // Type declaration for Credential Management API
 declare global {
   interface Window {
-    PasswordCredential?: any
+    PasswordCredential?: any;
   }
 }
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [showPassword, setShowPassword] = useState(false)
-  const [rememberMe, setRememberMe] = useState(false)
-  const router = useRouter()
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const router = useRouter();
 
   // Load saved email on component mount
   useEffect(() => {
-    const savedEmail = typeof window !== 'undefined' ? localStorage.getItem('rememberedEmail') : null
-    const rememberMeSetting = typeof window !== 'undefined' ? localStorage.getItem('rememberMe') === 'true' : false
-    
+    const savedEmail =
+      typeof window !== "undefined"
+        ? localStorage.getItem("rememberedEmail")
+        : null;
+    const rememberMeSetting =
+      typeof window !== "undefined"
+        ? localStorage.getItem("rememberMe") === "true"
+        : false;
+
     if (savedEmail && rememberMeSetting) {
-      setEmail(savedEmail)
-      setRememberMe(true)
+      setEmail(savedEmail);
+      setRememberMe(true);
     }
-  }, [])
+  }, []);
 
   const saveCredentials = async () => {
     // Try to use Credential Management API to save password
-    if ('PasswordCredential' in window && navigator.credentials) {
+    if ("PasswordCredential" in window && navigator.credentials) {
       try {
         const cred = new window.PasswordCredential({
           id: email,
           password: password,
           name: email,
-        })
-        await navigator.credentials.store(cred)
-        console.log('✅ Credentials saved via Credential Management API')
+        });
+        await navigator.credentials.store(cred);
+        console.log("✅ Credentials saved via Credential Management API");
       } catch (err) {
-        console.warn('Could not save credentials via API:', err)
+        console.warn("Could not save credentials via API:", err);
       }
     }
-  }
+  };
+
+  type LoginResponse = {
+    user?: {
+      id?: string;
+      email?: string;
+      email_confirmed_at?: string;
+    };
+    session?: {
+      access_token: string;
+      refresh_token: string;
+    };
+    error?: {
+      message?: string;
+      status?: number;
+      code?: string;
+    };
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
 
     try {
-      console.log('🔐 Iniciando login...')
-      
+      console.log("🔐 Iniciando login...");
+
       // Save or clear email based on remember me setting
       if (rememberMe) {
-        localStorage.setItem('rememberedEmail', email)
-        localStorage.setItem('rememberMe', 'true')
+        localStorage.setItem("rememberedEmail", email);
+        localStorage.setItem("rememberMe", "true");
       } else {
-        localStorage.removeItem('rememberedEmail')
-        localStorage.removeItem('rememberMe')
+        localStorage.removeItem("rememberedEmail");
+        localStorage.removeItem("rememberMe");
       }
-      
+
       // Clear any existing Supabase storage that might cause issues
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         try {
-          const keys = Object.keys(window.localStorage)
-          keys.forEach(key => {
-            if (key.startsWith('sb-') || key.includes('supabase')) {
-              window.localStorage.removeItem(key)
+          const keys = Object.keys(window.localStorage);
+          keys.forEach((key) => {
+            if (key.startsWith("sb-") || key.includes("supabase")) {
+              window.localStorage.removeItem(key);
             }
-          })
-          console.log('🧹 Cleared Supabase storage')
+          });
+          console.log("🧹 Cleared Supabase storage");
         } catch (e) {
-          console.warn('Could not clear storage:', e)
+          console.warn("Could not clear storage:", e);
         }
       }
-      
-      const supabase = createBrowserClient()
-      console.log('✅ Supabase client criado')
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
 
-      console.log('Response:', { 
-        user: data?.user?.email, 
-        userId: data?.user?.id,
-        emailConfirmed: data?.user?.email_confirmed_at,
-        session: data?.session ? 'Present' : 'Missing',
-        error 
-      })
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+      const result = (await response.json()) as LoginResponse;
 
-      if (error) {
-        console.error('❌ Auth error:', error)
-        console.error('Error details:', {
-          message: error.message,
-          status: error.status,
-          code: error.code,
-        })
-        
-        // Provide user-friendly error messages
-        if (error.message.includes('Email logins are disabled')) {
-          setError('Email/password authentication is disabled. Please contact your administrator.')
-        } else if (error.message.includes('Invalid login credentials')) {
-          setError('Email ou palavra-passe incorretos. Verifique se o email está correto, a palavra-passe está correta e a conta existe e está ativa.')
-        } else {
-          setError(error.message)
-        }
-      } else {
-        console.log('✅ Login bem-sucedido!')
-
-        // Try to save credentials using Credential Management API
-        await saveCredentials()
-
-        // IMPORTANT: Use window.location.href instead of router.push() to force a full page reload
-        // This ensures cookies are properly synced from localStorage before middleware runs
-        // Client-side navigation (router.push) doesn't trigger cookie sync, causing auth issues
-        console.log('🔄 Redirecionando para dashboard...')
-        
-        // Use full page reload to ensure session cookies are synced properly
-        // This fixes the issue where users had to refresh after login
-        window.location.href = '/dashboard'
+      if (!response.ok) {
+        console.error("❌ Auth error via proxy:", result?.error);
+        const message =
+          result?.error?.message ||
+          "Não foi possível contactar o servidor de autenticação.";
+        setError(message);
+        return;
       }
+
+      if (!result?.session?.access_token || !result?.session?.refresh_token) {
+        setError("Resposta de sessão inválida do servidor de autenticação.");
+        return;
+      }
+
+      const supabase = createBrowserClient();
+      console.log("✅ Supabase client criado (proxy)");
+
+      const { error: setSessionError } = await supabase.auth.setSession({
+        access_token: result.session.access_token,
+        refresh_token: result.session.refresh_token,
+      });
+
+      if (setSessionError) {
+        console.error("❌ Erro ao guardar sessão local:", setSessionError);
+        setError(
+          "Não foi possível guardar a sessão local. Tente novamente em instantes.",
+        );
+        return;
+      }
+
+      console.log("Response:", {
+        user: result?.user?.email,
+        userId: result?.user?.id,
+        emailConfirmed: result?.user?.email_confirmed_at,
+        session: result?.session ? "Present" : "Missing",
+      });
+
+      console.log("✅ Login bem-sucedido!");
+
+      // Try to save credentials using Credential Management API
+      await saveCredentials();
+
+      // IMPORTANT: Use window.location.href instead of router.push() to force a full page reload
+      // This ensures cookies are properly synced from localStorage before middleware runs
+      // Client-side navigation (router.push) doesn't trigger cookie sync, causing auth issues
+      console.log("🔄 Redirecionando para dashboard...");
+
+      // Use full page reload to ensure session cookies are synced properly
+      // This fixes the issue where users had to refresh after login
+      window.location.href = "/dashboard";
     } catch (err: any) {
-      console.error('❌ Exception:', err)
-      setError(err.message || 'Ocorreu um erro inesperado')
+      console.error("❌ Exception:", err);
+      setError(err.message || "Ocorreu um erro inesperado");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="flex min-h-screen items-center justify-center" data-page="login">
+    <div
+      className="flex min-h-screen items-center justify-center"
+      data-page="login"
+    >
       <div className="w-full max-w-md space-y-6 rounded-lg imx-border p-8">
         <div className="space-y-2 text-center">
           <Image
@@ -158,9 +196,9 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form 
-          onSubmit={handleLogin} 
-          className="space-y-4" 
+        <form
+          onSubmit={handleLogin}
+          className="space-y-4"
           method="post"
           autoComplete="on"
         >
@@ -228,20 +266,16 @@ export default function LoginPage() {
             </div>
           )}
 
-          <Button 
-            type="submit" 
-            className="w-full" 
-            disabled={loading}
-          >
-            {loading ? 'A entrar...' : 'Entrar'}
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "A entrar..." : "Entrar"}
           </Button>
         </form>
 
         <div className="text-xs text-muted-foreground text-center mt-4">
-          💡 Dica: O seu navegador pode perguntar se deseja guardar a palavra-passe após o login bem-sucedido.
+          💡 Dica: O seu navegador pode perguntar se deseja guardar a
+          palavra-passe após o login bem-sucedido.
         </div>
       </div>
     </div>
-  )
+  );
 }
-
