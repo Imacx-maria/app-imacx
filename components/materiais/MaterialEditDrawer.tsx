@@ -401,7 +401,7 @@ function MaterialEditDrawerComponent({
             size="icon"
             variant="outline"
             onClick={onClose}
-            className="absolute top-4 right-4 z-10 h-10 w-10 rounded-none"
+            className="absolute top-4 right-4 z-10"
           >
             X
           </Button>

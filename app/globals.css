@@ -237,7 +237,7 @@
     .imx-row-hover:hover {
         background-color: var(--accent) !important;
     }
-    
+
     /* Dark mode: ensure accent color is used for hover */
     .dark tr:hover,
     .dark .imacx-table tbody tr:hover,
@@ -625,7 +625,9 @@
    ============================================ */
 
 :root {
-    --background: oklch(0.90 0.01 95.04 / 1); /* Original: 0.94 - reduced for less eye strain while staying light */
+    --background: oklch(
+        0.9 0.01 95.04 / 1
+    ); /* Original: 0.94 - reduced for less eye strain while staying light */
     --foreground: oklch(0% 0 0);
     --main: oklch(84.08% 0.1725 84.2);
     --border: oklch(0% 0 0);
@@ -1017,6 +1019,172 @@ input:-webkit-autofill:focus {
     color: oklch(0% 0 0) !important;
 }
 
+/* Absence days - highlighted in green for ferias/ausencias */
+.rdp-absence:not(.rdp-day_selected):not([data-selected="true"]),
+.rdp-absence:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button {
+    background-color: rgb(34 197 94 / 0.8) !important;
+    color: oklch(0% 0 0) !important;
+}
+
+.dark .rdp-absence:not(.rdp-day_selected):not([data-selected="true"]),
+.dark
+    .rdp-absence:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button {
+    background-color: rgb(34 197 94 / 0.8) !important;
+    color: oklch(0% 0 0) !important;
+}
+
+/* ============================================
+   Specific Absence Type Colors
+   ============================================ */
+
+/* Ferias (H, H1, H2) - Green */
+.rdp-absence-ferias:not(.rdp-day_selected):not([data-selected="true"]),
+.rdp-absence-ferias:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button {
+    background-color: rgb(34 197 94 / 0.8) !important;
+    color: oklch(0% 0 0) !important;
+}
+
+/* Falta (F, E) - Red */
+.rdp-absence-falta:not(.rdp-day_selected):not([data-selected="true"]),
+.rdp-absence-falta:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button {
+    background-color: rgb(239 68 68 / 0.8) !important;
+    color: oklch(100% 0 0) !important;
+}
+
+/* Baixa (S) - Orange */
+.rdp-absence-baixa:not(.rdp-day_selected):not([data-selected="true"]),
+.rdp-absence-baixa:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button {
+    background-color: rgb(249 115 22 / 0.8) !important;
+    color: oklch(0% 0 0) !important;
+}
+
+/* Licenca (M) - Purple */
+.rdp-absence-licenca:not(.rdp-day_selected):not([data-selected="true"]),
+.rdp-absence-licenca:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button {
+    background-color: rgb(168 85 247 / 0.8) !important;
+    color: oklch(100% 0 0) !important;
+}
+
+/* Remoto (W) - Blue */
+.rdp-absence-remoto:not(.rdp-day_selected):not([data-selected="true"]),
+.rdp-absence-remoto:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button {
+    background-color: rgb(59 130 246 / 0.8) !important;
+    color: oklch(100% 0 0) !important;
+}
+
+/* Formacao (B) - Yellow */
+.rdp-absence-formacao:not(.rdp-day_selected):not([data-selected="true"]),
+.rdp-absence-formacao:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button {
+    background-color: rgb(234 179 8 / 0.8) !important;
+    color: oklch(0% 0 0) !important;
+}
+
+/* Compensacao (C, L) - Cyan */
+.rdp-absence-compensacao:not(.rdp-day_selected):not([data-selected="true"]),
+.rdp-absence-compensacao:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button {
+    background-color: rgb(6 182 212 / 0.8) !important;
+    color: oklch(0% 0 0) !important;
+}
+
+/* Outro (N) - Pink */
+.rdp-absence-outro:not(.rdp-day_selected):not([data-selected="true"]),
+.rdp-absence-outro:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button {
+    background-color: rgb(236 72 153 / 0.8) !important;
+    color: oklch(100% 0 0) !important;
+}
+
+/* ============================================
+   HEAT MAP LEVELS - Orange gradient for vacation density
+   Level 1: lightest (1-2 people)
+   Level 5: darkest (many people)
+   ============================================ */
+
+.rdp-heatmap-1:not(.rdp-day_selected):not([data-selected="true"]),
+.rdp-heatmap-1:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button {
+    background-color: rgb(254 215 170 / 0.9) !important; /* orange-200 */
+    color: oklch(0% 0 0) !important;
+}
+
+.rdp-heatmap-2:not(.rdp-day_selected):not([data-selected="true"]),
+.rdp-heatmap-2:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button {
+    background-color: rgb(253 186 116 / 0.9) !important; /* orange-300 */
+    color: oklch(0% 0 0) !important;
+}
+
+.rdp-heatmap-3:not(.rdp-day_selected):not([data-selected="true"]),
+.rdp-heatmap-3:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button {
+    background-color: rgb(251 146 60 / 0.9) !important; /* orange-400 */
+    color: oklch(0% 0 0) !important;
+}
+
+.rdp-heatmap-4:not(.rdp-day_selected):not([data-selected="true"]),
+.rdp-heatmap-4:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button {
+    background-color: rgb(249 115 22 / 0.95) !important; /* orange-500 */
+    color: oklch(100% 0 0) !important;
+}
+
+.rdp-heatmap-5:not(.rdp-day_selected):not([data-selected="true"]),
+.rdp-heatmap-5:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button {
+    background-color: rgb(234 88 12 / 1) !important; /* orange-600 */
+    color: oklch(100% 0 0) !important;
+}
+
+/* Dark mode adjustments for heat map */
+.dark .rdp-heatmap-1:not(.rdp-day_selected):not([data-selected="true"]),
+.dark
+    .rdp-heatmap-1:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button {
+    background-color: rgb(124 45 18 / 0.5) !important; /* orange-900 */
+    color: oklch(100% 0 0) !important;
+}
+
+.dark .rdp-heatmap-2:not(.rdp-day_selected):not([data-selected="true"]),
+.dark
+    .rdp-heatmap-2:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button {
+    background-color: rgb(154 52 18 / 0.6) !important; /* orange-800 */
+    color: oklch(100% 0 0) !important;
+}
+
+.dark .rdp-heatmap-3:not(.rdp-day_selected):not([data-selected="true"]),
+.dark
+    .rdp-heatmap-3:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button {
+    background-color: rgb(194 65 12 / 0.7) !important; /* orange-700 */
+    color: oklch(100% 0 0) !important;
+}
+
+.dark .rdp-heatmap-4:not(.rdp-day_selected):not([data-selected="true"]),
+.dark
+    .rdp-heatmap-4:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button {
+    background-color: rgb(234 88 12 / 0.85) !important; /* orange-600 */
+    color: oklch(100% 0 0) !important;
+}
+
+.dark .rdp-heatmap-5:not(.rdp-day_selected):not([data-selected="true"]),
+.dark
+    .rdp-heatmap-5:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button {
+    background-color: rgb(249 115 22 / 1) !important; /* orange-500 */
+    color: oklch(100% 0 0) !important;
+}
+
 .rdp .rdp-today:not(.rdp-day_selected):not([data-selected="true"]) {
     background-color: var(--orange) !important;
 }
@@ -1031,6 +1199,39 @@ input:-webkit-autofill:focus {
 .rdp [aria-current="date"]:not([data-selected="true"]) {
     background-color: var(--orange) !important;
     color: oklch(0% 0 0) !important;
+}
+
+/* When today is selected, show outline instead of yellow background */
+.rdp .rdp-today.rdp-day_selected,
+.rdp .rdp-today[data-selected="true"],
+.rdp [aria-current="date"][data-selected="true"] {
+    background-color: transparent !important;
+    border: none !important;
+    position: relative !important;
+    z-index: 50 !important;
+    overflow: visible !important;
+}
+
+/* Apply outline to the button for the outline effect (better than box-shadow for visibility) */
+.rdp .rdp-today.rdp-day_selected .rdp-day_button,
+.rdp .rdp-today[data-selected="true"] .rdp-day_button,
+.rdp [aria-current="date"][data-selected="true"] .rdp-day_button,
+.rdp .rdp-today.rdp-day_selected .rdp-day_button:hover,
+.rdp .rdp-today[data-selected="true"] .rdp-day_button:hover,
+.rdp [aria-current="date"][data-selected="true"] .rdp-day_button:hover,
+.rdp .rdp-today.rdp-day_selected .rdp-day_button:focus,
+.rdp .rdp-today[data-selected="true"] .rdp-day_button:focus,
+.rdp [aria-current="date"][data-selected="true"] .rdp-day_button:focus {
+    background-color: transparent !important;
+    border: none !important;
+    /* Use outline with transform to ensure visibility over neighbors */
+    outline: 2px solid var(--orange) !important;
+    outline-offset: -2px !important;
+    box-shadow: none !important;
+    color: var(--foreground) !important;
+    position: relative !important;
+    z-index: 50 !important;
+    transform: translateZ(10px) !important;
 }
 
 .rdp button:focus,
@@ -1053,6 +1254,21 @@ input:-webkit-autofill:focus {
    ============================================ */
 
 /* Keep TODAY color on hover the same as its base color */
+
+/* Make TODAY visible even when other modifiers add a fill color */
+.calendar-wrapper
+    .rdp-today:not(.rdp-day_selected):not([data-selected="true"])
+    .rdp-day_button,
+.calendar-wrapper
+    [data-today="true"]:not([data-selected="true"])
+    .rdp-day_button {
+    position: relative;
+    box-shadow:
+        inset 0 0 0 2px var(--orange),
+        0 0 0 1px #0f0f0f;
+    z-index: 1;
+}
+
 .rdp
     .rdp-today:not(.rdp-day_selected):not([data-selected="true"])
     .rdp-day_button:hover,
@@ -1101,8 +1317,21 @@ h3 {
 
 /* Metric card large values - exempt from global 0.8rem */
 .metric-value {
-    font-size: 2.25rem !important;
+    /* Smaller on mobile to avoid overflow, scale up on larger screens */
+    font-size: 1.5rem !important;
     line-height: 1.1 !important;
+}
+
+@media (min-width: 640px) {
+    .metric-value {
+        font-size: 1.75rem !important;
+    }
+}
+
+@media (min-width: 768px) {
+    .metric-value {
+        font-size: 2.25rem !important;
+    }
 }
 
 @media (min-width: 1024px) {

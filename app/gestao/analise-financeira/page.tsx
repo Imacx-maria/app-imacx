@@ -137,9 +137,7 @@ export default function AnaliseFinanceiraPage() {
     departmentClientes,
     pipelineData,
     allDepartmentsKpi,
-    setAllDepartmentsKpi,
     initialCostCenter,
-    fetchAllDepartmentsKpi,
     fetchAllInitialData,
     syncStateFromCache,
     handleFastRefresh,
@@ -150,10 +148,20 @@ export default function AnaliseFinanceiraPage() {
     handleCostCenterFilterChange,
   } = useFinancialData();
 
-  // Initial data fetch
+  // Fetch data only if still loading after hydration (no cache was found)
+  // The hook's hydration effect runs first - if cache exists, loading becomes false
+  // If no cache, loading stays true and we need to fetch fresh data
   useEffect(() => {
-    fetchAllInitialData();
-  }, [fetchAllInitialData]);
+    // Small delay to allow hydration effect to run first
+    const timer = setTimeout(() => {
+      // If still loading and no data, fetch from API
+      if (loading && !kpiData) {
+        fetchAllInitialData();
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]); // Re-run when loading changes
 
   // Initialize selected cost center
   useEffect(() => {
@@ -173,29 +181,6 @@ export default function AnaliseFinanceiraPage() {
       setPipelineTab("top15");
     }
   }, [activeTab, pipelineTab]);
-
-  // Fetch Charts data
-  useEffect(() => {
-    if (
-      mainTab === "departamentos" &&
-      departmentView === "analise" &&
-      analiseTab === "graficos" &&
-      !allDepartmentsKpi
-    ) {
-      const period = activeTab === "mtd" ? "mtd" : "ytd";
-      fetchAllDepartmentsKpi(period).then((data) => {
-        setAllDepartmentsKpi(data);
-      });
-    }
-  }, [
-    analiseTab,
-    mainTab,
-    departmentView,
-    activeTab,
-    fetchAllDepartmentsKpi,
-    allDepartmentsKpi,
-    setAllDepartmentsKpi,
-  ]);
 
   // Sorting Hooks
   const {
@@ -1060,7 +1045,7 @@ export default function AnaliseFinanceiraPage() {
         <Card className="p-6">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <FileText className="h-4 w-4" />
-            <span>
+            <span suppressHydrationWarning>
               Dados gerados em:{" "}
               {new Date(kpiData.generatedAt).toLocaleString("pt-PT")}
             </span>

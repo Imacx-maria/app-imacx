@@ -8,9 +8,8 @@ import {
   CostCenterTopCustomersResponse,
 } from "@/types/financial-analysis";
 
-// LocalStorage cache key and expiry (24 hours)
+// LocalStorage cache key (we keep it until the user explicitly refreshes)
 const CACHE_KEY = "financial-analysis-cache";
-const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface CachedData {
   timestamp: number;
@@ -43,11 +42,6 @@ function loadFromLocalStorage(): CachedData | null {
     const cached = localStorage.getItem(CACHE_KEY);
     if (!cached) return null;
     const parsed = JSON.parse(cached) as CachedData;
-    // Check if cache is expired
-    if (Date.now() - parsed.timestamp > CACHE_EXPIRY_MS) {
-      localStorage.removeItem(CACHE_KEY);
-      return null;
-    }
     return parsed;
   } catch {
     return null;
@@ -63,17 +57,61 @@ function saveToLocalStorage(data: CachedData): void {
   }
 }
 
+// Build initial dataCache from cached data (for tab switching)
+function buildDataCacheFromCached(cached: CachedData | null): {
+  [key: string]: { timestamp: number; data: any };
+} {
+  if (!cached) return {};
+  return {
+    kpi: { timestamp: cached.timestamp, data: cached.kpiData },
+    monthlyRevenue: {
+      timestamp: cached.timestamp,
+      data: cached.monthlyRevenue,
+    },
+    topCustomers: { timestamp: cached.timestamp, data: cached.topCustomers },
+    multiYearRevenue: {
+      timestamp: cached.timestamp,
+      data: cached.multiYearRevenue,
+    },
+    companyConversao: {
+      timestamp: cached.timestamp,
+      data: cached.companyConversao,
+    },
+    costCenterPerformance: {
+      timestamp: cached.timestamp,
+      data: cached.costCenterPerformance,
+    },
+    costCenterSales: {
+      timestamp: cached.timestamp,
+      data: cached.costCenterSales,
+    },
+    costCenterTopCustomers: {
+      timestamp: cached.timestamp,
+      data: cached.costCenterTopCustomers,
+    },
+    departmentKpi: { timestamp: cached.timestamp, data: cached.departmentKpi },
+    departmentAnalise: {
+      timestamp: cached.timestamp,
+      data: cached.departmentAnalise,
+    },
+    departmentPipeline: {
+      timestamp: cached.timestamp,
+      data: cached.departmentPipeline,
+    },
+  };
+}
+
 export function useFinancialData() {
   // Cache ref - will be populated after mount
   const cachedData = useRef<CachedData | null>(null);
   const hasHydrated = useRef(false);
 
-  // Always start with loading=true for SSR consistency
+  // Always start with loading=true for SSR consistency (prevents hydration mismatch)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Data states - all start empty, will be populated from cache after mount
+  // Data states - start empty, will be populated from cache after mount
   const [kpiData, setKpiData] = useState<KPIDashboardData | null>(null);
   const [monthlyRevenue, setMonthlyRevenue] =
     useState<MonthlyRevenueResponse | null>(null);
@@ -109,7 +147,7 @@ export function useFinancialData() {
   const [selectedCostCenterFilter, setSelectedCostCenterFilter] =
     useState<string>("ID-Impressão Digital");
 
-  // Cache
+  // Cache for tab switching
   const dataCache = useRef<{
     [key: string]: {
       timestamp: number;
@@ -117,14 +155,18 @@ export function useFinancialData() {
     };
   }>({});
 
-  // Load from localStorage after mount (client-side only)
+  // Track if initial data load has been triggered
+  const initialLoadTriggered = useRef(false);
+
+  // Hydrate from localStorage after mount (client-side only, prevents hydration mismatch)
+  // This effect handles both cache hydration and initial data fetch
   useEffect(() => {
     if (hasHydrated.current) return;
     hasHydrated.current = true;
 
     const cached = loadFromLocalStorage();
     if (cached) {
-      console.log("📦 [Cache] Loading data from localStorage");
+      console.log("📦 [Cache] Hydrating data from localStorage");
       cachedData.current = cached;
 
       // Populate all state from cache
@@ -137,6 +179,8 @@ export function useFinancialData() {
       setCostCenterTopCustomers(cached.costCenterTopCustomers?.mtd || null);
       setCompanyConversao(cached.companyConversao?.mtd || []);
       setDepartmentKpiData(cached.departmentKpi?.Brindes?.mtd || null);
+      // Used by the "Graficos" view; keep it in memory so we don't need extra API calls
+      setAllDepartmentsKpi(cached.departmentKpi || null);
       setDepartmentOrcamentos(cached.departmentAnalise?.mtd?.orcamentos || []);
       setDepartmentFaturas(cached.departmentAnalise?.mtd?.faturas || []);
       setDepartmentConversao(cached.departmentAnalise?.mtd?.conversao || []);
@@ -144,59 +188,20 @@ export function useFinancialData() {
       setPipelineData(cached.departmentPipeline?.Brindes?.mtd || null);
       setCostCenterMultiYear(cached.costCenterMultiYear);
 
-      // Also populate the memory cache for tab switching
-      dataCache.current = {
-        kpi: { timestamp: cached.timestamp, data: cached.kpiData },
-        monthlyRevenue: {
-          timestamp: cached.timestamp,
-          data: cached.monthlyRevenue,
-        },
-        topCustomers: {
-          timestamp: cached.timestamp,
-          data: cached.topCustomers,
-        },
-        multiYearRevenue: {
-          timestamp: cached.timestamp,
-          data: cached.multiYearRevenue,
-        },
-        companyConversao: {
-          timestamp: cached.timestamp,
-          data: cached.companyConversao,
-        },
-        costCenterPerformance: {
-          timestamp: cached.timestamp,
-          data: cached.costCenterPerformance,
-        },
-        costCenterSales: {
-          timestamp: cached.timestamp,
-          data: cached.costCenterSales,
-        },
-        costCenterTopCustomers: {
-          timestamp: cached.timestamp,
-          data: cached.costCenterTopCustomers,
-        },
-        departmentKpi: {
-          timestamp: cached.timestamp,
-          data: cached.departmentKpi,
-        },
-        departmentAnalise: {
-          timestamp: cached.timestamp,
-          data: cached.departmentAnalise,
-        },
-        departmentPipeline: {
-          timestamp: cached.timestamp,
-          data: cached.departmentPipeline,
-        },
-      };
-
       if (cached.costCenterTopCustomers?.mtd?.costCenters?.[0]) {
         setInitialCostCenter(
           cached.costCenterTopCustomers.mtd.costCenters[0].costCenter,
         );
       }
 
+      // Build dataCache for tab switching
+      dataCache.current = buildDataCacheFromCached(cached);
+
+      // Data is ready from cache - no need to fetch
       setLoading(false);
+      initialLoadTriggered.current = true;
     }
+    // If no cache, loading stays true and page.tsx will trigger fetchAllInitialData
   }, []);
 
   // Fetch cost center multi-year revenue data
@@ -225,42 +230,6 @@ export function useFinancialData() {
     },
     [fetchCostCenterMultiYear],
   );
-
-  const fetchAllDepartmentsKpi = useCallback(async (period: "mtd" | "ytd") => {
-    const departments = ["Brindes", "Digital", "IMACX"];
-
-    try {
-      const results = await Promise.all(
-        departments.map((dept) =>
-          fetch(
-            `/api/gestao/departamentos/kpi?departamento=${encodeURIComponent(
-              dept,
-            )}&period=${period}`,
-          )
-            .then((res) => {
-              if (!res.ok) {
-                console.warn(`Failed to fetch KPI for ${dept}:`, res.status);
-                return null;
-              }
-              return res.json();
-            })
-            .catch((err) => {
-              console.error(`Error fetching KPI for ${dept}:`, err);
-              return null;
-            }),
-        ),
-      );
-
-      return {
-        Brindes: results[0],
-        Digital: results[1],
-        IMACX: results[2],
-      };
-    } catch (error) {
-      console.error("Error fetching all departments KPI:", error);
-      return null;
-    }
-  }, []);
 
   const fetchAllInitialData = useCallback(async (forceRefresh = false) => {
     // If we have cached data and not forcing refresh, skip fetching
@@ -426,6 +395,9 @@ export function useFinancialData() {
       setDepartmentConversao(analiseYtdData?.conversao || []);
       setDepartmentClientes(analiseYtdData?.clientes || []);
       setPipelineData(brindesPipeYtdData);
+
+      // Keep all-departments KPI in memory for charts without extra API calls
+      setAllDepartmentsKpi(dataCache.current.departmentKpi.data || null);
 
       // Fetch cost center multi-year data with default filter
       let ccMultiYearData = null;
@@ -653,7 +625,6 @@ export function useFinancialData() {
     initialCostCenter,
     dataCache,
     fetchAllInitialData,
-    fetchAllDepartmentsKpi,
     syncStateFromCache,
     handleFastRefresh,
     handleDismissOrcamento,

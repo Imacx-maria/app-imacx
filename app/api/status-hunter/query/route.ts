@@ -1,10 +1,21 @@
 import { createServerClient } from "@/utils/supabase";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import type { QueryRequest, QueryResponse, SearchType } from "@/lib/status-hunter/types";
+import type {
+  QueryRequest,
+  QueryResponse,
+  SearchType,
+} from "@/lib/status-hunter/types";
 import { executeSearch, getFullStatus } from "@/lib/status-hunter/queries";
 
-const VALID_TYPES: SearchType[] = ['FO', 'ORC', 'GUIA', 'CLIENTE', 'CAMPANHA', 'ITEM'];
+const VALID_TYPES: SearchType[] = [
+  "FO",
+  "ORC",
+  "GUIA",
+  "CLIENTE",
+  "CAMPANHA",
+  "ITEM",
+];
 
 /**
  * POST /api/status-hunter/query
@@ -31,32 +42,39 @@ export async function POST(request: Request) {
     if (!body.type || !body.value) {
       return NextResponse.json(
         { error: "Campos obrigatorios: type, value" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!VALID_TYPES.includes(body.type)) {
       return NextResponse.json(
-        { error: `Tipo invalido. Valores aceites: ${VALID_TYPES.join(', ')}` },
-        { status: 400 }
+        { error: `Tipo invalido. Valores aceites: ${VALID_TYPES.join(", ")}` },
+        { status: 400 },
       );
     }
 
     if (body.value.trim().length < 1) {
       return NextResponse.json(
         { error: "Valor de pesquisa muito curto" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Execute search
-    const matches = await executeSearch(supabase, body.type, body.value.trim());
+    // Execute search (cast needed due to Supabase client type mismatch)
+    const matches = await executeSearch(
+      supabase as unknown as Parameters<typeof executeSearch>[0],
+      body.type,
+      body.value.trim(),
+    );
 
     const response: QueryResponse = { matches };
 
     // If exactly one match, get full status
     if (matches.length === 1) {
-      const fullStatus = await getFullStatus(supabase, matches[0].id);
+      const fullStatus = await getFullStatus(
+        supabase as unknown as Parameters<typeof getFullStatus>[0],
+        matches[0].id,
+      );
       if (fullStatus) {
         response.fullStatus = fullStatus;
       }
@@ -67,11 +85,9 @@ export async function POST(request: Request) {
     console.error("[Status Hunter] Query error:", error);
 
     // Return user-friendly error message
-    const message = error instanceof Error ? error.message : "Erro ao executar pesquisa";
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    );
+    const message =
+      error instanceof Error ? error.message : "Erro ao executar pesquisa";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -100,25 +116,26 @@ export async function GET(request: Request) {
     if (!foId) {
       return NextResponse.json(
         { error: "Parametro obrigatorio: id" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(foId)) {
-      return NextResponse.json(
-        { error: "ID invalido" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "ID invalido" }, { status: 400 });
     }
 
-    const fullStatus = await getFullStatus(supabase, foId);
+    const fullStatus = await getFullStatus(
+      supabase as unknown as Parameters<typeof getFullStatus>[0],
+      foId,
+    );
 
     if (!fullStatus) {
       return NextResponse.json(
         { error: "Folha de Obra nao encontrada" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -126,10 +143,8 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error("[Status Hunter] Get status error:", error);
 
-    const message = error instanceof Error ? error.message : "Erro ao obter estado";
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    );
+    const message =
+      error instanceof Error ? error.message : "Erro ao obter estado";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

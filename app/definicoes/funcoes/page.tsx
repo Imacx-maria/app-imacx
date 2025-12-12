@@ -40,6 +40,7 @@ type Role = {
 };
 
 // Available pages in the system
+// NOTE: When adding new pages to the app, always add them here too!
 const AVAILABLE_PAGES = [
   {
     id: "*",
@@ -73,12 +74,24 @@ const AVAILABLE_PAGES = [
     description: "/producao/operacoes",
     category: "producao",
   },
+  {
+    id: "producao/analytics",
+    name: "  → Análises de Produção",
+    description: "/producao/analytics",
+    category: "producao",
+  },
 
   // Stocks (parent and subpages)
   {
     id: "stocks",
     name: "Stocks (Todas)",
-    description: "/stocks",
+    description: "/stocks/* (concede todos os subpáginas)",
+    category: "stocks",
+  },
+  {
+    id: "stocks/gestao",
+    name: "  → Gestão de Stocks",
+    description: "/stocks/gestao",
     category: "stocks",
   },
 
@@ -96,16 +109,66 @@ const AVAILABLE_PAGES = [
     category: "gestao",
   },
   {
-    id: "gestao/analytics",
-    name: "  → Análises",
-    description: "/gestao/analytics",
-    category: "gestao",
-  },
-  {
     id: "gestao/analise-financeira",
     name: "  → Análise Financeira",
     description: "/gestao/analise-financeira",
     category: "gestao",
+  },
+
+  // Férias (Vacation/Leave)
+  {
+    id: "ferias",
+    name: "Férias (Todas)",
+    description: "/ferias/* (gestão de férias e ausências)",
+    category: "ferias",
+  },
+
+  // Quotes
+  {
+    id: "quotes",
+    name: "Orçamentos (Todas)",
+    description: "/quotes/* (concede todos os subpáginas)",
+    category: "quotes",
+  },
+  {
+    id: "quotes/search",
+    name: "  → Pesquisa de Orçamentos",
+    description: "/quotes/search",
+    category: "quotes",
+  },
+
+  // Reports
+  {
+    id: "reports",
+    name: "Relatórios (Todas)",
+    description: "/reports/* (concede todos os subpáginas)",
+    category: "reports",
+  },
+  {
+    id: "reports/ai-executive-report",
+    name: "  → Relatório Executivo IA",
+    description: "/reports/ai-executive-report",
+    category: "reports",
+  },
+  {
+    id: "reports/top10-brindes",
+    name: "  → Top 10 Brindes",
+    description: "/reports/top10-brindes",
+    category: "reports",
+  },
+
+  // Mobile
+  {
+    id: "mobile",
+    name: "Mobile (Todas)",
+    description: "/mobile/* (concede todos os subpáginas)",
+    category: "mobile",
+  },
+  {
+    id: "mobile/status",
+    name: "  → Status Mobile",
+    description: "/mobile/status",
+    category: "mobile",
   },
 
   // Definições (parent and subpages)

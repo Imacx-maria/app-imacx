@@ -993,15 +993,15 @@ export default function MateriaisPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead
-                    className="cursor-pointer imx-border-b text-left uppercase"
+                    className="w-[120px] max-w-[120px] cursor-pointer imx-border-b text-left uppercase"
                     onClick={() => handleSort("referencia")}
                   >
                     <span className="inline-flex items-center gap-1">
-                      Referência {getSortIcon("referencia")}
+                      Ref {getSortIcon("referencia")}
                     </span>
                   </TableHead>
                   <TableHead
-                    className="w-[250px] min-w-[250px] cursor-pointer imx-border-b text-left uppercase"
+                    className="w-[160px] max-w-[160px] cursor-pointer imx-border-b text-left uppercase"
                     onClick={() => handleSort("material")}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -1009,7 +1009,7 @@ export default function MateriaisPage() {
                     </span>
                   </TableHead>
                   <TableHead
-                    className="w-[250px] min-w-[250px] cursor-pointer imx-border-b text-left uppercase"
+                    className="w-[160px] max-w-[160px] cursor-pointer imx-border-b text-left uppercase"
                     onClick={() => handleSort("carateristica")}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -1017,7 +1017,7 @@ export default function MateriaisPage() {
                     </span>
                   </TableHead>
                   <TableHead
-                    className="cursor-pointer imx-border-b text-left uppercase"
+                    className="flex-1 cursor-pointer imx-border-b text-left uppercase"
                     onClick={() => handleSort("cor")}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -1056,7 +1056,7 @@ export default function MateriaisPage() {
               <TableBody>
                 {creatingNew && editingId === "new" && (
                   <TableRow key="new-material-row">
-                    <TableCell className="uppercase">
+                    <TableCell className="w-[120px] max-w-[120px] uppercase">
                       <Input
                         name="referencia"
                         value={editRow.referencia ?? ""}
@@ -1064,7 +1064,7 @@ export default function MateriaisPage() {
                         className="h-10 text-sm outline-0 focus:ring-0"
                       />
                     </TableCell>
-                    <TableCell className="w-[250px] font-medium uppercase">
+                    <TableCell className="w-[160px] max-w-[160px] font-medium uppercase">
                       <Input
                         name="material"
                         value={editRow.material ?? ""}
@@ -1073,7 +1073,7 @@ export default function MateriaisPage() {
                         className="h-10 w-full text-sm outline-0 focus:ring-0"
                       />
                     </TableCell>
-                    <TableCell className="w-[250px] uppercase">
+                    <TableCell className="w-[160px] max-w-[160px] uppercase">
                       <Input
                         name="carateristica"
                         value={editRow.carateristica ?? ""}
@@ -1081,7 +1081,7 @@ export default function MateriaisPage() {
                         className="h-10 text-sm outline-0 focus:ring-0"
                       />
                     </TableCell>
-                    <TableCell className="uppercase">
+                    <TableCell className="flex-1 uppercase">
                       <Input
                         name="cor"
                         value={editRow.cor ?? ""}
@@ -1204,24 +1204,16 @@ export default function MateriaisPage() {
                 ) : (
                   paginatedMateriais.map((material) => (
                     <TableRow key={material.id}>
-                      <TableCell className="text-left">
+                      <TableCell className="w-[120px] max-w-[120px] text-left whitespace-nowrap overflow-hidden text-ellipsis">
                         {material.referencia ?? "-"}
                       </TableCell>
-                      <TableCell className="w-[250px] text-left">
-                        {material.material
-                          ? material.material.length > 25
-                            ? material.material.slice(0, 25) + "..."
-                            : material.material
-                          : "-"}
+                      <TableCell className="w-[160px] max-w-[160px] text-left whitespace-nowrap overflow-hidden text-ellipsis">
+                        {material.material ?? "-"}
                       </TableCell>
-                      <TableCell className="w-[250px] text-left">
-                        {material.carateristica
-                          ? material.carateristica.length > 25
-                            ? material.carateristica.slice(0, 25) + "..."
-                            : material.carateristica
-                          : "-"}
+                      <TableCell className="w-[160px] max-w-[160px] text-left whitespace-nowrap overflow-hidden text-ellipsis">
+                        {material.carateristica ?? "-"}
                       </TableCell>
-                      <TableCell className="text-left">
+                      <TableCell className="flex-1 text-left">
                         {material.cor ?? "-"}
                       </TableCell>
                       <TableCell className="w-[100px] text-center">

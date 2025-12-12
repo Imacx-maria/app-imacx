@@ -10,6 +10,12 @@ import { cn } from "@/utils/tailwind";
 
 export interface CalendarProps {
   holidays?: { holiday_date: string }[];
+  // Absence dates with their situation type codes for coloring
+  absenceDates?: { date: string; code: string }[];
+  // Heat map data: date -> count of people absent (for department view)
+  heatMapData?: Record<string, number>;
+  // Max count for heat map intensity calculation
+  heatMapMax?: number;
   // Ensure compatibility with usages in the app and different DayPicker versions
   month?: Date;
   onDayClick?: (date: Date) => void;
@@ -27,6 +33,9 @@ export interface CalendarProps {
 function Calendar({
   className,
   holidays = [],
+  absenceDates = [],
+  heatMapData = {},
+  heatMapMax = 5,
   onDayClick,
   ...props
 }: CalendarProps) {
@@ -70,6 +79,47 @@ function Calendar({
     return map;
   }, [holidayDates]);
 
+  // Create a map of absence dates with their codes
+  const absenceMap = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    absenceDates.forEach((item) => {
+      if (item && item.date) {
+        map[item.date] = item.code;
+      }
+    });
+    return map;
+  }, [absenceDates]);
+
+  // Helper to check if date has a specific absence type
+  const hasAbsenceType = React.useCallback(
+    (date: Date, codes: string[]) => {
+      const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      const code = absenceMap[dateKey];
+      return code ? codes.includes(code) : false;
+    },
+    [absenceMap],
+  );
+
+  // Helper to get heat map level (1-5) based on count
+  const getHeatMapLevel = React.useCallback(
+    (date: Date): number => {
+      const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      const count = heatMapData[dateKey] || 0;
+      if (count === 0) return 0;
+      // Calculate level 1-5 based on count relative to max
+      const ratio = count / Math.max(heatMapMax, 1);
+      if (ratio <= 0.2) return 1;
+      if (ratio <= 0.4) return 2;
+      if (ratio <= 0.6) return 3;
+      if (ratio <= 0.8) return 4;
+      return 5;
+    },
+    [heatMapData, heatMapMax],
+  );
+
+  // Check if heat map mode is active (has any data)
+  const isHeatMapActive = Object.keys(heatMapData).length > 0;
+
   const modifiers = React.useMemo(
     () => ({
       ...propModifiers,
@@ -78,8 +128,35 @@ function Calendar({
         const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
         return !!holidayMap[dateKey];
       },
+      // General absence (fallback)
+      absence: (date: Date) => {
+        const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        return !!absenceMap[dateKey];
+      },
+      // Specific absence types for coloring
+      absenceFerias: (date: Date) => hasAbsenceType(date, ["H", "H1", "H2"]),
+      absenceFalta: (date: Date) => hasAbsenceType(date, ["F", "E"]),
+      absenceBaixa: (date: Date) => hasAbsenceType(date, ["S"]),
+      absenceLicenca: (date: Date) => hasAbsenceType(date, ["M"]),
+      absenceRemoto: (date: Date) => hasAbsenceType(date, ["W"]),
+      absenceFormacao: (date: Date) => hasAbsenceType(date, ["B"]),
+      absenceCompensacao: (date: Date) => hasAbsenceType(date, ["C", "L"]),
+      absenceOutro: (date: Date) => hasAbsenceType(date, ["N"]),
+      // Heat map levels (1-5)
+      heatMap1: (date: Date) => isHeatMapActive && getHeatMapLevel(date) === 1,
+      heatMap2: (date: Date) => isHeatMapActive && getHeatMapLevel(date) === 2,
+      heatMap3: (date: Date) => isHeatMapActive && getHeatMapLevel(date) === 3,
+      heatMap4: (date: Date) => isHeatMapActive && getHeatMapLevel(date) === 4,
+      heatMap5: (date: Date) => isHeatMapActive && getHeatMapLevel(date) === 5,
     }),
-    [propModifiers, holidayMap],
+    [
+      propModifiers,
+      holidayMap,
+      absenceMap,
+      hasAbsenceType,
+      isHeatMapActive,
+      getHeatMapLevel,
+    ],
   );
 
   const formatters = React.useMemo(
@@ -129,6 +206,46 @@ function Calendar({
       ...propModifiersClassNames,
       weekend: cn("rdp-weekend", propModifiersClassNames?.weekend),
       holiday: cn("rdp-holiday", propModifiersClassNames?.holiday),
+      absence: cn("rdp-absence", propModifiersClassNames?.absence),
+      // Specific absence type classes
+      absenceFerias: cn(
+        "rdp-absence-ferias",
+        propModifiersClassNames?.absenceFerias,
+      ),
+      absenceFalta: cn(
+        "rdp-absence-falta",
+        propModifiersClassNames?.absenceFalta,
+      ),
+      absenceBaixa: cn(
+        "rdp-absence-baixa",
+        propModifiersClassNames?.absenceBaixa,
+      ),
+      absenceLicenca: cn(
+        "rdp-absence-licenca",
+        propModifiersClassNames?.absenceLicenca,
+      ),
+      absenceRemoto: cn(
+        "rdp-absence-remoto",
+        propModifiersClassNames?.absenceRemoto,
+      ),
+      absenceFormacao: cn(
+        "rdp-absence-formacao",
+        propModifiersClassNames?.absenceFormacao,
+      ),
+      absenceCompensacao: cn(
+        "rdp-absence-compensacao",
+        propModifiersClassNames?.absenceCompensacao,
+      ),
+      absenceOutro: cn(
+        "rdp-absence-outro",
+        propModifiersClassNames?.absenceOutro,
+      ),
+      // Heat map levels
+      heatMap1: cn("rdp-heatmap-1", propModifiersClassNames?.heatMap1),
+      heatMap2: cn("rdp-heatmap-2", propModifiersClassNames?.heatMap2),
+      heatMap3: cn("rdp-heatmap-3", propModifiersClassNames?.heatMap3),
+      heatMap4: cn("rdp-heatmap-4", propModifiersClassNames?.heatMap4),
+      heatMap5: cn("rdp-heatmap-5", propModifiersClassNames?.heatMap5),
     }),
     [propModifiersClassNames],
   );

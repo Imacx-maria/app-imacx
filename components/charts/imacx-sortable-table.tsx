@@ -10,6 +10,26 @@ import { useState, useMemo } from "react";
 import { ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+function isProbablyNumericString(raw: string): boolean {
+  let s = raw.replace(/\u00A0/g, " ").trim(); // NBSP -> space
+  if (!s) return false;
+
+  // Strip common currency symbols placed at start/end.
+  s = s.replace(/^[\s]*[€$£¥]\s*/g, "");
+  s = s.replace(/\s*[€$£¥]\s*$/g, "");
+  s = s.trim();
+
+  if (!/\d/.test(s)) return false;
+  // Allow digits, whitespace, sign, parentheses, separators, and percent.
+  return /^[\s()+\-.,%0-9]+$/.test(s);
+}
+
+function shouldRightAlign(value: unknown): boolean {
+  if (typeof value === "number") return true;
+  if (typeof value === "string") return isProbablyNumericString(value);
+  return false;
+}
+
 export interface SortableColumnConfig {
   key: string;
   header: string;
@@ -144,6 +164,7 @@ export function ImacxSortableTable({
                       "px-4 py-3 text-sm",
                       column.align === "right" && "text-right",
                       column.align === "center" && "text-center",
+                      shouldRightAlign(displayValue) && "text-right tabular-nums",
                     )}
                   >
                     {displayValue}

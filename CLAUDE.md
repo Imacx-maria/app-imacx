@@ -112,6 +112,51 @@ Project root stays clean (only permanent config files)
 - After a migration has been applied everywhere and pushed, move it to `supabase/migrations_archive_YYYYMMDD/` (current folder: `supabase/migrations_archive_20250118/`) to keep the working directory tidy
 - If you need to provision a fresh environment, restore archived migrations (or replay them manually) in their original chronological order before running new ones
 
+✔ D. Supabase CLI Usage (Windows) — CRITICAL
+
+**Environment Setup:**
+- Supabase CLI is installed via Scoop: `C:\Users\maria\scoop\shims\supabase.exe`
+- ⛔ Do NOT use `npx supabase` — it fails on Windows with "path not found"
+- ⛔ Do NOT use PowerShell — it hangs with `>>` prompt
+- ✅ Always run `supabase` directly from **Command Prompt (cmd)**
+
+**How to Push Migrations:**
+
+1. Open Command Prompt (cmd), NOT PowerShell
+2. Navigate to project:
+   ```cmd
+   cd C:\Users\maria\Desktop\Imacx\IMACX_PROD\NOVO\imacx\NEW-APP\imacx-clean
+   ```
+3. Run:
+   ```cmd
+   supabase db push
+   ```
+
+**If migrations are out of order** (timestamp before last applied):
+```cmd
+supabase db push --include-all
+```
+
+**Migration File Naming:**
+- Format: `YYYYMMDDHHMMSS_description.sql`
+- Example: `20251211130000_fix_vacation_deduction.sql`
+- ⚠️ Use timestamps AFTER the latest applied migration to avoid needing `--include-all`
+
+**Before Creating Migrations:**
+- ✅ Check if referenced functions/tables already exist in the database
+- ✅ Don't call functions that may not be deployed yet
+- ✅ Keep migrations atomic and simple
+- ✅ Test SQL syntax before adding to migration file
+
+**Common Errors & Solutions:**
+
+| Error | Solution |
+|-------|----------|
+| PowerShell shows `>>` prompt | Use cmd instead |
+| "Cannot find path" with npx | Run `supabase` directly |
+| "Found local migrations before last remote" | Use `--include-all` flag |
+| "function does not exist" | Remove function call or ensure migration order |
+
 Before Claude creates a new file:
 
 1. Check if it exists
@@ -321,6 +366,19 @@ Use design system variables for text and backgrounds
 Use variant system (default, destructive, outline, ghost)
 
 Icon buttons use size="icon"
+
+✔ New Page Checklist
+
+When creating a new page in the app (`app/**/page.tsx`):
+
+1. **Add to AVAILABLE_PAGES** in `app/definicoes/funcoes/page.tsx`
+   - This controls role-based access permissions
+   - Include both parent category (e.g., `reports`) and specific page (e.g., `reports/ai-executive-report`)
+   - Follow existing naming patterns with Portuguese labels
+
+2. **Add to Navigation** if needed (in `components/Navigation.tsx`)
+
+3. **Protect with PagePermissionGuard** if access control is required
 
 📌 8. Financial Analysis (Phase 2) — Critical Notes
 

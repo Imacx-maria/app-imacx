@@ -20,7 +20,7 @@ export const DeleteButton = React.forwardRef<
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex h-8 w-8 items-center justify-center",
+        "flex h-8 w-8 min-w-8 flex-shrink-0 items-center justify-center rounded-full",
         "bg-destructive text-destructive-foreground",
         "imx-border ",
         "hover:bg-destructive/90",
@@ -47,7 +47,7 @@ export const EditButton = React.forwardRef<
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex h-8 w-8 items-center justify-center",
+        "flex h-8 w-8 min-w-8 flex-shrink-0 items-center justify-center rounded-full",
         "bg-accent text-accent-foreground",
         "imx-border ",
         "hover:bg-accent/80",
@@ -74,7 +74,7 @@ export const ViewButton = React.forwardRef<
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex h-8 w-8 items-center justify-center",
+        "flex h-8 w-8 min-w-8 flex-shrink-0 items-center justify-center rounded-full",
         "bg-primary text-primary-foreground",
         "imx-border ",
         "hover:bg-primary/90",

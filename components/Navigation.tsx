@@ -28,6 +28,7 @@ import {
   User,
   Loader2,
   TrendingUp,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -135,6 +136,12 @@ const menuItems: MenuItem[] = [
         pageId: "gestao/analise-financeira",
       },
     ],
+  },
+  {
+    title: "Férias e Ausências",
+    href: "/ferias",
+    icon: <CalendarDays className="h-5 w-5" />,
+    pageId: "ferias",
   },
   {
     title: "Definições",

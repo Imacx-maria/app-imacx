@@ -1,189 +1,157 @@
-import * as React from 'react'
+import * as React from "react";
 
 export function fixAriaHiddenOnMainWrapper(): () => void {
-  if (typeof document === 'undefined') {
-    return () => {}
+  if (typeof document === "undefined") {
+    return () => {};
   }
 
-  const fixDatePickerFocusIssue = () => {
-    const rdpButtons = document.querySelectorAll('.rdp-button, .rdp-button_reset')
-    const mainWrapper = document.querySelector('.w-full.max-w-\\[95vw\\].mx-auto.px-4.md\\:px-8')
-
-    if (rdpButtons.length > 0 && mainWrapper) {
-      if (mainWrapper.getAttribute('aria-hidden') === 'true') {
-        mainWrapper.removeAttribute('aria-hidden')
-      }
-
-      rdpButtons.forEach(button => {
-        let parent = button.parentElement
-        while (parent) {
-          if (parent.getAttribute('aria-hidden') === 'true') {
-            parent.removeAttribute('aria-hidden')
-            parent.setAttribute('inert', '')
-          }
-          parent = parent.parentElement
-        }
-      })
+  const removeStaleInert = () => {
+    try {
+      document.querySelectorAll("[inert]").forEach((el) => {
+        if (!(el instanceof HTMLElement)) return;
+        if (el.closest("[data-radix-portal]")) return;
+        el.removeAttribute("inert");
+      });
+    } catch (error) {
+      console.debug("Accessibility inert cleanup error:", error);
     }
-  }
+  };
 
-  const selectorsThatShouldNotBeHidden = [
-    '.w-full.max-w-\\[95vw\\].mx-auto.px-4.md\\:px-8',
-    '[data-no-aria-hidden="true"]',
-    '[role="dialog"]',
-    '.rdp',
-    '.rdp-button',
-    '.rdp-button_reset',
-  ]
+  const focusFirstFocusableInOpenRadixLayer = (): boolean => {
+    try {
+      const openLayerCandidates = Array.from(
+        document.querySelectorAll(
+          [
+            '[data-radix-portal] [data-state="open"][role="dialog"]',
+            '[data-radix-portal] [role="dialog"][data-state="open"]',
+            '[data-radix-portal] [data-state="open"][role="listbox"]',
+            '[data-radix-portal] [role="listbox"][data-state="open"]',
+            '[data-radix-portal] [data-state="open"][role="menu"]',
+            '[data-radix-portal] [role="menu"][data-state="open"]',
+          ].join(","),
+        ),
+      ) as HTMLElement[];
 
-  const fixElementsMatching = () => {
-    selectorsThatShouldNotBeHidden.forEach(selector => {
-      document.querySelectorAll(selector).forEach(element => {
-        if (element.getAttribute('aria-hidden') === 'true') {
-          element.removeAttribute('aria-hidden')
-          element.setAttribute('inert', '')
-        }
+      const openLayer = openLayerCandidates.at(-1);
+      if (!openLayer) return false;
 
-        let parent = element.parentElement
-        while (parent) {
-          if (parent.getAttribute('aria-hidden') === 'true') {
-            parent.removeAttribute('aria-hidden')
-            parent.setAttribute('inert', '')
-          }
-          parent = parent.parentElement
-        }
-      })
-    })
+      const focusable = openLayer.querySelector<HTMLElement>(
+        [
+          "button:not([disabled])",
+          "[href]",
+          "input:not([disabled])",
+          "select:not([disabled])",
+          "textarea:not([disabled])",
+          '[tabindex]:not([tabindex="-1"])',
+        ].join(","),
+      );
 
-    document.querySelectorAll('[aria-hidden="true"]').forEach(hiddenElement => {
-      if (hiddenElement.contains(document.activeElement) && document.activeElement !== document.body) {
-        hiddenElement.removeAttribute('aria-hidden')
-        hiddenElement.setAttribute('inert', '')
-      }
-    })
-  }
-
-  fixElementsMatching()
-  fixDatePickerFocusIssue()
-
-  const directlyObserveMainWrapper = () => {
-    const mainWrapper = document.querySelector('.w-full.max-w-\\[95vw\\].mx-auto.px-4.md\\:px-8')
-    if (mainWrapper) {
-      if (mainWrapper.getAttribute('aria-hidden') === 'true') {
-        mainWrapper.removeAttribute('aria-hidden')
-      }
-
-      const wrapperObserver = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-          if (mutation.type === 'attributes' && mutation.attributeName === 'aria-hidden') {
-            if (mainWrapper.getAttribute('aria-hidden') === 'true') {
-              mainWrapper.removeAttribute('aria-hidden')
-            }
-          }
-        })
-      })
-
-      wrapperObserver.observe(mainWrapper, {
-        attributes: true,
-        attributeFilter: ['aria-hidden'],
-      })
-
-      return wrapperObserver
+      (focusable ?? openLayer).focus?.({ preventScroll: true } as any);
+      return true;
+    } catch (error) {
+      console.debug("Accessibility focus fix error:", error);
+      return false;
     }
-    return null
-  }
+  };
 
-  const wrapperObserver = directlyObserveMainWrapper()
+  const moveFocusOutOfAriaHiddenSubtree = () => {
+    try {
+      const active = document.activeElement as HTMLElement | null;
+      if (!active || active === document.body) return;
 
-  const observer = new MutationObserver((mutations) => {
-    let shouldFix = false
+      const hiddenAncestor = active.closest('[aria-hidden="true"]');
+      if (!hiddenAncestor) return;
 
-    mutations.forEach(mutation => {
-      if (mutation.type === 'attributes' && mutation.attributeName === 'aria-hidden') {
-        shouldFix = true
-      } else if (mutation.type === 'childList') {
-        shouldFix = true
-      }
-    })
-
-    if (shouldFix) {
-      fixElementsMatching()
-      fixDatePickerFocusIssue()
+      active.blur?.();
+      focusFirstFocusableInOpenRadixLayer();
+    } catch (error) {
+      console.debug("Accessibility focus correction error:", error);
     }
-  })
+  };
+
+  let rafId: number | null = null;
+  const scheduleFixes = () => {
+    if (rafId !== null) return;
+    rafId = window.requestAnimationFrame(() => {
+      rafId = null;
+      removeStaleInert();
+      moveFocusOutOfAriaHiddenSubtree();
+    });
+  };
+
+  scheduleFixes();
+
+  const observer = new MutationObserver(() => {
+    scheduleFixes();
+  });
 
   observer.observe(document.body, {
     attributes: true,
-    attributeFilter: ['aria-hidden'],
+    attributeFilter: ["aria-hidden", "inert"],
     childList: true,
     subtree: true,
-  })
+  });
 
-  const handleFocusChange = () => {
-    if (document.activeElement && document.activeElement !== document.body) {
-      if (document.activeElement.closest('.rdp-button, .rdp-button_reset, .rdp')) {
-        fixDatePickerFocusIssue()
-      }
+  const handleFocusIn = () => {
+    scheduleFixes();
+  };
 
-      fixElementsMatching()
-    }
-  }
-
-  document.addEventListener('focusin', handleFocusChange)
-
-  const intervalId = setInterval(() => {
-    if (document.querySelector('.rdp-button, .rdp-button_reset')) {
-      fixDatePickerFocusIssue()
-    }
-  }, 500)
+  document.addEventListener("focusin", handleFocusIn);
 
   return () => {
-    observer.disconnect()
-    if (wrapperObserver) wrapperObserver.disconnect()
-    document.removeEventListener('focusin', handleFocusChange)
-    clearInterval(intervalId)
-  }
+    observer.disconnect();
+    document.removeEventListener("focusin", handleFocusIn);
+    if (rafId !== null) {
+      window.cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+  };
 }
 
 export function useAccessibilityFixes() {
   React.useEffect(() => {
-    return fixAriaHiddenOnMainWrapper()
-  }, [])
+    return fixAriaHiddenOnMainWrapper();
+  }, []);
 }
 
 export const replaceAriaHiddenWithInert = (element: HTMLElement): void => {
-  if (!element) return
+  if (!element) return;
+  if (typeof document === "undefined") return;
 
-  if (element.hasAttribute('aria-hidden')) {
-    const isHidden = element.getAttribute('aria-hidden') === 'true'
+  if (element.hasAttribute("inert")) {
+    element.removeAttribute("inert");
+  }
 
-    element.removeAttribute('aria-hidden')
-
-    if (isHidden) {
-      element.setAttribute('inert', '')
-    } else {
-      element.removeAttribute('inert')
+  if (element.getAttribute("aria-hidden") === "true") {
+    const active = document.activeElement as HTMLElement | null;
+    if (active && active !== document.body && element.contains(active)) {
+      active.blur?.();
     }
   }
-}
+};
 
-export const setupAriaHiddenObserver = (rootElement: HTMLElement): MutationObserver | null => {
-  if (!rootElement) return null
+export const setupAriaHiddenObserver = (
+  rootElement: HTMLElement,
+): MutationObserver | null => {
+  if (!rootElement) return null;
 
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
-      if (mutation.type === 'attributes' && mutation.attributeName === 'aria-hidden') {
-        const element = mutation.target as HTMLElement
-        replaceAriaHiddenWithInert(element)
+      if (
+        mutation.type === "attributes" &&
+        mutation.attributeName === "aria-hidden"
+      ) {
+        const element = mutation.target as HTMLElement;
+        replaceAriaHiddenWithInert(element);
       }
-    })
-  })
+    });
+  });
 
   observer.observe(rootElement, {
     attributes: true,
     subtree: true,
-    attributeFilter: ['aria-hidden'],
-  })
+    attributeFilter: ["aria-hidden"],
+  });
 
-  return observer
-}
+  return observer;
+};
