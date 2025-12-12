@@ -135,7 +135,7 @@ function Calendar({
       },
       // Specific absence types for coloring
       absenceFerias: (date: Date) => hasAbsenceType(date, ["H", "H1", "H2"]),
-      absenceFalta: (date: Date) => hasAbsenceType(date, ["F", "E"]),
+      absenceFalta: (date: Date) => hasAbsenceType(date, ["F", "F1", "F2"]),
       absenceBaixa: (date: Date) => hasAbsenceType(date, ["S"]),
       absenceLicenca: (date: Date) => hasAbsenceType(date, ["M"]),
       absenceRemoto: (date: Date) => hasAbsenceType(date, ["W"]),

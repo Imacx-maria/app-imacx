@@ -71,8 +71,8 @@ export default function UsersList({
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   // Pagination state
-  const ITEMS_PER_PAGE = 40
-  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 40;
+  const [currentPage, setCurrentPage] = useState(1);
 
   const roleNameById = useMemo(() => {
     return roles.reduce<Record<string, string>>((acc, role) => {
@@ -128,16 +128,16 @@ export default function UsersList({
 
   // Reset pagination when users change
   useEffect(() => {
-    setCurrentPage(1)
-  }, [users.length])
+    setCurrentPage(1);
+  }, [users.length]);
 
   // Paginated data
-  const totalPages = Math.ceil(sortedUsers.length / ITEMS_PER_PAGE)
+  const totalPages = Math.ceil(sortedUsers.length / ITEMS_PER_PAGE);
   const paginatedUsers = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-    const endIndex = startIndex + ITEMS_PER_PAGE
-    return sortedUsers.slice(startIndex, endIndex)
-  }, [sortedUsers, currentPage])
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return sortedUsers.slice(startIndex, endIndex);
+  }, [sortedUsers, currentPage]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -206,17 +206,23 @@ export default function UsersList({
                 >
                   APELIDO{getSortIcon("last_name")}
                 </TableHead>
-                <TableHead className="text-center">EMAIL</TableHead>
+                <TableHead className="text-center hidden 2xl:table-cell">
+                  EMAIL
+                </TableHead>
                 <TableHead
-                  className="text-center cursor-pointer hover:bg-accent transition-colors select-none"
+                  className="text-center cursor-pointer hover:bg-accent transition-colors select-none hidden md:table-cell"
                   onClick={() => toggleSort("role_id")}
                 >
                   FUNÇÃO{getSortIcon("role_id")}
                 </TableHead>
                 <TableHead className="text-center">DEPARTAMENTO</TableHead>
-                <TableHead className="text-center">SIGLAS</TableHead>
+                <TableHead className="text-center hidden 2xl:table-cell">
+                  SIGLAS
+                </TableHead>
                 <TableHead className="text-center">ESTADO</TableHead>
-                <TableHead className="text-center">DATA CRIAÇÃO</TableHead>
+                <TableHead className="text-center hidden 2xl:table-cell">
+                  DATA CRIAÇÃO
+                </TableHead>
                 <TableHead className="text-center">AÇÕES</TableHead>
               </TableRow>
             </TableHeader>
@@ -238,8 +244,10 @@ export default function UsersList({
                     </div>
                   </TableCell>
                   <TableCell>{user.last_name || "-"}</TableCell>
-                  <TableCell>{user.email || "-"}</TableCell>
-                  <TableCell>
+                  <TableCell className="hidden 2xl:table-cell">
+                    {user.email || "-"}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
                     {user.has_profile === false ? (
                       <span className="text-warning font-semibold">
                         ⚠️ PRECISA CONFIGURAÇÃO
@@ -253,7 +261,7 @@ export default function UsersList({
                       departamentoNameById[user.departamento_id]) ||
                       "-"}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden 2xl:table-cell">
                     {user.siglas && user.siglas.length > 0 ? (
                       <div className="flex flex-wrap gap-1 justify-center">
                         {user.siglas.map((sigla) => (
@@ -272,7 +280,9 @@ export default function UsersList({
                   <TableCell>
                     {user.active === false ? "Inativo" : "Ativo"}
                   </TableCell>
-                  <TableCell>{formatDate(user.created_at)}</TableCell>
+                  <TableCell className="hidden 2xl:table-cell">
+                    {formatDate(user.created_at)}
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-center gap-2">
                       {user.has_profile === false ? (
@@ -315,7 +325,8 @@ export default function UsersList({
         {totalPages > 1 && (
           <div className="flex items-center justify-between pt-4 text-sm imx-border-t">
             <div className="text-muted-foreground">
-              Página {currentPage} de {totalPages} ({sortedUsers.length} utilizadores)
+              Página {currentPage} de {totalPages} ({sortedUsers.length}{" "}
+              utilizadores)
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -329,7 +340,9 @@ export default function UsersList({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                onClick={() =>
+                  setCurrentPage(Math.min(totalPages, currentPage + 1))
+                }
                 disabled={currentPage === totalPages}
               >
                 <ArrowRight className="h-4 w-4" />

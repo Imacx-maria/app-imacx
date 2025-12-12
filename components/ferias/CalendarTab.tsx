@@ -43,7 +43,9 @@ const getSituationClass = (code: string): string => {
     H1: "bg-green-400/60",
     H2: "bg-green-400/60",
     F: "bg-red-500/80",
-    E: "bg-red-400/60",
+    F1: "bg-red-400/60",
+    F2: "bg-red-400/60",
+    E: "bg-red-400/60", // Deprecated - kept for legacy data fallback
     S: "bg-orange-500/80",
     M: "bg-purple-500/80",
     L: "bg-gray-500/80",

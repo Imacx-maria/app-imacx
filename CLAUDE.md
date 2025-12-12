@@ -469,7 +469,74 @@ Respect financial logic constraints
 
 Keep code clean, declarative, and consistent
 
-📚 12. Documentation Hub
+🏖️ 12. Vacation Year-End Transition (Ferias)
+
+**Purpose:** Automatic carryover of vacation balances on January 1st each year.
+
+**What it does:**
+1. Calculates remaining days: `previous_year_balance + current_year_total - current_year_used`
+2. Carries over to new `previous_year_balance` (capped at 20 days)
+3. Recalculates `current_year_total` for the new year (with admission-year proration)
+4. Sets `current_year_used` based on any pre-registered vacations for the new year
+
+**Environment Variable Required:**
+```env
+# Add to .env.local (and Vercel environment variables for production)
+CRON_SECRET=your-secure-random-string-here
+```
+
+Generate a secure secret:
+```bash
+openssl rand -hex 32
+```
+
+**API Endpoint:** `POST /api/ferias/year-transition`
+
+**How to Call:**
+```bash
+# Trigger transition for current year
+curl -X POST https://your-domain.com/api/ferias/year-transition \
+  -H "Authorization: Bearer YOUR_CRON_SECRET"
+
+# Trigger for specific year
+curl -X POST https://your-domain.com/api/ferias/year-transition \
+  -H "Authorization: Bearer YOUR_CRON_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"targetYear": 2026}'
+
+# Check transition history
+curl -X GET https://your-domain.com/api/ferias/year-transition \
+  -H "Authorization: Bearer YOUR_CRON_SECRET"
+```
+
+**Scheduling Options:**
+
+1. **Vercel Cron (Recommended for Vercel deployments):**
+   Add to `vercel.json`:
+   ```json
+   {
+     "crons": [{
+       "path": "/api/ferias/year-transition",
+       "schedule": "0 3 1 1 *"
+     }]
+   }
+   ```
+   Note: Vercel crons require the endpoint to accept GET requests or use a different auth method.
+
+2. **External Scheduler (GitHub Actions, cron-job.org, etc.):**
+   Schedule a POST request to the endpoint at 03:00 on January 1st (Lisbon time).
+
+3. **Manual Trigger:**
+   Use the curl commands above or add a button in the admin UI.
+
+**Idempotency:** The transition is safe to run multiple times - it logs each execution and skips if already run for the target year.
+
+**Database Functions:**
+- `run_vacation_year_transition_if_needed(p_target_year)` — Safe wrapper with advisory lock
+- `vacation_year_transition(p_target_year)` — Core transition logic
+- `vacation_year_transition_runs` — Log table tracking executions
+
+📚 13. Documentation Hub
 
 **All project documentation is organized and indexed here:**
 

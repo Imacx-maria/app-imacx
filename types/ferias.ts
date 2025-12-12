@@ -213,6 +213,9 @@ export const SITUATION_CODES = {
   VACATION_MORNING: "H1",
   VACATION_AFTERNOON: "H2",
   ABSENCE: "F",
+  ABSENCE_MORNING: "F1",
+  ABSENCE_AFTERNOON: "F2",
+  /** @deprecated Use ABSENCE_MORNING (F1) instead. E records have been migrated to F1. */
   HALF_ABSENCE: "E",
   SICK_LEAVE: "S",
   PARENTAL_LEAVE: "M",
